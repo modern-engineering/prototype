@@ -1,8 +1,9 @@
 # Dependabot Auto-merge Workflow
 #
-# Two-tier auto-merge for Dependabot PRs:
+# All bump levels enable auto-merge; major updates require human approval:
 # - Patch: auto-approved (low-risk)
 # - Minor: Claude reviews, approves if acceptable
+# - Major: Claude advises, human must approve; merge job cleans up the commit
 
 name: "🤖 ClauDependabot"
 
@@ -90,6 +91,51 @@ jobs:
             --allowedTools "Bash(gh issue:*),Bash(gh search:*),Bash(gh run:*),Bash(gh workflow:*),Bash(gh release:*)"
             --allowedTools "Bash(go:*),WebFetch,WebSearch"
             --max-turns 25
+
+      - name: Review major
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_bots: dependabot
+          display_report: ${{ runner.debug == '1' }}
+          prompt: |
+            This is a Dependabot PR for a MAJOR version update.
+
+            Package ecosystem: ${{ steps.metadata.outputs.package-ecosystem }}
+            Dependency: ${{ steps.metadata.outputs.dependency-names }}
+            Update: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}
+            PR: ${{ github.event.pull_request.html_url }}
+
+            Use `gh pr diff` and `gh pr view` to review the changes.
+
+            Before reviewing, check whether you have already reviewed this PR
+            by running `gh pr view --json reviews`. If a prior review comment
+            from you exists, compare your new analysis against it. If the
+            conclusions are substantially the same, skip posting and exit early.
+            Only post a new review if your analysis has materially changed.
+
+            Major updates may have breaking changes. Please:
+
+            1. Fetch the dependency's release page and CHANGELOG to understand what changed
+            2. Check the README for migration guides
+            3. Review the codebase for usages of this dependency
+            4. If changes are needed, comment on the PR with suggested fixes
+
+            For github_actions ecosystem specifically:
+            - Review the workflow files in .github/workflows/ that use this action
+            - Check for deprecated inputs, outputs, or runner requirements
+
+            Do NOT approve, merge, or push commits to this PR.
+            Use `gh pr review --comment` to post your analysis and any suggested code changes.
+            IMPORTANT: Place all parameters AFTER --comment (e.g., `gh pr review --comment --body "..." <PR_URL>`).
+          claude_args: |
+            --allowedTools "Read,Glob,Grep"
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review --comment:*),Bash(gh pr review -c:*)"
+            --allowedTools "Bash(gh issue:*),Bash(gh search:*),Bash(gh run:*),Bash(gh workflow:*),Bash(gh release:*)"
+            --allowedTools "Bash(go:*),WebFetch,WebSearch"
+            --disallowedTools "Bash(gh pr review --approve:*),Bash(gh pr review -a:*)"
+            --max-turns 50
 
   merge:
     name: Merge
