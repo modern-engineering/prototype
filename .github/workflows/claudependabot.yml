@@ -1,6 +1,6 @@
 # Dependabot Auto-merge Workflow
 #
-# Patch updates are auto-approved as low-risk changes.
+# Patch updates are auto-approved, then auto-merged.
 
 name: "🤖 ClauDependabot"
 
@@ -42,3 +42,33 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  merge:
+    name: Merge
+    runs-on: ubuntu-slim
+    needs: review
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write # Required by: gh pr merge --auto
+      pull-requests: write # Required by: gh pr merge --auto
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          compat-lookup: true
+
+      - name: Auto-merge patch
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr merge --auto --squash "$PR_URL" --body "$BODY"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: |
+            This patch update was merged automatically since patch-level
+            changes carry minimal risk of breaking existing functionality.
+
+            Compatibility score: ${{ steps.metadata.outputs.compatibility-score }}%
+
+            Auto-merged-by: ClauDependabot
