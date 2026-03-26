@@ -1,0 +1,42 @@
+# Continuous Integration Workflow
+#
+# Validates code correctness on every pull request and push to main.
+#
+# The test job runs the test suite across multiple Go versions (stable and
+# oldstable) with race detection enabled to catch concurrency issues.
+
+name: "🚦 Integration"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: "🧪 Testing"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [stable, oldstable]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -v -race ./...
