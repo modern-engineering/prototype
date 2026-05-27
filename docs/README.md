@@ -1,6 +1,7 @@
 # Documentation
 
-| Document               | Description                                         |
-| ---------------------- | --------------------------------------------------- |
-| [adr/](adr/)           | Architectural decision records (MADR 4.0.0)         |
-| [analysis/](analysis/) | INCOSE-style analyses that survey the problem space |
+| Document               | Description                                                       |
+| ---------------------- | ----------------------------------------------------------------- |
+| [adr/](adr/)           | Architectural decision records (MADR 4.0.0)                       |
+| [analysis/](analysis/) | INCOSE-style analyses that survey the problem space               |
+| [reqs/](reqs/)         | Requirements informed by the analyses                             |
