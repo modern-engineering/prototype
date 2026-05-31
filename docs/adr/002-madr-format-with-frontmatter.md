@@ -1,6 +1,7 @@
 ---
-status: accepted
-date: 2026-03-26
+status: superseded
+since: 2026-05-31
+superseded-by: 003
 ---
 
 # Use MADR 4.0.0 with YAML Frontmatter
