@@ -1,6 +1,6 @@
 ---
 status: accepted
-date: 2026-03-26
+since: 2026-03-26
 ---
 
 # Use Architectural Decision Records
