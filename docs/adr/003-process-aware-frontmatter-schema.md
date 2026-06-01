@@ -1,7 +1,6 @@
 ---
 status: accepted
 since: 2026-05-31
-supersedes: 002
 ---
 
 # Adopt a Process-Aware Frontmatter Schema
@@ -82,8 +81,6 @@ mandates.
   last-modified dates remain git's responsibility.
 - A requirement's link to its analyses becomes machine-readable through
   `derived-from`; the inverse link is derived, not stored.
-- This record supersedes [ADR-002][adr-002], whose status moves to `superseded`.
-  Its body stays intact, per the immutability rule in [ADR-001][adr-001].
 - Existing documents still carrying `date` migrate to `since` in a follow-up.
 
 ## More Information
