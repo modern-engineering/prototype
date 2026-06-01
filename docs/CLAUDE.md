@@ -8,7 +8,7 @@
 ## Conventions
 
 - A new document takes the next free number in its family; never reuse one.
-- Frontmatter follows the schema in `adr/D-03-process-aware-frontmatter-schema.md`:
+- Frontmatter follows the schema the `adr/` records define:
   - `status` (`draft`/`proposed` while unstable, `accepted` once settled, `deprecated`/`superseded` later)
   - `since` (date of that status)
   - plus traceability (`derived-from` on requirements, `supersedes`/`superseded-by`)
@@ -18,6 +18,6 @@
 ## Cross-references
 
 - Link between documents reference-style, with definitions at the foot of the file.
-- Link text pairs the ID with words: `[A3 Parameterization][…]`, never bare `[A3]`. For a long target, name the section too and point its definition at the `#fragment`.
+- Link text pairs the ID with words: `[A-03 Parameterization][…]`, never bare `[A-03]`. For a long target, name the section too and point its definition at the `#fragment`.
 - This overrides the global inline-link default and is scoped to `docs/`; do not revert it.
 - Keep inline links only in `README.md` index tables, where the row supplies context.
