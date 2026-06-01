@@ -8,7 +8,7 @@
 ## Conventions
 
 - A new document takes the next free number in its family; never reuse one.
-- Frontmatter follows the schema in `adr/003-process-aware-frontmatter-schema.md`:
+- Frontmatter follows the schema in `adr/D-03-process-aware-frontmatter-schema.md`:
   - `status` (`draft`/`proposed` while unstable, `accepted` once settled, `deprecated`/`superseded` later)
   - `since` (date of that status)
   - plus traceability (`derived-from` on requirements, `supersedes`/`superseded-by`)

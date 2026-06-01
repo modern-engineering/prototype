@@ -7,7 +7,7 @@ since: 2026-05-31
 
 ## Context and Problem Statement
 
-[ADR-002 MADR format][adr-002] fixed the frontmatter at `status` and `date`, the
+[D-02 MADR format][d-02] fixed the frontmatter at `status` and `date`, the
 minimum the corpus needed before it had a process. Now that the corpus runs as a
 connected workflow (analyses survey forces, requirements quote them, ADRs record
 choices), the metadata can carry that process instead of merely labelling files.
@@ -22,9 +22,9 @@ Two weaknesses surfaced:
 
 ## Decision Drivers
 
-- Frontmatter exists for tooling and queries (the reason [ADR-002][adr-002]
-  chose it). Every field must serve a consumer and must not duplicate an
-  authoritative source: git, the filename, or the H1 title.
+- Frontmatter exists for tooling and queries (the reason [D-02][d-02] chose it).
+  Every field must serve a consumer and must not duplicate an authoritative
+  source: git, the filename, or the H1 title.
 - Traceability is the backbone of the process; "every artifact traces back"
   should be queryable, not only prose.
 - The lifecycle vocabulary differs per family; the schema must admit that
@@ -35,12 +35,12 @@ Two weaknesses surfaced:
 - **Process-aware schema** — semantic `since`, per-family `status` enums, and
   machine-readable traceability fields.
 - **A `draft` boolean instead of `status`** — one stable/unstable flag.
-- **Keep `status` plus `date`** — the [ADR-002][adr-002] minimum.
+- **Keep `status` plus `date`** — the [D-02][d-02] minimum.
 
 ## Decision Outcome
 
 Chosen option: "Process-aware schema." It retains MADR 4.0.0 (inherited from
-[ADR-002][adr-002]) and replaces the two free-form fields with:
+[D-02][d-02]) and replaces the two free-form fields with:
 
 | Field                          | Families     | Meaning                                                                                                        |
 | ------------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------- |
@@ -72,7 +72,7 @@ bends per family where the domain reads better:
 
 The `draft` boolean was rejected: it collapses this shape to two states and
 cannot express the off-ramps (abandoned, `rejected`) or the end-of-life states
-(`deprecated`, `superseded`) that [ADR-001 decision records][adr-001] already
+(`deprecated`, `superseded`) that [D-01 decision records][d-01] already
 mandates.
 
 ### Consequences
@@ -90,6 +90,6 @@ mandates.
   deferred until requirements are verified in practice.
 - [MADR 4.0.0][madr]
 
-[adr-001]: 001-use-architectural-decision-records.md
-[adr-002]: 002-madr-format-with-frontmatter.md
+[d-01]: D-01-use-architectural-decision-records.md
+[d-02]: D-02-madr-format-with-frontmatter.md
 [madr]: https://adr.github.io/madr/
