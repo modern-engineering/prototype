@@ -1,5 +1,7 @@
 # Documentation
 
-| Document     | Description                                 |
-| ------------ | ------------------------------------------- |
-| [adr/](adr/) | Architectural decision records (MADR 4.0.0) |
+| Family                 | Description                                           |
+| ---------------------- | ----------------------------------------------------- |
+| [analysis/](analysis/) | Problem-space analyses that motivate the requirements |
+| [reqs/](reqs/)         | Requirements derived from the analyses                |
+| [adr/](adr/)           | Architectural decision records (MADR 4.0.0)           |
