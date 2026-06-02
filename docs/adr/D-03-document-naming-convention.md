@@ -9,9 +9,10 @@ since: 2026-05-31
 
 The corpus spans several families — analyses, requirements, decision records —
 and every document needs a name that a human recognises and a tool can resolve.
-A bare sequence number ([D-01][d-01] started at `001`) does neither well: people
-do not recall what "002" decided, and an unquoted number in YAML frontmatter is
-read as an integer, losing its zero-padding and differing between parsers.
+A bare sequence number ([D-01 decision records] started at `001`) does neither
+well: people do not recall what "002" decided, and an unquoted number in YAML
+frontmatter is read as an integer, losing its zero-padding and differing between
+parsers.
 
 ## Decision Drivers
 
@@ -60,5 +61,5 @@ the prefix resolves a reference to its file by `<family-dir>/<prefix>-*.md`.
 
 - [eddt identifier grammar][eddt]
 
-[d-01]: D-01-use-architectural-decision-records.md
+[D-01 decision records]: D-01-use-architectural-decision-records.md
 [eddt]: https://github.com/resystems-io/eddt

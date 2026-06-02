@@ -22,8 +22,8 @@ by reading every body.
 
 ## Decision Outcome
 
-Record relationships as pairs of [family-prefixed identifiers][d-03], one field
-per direction, stored on both records:
+Record relationships as pairs of [family-prefixed identifiers], one field per
+direction, stored on both records:
 
 | Forward      | Inverse         | Families                | Meaning                     |
 | ------------ | --------------- | ----------------------- | --------------------------- |
@@ -59,5 +59,5 @@ the context a bare pointer cannot.
 
 - [MADR 4.0.0][madr]
 
-[d-03]: D-03-document-naming-convention.md
+[family-prefixed identifiers]: D-03-document-naming-convention.md
 [madr]: https://adr.github.io/madr/

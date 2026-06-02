@@ -26,7 +26,7 @@ modified" or "authored", only duplicates what git already records.
 
 - **A per-family `status` enum with a `since` transition date.**
 - **A `draft` boolean** — one stable/unstable flag.
-- **Keep the free `status` plus `date`** — the [D-02][d-02] minimum.
+- **Keep the free `status` plus `date`** — the [D-02 minimum][d-02].
 
 ## Decision Outcome
 
@@ -51,8 +51,8 @@ not: when the status last changed. Authoring and last-modified dates remain
 git's responsibility.
 
 Recording a transition edits the frontmatter of an accepted record. This refines
-[D-01][d-01]: its immutability governs the decision body, while lifecycle and
-relationship metadata stay mutable so the corpus stays navigable.
+[D-01 decision records][d-01]: its immutability governs the decision body, while
+lifecycle and relationship metadata stay mutable so the corpus stays navigable.
 
 The `draft` boolean was rejected: it collapses this shape to two states and
 cannot express the off-ramp (`rejected`) or the end-of-life states.

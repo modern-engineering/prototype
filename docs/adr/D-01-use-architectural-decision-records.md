@@ -42,4 +42,6 @@ requests, and available offline.
 
 ## More Information
 
-- [ADR GitHub organization](https://adr.github.io/)
+- [ADR GitHub organization][adr-org]
+
+[adr-org]: https://adr.github.io/

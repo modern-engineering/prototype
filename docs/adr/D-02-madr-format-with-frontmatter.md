@@ -7,10 +7,9 @@ since: 2026-03-26
 
 ## Context and Problem Statement
 
-Having decided to use ADRs ([D-01](D-01-use-architectural-decision-records.md)),
-we need a consistent template. The template should be structured enough to guide
-authors yet flexible enough to omit sections that add no value for
-straightforward decisions.
+Having decided to use ADRs ([D-01 decision records]), we need a consistent
+template. The template should be structured enough to guide authors yet flexible
+enough to omit sections that add no value for straightforward decisions.
 
 ## Decision Drivers
 
@@ -46,4 +45,5 @@ Information) are included only when they add value.
 
 - [MADR 4.0.0][madr]
 
+[D-01 decision records]: D-01-use-architectural-decision-records.md
 [madr]: https://adr.github.io/madr/
