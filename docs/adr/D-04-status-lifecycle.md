@@ -1,6 +1,8 @@
 ---
 status: accepted
 since: 2026-05-31
+refines:
+  - D-01-use-architectural-decision-records
 ---
 
 # Define a Per-Family Status Lifecycle
@@ -47,6 +49,10 @@ the domain reads better:
 It moves on a transition and never on a content edit, so it states what git does
 not: when the status last changed. Authoring and last-modified dates remain
 git's responsibility.
+
+Recording a transition edits the frontmatter of an accepted record. This refines
+[D-01][d-01]: its immutability governs the decision body, while lifecycle and
+relationship metadata stay mutable so the corpus stays navigable.
 
 The `draft` boolean was rejected: it collapses this shape to two states and
 cannot express the off-ramp (`rejected`) or the end-of-life states.
