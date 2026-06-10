@@ -1,6 +1,8 @@
 ---
 status: accepted
 since: 2026-03-26
+refined-by:
+  - D-04-status-lifecycle
 ---
 
 # Use MADR 4.0.0 with YAML Frontmatter

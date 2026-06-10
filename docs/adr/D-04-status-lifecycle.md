@@ -3,6 +3,7 @@ status: accepted
 since: 2026-05-31
 refines:
   - D-01-use-architectural-decision-records
+  - D-02-madr-format-with-frontmatter
 ---
 
 # Define a Per-Family Status Lifecycle
