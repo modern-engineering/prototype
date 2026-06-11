@@ -1,6 +1,8 @@
 ---
 status: accepted
-date: 2026-03-26
+since: 2026-03-26
+refined-by:
+  - D-04-status-lifecycle
 ---
 
 # Use Architectural Decision Records
@@ -40,4 +42,6 @@ requests, and available offline.
 
 ## More Information
 
-- [ADR GitHub organization](https://adr.github.io/)
+- [ADR GitHub organization][adr-org]
+
+[adr-org]: https://adr.github.io/

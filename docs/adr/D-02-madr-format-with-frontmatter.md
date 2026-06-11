@@ -1,14 +1,15 @@
 ---
 status: accepted
-date: 2026-03-26
+since: 2026-03-26
+refined-by:
+  - D-04-status-lifecycle
 ---
 
 # Use MADR 4.0.0 with YAML Frontmatter
 
 ## Context and Problem Statement
 
-Having decided to use ADRs
-([ADR-001](001-use-architectural-decision-records.md)), we need a consistent
+Having decided to use ADRs ([D-01 decision records]), we need a consistent
 template. The template should be structured enough to guide authors yet flexible
 enough to omit sections that add no value for straightforward decisions.
 
@@ -46,4 +47,5 @@ Information) are included only when they add value.
 
 - [MADR 4.0.0][madr]
 
+[D-01 decision records]: D-01-use-architectural-decision-records.md
 [madr]: https://adr.github.io/madr/
