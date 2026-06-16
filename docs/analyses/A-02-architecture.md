@@ -72,7 +72,7 @@ package's `ff.Parse` layers sources (flags, environment, config file) with
 documented priority.
 
 **What this project likes.** Per-`Command` `FlagSet` matches the per-instance
-`FlagSet` needs that parameterization will develop; the `(ctx, error)`
+`FlagSet` needs that [A-03 Parameterization] develops; the `(ctx, error)`
 entry-point shape matches the long-running contract that termination signaling
 will develop; layered-source parsing fits the same "parameterization comes from
 many places."
@@ -95,8 +95,9 @@ must address:
   components (for help, list, dispatch) at runtime without sacrificing the
   testability of fresh registries.
 - **Multi-instance hosting.** The hosting pattern must admit "one program, N
-  instances of one component," the parameterization model a later analysis
-  develops. Globals on `flag.CommandLine` are disqualifying.
+  instances of one component," the parameterization model
+  [A-03 Parameterization] develops. Globals on `flag.CommandLine` are
+  disqualifying.
 - **Long-running lifecycle.** The hosting pattern must admit signal-driven
   shutdown, structured observability surfaces, and components that grow
   capability over time.
@@ -166,3 +167,4 @@ The seam is the funnel. The choices on either side of it are independent.
   multi-instance use directly.
 
 [A-01 Scope]: A-01-scope.md
+[A-03 Parameterization]: A-03-parameterization.md

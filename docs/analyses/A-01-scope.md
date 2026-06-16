@@ -43,8 +43,8 @@ first-class:
   exception. The framework must offer a place for components to observe shutdown
   and respond.
 - **Multi-instance hosting.** A program may run several parameterized instances
-  of the same component within a single process. A later analysis develops the
-  parameterization model this demands.
+  of the same component within a single process. [A-03 Parameterization]
+  develops the parameterization model this demands.
 - **Long-form parameterization.** Configuration comes from environment, files,
   secret stores, control planes, command-line flags. Programs in this scope
   routinely accept richer inputs than `argv` slots.
@@ -88,7 +88,7 @@ follow:
 - [A-02 Architecture] judges hosting patterns by whether they admit long-running
   multi-instance use, and explains why hosting many instances demands a
   registry.
-- A later analysis treats input-from-everywhere as the default for
+- [A-03 Parameterization] treats input-from-everywhere as the default for
   parameterization.
 - A later analysis admits one base method plus capability extensions, because
   long-running components grow observability surfaces over time.
@@ -107,3 +107,4 @@ follow:
   it; nothing in the current contract optimizes for it.
 
 [A-02 Architecture]: A-02-architecture.md
+[A-03 Parameterization]: A-03-parameterization.md
