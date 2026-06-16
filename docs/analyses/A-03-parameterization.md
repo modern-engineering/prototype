@@ -83,7 +83,7 @@ The need plus the survey surface four forces this analysis records for the
 requirements:
 
 - Slot declarations must be **inspectable by the framework** so help, list,
-  validation, and completion can read them.
+  validation, and completion can read them ([A-07 Documentation]).
 - Bindings must be **late**: the loader chooses where values come from, after
   the component author has declared what the component needs.
 - **Multiple instances** of one blueprint must be possible in one process, each
@@ -121,7 +121,8 @@ Each one is load-bearing for some other analysis.
   returns the runner. No I/O, no validation against bound values (because no
   values are bound at instantiation time).
 - **Infallible.** Help rendering instantiates without intent to run; failure
-  modes that depend on bound values surface at `Run`, not at instantiation.
+  modes that depend on bound values surface at `Run`, not at instantiation
+  ([A-07 Documentation]).
 - **Receives only the instance.** No context, no ambient services. The instance
   carries no I/O; the closure receives ambient services through `ctx` at `Run`
   time.
@@ -170,3 +171,4 @@ but the same shape serves single-instance use as well.
 [A-02 Architecture]: A-02-architecture.md
 [A-04 Component Contract]: A-04-component-contract.md
 [A-06 Metadata]: A-06-metadata.md
+[A-07 Documentation]: A-07-documentation.md

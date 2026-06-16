@@ -138,7 +138,7 @@ Two layers emerge.
 - Registry mechanics.
 - The instantiation function contract.
 - The Runner interface and the base capability set ([A-04 Component Contract]).
-- Help rendering.
+- Help rendering ([A-07 Documentation]).
 - Metadata mechanism.
 - Ambient-services helpers and their canonical key types.
 
@@ -171,3 +171,4 @@ The seam is the funnel. The choices on either side of it are independent.
 [A-04 Component Contract]: A-04-component-contract.md
 [A-05 Termination]: A-05-termination.md
 [A-06 Metadata]: A-06-metadata.md
+[A-07 Documentation]: A-07-documentation.md
