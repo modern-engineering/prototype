@@ -98,8 +98,8 @@ The forces above admit one shape that subsequent analyses depend on (without
 locking names):
 
 1. **The blueprint** (`Descriptor`). A registered, immutable value carrying the
-   component's name, its instantiation function, and metadata. One blueprint per
-   registration call.
+   component's name, its instantiation function, and metadata ([A-06 Metadata]).
+   One blueprint per registration call.
 
 2. **The instance** (`Instance`). A per-replica value carrying identity (name
    copied from the blueprint, ID assigned by the loader) and the slot
@@ -159,9 +159,9 @@ but the same shape serves single-instance use as well.
   direction keeps `*flag.FlagSet` as the substrate, with the `parameter`
   package's decorators (boolean, required, future JSON-aware) sitting on top.
   Future analyses or requirements may revisit.
-- Whether instances carry baggage of their own (loader-set, instance-specific
-  values) in addition to the blueprint's baggage. Currently deferred; the same
-  mechanism extends to the instance if a use case arises.
+- Whether instances carry baggage ([A-06 Metadata]) of their own (loader-set,
+  instance-specific values) in addition to the blueprint's baggage. Currently
+  deferred; the same mechanism extends to the instance if a use case arises.
 - Whether the framework offers helpers for late validation (a `Validate(ctx)`
   pass between binding and `Run`). Currently deferred; the runner's first
   statement can validate, but a framework-level hook may earn its place later.
@@ -169,3 +169,4 @@ but the same shape serves single-instance use as well.
 [A-01 Scope]: A-01-scope.md
 [A-02 Architecture]: A-02-architecture.md
 [A-04 Component Contract]: A-04-component-contract.md
+[A-06 Metadata]: A-06-metadata.md

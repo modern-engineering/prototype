@@ -159,7 +159,7 @@ The seam is the funnel. The choices on either side of it are independent.
 - The registry's exposure mechanism (package-level `Register` versus only via
   `*Registry` construction) is a usability/testability trade-off the
   requirements will weigh.
-- The exact metadata schema on the descriptor; a later analysis surveys the
+- The exact metadata schema on the descriptor; [A-06 Metadata] surveys the
   options and the requirements pick one.
 - Whether plugin transports (Go plugin `.so`, build-a-custom-binary) belong in
   scope. Not addressed here; mentioned only to note that `golangci-lint`'s two
@@ -170,3 +170,4 @@ The seam is the funnel. The choices on either side of it are independent.
 [A-03 Parameterization]: A-03-parameterization.md
 [A-04 Component Contract]: A-04-component-contract.md
 [A-05 Termination]: A-05-termination.md
+[A-06 Metadata]: A-06-metadata.md
