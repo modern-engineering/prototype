@@ -77,10 +77,10 @@ tests cannot easily run in parallel without registry contamination.
 
 ### `context.WithValue` with Stringly-Typed (or Struct-Typed) Keys
 
-The runtime-values pattern, used legitimately for ambient services, a concern a
-later analysis develops. Works for request-scoped data and ambient services;
-type-erased at retrieval; type assertion required. Conflates request-scoped data
-with descriptor-level metadata if used here.
+The runtime-values pattern, used legitimately for ambient services, a concern
+[A-08 Ambient Services] develops. Works for request-scoped data and ambient
+services; type-erased at retrieval; type assertion required. Conflates
+request-scoped data with descriptor-level metadata if used here.
 
 ### Generic Typed Keys (`Key[T]`)
 
@@ -146,3 +146,5 @@ forces, not that one carrier is "correct" in some absolute sense.
   function that enumerates registered keys for debugging or doc-generation
   tools. Currently deferred; the open-set extension property makes a global
   enumeration weakly meaningful.
+
+[A-08 Ambient Services]: A-08-ambient-services.md

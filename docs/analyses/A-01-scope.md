@@ -94,9 +94,9 @@ follow:
   because long-running components grow observability surfaces over time.
 - [A-05 Termination] separates the termination trigger from its confirmation,
   because graceful shutdown is the normal case, not an exception.
-- A later analysis draws sharp distinctions around ambient services, because
-  long-running multi-instance programs routinely confuse per-instance ambient
-  state with per-process shared resources.
+- [A-08 Ambient Services] draws sharp distinctions around ambient services,
+  because long-running multi-instance programs routinely confuse per-instance
+  ambient state with per-process shared resources.
 
 ## Open Questions
 
@@ -110,3 +110,4 @@ follow:
 [A-03 Parameterization]: A-03-parameterization.md
 [A-04 Component Contract]: A-04-component-contract.md
 [A-05 Termination]: A-05-termination.md
+[A-08 Ambient Services]: A-08-ambient-services.md

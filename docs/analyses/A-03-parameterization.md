@@ -125,7 +125,7 @@ Each one is load-bearing for some other analysis.
   ([A-07 Documentation]).
 - **Receives only the instance.** No context, no ambient services. The instance
   carries no I/O; the closure receives ambient services through `ctx` at `Run`
-  time.
+  time ([A-08 Ambient Services]).
 - **Safe to call multiple times.** Help may instantiate; tests may instantiate;
   the loader instantiates once per replica. Each call produces an independent
   runner with independent slot state.
@@ -172,3 +172,4 @@ but the same shape serves single-instance use as well.
 [A-04 Component Contract]: A-04-component-contract.md
 [A-06 Metadata]: A-06-metadata.md
 [A-07 Documentation]: A-07-documentation.md
+[A-08 Ambient Services]: A-08-ambient-services.md

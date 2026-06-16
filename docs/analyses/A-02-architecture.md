@@ -140,7 +140,8 @@ Two layers emerge.
 - The Runner interface and the base capability set ([A-04 Component Contract]).
 - Help rendering ([A-07 Documentation]).
 - Metadata mechanism.
-- Ambient-services helpers and their canonical key types.
+- Ambient-services helpers and their canonical key types
+  ([A-08 Ambient Services]).
 
 **Peripheral loaders** (working names: `ffloader`, `enterpriseloader`, ...):
 
@@ -172,3 +173,4 @@ The seam is the funnel. The choices on either side of it are independent.
 [A-05 Termination]: A-05-termination.md
 [A-06 Metadata]: A-06-metadata.md
 [A-07 Documentation]: A-07-documentation.md
+[A-08 Ambient Services]: A-08-ambient-services.md

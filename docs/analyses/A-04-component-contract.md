@@ -157,9 +157,9 @@ the action, or substitutes a different plan).
 - A capability called `ProvidesStdout` is similar: the answer is yes by default;
   the question is degenerate.
 
-A later analysis develops this behaviors-versus-values distinction in detail.
-The summary: capability interfaces are for **discrete actions**, not for value
-queries. Value queries belong on context with helper functions and sane
+[A-08 Ambient Services] develops this behaviors-versus-values distinction in
+detail. The summary: capability interfaces are for **discrete actions**, not for
+value queries. Value queries belong on context with helper functions and sane
 defaults.
 
 ## Open Questions
@@ -181,3 +181,4 @@ defaults.
   own synchronization.
 
 [A-05 Termination]: A-05-termination.md
+[A-08 Ambient Services]: A-08-ambient-services.md

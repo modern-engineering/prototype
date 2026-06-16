@@ -113,9 +113,9 @@ This requires the instantiation function to be:
 The invariant binds the documentation work to the parameterization work
 ([A-03 Parameterization]): both require the instantiation function to be a clean
 declaration, separate from the runtime. The invariant is also why the
-instantiation function does not receive a `context.Context`: if it did, it could
-reach for ambient services (logging, stdout) during construction, breaking help
-rendering.
+instantiation function does not receive a `context.Context`
+([A-08 Ambient Services]): if it did, it could reach for ambient services
+(logging, stdout) during construction, breaking help rendering.
 
 ## Open Questions
 
@@ -140,3 +140,4 @@ rendering.
   emerges.
 
 [A-03 Parameterization]: A-03-parameterization.md
+[A-08 Ambient Services]: A-08-ambient-services.md
