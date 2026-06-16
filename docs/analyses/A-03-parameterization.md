@@ -107,10 +107,10 @@ locking names):
    instance, not shared with any other). One instance per replica.
 
 3. **The runner** (`Runner`). A value (or a function adapted to a single-method
-   interface, developed by a later analysis) implementing `Run(ctx) error`.
-   Constructed by an instantiation function that receives the instance, declares
-   slots on `Instance.Flags`, binds closure-captured locals, and returns the
-   runner.
+   interface, developed in [A-04 Component Contract]) implementing
+   `Run(ctx) error`. Constructed by an instantiation function that receives the
+   instance, declares slots on `Instance.Flags`, binds closure-captured locals,
+   and returns the runner.
 
 ### The Instantiation Function's Discipline
 
@@ -168,3 +168,4 @@ but the same shape serves single-instance use as well.
 
 [A-01 Scope]: A-01-scope.md
 [A-02 Architecture]: A-02-architecture.md
+[A-04 Component Contract]: A-04-component-contract.md

@@ -100,7 +100,7 @@ must address:
   disqualifying.
 - **Long-running lifecycle.** The hosting pattern must admit signal-driven
   shutdown, structured observability surfaces, and components that grow
-  capability over time.
+  capability over time ([A-04 Component Contract]).
 
 ## Why a Registry Exists
 
@@ -137,7 +137,7 @@ Two layers emerge.
 - Component-as-blueprint and component-as-instance value types.
 - Registry mechanics.
 - The instantiation function contract.
-- The Runner interface and the base capability set.
+- The Runner interface and the base capability set ([A-04 Component Contract]).
 - Help rendering.
 - Metadata mechanism.
 - Ambient-services helpers and their canonical key types.
@@ -168,3 +168,4 @@ The seam is the funnel. The choices on either side of it are independent.
 
 [A-01 Scope]: A-01-scope.md
 [A-03 Parameterization]: A-03-parameterization.md
+[A-04 Component Contract]: A-04-component-contract.md
