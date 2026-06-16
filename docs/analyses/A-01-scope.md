@@ -92,7 +92,7 @@ follow:
   parameterization.
 - [A-04 Component Contract] admits one base method plus capability extensions,
   because long-running components grow observability surfaces over time.
-- A later analysis separates the termination trigger from its confirmation,
+- [A-05 Termination] separates the termination trigger from its confirmation,
   because graceful shutdown is the normal case, not an exception.
 - A later analysis draws sharp distinctions around ambient services, because
   long-running multi-instance programs routinely confuse per-instance ambient
@@ -109,3 +109,4 @@ follow:
 [A-02 Architecture]: A-02-architecture.md
 [A-03 Parameterization]: A-03-parameterization.md
 [A-04 Component Contract]: A-04-component-contract.md
+[A-05 Termination]: A-05-termination.md

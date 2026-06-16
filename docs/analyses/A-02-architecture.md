@@ -73,9 +73,9 @@ documented priority.
 
 **What this project likes.** Per-`Command` `FlagSet` matches the per-instance
 `FlagSet` needs that [A-03 Parameterization] develops; the `(ctx, error)`
-entry-point shape matches the long-running contract that termination signaling
-will develop; layered-source parsing fits the same "parameterization comes from
-many places."
+entry-point shape matches the long-running contract that [A-05 Termination]
+develops; layered-source parsing fits the same "parameterization comes from many
+places."
 
 **What this project dislikes** (against scope): `Command`'s tree of commands is
 CLI-shaped; multi-instance hosting in one process is not the design center;
@@ -100,7 +100,7 @@ must address:
   disqualifying.
 - **Long-running lifecycle.** The hosting pattern must admit signal-driven
   shutdown, structured observability surfaces, and components that grow
-  capability over time ([A-04 Component Contract]).
+  capability over time ([A-04 Component Contract], [A-05 Termination]).
 
 ## Why a Registry Exists
 
@@ -169,3 +169,4 @@ The seam is the funnel. The choices on either side of it are independent.
 [A-01 Scope]: A-01-scope.md
 [A-03 Parameterization]: A-03-parameterization.md
 [A-04 Component Contract]: A-04-component-contract.md
+[A-05 Termination]: A-05-termination.md

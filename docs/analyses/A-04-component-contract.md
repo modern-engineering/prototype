@@ -78,7 +78,7 @@ adapter. The adapter pattern fits single-method interfaces.
 ## What This Framework Takes from the Inspirations
 
 - A **single-method base interface** for the runner. `Run(ctx) error` is enough;
-  a later analysis develops the full signature.
+  [A-05 Termination] develops the full signature.
 - A **function adapter** (working name: `RunFunc`) so function-shaped components
   avoid struct boilerplate. Same shape as `http.Handler`/`http.HandlerFunc`.
 - **Capability interfaces** (working names: `Shutdowner`, `Healthy`, `Ready`,
@@ -179,3 +179,5 @@ defaults.
   pattern is the current direction; capability methods read the receiver. The
   framework does not provide a built-in helper; component authors choose their
   own synchronization.
+
+[A-05 Termination]: A-05-termination.md
