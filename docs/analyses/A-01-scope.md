@@ -85,7 +85,7 @@ explicitly note where their lifecycle assumptions diverge.
 The long-running, multi-instance scope sets the agenda for the analyses that
 follow:
 
-- A later analysis judges hosting patterns by whether they admit long-running
+- [A-02 Architecture] judges hosting patterns by whether they admit long-running
   multi-instance use, and explains why hosting many instances demands a
   registry.
 - A later analysis treats input-from-everywhere as the default for
@@ -105,3 +105,5 @@ follow:
   analysis records the current scope (long-running) and leaves hybrid
   accommodation as a deferred concern. Nothing in the current contract precludes
   it; nothing in the current contract optimizes for it.
+
+[A-02 Architecture]: A-02-architecture.md
