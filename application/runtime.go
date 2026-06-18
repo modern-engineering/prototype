@@ -2,15 +2,19 @@ package application
 
 import (
 	"context"
+	"slices"
 	"sync"
 )
 
 type Runtime struct {
 	g group
 
-	ctxOnce   sync.Once
+	mu sync.Mutex
+
 	ctx       context.Context
 	ctxCancel func(error)
+
+	programs []Program
 }
 
 // RuntimeWithContext returns a new Runtime group and an associated Context
@@ -56,6 +60,7 @@ func (r *Runtime) Run(p Program) {
 		//
 		// See golang/go#53757, golang/go#74275, golang/go#74304, golang/go#74306.
 
+		r.trackProgram(p)
 		err := p.Run(r.Context())
 		if err != nil {
 			r.cancel(err)
@@ -75,11 +80,36 @@ func (r *Runtime) cancel(err error) {
 }
 
 func (r *Runtime) initZeroContext() {
-	r.ctxOnce.Do(func() {
-		if r.ctx == nil {
-			r.ctx, r.ctxCancel = context.WithCancelCause(context.Background())
-		}
-	})
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.ctx == nil {
+		r.ctx, r.ctxCancel = context.WithCancelCause(context.Background())
+	}
+}
+
+// TODO: think about running the same program value twice.
+func (r *Runtime) trackProgram(program Program) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	// A program is an interface, so its equality operator compares the value's
+	// memory address. Tracking the same value (i.e. Go variables, not byte-identical
+	// values) only appends it once.
+	if slices.Contains(r.programs, program) {
+		return
+	}
+	r.programs = append(r.programs, program)
+}
+
+// Programs returns a copy of the programs tracked by this runtime.
+//
+// Thanks to the shallow clone, it is safe for concurrent-use with this type's
+// methods. Modifying the returned slice has no side effects. However, the slice
+// elements are copies of the same interface values, so any interaction with them
+// may have unwanted side effects (e.g. data races). Use with caution.
+func (r *Runtime) Programs() []Program {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.programs)
 }
 
 // A group is a collection of goroutines working on subtasks that are part of

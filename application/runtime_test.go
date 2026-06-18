@@ -35,6 +35,20 @@ func ExampleRuntime_cancelsOnError() {
 	// Wait() = runtime: doomed
 }
 
+func ExampleRuntime_Programs() {
+	var r application.Runtime
+	r.Go(func(context.Context) error { return nil })
+	r.Go(func(context.Context) error { return nil })
+	r.Go(func(context.Context) error { return nil })
+	_ = r.Wait()
+
+	for p := range r.Programs() {
+		fmt.Println(p)
+	}
+
+	// Output:
+}
+
 func TestZeroRuntime(t *testing.T) {
 	err1 := errors.New("runtime_test: 1")
 	err2 := errors.New("runtime_test: 2")
