@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"slices"
 	"sync"
 )
@@ -111,6 +113,30 @@ func (r *Runtime) Programs() []Program {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return slices.Clone(r.programs)
+}
+
+func (r *Runtime) Shutdown(context.Context) error {
+	var (
+		wg   sync.WaitGroup
+		mu   sync.Mutex
+		errs error
+	)
+	for _, p := range r.Programs() {
+		shutdowner, ok := p.(Shutdowner)
+		if !ok {
+			continue
+		}
+		wg.Go(func() {
+			err := shutdowner.Shutdown(r.Context())
+			if err != nil {
+				mu.Lock()
+				defer mu.Unlock()
+				errs = errors.Join(errs, fmt.Errorf("%v: %w", p, err))
+			}
+		})
+	}
+	wg.Wait()
+	return errs
 }
 
 // A group is a collection of goroutines working on subtasks that are part of

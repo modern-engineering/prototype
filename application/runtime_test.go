@@ -35,23 +35,6 @@ func ExampleRuntime_cancelsOnError() {
 	// Wait() = runtime: doomed
 }
 
-func ExampleRuntime_Programs() {
-	var r application.Runtime
-	r.Go(func(context.Context) error { return nil })
-	r.Go(func(context.Context) error { return nil })
-	r.Go(func(context.Context) error { return nil })
-	_ = r.Wait()
-
-	for i, p := range r.Programs() {
-		fmt.Printf("App #%v: %v\n", i, p)
-	}
-
-	// Output:
-	// App #0: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func1
-	// App #1: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func2
-	// App #2: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func3
-}
-
 func TestZeroRuntime(t *testing.T) {
 	err1 := errors.New("runtime_test: 1")
 	err2 := errors.New("runtime_test: 2")
@@ -136,6 +119,7 @@ func TestRuntimeWithContext(t *testing.T) {
 		}
 	})
 }
+
 func BenchmarkGo(b *testing.B) {
 	fn := func() {}
 	r := new(application.Runtime)
@@ -145,4 +129,63 @@ func BenchmarkGo(b *testing.B) {
 		r.Go(func(context.Context) error { fn(); return nil })
 	}
 	_ = r.Wait()
+}
+func ExampleRuntime_Programs() {
+	var r application.Runtime
+	r.Go(func(context.Context) error { return nil })
+	r.Go(func(context.Context) error { return nil })
+	r.Go(func(context.Context) error { return nil })
+	_ = r.Wait()
+
+	for i, p := range r.Programs() {
+		fmt.Printf("App #%v: %v\n", i, p)
+	}
+
+	// Output:
+	// App #0: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func1
+	// App #1: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func2
+	// App #2: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func3
+}
+
+func ExampleRuntime_Shutdown() {
+	var r application.Runtime
+	r.Run(&ShutdownProgram{
+		stop: make(chan struct{}),
+		done: make(chan struct{}),
+	})
+	if err := r.Shutdown(context.Background()); err != nil {
+		fmt.Printf("Did not shutdown gracefully within deadline: %v\n", err)
+	}
+
+	// Output:
+	// Shutting down program gracefully
+}
+
+type ShutdownProgram struct {
+	stop, done chan struct{}
+}
+
+func (p *ShutdownProgram) Run(ctx context.Context) error {
+	defer func() { p.done <- struct{}{} }()
+	select {
+	case <-p.stop:
+		fmt.Println("Shutting down program gracefully")
+	case <-ctx.Done():
+		fmt.Println("Forced to quit the program abruptly")
+	}
+	return nil
+}
+
+func (p *ShutdownProgram) Shutdown(ctx context.Context) error {
+	p.stop <- struct{}{}
+	select {
+	case <-p.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (p *ShutdownProgram) String() string {
+	return "shutdown-program"
 }
