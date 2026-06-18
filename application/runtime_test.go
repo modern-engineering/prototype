@@ -10,17 +10,18 @@ import (
 	"github.com/modern-engineering/prototype/application"
 )
 
-// CancelsOnErrors demonstrates how the first error cancels the context returned
-// by [RuntimeWithContext]. Thus, signalling to other goroutines in that same
-// runtime group to return.
+// CancelsOnErrors demonstrates how the first error cancels the context passed to
+// sibling application programs. Thus, signalling to other goroutines in that
+// same runtime group to return.
 func ExampleRuntime_cancelsOnError() {
-	r, ctx := application.RuntimeWithContext(context.Background())
-	r.Go(func() error { return errors.New("runtime: doomed") })
-	r.Go(func() error {
+	var r application.Runtime
+	r.Go(func(context.Context) error { return errors.New("runtime: doomed") })
+	r.Go(func(ctx context.Context) error {
 		fmt.Println("Waiting for other goroutine to fail...")
 		select {
 		case <-ctx.Done():
-			fmt.Println("Done; returning.")
+			cause := context.Cause(ctx)
+			fmt.Printf("Done; context.Cause(ctx) = %v\n", cause)
 			return nil
 		}
 	})
@@ -28,14 +29,10 @@ func ExampleRuntime_cancelsOnError() {
 	gErr := r.Wait()
 	fmt.Printf("Wait() = %v\n", gErr)
 
-	cause := context.Cause(ctx)
-	fmt.Printf("context.Cause(ctx) = %v\n", cause)
-
 	// Output:
 	// Waiting for other goroutine to fail...
-	// Done; returning.
+	// Done; context.Cause(ctx) = runtime: doomed
 	// Wait() = runtime: doomed
-	// context.Cause(ctx) = runtime: doomed
 }
 
 func TestZeroRuntime(t *testing.T) {
@@ -58,7 +55,7 @@ func TestZeroRuntime(t *testing.T) {
 
 			var firstErr error
 			for i, err := range tc.errs {
-				r.Go(func() error { return err })
+				r.Go(func(context.Context) error { return err })
 
 				if firstErr == nil && err != nil {
 					firstErr = err
@@ -88,10 +85,10 @@ func TestRuntimeWithContext(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		for _, tc := range cases {
-			r, ctx := application.RuntimeWithContext(context.Background())
+			r := application.RuntimeWithContext(t.Context())
 
 			for _, err := range tc.errs {
-				r.Go(func() error { return err })
+				r.Go(func(context.Context) error { return err })
 			}
 
 			if gErr := r.Wait(); gErr != tc.want {
@@ -101,13 +98,13 @@ func TestRuntimeWithContext(t *testing.T) {
 
 			canceled := false
 			select {
-			case <-ctx.Done():
+			case <-r.Context().Done():
 				canceled = true
 			default:
 			}
 			if !canceled {
 				t.Logf("after %T.Go(func() error { return err }) for err in %+v", r, tc.errs)
-				t.Errorf("ctx.Done() was not closed")
+				t.Errorf("Runtime.Context().Done() was not closed")
 			}
 
 			// When Wait returns nil, it cancels the context anyway, without a dedicated
@@ -115,9 +112,9 @@ func TestRuntimeWithContext(t *testing.T) {
 			if tc.want == nil {
 				tc.want = context.Canceled
 			}
-			if cause := context.Cause(ctx); cause != tc.want {
+			if cause := context.Cause(r.Context()); cause != tc.want {
 				t.Logf("after %T.Go(func() error { return err }) for err in %+v", r, tc.errs)
-				t.Errorf("context.Cause(ctx) = %v; want %v", cause, tc.want)
+				t.Errorf("context.Cause(Runtime.Context()) = %v; want %v", cause, tc.want)
 			}
 		}
 	})
@@ -128,7 +125,7 @@ func BenchmarkGo(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
-		r.Go(func() error { fn(); return nil })
+		r.Go(func(context.Context) error { fn(); return nil })
 	}
 	_ = r.Wait()
 }

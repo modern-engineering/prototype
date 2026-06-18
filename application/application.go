@@ -249,8 +249,17 @@ func (p envParser) varSafeName(r rune) rune {
 
 // --- end ---
 
-type Runner interface {
+type Program interface {
 	Run(ctx context.Context) error
+}
+
+// The Func type is an adapter to allow the use of ordinary functions as
+// application programs. If f is a function with the appropriate signature,
+// Func(f) is a [Program] that calls f.
+type Func func(ctx context.Context) error
+
+func (r Func) Run(ctx context.Context) error {
+	return r(ctx)
 }
 
 type Instance struct {
