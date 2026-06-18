@@ -53,6 +53,7 @@ func (r *Runtime) Go(f func(context.Context) error) {
 // The first goroutine in the group that returns a non-nil error will cancel the
 // associated Context. The error will be returned by Wait.
 func (r *Runtime) Run(p Program) {
+	r.trackProgram(p)
 	r.g.Go(func() error {
 		// It is tempting to propagate panics from f() up to the goroutine that calls
 		// Wait, but it creates more problems than it solves. See comments on group.Go
@@ -60,7 +61,6 @@ func (r *Runtime) Run(p Program) {
 		//
 		// See golang/go#53757, golang/go#74275, golang/go#74304, golang/go#74306.
 
-		r.trackProgram(p)
 		err := p.Run(r.Context())
 		if err != nil {
 			r.cancel(err)
@@ -94,9 +94,10 @@ func (r *Runtime) trackProgram(program Program) {
 	// A program is an interface, so its equality operator compares the value's
 	// memory address. Tracking the same value (i.e. Go variables, not byte-identical
 	// values) only appends it once.
-	if slices.Contains(r.programs, program) {
-		return
-	}
+	// TODO: consider Identity() vs Equals(Program) for treating two program values as "the same".
+	//if slices.Contains(r.programs, program) {
+	//	return
+	//}
 	r.programs = append(r.programs, program)
 }
 

@@ -42,11 +42,14 @@ func ExampleRuntime_Programs() {
 	r.Go(func(context.Context) error { return nil })
 	_ = r.Wait()
 
-	for p := range r.Programs() {
-		fmt.Println(p)
+	for i, p := range r.Programs() {
+		fmt.Printf("App #%v: %v\n", i, p)
 	}
 
 	// Output:
+	// App #0: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func1
+	// App #1: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func2
+	// App #2: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func3
 }
 
 func TestZeroRuntime(t *testing.T) {

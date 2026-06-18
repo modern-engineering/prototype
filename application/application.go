@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -258,8 +260,23 @@ type Program interface {
 // Func(f) is a [Program] that calls f.
 type Func func(ctx context.Context) error
 
-func (r Func) Run(ctx context.Context) error {
-	return r(ctx)
+func (f Func) Run(ctx context.Context) error {
+	return f(ctx)
+}
+
+// String implements the fmt.Stringer interface. It uses reflection and the
+// runtime package to extract the function's identity.
+//
+// Note: The accuracy of this method depends on the presence of symbol
+// information (.symtab) in the compiled binary. If the binary is compiled with
+// -s or -w flags, this will return the function pointer address.
+func (f Func) String() string {
+	ptr := reflect.ValueOf(f).Pointer()
+	fn := runtime.FuncForPC(ptr)
+	if fn == nil {
+		return fmt.Sprintf("<no symbol info at %#x>", ptr)
+	}
+	return fn.Name()
 }
 
 type Instance struct {
