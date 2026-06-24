@@ -37,7 +37,7 @@ Chosen option: "`FAMILY-[AREA]-NUMBER-STEM`." A document's name, its filename
 `D-02-madr-format-with-frontmatter`:
 
 - `FAMILY` is one letter that also selects the directory: `A` analyses
-  (`analysis/`), `R` requirements (`reqs/`), `D` decision records (`adr/`).
+  (`analyses/`), `R` requirements (`reqs/`), `D` decision records (`adr/`).
 - `AREA` is an optional sub-namespace within a family, omitted until one is
   needed.
 - `NUMBER` is zero-padded to a per-family width — two digits for `A` and `D`,
