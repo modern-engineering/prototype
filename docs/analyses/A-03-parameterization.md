@@ -1,6 +1,8 @@
 ---
 status: draft
 since: 2026-05-27
+refined-by:
+  - D-06-declarative-descriptor-values
 ---
 
 # Parameterization: Blueprints and Instances
