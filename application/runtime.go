@@ -16,7 +16,7 @@ type Runtime struct {
 	ctx       context.Context
 	ctxCancel func(error)
 
-	programs []Program
+	runners []Runner
 }
 
 // RuntimeWithContext returns a new Runtime group and an associated Context
@@ -45,17 +45,18 @@ func (r *Runtime) Wait() error {
 // The first goroutine in the group that returns a non-nil error will cancel the
 // associated Context. The error will be returned by Wait.
 func (r *Runtime) Go(f func(context.Context) error) {
-	r.Run(Func(f))
+	r.Run(Main(f))
 }
 
-// Run starts the given application Program in a new goroutine.
+// Run starts the given application Runner in a new goroutine.
 //
 // The first call to Run must happen before a Wait.
 //
 // The first goroutine in the group that returns a non-nil error will cancel the
 // associated Context. The error will be returned by Wait.
-func (r *Runtime) Run(p Program) {
-	r.trackProgram(p)
+func (r *Runtime) Run(rr Runner) {
+	r.track(rr)
+	// TODO(@danielorbach): untrack a completed program.
 	r.g.Go(func() error {
 		// It is tempting to propagate panics from f() up to the goroutine that calls
 		// Wait, but it creates more problems than it solves. See comments on group.Go
@@ -63,10 +64,11 @@ func (r *Runtime) Run(p Program) {
 		//
 		// See golang/go#53757, golang/go#74275, golang/go#74304, golang/go#74306.
 
-		err := p.Run(r.Context())
+		err := rr.Run(r.Context())
 		if err != nil {
 			r.cancel(err)
 		}
+		// TODO(@danielorbach): a long-lived runner must never complete before being asked to.
 		return err
 	})
 }
@@ -90,29 +92,30 @@ func (r *Runtime) initZeroContext() {
 }
 
 // TODO: think about running the same program value twice.
-func (r *Runtime) trackProgram(program Program) {
+func (r *Runtime) track(rr Runner) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	// A program is an interface, so its equality operator compares the value's
 	// memory address. Tracking the same value (i.e. Go variables, not byte-identical
 	// values) only appends it once.
-	// TODO: consider Identity() vs Equals(Program) for treating two program values as "the same".
-	//if slices.Contains(r.programs, program) {
+	// TODO: consider Identity() vs Equals(Runner) for treating two program values as "the same".
+	//if slices.Contains(r.runners, rr) {
 	//	return
 	//}
-	r.programs = append(r.programs, program)
+	r.runners = append(r.runners, rr)
 }
 
-// Programs returns a copy of the programs tracked by this runtime.
+// Running returns a copy of the currently active Runners managed by this
+// runtime.
 //
 // Thanks to the shallow clone, it is safe for concurrent-use with this type's
 // methods. Modifying the returned slice has no side effects. However, the slice
 // elements are copies of the same interface values, so any interaction with them
 // may have unwanted side effects (e.g. data races). Use with caution.
-func (r *Runtime) Programs() []Program {
+func (r *Runtime) Running() []Runner {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return slices.Clone(r.programs)
+	return slices.Clone(r.runners)
 }
 
 func (r *Runtime) Shutdown(context.Context) error {
@@ -121,8 +124,8 @@ func (r *Runtime) Shutdown(context.Context) error {
 		mu   sync.Mutex
 		errs error
 	)
-	for _, p := range r.Programs() {
-		shutdowner, ok := p.(Shutdowner)
+	for _, rr := range r.Running() {
+		shutdowner, ok := rr.(Shutdowner)
 		if !ok {
 			continue
 		}
@@ -131,7 +134,7 @@ func (r *Runtime) Shutdown(context.Context) error {
 			if err != nil {
 				mu.Lock()
 				defer mu.Unlock()
-				errs = errors.Join(errs, fmt.Errorf("%v: %w", p, err))
+				errs = errors.Join(errs, fmt.Errorf("%v: %w", rr, err))
 			}
 		})
 	}

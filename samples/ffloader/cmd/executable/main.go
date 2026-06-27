@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"time"
 
@@ -12,34 +13,64 @@ import (
 )
 
 func main() {
-	ffloader.Load(HelloWorld)
+	ffloader.Load(&HelloWorld)
 }
 
-var HelloWorld = application.Register("hello-world", initHelloWorld)
+type HelloWorldApp struct {
+	//flags    func() *flag.FlagSet
+	who      string
+	interval time.Duration
+}
 
-func initHelloWorld(env *application.Environment) (application.MainFunc, error) {
-	var (
-		who      string
-		interval time.Duration
-	)
+func (a *HelloWorldApp) Flags() *flag.FlagSet {
+	//a.flags = sync.OnceValue(func() *flag.FlagSet {
+	var fs flag.FlagSet
+	fs.StringVar(&a.who, "who", "World", "Who to greet")
+	fs.DurationVar(&a.interval, "interval", time.Second, "Interval between greetings")
+	return &fs
+	//})
+	//return a.flags()
+}
 
-	fs := env.FlagSet()
-	fs.StringVar(&who, "who", "World", "Who to greet")
-	fs.DurationVar(&interval, "interval", time.Second, "Interval between greetings")
-
-	if err := env.Parameterize(); err != nil {
-		return nil, err
-	}
-
-	return func(ctx context.Context) {
-		t := time.NewTicker(interval)
-		for {
-			select {
-			case <-t.C:
-				fmt.Println("Hello", who)
-			case <-ctx.Done():
-				return
-			}
+func (a *HelloWorldApp) Run(ctx context.Context) error {
+	t := time.NewTicker(a.interval)
+	for {
+		select {
+		case <-t.C:
+			fmt.Println("Hello", a.who)
+		case <-ctx.Done():
+			return nil
 		}
-	}, nil
+	}
+}
+
+var HelloWorld = application.Descriptor{
+	Name: "hello-world",
+	Doc:  "",
+	Make: application.MakeFor[HelloWorldApp](),
+}
+
+var GoodbyeWorld = application.Descriptor{
+	Name: "goodbye-world",
+	Doc:  "",
+	Make: application.MakeFunc(func() (application.Runner, *flag.FlagSet) {
+		var (
+			fs       flag.FlagSet
+			who      string
+			interval time.Duration
+		)
+		fs.StringVar(&who, "who", "World", "Who to greet")
+		fs.DurationVar(&interval, "interval", time.Second, "Interval between greetings")
+		return application.RunnerFunc(func(ctx context.Context) error {
+			t := time.NewTicker(interval)
+			for {
+				select {
+				case <-t.C:
+					fmt.Println("Goodbye", who)
+				case <-ctx.Done():
+					return nil
+				}
+			}
+		}), &fs
+	}),
 }

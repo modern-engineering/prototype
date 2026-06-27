@@ -11,8 +11,8 @@ import (
 )
 
 // CancelsOnErrors demonstrates how the first error cancels the context passed to
-// sibling application programs. Thus, signalling to other goroutines in that
-// same runtime group to return.
+// sibling applications. Thus, signalling to other goroutines in that same
+// runtime group to return.
 func ExampleRuntime_cancelsOnError() {
 	var r application.Runtime
 	r.Go(func(context.Context) error { return errors.New("runtime: doomed") })
@@ -137,7 +137,7 @@ func ExampleRuntime_Programs() {
 	r.Go(func(context.Context) error { return nil })
 	_ = r.Wait()
 
-	for i, p := range r.Programs() {
+	for i, p := range r.Running() {
 		fmt.Printf("App #%v: %v\n", i, p)
 	}
 
@@ -149,7 +149,7 @@ func ExampleRuntime_Programs() {
 
 func ExampleRuntime_Shutdown() {
 	var r application.Runtime
-	r.Run(&ShutdownProgram{
+	r.Run(&ShutdownRunner{
 		stop: make(chan struct{}),
 		done: make(chan struct{}),
 	})
@@ -158,25 +158,25 @@ func ExampleRuntime_Shutdown() {
 	}
 
 	// Output:
-	// Shutting down program gracefully
+	// Shutting down runner gracefully
 }
 
-type ShutdownProgram struct {
+type ShutdownRunner struct {
 	stop, done chan struct{}
 }
 
-func (p *ShutdownProgram) Run(ctx context.Context) error {
+func (p *ShutdownRunner) Run(ctx context.Context) error {
 	defer func() { p.done <- struct{}{} }()
 	select {
 	case <-p.stop:
-		fmt.Println("Shutting down program gracefully")
+		fmt.Println("Shutting down runner gracefully")
 	case <-ctx.Done():
-		fmt.Println("Forced to quit the program abruptly")
+		fmt.Println("Forced to quit the runner abruptly")
 	}
 	return nil
 }
 
-func (p *ShutdownProgram) Shutdown(ctx context.Context) error {
+func (p *ShutdownRunner) Shutdown(ctx context.Context) error {
 	p.stop <- struct{}{}
 	select {
 	case <-p.done:
@@ -186,6 +186,6 @@ func (p *ShutdownProgram) Shutdown(ctx context.Context) error {
 	}
 }
 
-func (p *ShutdownProgram) String() string {
-	return "shutdown-program"
+func (p *ShutdownRunner) String() string {
+	return "shutdown-runner"
 }
