@@ -161,7 +161,7 @@ fixture; how a grammar separates them is surveyed, not settled:
   the artifact.
 
 The operator-facing channels those parameters ultimately travel — flags,
-environment, files, signals — are the subject of a later analysis.
+environment, files, signals — are the subject of [A-12 Operator I/O].
 
 ## Update Semantics
 
@@ -210,4 +210,5 @@ This analysis recommends the reconciled image.
 [A-08 Ambient Services]: A-08-ambient-services.md
 [A-10 Value Binding]: A-10-value-binding.md
 [A-11 Substrate and Slices]: A-11-substrate-slices.md
+[A-12 Operator I/O]: A-12-operator-io.md
 [D-06 Declarative Descriptor Values]: ../adr/D-06-declarative-descriptor-values.md
