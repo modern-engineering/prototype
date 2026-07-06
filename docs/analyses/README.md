@@ -16,6 +16,7 @@ Working names appear in brackets (e.g., `Descriptor`, `Instance`, `Runner`,
 | [A-06](A-06-metadata.md)           | Metadata on Components                                                         |
 | [A-07](A-07-documentation.md)      | Component Documentation                                                        |
 | [A-08](A-08-ambient-services.md)   | Ambient Services, Concrete Dependencies, and the Discipline Against Magical DI |
+| [A-09](A-09-solution-layer.md)     | Solution Layer: From Definition to Reification                                 |
 
 ## Reading Order
 
@@ -25,7 +26,10 @@ the component contract that parameterized instances satisfy. A-05 specializes
 one aspect of that contract (termination). A-06 and A-07 are perpendicular
 concerns (metadata, documentation) that ride on the descriptor introduced in
 A-03. A-08 weaves A-02 through A-07 into the runtime-services discipline that
-prevents the framework from degenerating into magical dependency injection.
+prevents the framework from degenerating into magical dependency injection. A-09
+opens the solution layer above the library: what a solution is, the compiled
+artifact that carries one, and the reconciliation that keeps a deployed solution
+converged on its definition.
 
 ## Status
 
