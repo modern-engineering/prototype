@@ -17,6 +17,7 @@ Working names appear in brackets (e.g., `Descriptor`, `Instance`, `Runner`,
 | [A-07](A-07-documentation.md)      | Component Documentation                                                        |
 | [A-08](A-08-ambient-services.md)   | Ambient Services, Concrete Dependencies, and the Discipline Against Magical DI |
 | [A-09](A-09-solution-layer.md)     | Solution Layer: From Definition to Reification                                 |
+| [A-10](A-10-value-binding.md)      | Value Binding: Symbols Staged Across Compile, Site, and Reconcile Time         |
 
 ## Reading Order
 
@@ -29,7 +30,9 @@ A-03. A-08 weaves A-02 through A-07 into the runtime-services discipline that
 prevents the framework from degenerating into magical dependency injection. A-09
 opens the solution layer above the library: what a solution is, the compiled
 artifact that carries one, and the reconciliation that keeps a deployed solution
-converged on its definition.
+converged on its definition. A-10 develops the value-binding model that staging
+demands: the image's symbol table, override governance, secrets, and the value
+language.
 
 ## Status
 

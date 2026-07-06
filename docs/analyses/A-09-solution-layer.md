@@ -124,8 +124,8 @@ provision NATS slice as natsAccount {
 ```
 
 When a value like `natsAdmin` binds — at compile time, at the deployment site,
-or only once the provisioned account exists — is the subject of a later analysis
-(the solution symbol table).
+or only once the provisioned account exists — is the subject of
+[A-10 Value Binding].
 
 ## Statement Anatomy: Three Audiences
 
@@ -208,4 +208,5 @@ This analysis recommends the reconciled image.
 [A-02 Architecture]: A-02-architecture.md
 [A-03 Parameterization]: A-03-parameterization.md
 [A-08 Ambient Services]: A-08-ambient-services.md
+[A-10 Value Binding]: A-10-value-binding.md
 [D-06 Declarative Descriptor Values]: ../adr/D-06-declarative-descriptor-values.md
