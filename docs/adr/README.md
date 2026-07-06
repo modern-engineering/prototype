@@ -13,3 +13,4 @@ Decisions recorded in MADR 4.0.0 format; see the authoring guide in
 | [D-06](D-06-declarative-descriptor-values.md)      | Define Applications as Declarative Descriptor Values  |
 | [D-07](D-07-verb-directive-syntax.md)              | Express Solution Definitions as Verb-First Directives |
 | [D-08](D-08-desired-state-image.md)                | Ship Solutions as a Reconciled Desired-State Image    |
+| [D-09](D-09-catalogue-citizenship.md)              | Scope the Catalogue to Application-Library Citizens   |
