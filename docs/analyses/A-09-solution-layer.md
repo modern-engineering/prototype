@@ -72,11 +72,11 @@ updates mutate it, and deleting it retires a purpose.
 
 This analysis recommends the instance shape. It composes with the roles: a
 solution becomes an isolation container anchored to a purpose. It holds
-exclusive access carved out of shared services (a later analysis develops that
-carving), and it may later constrain co-location of its components (open below).
-Operator-logical groupings larger than one purpose — a "mission control"
-namespace served by several solutions — live above the layer, as does fleet
-management.
+exclusive access carved out of shared services ([A-11 Substrate and Slices]
+develops that carving), and it may later constrain co-location of its components
+(open below). Operator-logical groupings larger than one purpose — a "mission
+control" namespace served by several solutions — live above the layer, as does
+fleet management.
 
 ## The Artifact
 
@@ -209,4 +209,5 @@ This analysis recommends the reconciled image.
 [A-03 Parameterization]: A-03-parameterization.md
 [A-08 Ambient Services]: A-08-ambient-services.md
 [A-10 Value Binding]: A-10-value-binding.md
+[A-11 Substrate and Slices]: A-11-substrate-slices.md
 [D-06 Declarative Descriptor Values]: ../adr/D-06-declarative-descriptor-values.md

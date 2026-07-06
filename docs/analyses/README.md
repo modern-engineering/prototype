@@ -18,6 +18,7 @@ Working names appear in brackets (e.g., `Descriptor`, `Instance`, `Runner`,
 | [A-08](A-08-ambient-services.md)   | Ambient Services, Concrete Dependencies, and the Discipline Against Magical DI |
 | [A-09](A-09-solution-layer.md)     | Solution Layer: From Definition to Reification                                 |
 | [A-10](A-10-value-binding.md)      | Value Binding: Symbols Staged Across Compile, Site, and Reconcile Time         |
+| [A-11](A-11-substrate-slices.md)   | Substrate, Slices, and Attachments                                             |
 
 ## Reading Order
 
@@ -32,7 +33,8 @@ opens the solution layer above the library: what a solution is, the compiled
 artifact that carries one, and the reconciliation that keeps a deployed solution
 converged on its definition. A-10 develops the value-binding model that staging
 demands: the image's symbol table, override governance, secrets, and the value
-language.
+language. A-11 grounds the isolation container in shared substrate: owned
+slices, verified attachments, and the isolation-level spectrum between them.
 
 ## Status
 
