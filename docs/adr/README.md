@@ -12,3 +12,4 @@ Decisions recorded in MADR 4.0.0 format; see the authoring guide in
 | [D-05](D-05-document-relationships.md)             | Record Document Relationships in Frontmatter          |
 | [D-06](D-06-declarative-descriptor-values.md)      | Define Applications as Declarative Descriptor Values  |
 | [D-07](D-07-verb-directive-syntax.md)              | Express Solution Definitions as Verb-First Directives |
+| [D-08](D-08-desired-state-image.md)                | Ship Solutions as a Reconciled Desired-State Image    |
