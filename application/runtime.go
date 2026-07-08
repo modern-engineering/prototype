@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sync"
+	"sync/atomic"
 )
 
 type Runtime struct {
@@ -16,7 +18,7 @@ type Runtime struct {
 	ctx       context.Context
 	ctxCancel func(error)
 
-	runners []Runner
+	procs []Proc
 }
 
 // RuntimeWithContext returns a new Runtime group and an associated Context
@@ -34,6 +36,8 @@ func RuntimeWithContext(ctx context.Context) *Runtime {
 // returns the first non-nil error (if any) from them.
 func (r *Runtime) Wait() error {
 	err := r.g.Wait()
+	// We must cancel the context when the group is done to release its associated
+	// resources, just like errgroup does.
 	r.cancel(err)
 	return err
 }
@@ -43,7 +47,7 @@ func (r *Runtime) Wait() error {
 // The first call to Go must happen before a Wait.
 //
 // The first goroutine in the group that returns a non-nil error will cancel the
-// associated Context. The error will be returned by Wait.
+// associated Context. Wait will return that error.
 func (r *Runtime) Go(f func(context.Context) error) {
 	r.Run(Main(f))
 }
@@ -53,11 +57,11 @@ func (r *Runtime) Go(f func(context.Context) error) {
 // The first call to Run must happen before a Wait.
 //
 // The first goroutine in the group that returns a non-nil error will cancel the
-// associated Context. The error will be returned by Wait.
+// associated Context. Wait will return that error.
 func (r *Runtime) Run(rr Runner) {
-	r.track(rr)
-	// TODO(@danielorbach): untrack a completed program.
+	complete := r.track(rr)
 	r.g.Go(func() error {
+		defer complete()
 		// It is tempting to propagate panics from f() up to the goroutine that calls
 		// Wait, but it creates more problems than it solves. See comments on group.Go
 		// for more details.
@@ -65,10 +69,15 @@ func (r *Runtime) Run(rr Runner) {
 		// See golang/go#53757, golang/go#74275, golang/go#74304, golang/go#74306.
 
 		err := rr.Run(r.Context())
+		slog.DebugContext(r.Context(), "application.Run returned prematurely", "error", err, slog.String("application", fmt.Sprint(rr)))
+		//r.cancel(err) // TODO(@danielorbach): cancel the context if the application returned before the runtime has requested
 		if err != nil {
 			r.cancel(err)
 		}
-		// TODO(@danielorbach): a long-lived runner must never complete before being asked to.
+		// TODO(@danielorbach): a long-lived runner must never complete before being asked to. Consider retry, when opted-in.
+
+		// A long-lived runner, by definition, never completes before being required to.
+		//if
 		return err
 	})
 }
@@ -92,17 +101,13 @@ func (r *Runtime) initZeroContext() {
 }
 
 // TODO: think about running the same program value twice.
-func (r *Runtime) track(rr Runner) {
+// TODO: consider Identity() vs Equals(Runner) for treating two program values as "the same".
+func (r *Runtime) track(rr Runner) (complete func()) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	// A program is an interface, so its equality operator compares the value's
-	// memory address. Tracking the same value (i.e. Go variables, not byte-identical
-	// values) only appends it once.
-	// TODO: consider Identity() vs Equals(Runner) for treating two program values as "the same".
-	//if slices.Contains(r.runners, rr) {
-	//	return
-	//}
-	r.runners = append(r.runners, rr)
+	p := Proc{rr: rr, done: make(chan struct{})}
+	r.procs = append(r.procs, p)
+	return p.complete
 }
 
 // Running returns a copy of the currently active Runners managed by this
@@ -112,11 +117,50 @@ func (r *Runtime) track(rr Runner) {
 // methods. Modifying the returned slice has no side effects. However, the slice
 // elements are copies of the same interface values, so any interaction with them
 // may have unwanted side effects (e.g. data races). Use with caution.
-func (r *Runtime) Running() []Runner {
+func (r *Runtime) Running() []Proc {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return slices.Clone(r.runners)
+	return slices.Clone(r.procs)
 }
+
+type Proc struct {
+	rr   Runner
+	done chan struct{}
+}
+
+func (p Proc) complete() {
+	close(p.done)
+}
+
+func (p Proc) Done() <-chan struct{} {
+	return p.done
+}
+
+func (p Proc) String() string {
+	return fmt.Sprint(p.rr)
+}
+
+// TODO: consider using generic methods with go1.27 release instead of exposing the Runner directly.
+//func (p Process) As[T any]() (v T, ok bool) {
+//	v, ok = p.rr.(T)
+//	return
+//}
+
+func (p Proc) Runner() Runner {
+	return p.rr
+}
+
+func (r *Runtime) Cancel() {
+	r.cancel(ErrCanceled)
+}
+
+// ErrCanceled is the error returned by [context.Cause] when the context is
+// canceled explicitly by [Runtime.Cancel].
+var ErrCanceled = errors.New("context canceled by app runtime")
+
+//func Terminate(ctx context.Context) error {
+//
+//}
 
 func (r *Runtime) Shutdown(context.Context) error {
 	var (
@@ -125,7 +169,7 @@ func (r *Runtime) Shutdown(context.Context) error {
 		errs error
 	)
 	for _, rr := range r.Running() {
-		shutdowner, ok := rr.(Shutdowner)
+		shutdowner, ok := rr.Runner().(Shutdowner)
 		if !ok {
 			continue
 		}
@@ -139,7 +183,36 @@ func (r *Runtime) Shutdown(context.Context) error {
 		})
 	}
 	wg.Wait()
+	// TODO(@danielorbach): what happens here if there are still actively running goroutines?
+	//  Either because the called Shutdowner returned while goroutines are still running,
+	//  or because some of the Runners don't implement Shutdowner.
 	return errs
+}
+
+func Terminate(ctx context.Context, r *Runtime) (completed bool) {
+	var (
+		wg sync.WaitGroup
+		n  atomic.Int32
+	)
+	ps := r.Running()
+	n.Store(int32(len(ps)))
+	for _, p := range r.Running() {
+		terminator, ok := p.Runner().(interface{ Terminate() })
+		if !ok {
+			n.Add(-1)
+			continue
+		}
+		wg.Go(func() {
+			terminator.Terminate()
+			select {
+			case <-p.Done():
+				n.Add(-1)
+			case <-ctx.Done():
+			}
+		})
+	}
+	wg.Wait()
+	return n.Load() == 0
 }
 
 // A group is a collection of goroutines working on subtasks that are part of
@@ -191,3 +264,66 @@ func (g *group) Go(f func() error) {
 		}
 	})
 }
+
+type ShutdownSignal struct {
+	initOnce sync.Once
+
+	stop     chan struct{}
+	stopOnce sync.Once
+
+	done     chan struct{}
+	doneOnce sync.Once
+}
+
+func (s *ShutdownSignal) init() {
+	s.initOnce.Do(func() {
+		s.done = make(chan struct{})
+		s.stop = make(chan struct{})
+	})
+}
+
+func (s *ShutdownSignal) Shutdown(ctx context.Context) error {
+	s.init()
+	//done := <-s.c
+	s.stopOnce.Do(func() {
+		close(s.stop)
+	})
+	select {
+	//case <-done:
+	//	return nil
+	case <-s.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *ShutdownSignal) C() <-chan struct{} {
+	s.init()
+	return s.stop
+}
+
+func (s *ShutdownSignal) Done() {
+	s.init()
+	s.doneOnce.Do(func() {
+		close(s.done)
+	})
+}
+
+func (s *ShutdownSignal) Propagate(parent context.Context) (ctx context.Context, cancel context.CancelFunc) {
+	s.init()
+	ctx, cancelCause := context.WithCancelCause(parent)
+	go func() {
+		select {
+		//case done := <-s.c:
+		//	cancelCause(ErrShutdown)
+		//	s.c <- done
+		case <-s.C():
+			cancelCause(ErrShutdown)
+		case <-ctx.Done():
+		}
+	}()
+	return ctx, func() { cancelCause(nil) }
+}
+
+var ErrShutdown = errors.New("application shutdown")

@@ -130,7 +130,7 @@ func BenchmarkGo(b *testing.B) {
 	}
 	_ = r.Wait()
 }
-func ExampleRuntime_Programs() {
+func ExampleRuntime_Running() {
 	var r application.Runtime
 	r.Go(func(context.Context) error { return nil })
 	r.Go(func(context.Context) error { return nil })
@@ -142,9 +142,9 @@ func ExampleRuntime_Programs() {
 	}
 
 	// Output:
-	// App #0: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func1
-	// App #1: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func2
-	// App #2: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Programs.func3
+	// App #0: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Running.func1
+	// App #1: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Running.func2
+	// App #2: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Running.func3
 }
 
 func ExampleRuntime_Shutdown() {

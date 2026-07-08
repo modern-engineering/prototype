@@ -244,3 +244,45 @@ deploy Ping as Ping3 {
 	target: echoSubject
 	nats: natsAccount.config
 }
+
+// --- Ideas ---
+// The compiler must be aware of the user-defined definitions (i.e. catalogues
+// of components, slices, etc). A cool technical way to support that is by
+// generating the source-code for the compiler per invocation. That is, users
+// define solution elements in Go code, and the code that compiles must be aware
+// of them. Alternatively, a CLI interface to solution design may use the same
+// "trick", but with a different syntax to define where to find the building
+// blocks.
+//
+// I foresee two main pathways:
+//   - An `import` block that mentions Go packages, similar to Go's syntax, inside
+//     the solution definitions.
+//   - A file or other source external to the solution definition, that gives the
+//     compiler places to find "types".
+//
+// I like the former because it is more native to Go and keeps each file self-contained
+// (just like Go source files). While it allows us to better follow the technical design
+// of the Go compiler, it is important to separate binary output from file syntax.
+//
+// One possible implication is having types (e.g. `Ping`) prefixed by package, like Go
+// imports. So, it a `NATS` slice becomes `nats.Slice` or `brokers.NATS`, etc.
+//
+// The alternative champions more "implicit" use/discovery of elements in the catalogues.
+// That is, by specifying the packages, the code generating the strongly-typed compiler
+// may inspect the source code and emit the "registration" commands (into global catalogues)
+// alongside the compiler invocation.
+//
+// Perhaps a better comparison is not syntax rather import semantics: how are elements
+// imported into catalogues of elements and how do they become available to the compilation.
+//
+// Let me rephrase the two approaches:
+//   - Elements are Go types
+//   - Elements are Go values
+//
+// To answer this question we have two parts, beginning from the other end: I think it's
+// much more ergonomic (without proper explanation) for elements to be named with the
+// qualifying package. So, prefer `pkg.Name` over `Name`. Now the question becomes whether
+// these identifiers are Go types or Go values.
+
+// To answer this question we have two parts: First, Go packages with element definitions
+// are best written inside the "source" files, so in per-file import blocks.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"iter"
 	"reflect"
 	"runtime"
 	"sync"
@@ -164,40 +165,6 @@ func (f ParseTo) Parse(ctx context.Context, flags *flag.FlagSet) error {
 	return f(ctx, flags)
 }
 
-func NewFor[T Service]() func() Service {
-	return NewOf(reflect.TypeFor[T]())
-}
-
-func NewOf(typ reflect.Type) func() Service {
-	return func() Service {
-		if typ.Kind() == reflect.Ptr {
-			typ = typ.Elem()
-		}
-
-		// While we support types with pointer-receivers, the type-param cannot be of
-		// kind interface, unsafe-pointer, or pointer to another pointer.
-		switch typ.Kind() {
-		case reflect.Interface:
-			fallthrough
-		case reflect.UnsafePointer:
-			fallthrough
-		case reflect.Pointer:
-			panic(fmt.Errorf("unsupported type %s of kind %s", typ, typ.Kind()))
-		}
-
-		ri := reflect.TypeFor[Service]()
-		if !reflect.PointerTo(typ).Implements(ri) {
-			panic(fmt.Errorf("type %s does not implement the application.Service interface", typ))
-		}
-
-		// We always return the pointer because that's the most common use of types that
-		// implement Program. Also, any type that implements Program with a
-		// value-receiver implicitly implements it on the pointer values too.
-		v := reflect.New(typ).Interface().(Service)
-		return v, v.Flags()
-	}
-}
-
 func MakeFor[T any, PT interface {
 	*T
 	Runner
@@ -226,4 +193,31 @@ type HealthChecker interface {
 
 type Shutdowner interface {
 	Shutdown(ctx context.Context) error
+}
+
+// TODO(@danielorbach): a Shutdowner/Terminator mixin that's easy to embed in structs and use.
+
+// TODO(@danielorbach): a Loop that takes context, and optionally a counter, and loops it.
+func Loop(ctx context.Context) iter.Seq[int] {
+	return func(yield func(int) bool) {
+		var i int
+		for ctx.Err() == nil {
+			if !yield(i) {
+				return
+			}
+			i++
+		}
+	}
+}
+
+func LoopCount(ctx context.Context, count int) iter.Seq[int] {
+	return func(yield func(int) bool) {
+		var i int
+		for ctx.Err() == nil && i < count {
+			if !yield(i) {
+				return
+			}
+			i++
+		}
+	}
 }
