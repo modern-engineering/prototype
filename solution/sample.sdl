@@ -1,0 +1,246 @@
+solution: sample
+apply: append/replace
+defaults:
+    location: aws-us-east-1
+extern:
+    - nats-config
+secrets:
+    nats-nkey-seed:
+        secretProvider: aws/ssm
+        secretName: sample-nats-account
+        secretKey: nkey-seed
+    admin-account:
+        secretProvider: 1Password
+        secretName: nats-admin-account
+variables:
+components:
+    - name:
+      application:
+services:
+---
+solution sample
+
+options {
+}
+
+deploy {
+    Ping1 = Ping{
+        interval: 1s,
+        count: -1, // endless
+        target: "com.acme.Echo",
+    }
+    Ping2 = Ping{
+
+    }
+    Pong = Pong{
+    }
+}
+---
+default Ping {
+    interval: 1s
+    count: -1 // endless
+}
+
+deploy Ping component as Ping1 {
+    target: com.acme.Echo
+}
+
+deploy Ping component as Ping2 {
+    count: 10 // overrides the default
+    target: com.acme.Echo
+}
+
+deploy Pong component as Pong {
+    observe: com.acme.Echo.>
+}
+
+provision Postgres slice as pgAccount {
+}
+
+provision NATS slice as natsAccount {
+    adminAccount: $nats-admin
+}
+---
+// Mockup 4: consolidation of 2+3 in the go.mod directive style.
+//
+// Compilation model (borrowed from C):
+//   .sdl files are translation units; the dev-curated catalog is the header
+//   set; compiling links all units into a single-file IL image in which
+//   extern symbols remain unresolved; the deployment environment acts as
+//   the dynamic loader, resolving them at reification.
+//
+// Lexical rule: quoted text is data, bare identifiers are symbol references.
+
+solution sample
+
+// Resolved by the deployment environment at reification.
+extern (
+	natsConfig NATSConfig
+	natsAdmin  Secret
+)
+
+default Ping {
+	interval: 1s
+	count: -1 // endless
+}
+
+deploy Ping as Ping1 {
+	target: "com.acme.Echo"
+}
+
+deploy Ping as Ping2 {
+	count: 10 // overrides the default
+	target: "com.acme.Echo"
+}
+
+deploy Pong as Pong {
+	observe: "com.acme.Echo.>"
+}
+
+// Same-verb statements may be factored, like go.mod's require blocks.
+provision (
+	Postgres as pgAccount
+	NATS as natsAccount {
+		adminAccount: natsAdmin
+	}
+)
+
+// --- a separate file, e.g. extra.sdl ---
+
+// A patch is one more translation unit linked into the same solution.
+// Linking is append-only: a patch adds statements, never redefines them,
+// so the IL stays a single, fully-linked image.
+patch sample
+
+deploy Ping as Ping3 {
+	target: "com.acme.Echo"
+}
+---
+// Mockup 5: supersedes 4. Adds the second, orthogonal config dimension
+// (deployment intent + opaque metadata), the symbol table (var/extern with
+// refs that survive into the IL), reconcile-time wiring of provision
+// outputs, and replaces `patch` with Go-style peer files.
+//
+// IL semantics: a desired-state document that controllers RECONCILE
+// (observe, diff, converge, prune). Reifying the same IL twice is a no-op.
+// Records carry refs, never inlined values; the symbol table stages the
+// binding times:
+//   compile      var defaults
+//   site config  extern bindings (MUST), var overrides (MAY, per-symbol governance)
+//   reconcile    instance outputs, e.g. natsAccount.config
+// The image pins the catalog schemas it was compiled against and carries a
+// monotonic generation; reification starts with a plan/diff, and provisions
+// may be delete-protected against accidental pruning.
+//
+// A solution is deployed at most once: it is a living, mutating instance
+// anchored to a purpose (INCOSE sense), never a template. Per-customer
+// variants are distinct solutions, authored above the IL (e.g. by the
+// code-first builder).
+//
+// Statement bodies have three compartments, one per audience:
+//   bare keys         the application    (params, typed by the catalog)
+//   on { ... }        the env controller (typed by the platform's profile)
+//   metadata { ... }  nobody             (carried through; constrained to
+//                                         portable keys/values)
+// Params always use a colon (`key: value`, composites as `key: { ... }`);
+// sections are colon-less blocks. The grammar separates the two namespaces,
+// so future sections can never collide with catalog param names.
+
+solution sample
+
+// Dynamic symbols: the deployment environment MUST bind these at reification.
+extern (
+	natsCluster NATSCluster
+	natsAdmin   Secret // sensitive: taints every field wired from it
+	pgServer    PostgresServer // substrate deployed per-customer today (legacy)
+)
+
+// Weak symbols: defaults bound at compile; a site MAY override uniformly.
+// While prototyping, ALL vars are site-overridable (permissive default);
+// a future linkage marker (cf. C's `static`) can seal individual symbols.
+var (
+	echoSubject: "com.acme.Echo"
+	pingInterval: 1s
+)
+
+default Ping {
+	interval: pingInterval
+	count: -1 // endless
+}
+
+// Verb-level defaults; merge order: catalog < default verb < default type < instance.
+default deploy {
+	on {
+		location: awsUsEast1
+	}
+}
+
+// The kind-word between type and `as` disambiguates when a type registers
+// several provision kinds; it may be omitted while unambiguous (cf. Go's
+// var declarations).
+//
+// `slice` OWNS a partition carved out of shared substrate: its driver
+// creates, mutates, and (with delete protection) destroys it.
+provision NATS slice as natsAccount {
+	cluster: natsCluster
+	adminAccount: natsAdmin
+}
+
+// `attach` plugs into substrate the platform guarantees WITHOUT taking
+// ownership: its driver verifies existence/compatibility at reconcile time
+// and emits the same output scheme a Postgres slice would (often echoing
+// verified inputs). Downstream wiring cannot tell slice from attach, so
+// migrating off the legacy per-customer DBMS is a one-line change here.
+// Attachments are never pruned.
+provision Postgres attach as pgLegacy {
+	server: pgServer
+}
+
+deploy Ping as Ping1 {
+	target: echoSubject
+	// natsAccount.config binds at reconcile time. Ping registers an input
+	// named `nats` with kind=file, so each environment picks its own
+	// mechanism: k8s mounts a Secret volume, systemd uses LoadCredential,
+	// the single-process harness injects directly. No `mount` verb here.
+	nats: natsAccount.config
+}
+
+deploy Ping as Ping2 {
+	count: 10 // overrides the default
+	target: echoSubject
+	nats: natsAccount.config
+
+	on {
+		// Portable intent only. Env-specific tuning (a k8s priorityClassName,
+		// a systemd nice level) belongs in site-side config owned by platform
+		// engineers, next to var overrides and extern bindings, never here.
+		location: euCentral1 // overrides `default deploy`
+	}
+	metadata {
+		team: "search"
+	}
+}
+
+deploy Pong as Pong {
+	// Pong derives its ".>" subscription internally: derivations live in
+	// component code, keeping this language expression-free.
+	subject: echoSubject
+	nats: natsAccount.config
+}
+
+// --- a peer file, e.g. sample_extra.sdl ---
+
+// Peer files repeat the solution clause the way Go files repeat the package
+// clause. Linking unions all files; duplicate instance names are link errors
+// ("duplicate symbol"). No patch/override semantics between files; VALUE
+// variance is expressed by overriding var symbols at the deployment site,
+// and STRUCTURAL variance by build-tag-style file selection at link time.
+// A solution is a directory of .sdl files (the Go package model), so the
+// unit set is never an ad-hoc link line that could silently drop a file
+// and prune its instances.
+solution sample
+
+deploy Ping as Ping3 {
+	target: echoSubject
+	nats: natsAccount.config
+}
