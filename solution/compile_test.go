@@ -499,6 +499,120 @@ func TestMainCompileSymbolReferences(t *testing.T) {
 	}
 }
 
+// TestMainCompileDefaultMergeOrder proves the four value tiers over
+// one parameter: the catalogue slot default (count is 1 in the pinned
+// schema) yields no binding at all, and each SDL layer above it —
+// default deploy, default ff.Ping, the instance body — wins over the
+// ones below, with Source naming the winner.
+func TestMainCompileDefaultMergeOrder(t *testing.T) {
+	const (
+		verbDefault = "default deploy {\n\tcount: 2\n}\n"
+		typeDefault = "default ff.Ping {\n\tcount: 3\n}\n"
+	)
+	tests := []struct {
+		name       string
+		decls      string // between the import and the deploy
+		body       string // the instance body, or ""
+		wantInt    int64
+		wantSource string
+		wantNone   bool // count stays with the pinned schema
+	}{
+		{"catalogue slot only", "", "", 0, "", true},
+		{"verb default", verbDefault, "", 2, image.SourceDefaultDeploy, false},
+		{"type default over verb default", verbDefault + typeDefault, "", 3, image.SourceDefaultType, false},
+		{"instance over both defaults", verbDefault + typeDefault, " {\n\tcount: 4\n}", 4, image.SourceInstance, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				tt.decls +
+				"deploy ff.Ping as P" + tt.body + "\n"
+			cfg := solution.CompileConfig{
+				Solution:  "sample",
+				Units:     []solution.Unit{{Name: "u.sdl", Source: source}},
+				Catalogue: testCatalogue(),
+			}
+			code, stdout, stderr := compile(t, cfg)
+			if code != 0 {
+				t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+			}
+			img, err := image.Decode(strings.NewReader(stdout))
+			if err != nil {
+				t.Fatalf("Decode: %v", err)
+			}
+			var count *image.Binding
+			for i, b := range img.Records[0].Params {
+				if b.Key == "count" {
+					count = &img.Records[0].Params[i]
+				}
+			}
+			if tt.wantNone {
+				if count != nil {
+					t.Fatalf("count = %+v, want no binding (catalogue defaults stay in the schema)", *count)
+				}
+				return
+			}
+			if count == nil {
+				t.Fatalf("no count binding; params = %+v", img.Records[0].Params)
+			}
+			if count.Value == nil || count.Value.Int != tt.wantInt || count.Source != tt.wantSource {
+				t.Errorf("count = %+v, want value %d from %q", *count, tt.wantInt, tt.wantSource)
+			}
+		})
+	}
+}
+
+// TestMainCompileDefaultRefs sends references through both default
+// layers: the element default wires a sensitive extern (the taint must
+// survive the fold), the verb default wires a var into every element
+// that declares the key — and passes elements that do not declare it.
+func TestMainCompileDefaultRefs(t *testing.T) {
+	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+		"import (\n" +
+		"\tff \"example.com/acme/pingpong\"\n" +
+		"\tsub \"example.com/acme/substrate\"\n" +
+		")\n" +
+		"extern apiKey sub.Secret\n" +
+		"var subj: \"com.acme.Echo\"\n" +
+		"default ff.Pong {\n" +
+		"\tsubject: apiKey\n" +
+		"}\n" +
+		"default deploy {\n" +
+		"\ttarget: subj\n" +
+		"}\n" +
+		"deploy ff.Pong as PongD\n" +
+		"deploy ff.Ping as PingD\n"}}
+	cfg := solution.CompileConfig{
+		Solution:  "sample",
+		Units:     units,
+		Catalogue: testCatalogue(),
+	}
+	code, stdout, stderr := compile(t, cfg)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	img, err := image.Decode(strings.NewReader(stdout))
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(img.Records) != 2 {
+		t.Fatalf("got %d records, want 2", len(img.Records))
+	}
+	pong := img.Records[0]
+	if len(pong.Params) != 1 || pong.Params[0].Key != "subject" ||
+		pong.Params[0].Ref == nil || pong.Params[0].Ref.Symbol != "apiKey" ||
+		pong.Params[0].Source != image.SourceDefaultType || !pong.Params[0].Sensitive {
+		t.Errorf("PongD params = %+v, want one sensitive default-type ref to apiKey\n(the verb default's target must pass Pong by: no such parameter)", pong.Params)
+	}
+	ping := img.Records[1]
+	if len(ping.Params) != 1 || ping.Params[0].Key != "target" ||
+		ping.Params[0].Ref == nil || ping.Params[0].Ref.Symbol != "subj" ||
+		ping.Params[0].Source != image.SourceDefaultDeploy || ping.Params[0].Sensitive {
+		t.Errorf("PingD params = %+v, want one plain default-deploy ref to subj", ping.Params)
+	}
+}
+
 // ----------------------------------------------------------------------------
 // Diagnostics
 
@@ -633,9 +747,6 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			name: "language beyond this rung",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
-				"default ff.Ping {\n" +
-				"\tcount: 5\n" +
-				"}\n" +
 				"provision ff.Ping slice as Q\n" +
 				"deploy ff.Ping as P {\n" +
 				"\ttarget: Q.config\n" +
@@ -645,11 +756,101 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				"}\n"}},
 			wantCode: 1,
 			want: []string{
-				"u.sdl:3:1: default declarations not yet supported by this compiler rung",
-				"u.sdl:6:1: provision declarations not yet supported by this compiler rung",
-				"u.sdl:8:10: output reference Q.config not yet supported by this compiler rung: provision outputs arrive at a later rung",
-				"u.sdl:9:2: on sections not yet supported by this compiler rung",
+				"u.sdl:3:1: provision declarations not yet supported by this compiler rung",
+				"u.sdl:5:10: output reference Q.config not yet supported by this compiler rung: provision outputs arrive at a later rung",
+				"u.sdl:6:2: on sections not yet supported by this compiler rung",
 			},
+		},
+		{
+			name: "duplicate default for an element type",
+			units: []solution.Unit{
+				{Name: "a.sdl", Source: "solution sample\n" +
+					"import ff \"example.com/acme/pingpong\"\n" +
+					"default ff.Ping {\n" +
+					"\tcount: 5\n" +
+					"}\n"},
+				// The second default names the same element through its
+				// own alias; identity is the resolved element, not the
+				// spelling.
+				{Name: "b.sdl", Source: "solution sample\n" +
+					"import zz \"example.com/acme/pingpong\"\n" +
+					"default zz.Ping {\n" +
+					"\tcount: 7\n" +
+					"}\n"},
+			},
+			wantCode: 1,
+			want:     []string{"b.sdl:3:1: duplicate default for zz.Ping (first declared at a.sdl:3:1)"},
+		},
+		{
+			name: "duplicate default for a verb",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"default deploy {\n" +
+				"\tcount: 5\n" +
+				"}\n" +
+				"default deploy {\n" +
+				"\tcount: 7\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:6:1: duplicate default for deploy (first declared at u.sdl:3:1)"},
+		},
+		{
+			name: "default for an unknown element",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"default ff.Nope {\n" +
+				"\tcount: 5\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{`u.sdl:3:9: unknown element Nope in package "example.com/acme/pingpong"`},
+		},
+		{
+			name: "default for a symbol type",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"default sub.Secret {\n" +
+				"\tcount: 5\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:9: cannot default sub.Secret: a symbol type takes no parameters"},
+		},
+		{
+			// Type-scoped defaults validate eagerly: the faults surface
+			// with no record of the element anywhere in the solution.
+			name: "default body validates without records",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"default ff.Ping {\n" +
+				"\tnope: 1\n" +
+				"\tcount: \"many\"\n" +
+				"\ton {\n" +
+				"\t\tlocation: here\n" +
+				"\t}\n" +
+				"}\n" +
+				"default deploy {\n" +
+				"\ttarget: missing\n" +
+				"}\n"}},
+			wantCode: 1,
+			want: []string{
+				"u.sdl:4:2: unknown parameter nope: element ff.Ping has no such parameter",
+				`u.sdl:5:9: invalid value for parameter count: parse error`,
+				"u.sdl:6:2: on sections not yet supported by this compiler rung",
+				"u.sdl:11:10: undefined symbol missing",
+			},
+		},
+		{
+			// A verb default validates once per element, however many
+			// records fold it: one fault line for two Ping deploys.
+			name: "verb default faults surface once per element",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"default deploy {\n" +
+				"\tcount: \"many\"\n" +
+				"}\n" +
+				"deploy ff.Ping as P1\n" +
+				"deploy ff.Ping as P2\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:4:9: invalid value for parameter count: parse error"},
 		},
 		{
 			name: "undefined symbol",

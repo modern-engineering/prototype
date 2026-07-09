@@ -437,6 +437,87 @@ deploy ff.Ping as Ping1 {
 	}
 }
 
+// TestDefaultsRoundTrip is the defaults-bearing round trip the design
+// gate demanded: a type default folds into a record that never wrote
+// the parameter, echo renders the folded binding explicitly, and the
+// rebuild differs from the original only in that binding's Source —
+// which Equal masks, so the trip still closes. The bytes must differ,
+// or the provenance mask would be proving nothing.
+func TestDefaultsRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := solutionModule(t, "defaults.sdl", `solution defaults
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+default ff.Ping {
+	count: -1
+}
+
+deploy ff.Ping as Ping1 {
+	target: "pong"
+}
+`)
+	outA := filepath.Join(dir, "a.json")
+	res := runSDL(t, dir, "build", "-o", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	bytesA, err := os.ReadFile(outA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgA, err := image.Decode(bytes.NewReader(bytesA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(imgA.Records) != 1 || len(imgA.Records[0].Params) != 2 {
+		t.Fatalf("records = %+v, want Ping1 with count and target", imgA.Records)
+	}
+	count := imgA.Records[0].Params[0]
+	if count.Key != "count" || count.Value == nil || count.Value.Int != -1 || count.Source != image.SourceDefaultType {
+		t.Fatalf("count binding = %+v, want -1 from %q", count, image.SourceDefaultType)
+	}
+
+	res = runSDL(t, dir, "echo", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl echo exited %d\n%s", res.code, res.stderr)
+	}
+	echoed := res.stdout
+	if !strings.Contains(echoed, "count: -1") {
+		t.Errorf("echo must render the folded default explicitly:\n%s", echoed)
+	}
+
+	dir2 := solutionModule(t, "defaults.sdl", echoed)
+	if res := runSDL(t, dir2, "fmt", "-l", "."); res.code != 0 || res.stdout != "" {
+		t.Errorf("echoed unit is not canonical: fmt -l exited %d, listed %q\n%s",
+			res.code, res.stdout, res.stderr)
+	}
+	outB := filepath.Join(dir2, "b.json")
+	res = runSDL(t, dir2, "build", "-o", outB)
+	if res.code != 0 {
+		t.Fatalf("sdl build of the echoed unit exited %d\n%s", res.code, res.stderr)
+	}
+	bytesB, err := os.ReadFile(outB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgB, err := image.Decode(bytes.NewReader(bytesB))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := imgB.Records[0].Params[0].Source; got != image.SourceInstance {
+		t.Errorf("rebuilt count Source = %q, want %q (echo folds defaults into instance text)", got, image.SourceInstance)
+	}
+	if !image.Equal(imgA, imgB) {
+		t.Errorf("round trip is not Equal despite the provenance mask\n--- rebuilt ---\n%s", bytesB)
+	}
+	if bytes.Equal(bytesA, bytesB) {
+		t.Error("images are byte-identical; the fold should have changed a Source and this test its meaning")
+	}
+}
+
 // TestFmtExamples is (f): the checked-in examples are canonical, so the
 // repository holds the form the toolchain prints.
 func TestFmtExamples(t *testing.T) {

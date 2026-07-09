@@ -37,10 +37,12 @@ import (
 //	   factory (positioned at the referencing statement when one exists)
 //
 // This rung compiles solution and import clauses, extern and var
-// declarations, and deploy statements whose parameters are literals or
-// symbol references. Every parsed construct beyond it (default,
-// provision, sections, output references) is reported as a positioned
-// diagnostic rather than silently dropped.
+// declarations, default declarations (folded into the records they
+// modify, provenance kept in each binding's Source), and deploy
+// statements whose parameters are literals or symbol references.
+// Every parsed construct beyond it (provision, sections, output
+// references) is reported as a positioned diagnostic rather than
+// silently dropped.
 func MainCompile(cfg CompileConfig) int {
 	stderr := cfg.Stderr
 	if stderr == nil {
@@ -105,7 +107,23 @@ type linker struct {
 	packages map[string]*regPackage   // import path -> registration
 	imports  map[string]importBinding // reference name -> import
 	symbols  map[string]*symbol       // flat namespace: name -> first declaration
-	records  []image.Record
+
+	verbDefaults map[string]*defaultBody            // statement verb -> its one default
+	typeDefaults map[*catalogueElement]*defaultBody // element -> its one default
+
+	records []image.Record
+}
+
+// A defaultBody is one collected default declaration: the position
+// anchoring duplicate reports, the source layer its bindings carry
+// into records, and a per-element cache of the prevalidated bindings
+// it contributes.
+type defaultBody struct {
+	pos    token.Position
+	body   *ast.Body
+	source string
+
+	folds map[*catalogueElement][]image.Binding
 }
 
 // A symbol is one row of the solution's flat namespace. Instance names,
@@ -204,10 +222,12 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 	}
 
 	ln := &linker{
-		cfg:      cfg,
-		packages: make(map[string]*regPackage, len(cfg.Catalogue)),
-		imports:  make(map[string]importBinding),
-		symbols:  make(map[string]*symbol),
+		cfg:          cfg,
+		packages:     make(map[string]*regPackage, len(cfg.Catalogue)),
+		imports:      make(map[string]importBinding),
+		symbols:      make(map[string]*symbol),
+		verbDefaults: make(map[string]*defaultBody),
+		typeDefaults: make(map[*catalogueElement]*defaultBody),
 	}
 	for i, pkg := range cfg.Catalogue {
 		if pkg.Path == "" {
@@ -351,6 +371,9 @@ func (ln *linker) addImport(spec *ast.ImportSpec) {
 // user code stops the walk.
 func (ln *linker) check() {
 	ln.collect()
+	if ln.internal != nil {
+		return
+	}
 	for _, f := range ln.files {
 		for _, decl := range f.Decls {
 			switch d := decl.(type) {
@@ -361,10 +384,8 @@ func (ln *linker) check() {
 						return
 					}
 				}
-			case *ast.ExternDecl, *ast.VarDecl:
-				// Declared by collect; nothing binds here.
-			case *ast.DefaultDecl:
-				ln.errorf(d.Pos(), "default declarations not yet supported by this compiler rung")
+			case *ast.ExternDecl, *ast.VarDecl, *ast.DefaultDecl:
+				// Collected already; defaults fold at the records.
 			case *ast.ProvisionDecl:
 				ln.errorf(d.Pos(), "provision declarations not yet supported by this compiler rung")
 			}
@@ -375,7 +396,9 @@ func (ln *linker) check() {
 // collect walks every unit's declarations and enters each declared
 // name — instance names, var symbols, and extern symbols — into the
 // flat namespace, in unit-then-statement order. Provision names join
-// at the rung that gives the statements meaning.
+// at the rung that gives the statements meaning. Defaults collect in
+// a second pass: their bodies may reference any symbol, so they wait
+// for the namespace to be complete.
 func (ln *linker) collect() {
 	for _, f := range ln.files {
 		for _, decl := range f.Decls {
@@ -392,6 +415,87 @@ func (ln *linker) collect() {
 				for _, spec := range d.Specs {
 					ln.varSymbol(spec)
 				}
+			}
+		}
+	}
+	for _, f := range ln.files {
+		for _, decl := range f.Decls {
+			if d, ok := decl.(*ast.DefaultDecl); ok {
+				ln.collectDefault(d)
+				if ln.internal != nil {
+					return
+				}
+			}
+		}
+	}
+}
+
+// collectDefault enters one default declaration. The target — a
+// component type or a statement verb — dedups solution-wide: linking
+// is an order-insensitive union, so a second default for the same
+// target is a fault wherever it lives, never a nearer-wins layer.
+// Section bodies stay a later rung. A type-scoped body validates
+// eagerly against its element, records or none, so a broken default
+// cannot hide behind an undeployed element; a verb-scoped body is
+// element-dependent and validates at fold, so only its context-free
+// references resolve here.
+func (ln *linker) collectDefault(d *ast.DefaultDecl) {
+	switch t := d.Target.(type) {
+	case *ast.Ident: // the statement verbs: deploy, provision
+		if first, ok := ln.verbDefaults[t.Name]; ok {
+			ln.errorf(d.Keyword, "duplicate default for %s (first declared at %s)", t.Name, first.pos)
+			return
+		}
+		source := image.SourceDefaultDeploy
+		if t.Name != "deploy" {
+			// Provision records arrive at a later rung; until they do
+			// this default never folds, and its source value is that
+			// rung's to choose.
+			source = ""
+		}
+		ln.verbDefaults[t.Name] = &defaultBody{pos: d.Keyword, body: d.Body, source: source}
+		ln.checkDefaultBody(d.Body, true)
+
+	case *ast.TypeRef:
+		elem := ln.resolve(t)
+		if elem != nil && elem.kind != image.KindComponent {
+			ln.errorf(t.Pos(), "cannot default %s: a symbol type takes no parameters", refString(t))
+			elem = nil
+		}
+		if elem == nil {
+			ln.checkDefaultBody(d.Body, true)
+			return
+		}
+		if first, ok := ln.typeDefaults[elem]; ok {
+			ln.errorf(d.Keyword, "duplicate default for %s (first declared at %s)", refString(t), first.pos)
+			return
+		}
+		db := &defaultBody{pos: d.Keyword, body: d.Body, source: image.SourceDefaultType}
+		ln.typeDefaults[elem] = db
+		ln.checkDefaultBody(d.Body, false)
+		if !ln.dry(elem, t) {
+			return
+		}
+		ln.defaultFolds(db, elem, t, true)
+	}
+}
+
+// checkDefaultBody screens a default body at collection: sections are
+// a later rung, and — for bodies that will not validate against an
+// element right away (checkRefs) — symbol references resolve now,
+// context-free, so a dangling name surfaces exactly once even if no
+// record ever folds the default.
+func (ln *linker) checkDefaultBody(body *ast.Body, checkRefs bool) {
+	for _, item := range body.Items {
+		switch it := item.(type) {
+		case *ast.Section:
+			ln.errorf(it.Name.NamePos, "%s sections not yet supported by this compiler rung", it.Name.Name)
+		case *ast.Param:
+			if !checkRefs {
+				continue
+			}
+			if ref, isRef := it.Value.(*ast.RefExpr); isRef {
+				ln.resolveRef(ref)
 			}
 		}
 	}
@@ -467,7 +571,16 @@ func (ln *linker) deploy(spec *ast.DeploySpec) {
 		return
 	}
 	bindings, bindOK := ln.bind(elem, spec)
-	if !ok || !bindOK || ln.internal != nil {
+	if ln.internal != nil {
+		return
+	}
+	if elem != nil {
+		bindings = ln.fold(elem, spec, bindings)
+		if ln.internal != nil {
+			return
+		}
+	}
+	if !ok || !bindOK {
 		return
 	}
 	ln.records = append(ln.records, image.Record{
@@ -476,6 +589,111 @@ func (ln *linker) deploy(spec *ast.DeploySpec) {
 		Name:    spec.Name.Name,
 		Params:  bindings,
 	})
+}
+
+// fold merges the default layers under a statement's own bindings.
+// The nearest layer wins a key: the instance over the element-scoped
+// default over the verb-scoped one; the catalogue's slot defaults are
+// no layer at all — a binding exists iff some SDL statement set it,
+// and unset slots stay with the pinned schema. Source keeps each
+// surviving binding's provenance (image.Equal masks it).
+func (ln *linker) fold(elem *catalogueElement, spec *ast.DeploySpec, instance []image.Binding) []image.Binding {
+	verb, typed := ln.verbDefaults["deploy"], ln.typeDefaults[elem]
+	if verb == nil && typed == nil {
+		return instance
+	}
+	merged := make(map[string]image.Binding)
+	if verb != nil {
+		for _, b := range ln.defaultFolds(verb, elem, spec.Type, false) {
+			merged[b.Key] = b
+		}
+		if ln.internal != nil {
+			return nil
+		}
+	}
+	if typed != nil {
+		for _, b := range ln.defaultFolds(typed, elem, spec.Type, true) {
+			merged[b.Key] = b
+		}
+	}
+	for _, b := range instance {
+		merged[b.Key] = b
+	}
+	bindings := make([]image.Binding, 0, len(merged))
+	for _, key := range slices.Sorted(maps.Keys(merged)) {
+		bindings = append(bindings, merged[key])
+	}
+	return bindings
+}
+
+// defaultFolds returns d's bindings as they apply to elem, building
+// and caching them on first use: one validation per element, however
+// many records fold the default, so a fault in a default body
+// surfaces once.
+func (ln *linker) defaultFolds(d *defaultBody, elem *catalogueElement, at *ast.TypeRef, strict bool) []image.Binding {
+	if d.folds == nil {
+		d.folds = make(map[*catalogueElement][]image.Binding)
+	}
+	if bs, ok := d.folds[elem]; ok {
+		return bs
+	}
+	bs := ln.buildDefault(d, elem, at, strict)
+	d.folds[elem] = bs
+	return bs
+}
+
+// buildDefault validates a default body against one element and
+// returns the bindings it contributes, unsorted (fold merges by key).
+// strict — the element-scoped path — holds the body to the element's
+// schema exactly as an instance body: unknown parameters are faults
+// and references resolve loudly. The verb-scoped path skips
+// parameters the element does not declare (a verb-wide default is a
+// broad brush over heterogeneous elements) and resolves references
+// quietly, their context-free faults already diagnosed at collection.
+func (ln *linker) buildDefault(d *defaultBody, elem *catalogueElement, at *ast.TypeRef, strict bool) []image.Binding {
+	sf := &surface{ln: ln, elem: elem, at: at}
+	var bindings []image.Binding
+	for _, item := range d.body.Items {
+		it, ok := item.(*ast.Param)
+		if !ok {
+			continue // sections were diagnosed at collection
+		}
+		var b image.Binding
+		var bound bool
+		switch ref, isRef := it.Value.(*ast.RefExpr); {
+		case strict:
+			b, bound = ln.bindParam(sf, it, d.source)
+		case !elem.keys[it.Key.Name]:
+			// Not this element's parameter; the default passes it by.
+		case isRef:
+			if sym := ln.lookupValueSymbol(ref); sym != nil {
+				b, bound = ln.bindSymbol(sf, it.Key, ref, sym, d.source)
+			}
+		default:
+			b, bound = ln.bindParam(sf, it, d.source)
+		}
+		if ln.internal != nil {
+			return nil
+		}
+		if bound {
+			bindings = append(bindings, b)
+		}
+	}
+	return bindings
+}
+
+// lookupValueSymbol returns the var or extern symbol a reference
+// names, or nil quietly: the context-free faults (dangling, dotted,
+// instance-valued) were diagnosed when the reference was collected.
+func (ln *linker) lookupValueSymbol(ref *ast.RefExpr) *symbol {
+	if ref.Sel != nil {
+		return nil
+	}
+	sym := ln.symbols[ref.X.Name]
+	if sym == nil || sym.class == classInstance {
+		return nil
+	}
+	return sym
 }
 
 // resolve maps a type reference through the union import table and the

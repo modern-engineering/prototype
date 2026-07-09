@@ -31,7 +31,10 @@
 // parameter schema, and bind its parameters, literal values through
 // the element's own flag surface and symbol references against the
 // namespace, with sensitivity tainting bindings wired from sensitive
-// symbol types; and emit the desired-state image of package
+// symbol types; fold the solution's defaults — one per element type,
+// one per statement verb, nearest layer wins — under each statement's
+// own bindings, provenance kept in every binding's Source; and emit
+// the desired-state image of package
 // [github.com/modern-engineering/prototype/solution/image] as
 // canonical JSON, pinning the schema of every registered element
 // alongside the symbol table and the deployment records.
