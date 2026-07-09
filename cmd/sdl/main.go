@@ -10,6 +10,8 @@
 // The commands are:
 //
 //	build       compile a solution directory into its desired-state image
+//	echo        render a desired-state image as canonical SDL
+//	fmt         reformat solution units in canonical form
 //
 // Use "sdl help <command>" for more information about a command.
 package main
@@ -23,6 +25,7 @@ import (
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/buildcmd"
+	"github.com/modern-engineering/prototype/cmd/sdl/internal/fmtcmd"
 )
 
 func init() {
@@ -30,6 +33,7 @@ func init() {
 	// declare their commands, main owns the list.
 	base.Commands = []*base.Command{
 		buildcmd.CmdBuild,
+		fmtcmd.CmdFmt,
 	}
 }
 
