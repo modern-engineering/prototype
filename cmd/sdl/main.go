@@ -25,6 +25,7 @@ import (
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/buildcmd"
+	"github.com/modern-engineering/prototype/cmd/sdl/internal/echocmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/fmtcmd"
 )
 
@@ -33,6 +34,7 @@ func init() {
 	// declare their commands, main owns the list.
 	base.Commands = []*base.Command{
 		buildcmd.CmdBuild,
+		echocmd.CmdEcho,
 		fmtcmd.CmdFmt,
 	}
 }

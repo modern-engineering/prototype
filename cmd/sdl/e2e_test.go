@@ -1,10 +1,10 @@
 // Copyright 2026 The prototype authors. Use of this source code is
 // governed by the license that can be found in the LICENSE file.
 
-// End-to-end proof of the build pipeline: these tests build the sdl CLI
+// End-to-end proof of the toolchain: these tests build the sdl CLI
 // once, then drive it as a user would — real solution directories, real
-// module contexts, real toolchain runs. They are the slow path; -short
-// skips them all.
+// module contexts, real toolchain runs, images echoed back into fresh
+// solutions. They are the slow path; -short skips them all.
 package main_test
 
 import (
@@ -71,6 +71,7 @@ func buildCLI() error {
 // A result is one CLI invocation's observable outcome.
 type result struct {
 	code   int
+	stdout string
 	stderr string
 }
 
@@ -79,7 +80,8 @@ func runSDL(t *testing.T, dir string, args ...string) result {
 	t.Helper()
 	cmd := exec.Command(sdlPath, args...)
 	cmd.Dir = dir
-	var errb bytes.Buffer
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
 	cmd.Stderr = &errb
 	err := cmd.Run()
 	code := 0
@@ -90,7 +92,7 @@ func runSDL(t *testing.T, dir string, args ...string) result {
 		}
 		code = exit.ExitCode()
 	}
-	return result{code: code, stderr: errb.String()}
+	return result{code: code, stdout: outb.String(), stderr: errb.String()}
 }
 
 // TestBuildPingpong is (a): the public example compiles to exactly the
@@ -234,6 +236,80 @@ deploy ff.Gone as G
 			t.Errorf("diagnostic not positioned at the element reference:\n%s", res.stderr)
 		}
 	})
+}
+
+// TestRoundTripEcho is (e): the image survives being made visible.
+// Building the public example, echoing its image into a fresh solution
+// module, and building the echoed unit yields the same desired state —
+// image.Equal and, since generation and catalogue coincide here, the
+// same bytes. The echoed unit itself is canonical, so sdl fmt has
+// nothing to say about it.
+func TestRoundTripEcho(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	outA := filepath.Join(t.TempDir(), "a.json")
+	res := runSDL(t, repoRoot, "build", "-o", outA, "examples/pingpong")
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+
+	res = runSDL(t, repoRoot, "echo", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl echo exited %d\n%s", res.code, res.stderr)
+	}
+	echoed := res.stdout
+	t.Logf("echoed unit:\n%s", echoed)
+
+	dir := solutionModule(t, "pingpong.sdl", echoed)
+	if res := runSDL(t, dir, "fmt", "-l", "."); res.code != 0 || res.stdout != "" {
+		t.Errorf("echoed unit is not canonical: fmt -l exited %d, listed %q\n%s",
+			res.code, res.stdout, res.stderr)
+	}
+
+	outB := filepath.Join(dir, "b.json")
+	start := time.Now()
+	res = runSDL(t, dir, "build", "-o", outB)
+	t.Logf("round-trip rebuild: %v", time.Since(start))
+	if res.code != 0 {
+		t.Fatalf("sdl build of the echoed unit exited %d\n%s", res.code, res.stderr)
+	}
+
+	bytesA, err := os.ReadFile(outA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bytesB, err := os.ReadFile(outB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgA, err := image.Decode(bytes.NewReader(bytesA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgB, err := image.Decode(bytes.NewReader(bytesB))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !image.Equal(imgA, imgB) {
+		t.Errorf("round-tripped image is not Equal to the original\n--- rebuilt ---\n%s", bytesB)
+	}
+	if !bytes.Equal(bytesA, bytesB) {
+		t.Errorf("round-tripped image differs byte-wise\n--- original ---\n%s--- rebuilt ---\n%s", bytesA, bytesB)
+	}
+}
+
+// TestFmtExamples is (f): the checked-in examples are canonical, so the
+// repository holds the form the toolchain prints.
+func TestFmtExamples(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	res := runSDL(t, repoRoot, "fmt", "-l", "examples/pingpong")
+	if res.code != 0 || res.stdout != "" {
+		t.Errorf("fmt -l exited %d and listed %q; the examples must stay canonical\n%s",
+			res.code, res.stdout, res.stderr)
+	}
 }
 
 // TestWorkFlag is (d): -work announces the work directory and leaves
