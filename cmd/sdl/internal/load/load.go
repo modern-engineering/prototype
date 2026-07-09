@@ -95,6 +95,15 @@ func Dir(dir string) (*Solution, error) {
 			} else {
 				diags.Add(token.Position{Filename: name}, err.Error())
 			}
+			// A unit that failed to parse may carry a partial AST — an
+			// "import ff" with no path leaves an ImportSpec whose Path
+			// is nil — so its import walk is skipped, mirroring the
+			// generated compiler, where syntax gates linking. The skip
+			// is per unit, not per load: the parse diagnostics already
+			// position every fault in this file, and the healthy units'
+			// import checks keep flowing so one broken unit does not
+			// hide another's conflicts.
+			continue
 		}
 		if sol.Name == "" && f.Solution != nil {
 			sol.Name = f.Solution.Name.Name
