@@ -10,3 +10,4 @@ They may motivate requirements and decisions, but do not establish the project m
 | [A-11](A-11-substrate-slices.md)   | Substrate, Slices, and Attachments                                             |
 | [A-12](A-12-operator-io.md)        | Operator I/O: The Process Contract over OS Primitives                          |
 | [A-13](A-13-mission-analysis.md)   | Mission Analysis: Stakeholders, Operations, and Measures of Effectiveness      |
+| [A-14](A-14-staged-catalogue-compilation.md) | Staged Catalogue Compilation: How the Compiler Knows User-Defined Elements     |
