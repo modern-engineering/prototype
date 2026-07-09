@@ -937,13 +937,126 @@ func TestImagePlumbing(t *testing.T) {
 	}
 }
 
+// TestBuildSample is the CP-C proof: the mockup-6 sample lives in
+// examples/sample and compiles to exactly the golden image — extern
+// and var symbols, both provision kinds, folded type and verb
+// defaults, output references, compartments, and a peer unit — and
+// the image plumbing reads the result back.
+func TestBuildSample(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	out := filepath.Join(t.TempDir(), "sample.json")
+	res := runSDL(t, repoRoot, "build", "-o", out, "examples/sample")
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	got, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden := filepath.Join("testdata", "sample.json")
+	if *update {
+		if err := os.WriteFile(golden, got, 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("image differs from %s\n--- got ---\n%s", golden, got)
+	}
+
+	img, err := image.Decode(bytes.NewReader(got))
+	if err != nil {
+		t.Fatalf("emitted image does not decode: %v", err)
+	}
+	if img.Solution != "sample" || len(img.Records) != 6 || len(img.Catalogue) != 2 || len(img.Symbols) != 5 {
+		t.Errorf("decoded image: solution %q, %d records, %d packages, %d symbols; want sample, 6, 2, 5",
+			img.Solution, len(img.Records), len(img.Catalogue), len(img.Symbols))
+	}
+
+	res = runSDL(t, repoRoot, "image", "records", out)
+	if res.code != 0 {
+		t.Fatalf("sdl image records exited %d\n%s", res.code, res.stderr)
+	}
+	t.Logf("sample records table:\n%s", res.stdout)
+	for _, want := range []string{
+		"provision  slice   github.com/modern-engineering/prototype/examples/substrate.NATS",
+		"provision  attach  github.com/modern-engineering/prototype/examples/substrate.Postgres",
+		"natsAccount", "pgLegacy", "Ping1", "Ping2", "Pong", "Ping3",
+	} {
+		if !strings.Contains(res.stdout, want) {
+			t.Errorf("records table is missing %q:\n%s", want, res.stdout)
+		}
+	}
+}
+
+// TestSampleRoundTrip closes the loop over the living sample: echoing
+// its image into a fresh solution module and rebuilding yields the
+// same desired state. The bytes differ — echo folds the sample's
+// defaults into instance text, so Sources move — and Equal masks
+// exactly that.
+func TestSampleRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	outA := filepath.Join(t.TempDir(), "a.json")
+	res := runSDL(t, repoRoot, "build", "-o", outA, "examples/sample")
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	res = runSDL(t, repoRoot, "echo", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl echo exited %d\n%s", res.code, res.stderr)
+	}
+	echoed := res.stdout
+	t.Logf("echoed unit:\n%s", echoed)
+
+	dir := solutionModule(t, "sample.sdl", echoed)
+	if res := runSDL(t, dir, "fmt", "-l", "."); res.code != 0 || res.stdout != "" {
+		t.Errorf("echoed unit is not canonical: fmt -l exited %d, listed %q\n%s",
+			res.code, res.stdout, res.stderr)
+	}
+	outB := filepath.Join(dir, "b.json")
+	res = runSDL(t, dir, "build", "-o", outB)
+	if res.code != 0 {
+		t.Fatalf("sdl build of the echoed unit exited %d\n%s", res.code, res.stderr)
+	}
+
+	bytesA, err := os.ReadFile(outA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bytesB, err := os.ReadFile(outB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgA, err := image.Decode(bytes.NewReader(bytesA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgB, err := image.Decode(bytes.NewReader(bytesB))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !image.Equal(imgA, imgB) {
+		t.Errorf("round-tripped sample is not Equal to the original\n--- rebuilt ---\n%s", bytesB)
+	}
+	if bytes.Equal(bytesA, bytesB) {
+		t.Error("images are byte-identical; the sample's defaults should fold into different Sources")
+	}
+}
+
 // TestFmtExamples is (f): the checked-in examples are canonical, so the
 // repository holds the form the toolchain prints.
 func TestFmtExamples(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
 	}
-	res := runSDL(t, repoRoot, "fmt", "-l", "examples/pingpong")
+	res := runSDL(t, repoRoot, "fmt", "-l", "examples")
 	if res.code != 0 || res.stdout != "" {
 		t.Errorf("fmt -l exited %d and listed %q; the examples must stay canonical\n%s",
 			res.code, res.stdout, res.stderr)

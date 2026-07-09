@@ -1,0 +1,14 @@
+// Peer files repeat the solution clause and carry their OWN import
+// block: a unit imports only what it references and stays
+// self-contained, the Go source-file model. Linking unions the whole
+// directory — the unit set is never an ad-hoc link line that could
+// silently drop a file and prune its instances — and duplicate
+// instance names are link errors.
+solution sample
+
+import "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping3 {
+	target: echoSubject
+	nats: natsAccount.config
+}

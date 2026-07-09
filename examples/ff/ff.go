@@ -26,6 +26,12 @@ import (
 // flag.Func flag that validates but never renders a value — proving
 // that solution tooling depends only on flag.Value.Set, not on any
 // flag's ability to print itself back.
+//
+// The nats parameter is the account-config input a solution wires
+// from a provisioned messaging account: a file-path-shaped string at
+// this rung, so each deployment environment picks its own delivery
+// mechanism (a mounted secret volume, a systemd credential, direct
+// injection) and the toy runner only reports what it was handed.
 var Ping = &application.Descriptor{
 	Name: "ping",
 	Doc: "ping emits a payload to a target at a fixed cadence\n\n" +
@@ -35,6 +41,7 @@ var Ping = &application.Descriptor{
 		fs := flag.NewFlagSet("ping", flag.ContinueOnError)
 		count := fs.Int("count", -1, "number of pings; negative means forever")
 		interval := fs.Duration("interval", time.Second, "delay between pings")
+		nats := fs.String("nats", "", "path to the messaging account config; empty runs unconnected")
 		var target string
 		fs.Func("target", "destination to ping; must not be empty", func(s string) error {
 			if s == "" {
@@ -44,6 +51,9 @@ var Ping = &application.Descriptor{
 			return nil
 		})
 		return application.RunnerFunc(func(ctx context.Context) error {
+			if *nats != "" {
+				log.Printf("ping connecting via account config %s", *nats)
+			}
 			tick := time.NewTicker(*interval)
 			defer tick.Stop()
 			for sent := 0; *count < 0 || sent < *count; sent++ {
@@ -59,7 +69,8 @@ var Ping = &application.Descriptor{
 	}),
 }
 
-// Pong answers pings on a subject.
+// Pong answers pings on a subject. Like Ping, it takes its messaging
+// account config as a file-path-shaped nats parameter.
 var Pong = &application.Descriptor{
 	Name: "pong",
 	Doc: "pong answers pings on a subject\n\n" +
@@ -67,8 +78,12 @@ var Pong = &application.Descriptor{
 		"its context is cancelled.",
 	Make: application.MakeFunc(func() (application.Runner, *flag.FlagSet) {
 		fs := flag.NewFlagSet("pong", flag.ContinueOnError)
+		nats := fs.String("nats", "", "path to the messaging account config; empty runs unconnected")
 		subject := fs.String("subject", "ping", "subject to answer on")
 		return application.RunnerFunc(func(ctx context.Context) error {
+			if *nats != "" {
+				log.Printf("pong connecting via account config %s", *nats)
+			}
 			log.Printf("pong answering on %s", *subject)
 			<-ctx.Done()
 			return ctx.Err()

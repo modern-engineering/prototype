@@ -23,6 +23,10 @@
               "default": "1s"
             },
             {
+              "name": "nats",
+              "usage": "path to the messaging account config; empty runs unconnected"
+            },
+            {
               "name": "target",
               "usage": "destination to ping; must not be empty"
             }
@@ -33,6 +37,10 @@
           "kind": "component",
           "doc": "pong answers pings on a subject\n\nPong waits for payloads on its subject and answers each one until\nits context is cancelled.",
           "params": [
+            {
+              "name": "nats",
+              "usage": "path to the messaging account config; empty runs unconnected"
+            },
             {
               "name": "subject",
               "usage": "subject to answer on",

@@ -1,0 +1,80 @@
+// The sample solution is the design scratchpad's mockup 6 brought to
+// life: the same statements, linked by sdl build against the real ff
+// and substrate catalogues. Every element reference is
+// package-qualified through the unit's own import block; solution-local
+// names — var/extern symbols and instance names — stay unqualified.
+// The peer file sample_extra.sdl carries the Ping3 deployment.
+solution sample
+
+import (
+	"github.com/modern-engineering/prototype/examples/ff"
+	"github.com/modern-engineering/prototype/examples/substrate"
+)
+
+// Dynamic symbols: the deployment environment MUST bind these at
+// reification. Symbol TYPES come from the catalogue, so they are
+// qualified like any other element; the symbols themselves stay
+// solution-local.
+extern (
+	natsCluster substrate.NATSCluster
+	natsAdmin substrate.Secret // sensitive: taints every field wired from it
+	pgServer substrate.PostgresServer // legacy per-customer substrate
+)
+
+// Weak symbols: defaults bound at compile; a site MAY override uniformly.
+var (
+	echoSubject: "com.acme.Echo"
+	pingInterval: 1s
+)
+
+// Type-level defaults address the element by its qualified name.
+default ff.Ping {
+	interval: pingInterval
+	count: -1 // endless
+}
+
+// Verb-level defaults; merge order:
+// catalogue < default verb < default type < instance.
+default deploy {
+	on {
+		location: awsUsEast1
+	}
+}
+
+// `slice` OWNS a partition carved from guaranteed substrate; `attach`
+// plugs in verify-only and emits the same output scheme (registered on
+// the provision TYPE), so downstream wiring cannot tell them apart and
+// migrating off the legacy substrate is a one-word change.
+provision substrate.NATS slice as natsAccount {
+	cluster: natsCluster
+	adminAccount: natsAdmin
+}
+
+provision substrate.Postgres attach as pgLegacy {
+	server: pgServer
+}
+
+deploy ff.Ping as Ping1 {
+	target: echoSubject
+	nats: natsAccount.config // reconcile-time output: instance.output, unqualified
+}
+
+deploy ff.Ping as Ping2 {
+	count: 10 // overrides the default
+	target: echoSubject
+	nats: natsAccount.config
+
+	on {
+		location: euCentral1 // overrides `default deploy`
+	}
+	metadata {
+		team: "search"
+	}
+}
+
+// An instance may reuse an element's short name: `Pong` names the
+// instance; the element is always `ff.Pong`.
+deploy ff.Pong as Pong {
+	subject: echoSubject // Pong derives its ".>" subscription internally
+	nats: natsAccount.config
+}

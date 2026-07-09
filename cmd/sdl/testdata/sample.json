@@ -1,0 +1,413 @@
+{
+  "format": "solution-image/1",
+  "solution": "sample",
+  "generation": 1,
+  "catalogue": [
+    {
+      "path": "github.com/modern-engineering/prototype/examples/ff",
+      "name": "ff",
+      "elements": [
+        {
+          "name": "Ping",
+          "kind": "component",
+          "doc": "ping emits a payload to a target at a fixed cadence\n\nEach tick, ping sends one payload and logs the delivery. A negative\ncount keeps it pinging until its context is cancelled.",
+          "params": [
+            {
+              "name": "count",
+              "usage": "number of pings; negative means forever",
+              "default": "-1"
+            },
+            {
+              "name": "interval",
+              "usage": "delay between pings",
+              "default": "1s"
+            },
+            {
+              "name": "nats",
+              "usage": "path to the messaging account config; empty runs unconnected"
+            },
+            {
+              "name": "target",
+              "usage": "destination to ping; must not be empty"
+            }
+          ]
+        },
+        {
+          "name": "Pong",
+          "kind": "component",
+          "doc": "pong answers pings on a subject\n\nPong waits for payloads on its subject and answers each one until\nits context is cancelled.",
+          "params": [
+            {
+              "name": "nats",
+              "usage": "path to the messaging account config; empty runs unconnected"
+            },
+            {
+              "name": "subject",
+              "usage": "subject to answer on",
+              "default": "ping"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "github.com/modern-engineering/prototype/examples/substrate",
+      "name": "substrate",
+      "elements": [
+        {
+          "name": "Endpoint",
+          "kind": "symbol",
+          "doc": "a site-bound network coordinate such as an address or subject"
+        },
+        {
+          "name": "NATS",
+          "kind": "provision",
+          "doc": "an account carved out of a substrate NATS cluster, or a verified attachment to one",
+          "params": [
+            {
+              "name": "adminAccount",
+              "usage": "administrative credential the driver provisions with"
+            },
+            {
+              "name": "cluster",
+              "usage": "substrate cluster to hold the account on"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "config",
+              "sensitive": true
+            }
+          ],
+          "kinds": [
+            "slice",
+            "attach"
+          ]
+        },
+        {
+          "name": "NATSCluster",
+          "kind": "symbol",
+          "doc": "a substrate NATS cluster, guaranteed by the platform and named by the site"
+        },
+        {
+          "name": "Postgres",
+          "kind": "provision",
+          "doc": "a verified attachment to a site-provided PostgreSQL server",
+          "params": [
+            {
+              "name": "server",
+              "usage": "server instance to verify and attach to"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "dsn",
+              "sensitive": true
+            }
+          ],
+          "kinds": [
+            "attach"
+          ]
+        },
+        {
+          "name": "PostgresServer",
+          "kind": "symbol",
+          "doc": "a PostgreSQL server instance provided by the site, typically legacy per-customer substrate"
+        },
+        {
+          "name": "Secret",
+          "kind": "symbol",
+          "doc": "an operator-supplied credential, bound by the site and redacted wherever it surfaces",
+          "sensitive": true
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "name": "echoSubject",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "com.acme.Echo"
+      }
+    },
+    {
+      "name": "natsAdmin",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/examples/substrate",
+        "name": "Secret"
+      }
+    },
+    {
+      "name": "natsCluster",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/examples/substrate",
+        "name": "NATSCluster"
+      }
+    },
+    {
+      "name": "pgServer",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/examples/substrate",
+        "name": "PostgresServer"
+      }
+    },
+    {
+      "name": "pingInterval",
+      "class": "var",
+      "value": {
+        "kind": "duration",
+        "duration": "1s"
+      }
+    }
+  ],
+  "records": [
+    {
+      "verb": "provision",
+      "kind": "slice",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/substrate",
+        "name": "NATS"
+      },
+      "name": "natsAccount",
+      "params": [
+        {
+          "key": "adminAccount",
+          "ref": {
+            "symbol": "natsAdmin"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "cluster",
+          "ref": {
+            "symbol": "natsCluster"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "provision",
+      "kind": "attach",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/substrate",
+        "name": "Postgres"
+      },
+      "name": "pgLegacy",
+      "params": [
+        {
+          "key": "server",
+          "ref": {
+            "symbol": "pgServer"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/ff",
+        "name": "Ping"
+      },
+      "name": "Ping1",
+      "params": [
+        {
+          "key": "count",
+          "value": {
+            "kind": "int",
+            "int": -1
+          },
+          "source": "default-type"
+        },
+        {
+          "key": "interval",
+          "ref": {
+            "symbol": "pingInterval"
+          },
+          "source": "default-type"
+        },
+        {
+          "key": "nats",
+          "ref": {
+            "symbol": "natsAccount",
+            "output": "config"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "target",
+          "ref": {
+            "symbol": "echoSubject"
+          },
+          "source": "instance"
+        }
+      ],
+      "on": [
+        {
+          "key": "location",
+          "value": {
+            "kind": "token",
+            "token": "awsUsEast1"
+          },
+          "source": "default-deploy"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/ff",
+        "name": "Ping"
+      },
+      "name": "Ping2",
+      "params": [
+        {
+          "key": "count",
+          "value": {
+            "kind": "int",
+            "int": 10
+          },
+          "source": "instance"
+        },
+        {
+          "key": "interval",
+          "ref": {
+            "symbol": "pingInterval"
+          },
+          "source": "default-type"
+        },
+        {
+          "key": "nats",
+          "ref": {
+            "symbol": "natsAccount",
+            "output": "config"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "target",
+          "ref": {
+            "symbol": "echoSubject"
+          },
+          "source": "instance"
+        }
+      ],
+      "on": [
+        {
+          "key": "location",
+          "value": {
+            "kind": "token",
+            "token": "euCentral1"
+          },
+          "source": "instance"
+        }
+      ],
+      "metadata": [
+        {
+          "key": "team",
+          "value": {
+            "kind": "string",
+            "string": "search"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/ff",
+        "name": "Pong"
+      },
+      "name": "Pong",
+      "params": [
+        {
+          "key": "nats",
+          "ref": {
+            "symbol": "natsAccount",
+            "output": "config"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "subject",
+          "ref": {
+            "symbol": "echoSubject"
+          },
+          "source": "instance"
+        }
+      ],
+      "on": [
+        {
+          "key": "location",
+          "value": {
+            "kind": "token",
+            "token": "awsUsEast1"
+          },
+          "source": "default-deploy"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/ff",
+        "name": "Ping"
+      },
+      "name": "Ping3",
+      "params": [
+        {
+          "key": "count",
+          "value": {
+            "kind": "int",
+            "int": -1
+          },
+          "source": "default-type"
+        },
+        {
+          "key": "interval",
+          "ref": {
+            "symbol": "pingInterval"
+          },
+          "source": "default-type"
+        },
+        {
+          "key": "nats",
+          "ref": {
+            "symbol": "natsAccount",
+            "output": "config"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "target",
+          "ref": {
+            "symbol": "echoSubject"
+          },
+          "source": "instance"
+        }
+      ],
+      "on": [
+        {
+          "key": "location",
+          "value": {
+            "kind": "token",
+            "token": "awsUsEast1"
+          },
+          "source": "default-deploy"
+        }
+      ]
+    }
+  ]
+}
