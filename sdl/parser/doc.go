@@ -74,7 +74,10 @@
 // value. After a statement-level error the parser resynchronizes by
 // skipping to the next NEWLINE at the nesting depth where the error
 // occurred (never escaping the enclosing block), so one malformed
-// statement costs at most that statement.
+// statement costs at most that statement. The one exception is body
+// nesting beyond the parser's depth cap, which stops the whole parse
+// at a positioned error rather than exhaust the stack unwinding an
+// adversarial input.
 //
 // Comments attach to statements as described by the sdl/ast package. One
 // lossy corner is made lossless by displacement: if both the "(" line and

@@ -21,16 +21,41 @@ import (
 // ParseFile always returns a non-nil file; if the source could not be
 // parsed cleanly, the file holds the statements that did parse. The error
 // is nil for a clean parse and a sorted [scanner.ErrorList] otherwise.
+// A pathologically nested source stops at a positioned "exceeds
+// maximum nesting depth" error, abandoning the statements beyond it.
 func ParseFile(filename string, src []byte) (*ast.File, error) {
 	p := new(parser)
 	p.scanner.Init(filename, src, func(pos token.Position, msg string) {
 		p.errors.Add(pos, msg)
 	})
 	p.next() // prime the first token
-	f := p.parseFile()
+	f := new(ast.File)
+	func() {
+		// The depth guard unwinds through a bailout panic (the
+		// go/parser precedent): resynchronizing out of tens of
+		// thousands of open blocks statement by statement would only
+		// pile up noise under the one real fault.
+		defer func() {
+			if e := recover(); e != nil {
+				if _, ok := e.(bailout); !ok {
+					panic(e)
+				}
+			}
+		}()
+		f = p.parseFile()
+	}()
 	p.errors.Sort()
 	return f, p.errors.Err()
 }
+
+// maxNestLev caps body nesting so an adversarial input exhausts the
+// error list, not the goroutine stack. Real units nest sections one
+// level deep; the cap is orders of magnitude beyond any of them.
+const maxNestLev = 10000
+
+// A bailout carries the depth guard's abort out of the recursion;
+// ParseFile recovers it after the positioned error was recorded.
+type bailout struct{}
 
 // The parser structure holds the parser's internal state.
 type parser struct {
@@ -47,6 +72,7 @@ type parser struct {
 	pending []*ast.CommentGroup // unclaimed full-line comment groups
 
 	hasImports bool // the unit declares imports; TypeRefs must qualify
+	nestLev    int  // body nesting depth, capped at maxNestLev
 }
 
 // ----------------------------------------------------------------------------
@@ -303,6 +329,12 @@ func isLiteral(v ast.Value) bool {
 // current token is '{'. A trailing comment on the '{' line attaches to
 // owner, the node whose statement the body belongs to.
 func (p *parser) parseBody(owner *ast.Comments) *ast.Body {
+	p.nestLev++
+	defer func() { p.nestLev-- }()
+	if p.nestLev > maxNestLev {
+		p.error(p.pos, "exceeds maximum nesting depth")
+		panic(bailout{})
+	}
 	b := &ast.Body{Lbrace: p.expect(token.LBRACE)}
 	p.attachSuffix(owner)
 	seen := make(map[string]bool)

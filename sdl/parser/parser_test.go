@@ -391,6 +391,31 @@ func TestParseErrors(t *testing.T) {
 	}
 }
 
+// TestParseDepthLimit feeds adversarially nested bodies through both
+// body-bearing productions: the parser must stop at a positioned
+// depth error instead of overflowing the goroutine stack.
+func TestParseDepthLimit(t *testing.T) {
+	deep := strings.Repeat("a {\n", 12000) // beyond maxNestLev, never closed
+	tests := map[string]string{
+		"deploy body":  "solution s\n\ndeploy ff.Ping as P {\n" + deep,
+		"default body": "solution s\n\ndefault deploy {\n" + deep,
+	}
+	for name, src := range tests {
+		t.Run(name, func(t *testing.T) {
+			f, err := parser.ParseFile("deep.sdl", []byte(src))
+			if f == nil {
+				t.Fatal("ParseFile returned a nil file")
+			}
+			if err == nil {
+				t.Fatal("ParseFile succeeded, want a depth error")
+			}
+			if !strings.Contains(err.Error(), "exceeds maximum nesting depth") {
+				t.Errorf("err = %v, want a nesting-depth error", err)
+			}
+		})
+	}
+}
+
 func TestParseErrorRecovery(t *testing.T) {
 	// A malformed statement must cost only itself: the parser resyncs at
 	// the next terminating line break and keeps the surrounding decls.
