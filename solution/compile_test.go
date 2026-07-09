@@ -907,6 +907,53 @@ func TestMainCompileDefaultRefs(t *testing.T) {
 	}
 }
 
+// TestMainCompileDefaultOutputRefs sends a provision-output reference
+// through the verb-default layer: the folded binding must land as a
+// reference — never an inlined value — with Source default-deploy and
+// the referenced output's sensitivity taint, while elements that do
+// not declare the key and records of the other verb are passed by.
+func TestMainCompileDefaultOutputRefs(t *testing.T) {
+	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+		"import (\n" +
+		"\tff \"example.com/acme/pingpong\"\n" +
+		"\tsub \"example.com/acme/substrate\"\n" +
+		")\n" +
+		"default deploy {\n" +
+		"\twindow: bus.config\n" + // config is a sensitive Bus output
+		"}\n" +
+		"provision sub.Bus slice as bus\n" +
+		"deploy ff.Ping as P\n" +
+		"deploy ff.Pong as Q\n"}}
+	cfg := solution.CompileConfig{
+		Solution:  "sample",
+		Units:     units,
+		Catalogue: testCatalogue(),
+	}
+	code, stdout, stderr := compile(t, cfg)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	img, err := image.Decode(strings.NewReader(stdout))
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(img.Records) != 3 {
+		t.Fatalf("got %d records, want 3", len(img.Records))
+	}
+	if bus := img.Records[0]; len(bus.Params) != 0 {
+		t.Errorf("bus params = %+v, want none: default deploy must not fold into provisions", bus.Params)
+	}
+	ping := img.Records[1]
+	if len(ping.Params) != 1 || ping.Params[0].Key != "window" ||
+		ping.Params[0].Ref == nil || ping.Params[0].Ref.Symbol != "bus" || ping.Params[0].Ref.Output != "config" ||
+		ping.Params[0].Value != nil || ping.Params[0].Source != image.SourceDefaultDeploy || !ping.Params[0].Sensitive {
+		t.Errorf("P params = %+v, want one sensitive default-deploy ref to bus.config", ping.Params)
+	}
+	if pong := img.Records[2]; len(pong.Params) != 0 {
+		t.Errorf("Q params = %+v, want none: Pong declares no window parameter", pong.Params)
+	}
+}
+
 // TestMainCompileProvisionDefaults proves the verb tier folds by the
 // record's own verb: default provision reaches provision records with
 // its own Source and never touches deploys, the type default overrides
@@ -1500,6 +1547,22 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				`u.sdl:5:9: invalid value for parameter count: parse error`,
 				"u.sdl:11:10: undefined symbol missing",
 			},
+		},
+		{
+			// A verb default's dangling output reference is diagnosed
+			// once, at collection; the per-record folds then pass the
+			// unresolved reference by quietly, however many records
+			// fold the default.
+			name: "verb default with a dangling output reference",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"default deploy {\n" +
+				"\twindow: nope.config\n" +
+				"}\n" +
+				"deploy ff.Ping as P1\n" +
+				"deploy ff.Ping as P2\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:4:10: undefined symbol nope"},
 		},
 		{
 			// A verb default validates once per element, however many

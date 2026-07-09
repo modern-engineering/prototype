@@ -36,6 +36,7 @@ package image
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -328,14 +329,23 @@ func (img *Image) Encode(w io.Writer) error {
 }
 
 // Decode reads one image from r, validating that the document declares
-// the [Format] this package understands.
+// the [Format] this package understands and that nothing but
+// whitespace follows it: an image is one JSON document, so trailing
+// data means the input is not an image at all — a concatenation, a
+// corrupted rewrite — and quietly ignoring the rest would validate the
+// wrong bytes.
 func Decode(r io.Reader) (*Image, error) {
+	dec := json.NewDecoder(r)
 	var img Image
-	if err := json.NewDecoder(r).Decode(&img); err != nil {
+	if err := dec.Decode(&img); err != nil {
 		return nil, fmt.Errorf("image: decode: %w", err)
 	}
 	if img.Format != Format {
 		return nil, fmt.Errorf("image: decode: format %q is not %q", img.Format, Format)
+	}
+	var trailing json.RawMessage
+	if err := dec.Decode(&trailing); err != io.EOF {
+		return nil, errors.New("image: decode: trailing data after the image document")
 	}
 	return &img, nil
 }

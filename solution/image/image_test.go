@@ -62,6 +62,25 @@ func TestEncodeRejectsInvalidUTF8(t *testing.T) {
 	}
 }
 
+// TestDecodeRejectsTrailingData pins that an image is one whole JSON
+// document: trailing whitespace (Encode's own newline included) stays
+// legal, anything else fails instead of being silently ignored.
+func TestDecodeRejectsTrailingData(t *testing.T) {
+	var buf bytes.Buffer
+	if err := testImage().Encode(&buf); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	if _, err := image.Decode(strings.NewReader(buf.String() + "\n \t\n")); err != nil {
+		t.Errorf("Decode with trailing whitespace = %v, want nil", err)
+	}
+	for _, trailing := range []string{"{}", "null", "garbage"} {
+		_, err := image.Decode(strings.NewReader(buf.String() + trailing))
+		if err == nil || !strings.Contains(err.Error(), "trailing data") {
+			t.Errorf("Decode with trailing %q = %v, want a trailing-data error", trailing, err)
+		}
+	}
+}
+
 func TestDecodeRejectsForeignFormat(t *testing.T) {
 	_, err := image.Decode(strings.NewReader(`{"format":"solution-image/9"}`))
 	if err == nil || !strings.Contains(err.Error(), `format "solution-image/9" is not "solution-image/1"`) {
