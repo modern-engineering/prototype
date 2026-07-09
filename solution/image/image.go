@@ -108,7 +108,13 @@ type Image struct {
 	Solution string `json:"solution"`
 
 	// Generation is the producer-supplied monotonic generation of this
-	// desired state. It is provenance: [Equal] masks it.
+	// desired state; the producer's -generation flag stamps it, and an
+	// unset generation defaults to 1. The deploying pipeline owns the
+	// counter: it bumps the generation whenever it ships changed
+	// desired content, so consumers meeting two images that carry the
+	// same generation but different content treat that as the
+	// pipeline's error, never as a difference to reconcile. It is
+	// provenance: [Equal] masks it.
 	Generation int64 `json:"generation"`
 
 	// Catalogue pins every registered package, sorted by Path.
@@ -240,8 +246,20 @@ type Record struct {
 	// Name is the instance name, the reconciliation key.
 	Name string `json:"name"`
 
-	// Params are the bound parameters, sorted by Key.
+	// Params are the bound parameters, sorted by Key: the compartment
+	// the application consumes, typed by the pinned schema.
 	Params []Binding `json:"params,omitempty"`
+
+	// On is the statement's deployment-intent compartment for the
+	// environment controller, sorted by Key. Values are literals or
+	// opaque profile tokens ([KindToken]); the compartment is typed by
+	// the platform's profile, outside the solution's namespace and the
+	// binding DAG.
+	On []Binding `json:"on,omitempty"`
+
+	// Metadata is the statement's carried-through compartment nobody
+	// interprets, sorted by Key; values are strings.
+	Metadata []Binding `json:"metadata,omitempty"`
 }
 
 // A Ref addresses an element pinned in the image's catalogue section.

@@ -684,6 +684,259 @@ deploy ff.Ping as Ping1 {
 	}
 }
 
+// compartmentsUnit is the mockup's compartment material: a verb
+// default carrying deployment intent, an instance overriding it, and
+// opaque metadata riding along.
+const compartmentsUnit = `solution compartments
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+default deploy {
+	on {
+		location: awsUsEast1
+	}
+}
+
+deploy ff.Ping as Ping1 {
+	count: 1
+	target: "pong"
+}
+
+deploy ff.Ping as Ping2 {
+	count: 2
+	target: "pong"
+
+	on {
+		location: euCentral1
+	}
+	metadata {
+		team: "search"
+	}
+}
+`
+
+// TestCompartmentsRoundTrip drives on and metadata end to end: the
+// verb default's on folds into every deploy record (tokens staying
+// opaque), the instance's own on wins its key, metadata rides along,
+// echo renders the compartments back after the params, and the echoed
+// unit rebuilds to an Equal image — with different bytes, since echo
+// folds the verb default into instance text and Equal masks exactly
+// that provenance.
+func TestCompartmentsRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := solutionModule(t, "compartments.sdl", compartmentsUnit)
+	outA := filepath.Join(dir, "a.json")
+	res := runSDL(t, dir, "build", "-o", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	bytesA, err := os.ReadFile(outA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgA, err := image.Decode(bytes.NewReader(bytesA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(imgA.Records) != 2 {
+		t.Fatalf("records = %+v, want Ping1 and Ping2", imgA.Records)
+	}
+	one, two := imgA.Records[0], imgA.Records[1]
+	if len(one.On) != 1 || one.On[0].Key != "location" ||
+		one.On[0].Value == nil || one.On[0].Value.Kind != image.KindToken ||
+		one.On[0].Value.Tok != "awsUsEast1" || one.On[0].Source != image.SourceDefaultDeploy {
+		t.Errorf("Ping1 on = %+v, want the folded default-deploy token awsUsEast1", one.On)
+	}
+	if len(two.On) != 1 || two.On[0].Value == nil || two.On[0].Value.Tok != "euCentral1" ||
+		two.On[0].Source != image.SourceInstance {
+		t.Errorf("Ping2 on = %+v, want the instance token euCentral1", two.On)
+	}
+	if len(two.Metadata) != 1 || two.Metadata[0].Key != "team" ||
+		two.Metadata[0].Value == nil || two.Metadata[0].Value.Str != "search" {
+		t.Errorf("Ping2 metadata = %+v, want team: search", two.Metadata)
+	}
+
+	res = runSDL(t, dir, "echo", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl echo exited %d\n%s", res.code, res.stderr)
+	}
+	echoed := res.stdout
+	t.Logf("echoed unit:\n%s", echoed)
+	for _, want := range []string{
+		"location: awsUsEast1",
+		"location: euCentral1",
+		"team: \"search\"",
+	} {
+		if !strings.Contains(echoed, want) {
+			t.Errorf("echoed unit is missing %q:\n%s", want, echoed)
+		}
+	}
+
+	dir2 := solutionModule(t, "compartments.sdl", echoed)
+	if res := runSDL(t, dir2, "fmt", "-l", "."); res.code != 0 || res.stdout != "" {
+		t.Errorf("echoed unit is not canonical: fmt -l exited %d, listed %q\n%s",
+			res.code, res.stdout, res.stderr)
+	}
+	outB := filepath.Join(dir2, "b.json")
+	res = runSDL(t, dir2, "build", "-o", outB)
+	if res.code != 0 {
+		t.Fatalf("sdl build of the echoed unit exited %d\n%s", res.code, res.stderr)
+	}
+	bytesB, err := os.ReadFile(outB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgB, err := image.Decode(bytes.NewReader(bytesB))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !image.Equal(imgA, imgB) {
+		t.Errorf("round trip is not Equal despite the provenance mask\n--- rebuilt ---\n%s", bytesB)
+	}
+	if bytes.Equal(bytesA, bytesB) {
+		t.Error("images are byte-identical; the on fold should have changed a Source and this test its meaning")
+	}
+}
+
+// TestFactoredForms proves factored spec blocks are pure notation: a
+// unit written with factored deploy and provision blocks compiles to
+// the byte-identical image of its single-form twin.
+func TestFactoredForms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	const imports = `
+import (
+	ff "github.com/modern-engineering/prototype/examples/ff"
+	sub "github.com/modern-engineering/prototype/examples/substrate"
+)
+
+extern (
+	natsCluster sub.NATSCluster
+	natsAdmin sub.Secret
+)
+`
+	factored := "solution factored\n" + imports + `
+provision (
+	sub.NATS slice as natsAccount {
+		cluster: natsCluster
+		adminAccount: natsAdmin
+	}
+	sub.Postgres attach as pgLegacy
+)
+
+deploy (
+	ff.Ping as Ping1 {
+		count: 1
+		target: natsAccount.config
+	}
+	ff.Pong as Pong1 {
+		subject: "ping"
+	}
+)
+`
+	single := "solution factored\n" + imports + `
+provision sub.NATS slice as natsAccount {
+	cluster: natsCluster
+	adminAccount: natsAdmin
+}
+
+provision sub.Postgres attach as pgLegacy
+
+deploy ff.Ping as Ping1 {
+	count: 1
+	target: natsAccount.config
+}
+
+deploy ff.Pong as Pong1 {
+	subject: "ping"
+}
+`
+	var images [2][]byte
+	for i, source := range []string{factored, single} {
+		dir := solutionModule(t, "factored.sdl", source)
+		out := filepath.Join(dir, "out.json")
+		res := runSDL(t, dir, "build", "-o", out)
+		if res.code != 0 {
+			t.Fatalf("sdl build of variant %d exited %d\n%s", i, res.code, res.stderr)
+		}
+		data, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		images[i] = data
+	}
+	if !bytes.Equal(images[0], images[1]) {
+		t.Errorf("factored and single-form units compiled to different images\n--- factored ---\n%s--- single ---\n%s",
+			images[0], images[1])
+	}
+}
+
+// TestImagePlumbing smokes the sdl image command group over a freshly
+// built image: edit amends the generation in place (atomically, the
+// content otherwise untouched), and records and symbols print their
+// aligned tables.
+func TestImagePlumbing(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := solutionModule(t, "symbols.sdl", symbolsUnit)
+	out := filepath.Join(dir, "image.json")
+	res := runSDL(t, dir, "build", "-o", out)
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+
+	res = runSDL(t, dir, "image", "edit", "-generation", "5", out)
+	if res.code != 0 {
+		t.Fatalf("sdl image edit exited %d\n%s", res.code, res.stderr)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("edited image does not decode: %v", err)
+	}
+	if img.Generation != 5 {
+		t.Errorf("Generation = %d, want 5", img.Generation)
+	}
+
+	res = runSDL(t, dir, "image", "records", out)
+	if res.code != 0 {
+		t.Fatalf("sdl image records exited %d\n%s", res.code, res.stderr)
+	}
+	t.Logf("records table:\n%s", res.stdout)
+	for _, want := range []string{
+		"VERB", "ELEMENT",
+		"deploy",
+		"github.com/modern-engineering/prototype/examples/ff.Ping",
+		"Ping1",
+	} {
+		if !strings.Contains(res.stdout, want) {
+			t.Errorf("records table is missing %q:\n%s", want, res.stdout)
+		}
+	}
+
+	res = runSDL(t, dir, "image", "symbols", out)
+	if res.code != 0 {
+		t.Fatalf("sdl image symbols exited %d\n%s", res.code, res.stderr)
+	}
+	t.Logf("symbols table:\n%s", res.stdout)
+	for _, want := range []string{
+		"NAME", "CLASS", "TYPE/VALUE",
+		"apiToken", "extern",
+		"pongSubject", "var", `"ping"`,
+	} {
+		if !strings.Contains(res.stdout, want) {
+			t.Errorf("symbols table is missing %q:\n%s", want, res.stdout)
+		}
+	}
+}
+
 // TestFmtExamples is (f): the checked-in examples are canonical, so the
 // repository holds the form the toolchain prints.
 func TestFmtExamples(t *testing.T) {

@@ -36,14 +36,14 @@ import (
 //	   registration ("compile: message" lines), or a panicking element
 //	   factory (positioned at the referencing statement when one exists)
 //
-// This rung compiles solution and import clauses, extern and var
+// MainCompile compiles solution and import clauses, extern and var
 // declarations, default declarations (folded into the records they
 // modify, provenance kept in each binding's Source), and deploy and
-// provision statements whose parameters are literals, symbol
-// references, or provision-output references (a.b); reference edges
-// form a DAG, and cycles among provision outputs are link errors.
-// Every parsed construct beyond it (sections) is reported as a
-// positioned diagnostic rather than silently dropped.
+// provision statements: parameters bind literals, symbol references,
+// and provision-output references (a.b) — reference edges form a DAG,
+// and cycles among provision outputs are link errors — while the on
+// and metadata sections carry the statement's other compartments,
+// outside the namespace and the DAG.
 func MainCompile(cfg CompileConfig) int {
 	stderr := cfg.Stderr
 	if stderr == nil {
@@ -117,14 +117,25 @@ type linker struct {
 
 // A defaultBody is one collected default declaration: the position
 // anchoring duplicate reports, the source layer its bindings carry
-// into records, and a per-element cache of the prevalidated bindings
-// it contributes.
+// into records, a per-element cache of the prevalidated parameter
+// bindings it contributes, and its section compartments — validated
+// once at collection, since sections are element-independent.
 type defaultBody struct {
 	pos    token.Position
 	body   *ast.Body
 	source string
 
 	folds map[*catalogueElement][]image.Binding
+
+	on, metadata []image.Binding
+}
+
+// A compartments holds one statement's three binding compartments,
+// one per audience: params for the application (typed by the pinned
+// schema), on for the environment controller (typed by the platform's
+// profile), and metadata for nobody (carried through untouched).
+type compartments struct {
+	params, on, metadata []image.Binding
 }
 
 // A symbol is one row of the solution's flat namespace. Instance names,
@@ -515,15 +526,16 @@ func (ln *linker) collect() {
 	}
 }
 
-// collectDefault enters one default declaration. The target — a
-// component type or a statement verb — dedups solution-wide: linking
+// collectDefault enters one default declaration. The target — an
+// element type or a statement verb — dedups solution-wide: linking
 // is an order-insensitive union, so a second default for the same
 // target is a fault wherever it lives, never a nearer-wins layer.
-// Section bodies stay a later rung. A type-scoped body validates
-// eagerly against its element, records or none, so a broken default
-// cannot hide behind an undeployed element; a verb-scoped body is
-// element-dependent and validates at fold, so only its context-free
-// references resolve here.
+// A type-scoped body validates eagerly against its element, records
+// or none, so a broken default cannot hide behind an undeployed
+// element; a verb-scoped body is element-dependent and validates at
+// fold, so only its context-free references resolve here. Section
+// compartments are element-independent either way and collect once,
+// here.
 func (ln *linker) collectDefault(d *ast.DefaultDecl) {
 	switch t := d.Target.(type) {
 	case *ast.Ident: // the statement verbs: deploy, provision
@@ -535,8 +547,10 @@ func (ln *linker) collectDefault(d *ast.DefaultDecl) {
 		if t.Name == "provision" {
 			source = image.SourceDefaultProvision
 		}
-		ln.verbDefaults[t.Name] = &defaultBody{pos: d.Keyword, body: d.Body, source: source}
-		ln.checkDefaultBody(d.Body, true)
+		db := &defaultBody{pos: d.Keyword, body: d.Body, source: source}
+		ln.verbDefaults[t.Name] = db
+		db.on, db.metadata, _ = ln.sections(d.Body, source)
+		ln.checkDefaultRefs(d.Body)
 
 	case *ast.TypeRef:
 		elem := ln.resolve(t)
@@ -545,7 +559,8 @@ func (ln *linker) collectDefault(d *ast.DefaultDecl) {
 			elem = nil
 		}
 		if elem == nil {
-			ln.checkDefaultBody(d.Body, true)
+			ln.sections(d.Body, image.SourceDefaultType)
+			ln.checkDefaultRefs(d.Body)
 			return
 		}
 		if first, ok := ln.typeDefaults[elem]; ok {
@@ -554,7 +569,7 @@ func (ln *linker) collectDefault(d *ast.DefaultDecl) {
 		}
 		db := &defaultBody{pos: d.Keyword, body: d.Body, source: image.SourceDefaultType}
 		ln.typeDefaults[elem] = db
-		ln.checkDefaultBody(d.Body, false)
+		db.on, db.metadata, _ = ln.sections(d.Body, image.SourceDefaultType)
 		if !ln.dry(elem, t) {
 			return
 		}
@@ -562,20 +577,14 @@ func (ln *linker) collectDefault(d *ast.DefaultDecl) {
 	}
 }
 
-// checkDefaultBody screens a default body at collection: sections are
-// a later rung, and — for bodies that will not validate against an
-// element right away (checkRefs) — symbol references resolve now,
-// context-free, so a dangling name surfaces exactly once even if no
-// record ever folds the default.
-func (ln *linker) checkDefaultBody(body *ast.Body, checkRefs bool) {
+// checkDefaultRefs screens a default body's parameter references at
+// collection, for bodies that will not validate against an element
+// right away: references resolve now, context-free, so a dangling
+// name surfaces exactly once even if no record ever folds the
+// default. Sections are collectDefault's business.
+func (ln *linker) checkDefaultRefs(body *ast.Body) {
 	for _, item := range body.Items {
-		switch it := item.(type) {
-		case *ast.Section:
-			ln.errorf(it.Name.NamePos, "%s sections not yet supported by this compiler rung", it.Name.Name)
-		case *ast.Param:
-			if !checkRefs {
-				continue
-			}
+		if it, isParam := item.(*ast.Param); isParam {
 			if ref, isRef := it.Value.(*ast.RefExpr); isRef {
 				ln.checkRef(ref)
 			}
@@ -663,12 +672,12 @@ func (ln *linker) deploy(spec *ast.DeploySpec) {
 	} else if !ln.dry(elem, spec.Type) {
 		return
 	}
-	bindings, bindOK := ln.bind(elem, spec.Type, spec.Body)
+	inst, bindOK := ln.bind(elem, spec.Type, spec.Body)
 	if ln.internal != nil {
 		return
 	}
 	if elem != nil {
-		bindings = ln.fold(elem, image.VerbDeploy, spec.Type, bindings)
+		inst = ln.fold(elem, image.VerbDeploy, spec.Type, inst)
 		if ln.internal != nil {
 			return
 		}
@@ -677,10 +686,12 @@ func (ln *linker) deploy(spec *ast.DeploySpec) {
 		return
 	}
 	ln.records = append(ln.records, image.Record{
-		Verb:    image.VerbDeploy,
-		Element: image.Ref{Package: elem.pkgPath, Name: elem.name},
-		Name:    spec.Name.Name,
-		Params:  bindings,
+		Verb:     image.VerbDeploy,
+		Element:  image.Ref{Package: elem.pkgPath, Name: elem.name},
+		Name:     spec.Name.Name,
+		Params:   inst.params,
+		On:       inst.on,
+		Metadata: inst.metadata,
 	})
 }
 
@@ -703,12 +714,12 @@ func (ln *linker) provision(spec *ast.ProvisionSpec) {
 	} else if !ln.dry(elem, spec.Type) {
 		return
 	}
-	bindings, bindOK := ln.bind(elem, spec.Type, spec.Body)
+	inst, bindOK := ln.bind(elem, spec.Type, spec.Body)
 	if ln.internal != nil {
 		return
 	}
 	if elem != nil {
-		bindings = ln.fold(elem, image.VerbProvision, spec.Type, bindings)
+		inst = ln.fold(elem, image.VerbProvision, spec.Type, inst)
 		if ln.internal != nil {
 			return
 		}
@@ -717,11 +728,13 @@ func (ln *linker) provision(spec *ast.ProvisionSpec) {
 		return
 	}
 	ln.records = append(ln.records, image.Record{
-		Verb:    image.VerbProvision,
-		Kind:    kind,
-		Element: image.Ref{Package: elem.pkgPath, Name: elem.name},
-		Name:    spec.Name.Name,
-		Params:  bindings,
+		Verb:     image.VerbProvision,
+		Kind:     kind,
+		Element:  image.Ref{Package: elem.pkgPath, Name: elem.name},
+		Name:     spec.Name.Name,
+		Params:   inst.params,
+		On:       inst.on,
+		Metadata: inst.metadata,
 	})
 }
 
@@ -766,34 +779,62 @@ func (ln *linker) provisionKind(spec *ast.ProvisionSpec, elem *catalogueElement)
 	return word, true
 }
 
-// fold merges the default layers under a statement's own bindings.
-// The nearest layer wins a key: the instance over the element-scoped
-// default over the verb-scoped one, each verb folding only its own
-// default; the catalogue's slot defaults are no layer at all — a
-// binding exists iff some SDL statement set it, and unset slots stay
-// with the pinned schema. Source keeps each surviving binding's
-// provenance (image.Equal masks it).
-func (ln *linker) fold(elem *catalogueElement, verb string, at *ast.TypeRef, instance []image.Binding) []image.Binding {
+// fold merges the default layers under a statement's own bindings,
+// per compartment. The nearest layer wins a key: the instance over
+// the element-scoped default over the verb-scoped one, each verb
+// folding only its own default; the catalogue's slot defaults are no
+// layer at all — a binding exists iff some SDL statement set it, and
+// unset slots stay with the pinned schema. Source keeps each
+// surviving binding's provenance (image.Equal masks it).
+func (ln *linker) fold(elem *catalogueElement, verb string, at *ast.TypeRef, inst compartments) compartments {
 	verbDef, typed := ln.verbDefaults[verb], ln.typeDefaults[elem]
 	if verbDef == nil && typed == nil {
-		return instance
+		return inst
 	}
-	merged := make(map[string]image.Binding)
+	var verbParams, typedParams []image.Binding
 	if verbDef != nil {
-		for _, b := range ln.defaultFolds(verbDef, elem, at, false) {
-			merged[b.Key] = b
-		}
+		verbParams = ln.defaultFolds(verbDef, elem, at, false)
 		if ln.internal != nil {
-			return nil
+			return compartments{}
 		}
 	}
 	if typed != nil {
-		for _, b := range ln.defaultFolds(typed, elem, at, true) {
+		typedParams = ln.defaultFolds(typed, elem, at, true)
+	}
+	return compartments{
+		params:   mergeCompartment(verbParams, typedParams, inst.params),
+		on:       mergeCompartment(verbDef.onLayer(), typed.onLayer(), inst.on),
+		metadata: mergeCompartment(verbDef.metadataLayer(), typed.metadataLayer(), inst.metadata),
+	}
+}
+
+// onLayer and metadataLayer read a default's section compartments,
+// tolerating the absent default a fold reaches for.
+func (d *defaultBody) onLayer() []image.Binding {
+	if d == nil {
+		return nil
+	}
+	return d.on
+}
+
+func (d *defaultBody) metadataLayer() []image.Binding {
+	if d == nil {
+		return nil
+	}
+	return d.metadata
+}
+
+// mergeCompartment folds one compartment's layers, nearest layer
+// last: a later layer wins a key, and the result is key-sorted.
+func mergeCompartment(layers ...[]image.Binding) []image.Binding {
+	merged := make(map[string]image.Binding)
+	for _, layer := range layers {
+		for _, b := range layer {
 			merged[b.Key] = b
 		}
 	}
-	for _, b := range instance {
-		merged[b.Key] = b
+	if len(merged) == 0 {
+		return nil
 	}
 	bindings := make([]image.Binding, 0, len(merged))
 	for _, key := range slices.Sorted(maps.Keys(merged)) {
@@ -832,7 +873,7 @@ func (ln *linker) buildDefault(d *defaultBody, elem *catalogueElement, at *ast.T
 	for _, item := range d.body.Items {
 		it, ok := item.(*ast.Param)
 		if !ok {
-			continue // sections were diagnosed at collection
+			continue // sections fold from their own compartments (collectDefault)
 		}
 		var b image.Binding
 		var bound bool
@@ -957,37 +998,103 @@ func (ln *linker) dry(elem *catalogueElement, at *ast.TypeRef) bool {
 	return true
 }
 
-// bind checks a statement body and binds its parameters, sorted by
-// key. Literal parameters validate through a throwaway instance's own
-// flag.Value.Set — a fresh dry surface per statement, the very one the
-// running instance will parse with, so no state leaks between
-// statements or into the pinned schema; the canonical bound value is
-// owned by the SDL literal kind, and the flag's own String() is never
-// read back. References resolve against the flat namespace — bare to
-// var and extern symbols, dotted to provision outputs — and are
-// recorded as references: records carry references, never inlined
-// values (A-10).
+// bind checks a statement body and binds its compartments, each
+// key-sorted. Literal parameters validate through a throwaway
+// instance's own flag.Value.Set — a fresh dry surface per statement,
+// the very one the running instance will parse with, so no state
+// leaks between statements or into the pinned schema; the canonical
+// bound value is owned by the SDL literal kind, and the flag's own
+// String() is never read back. References resolve against the flat
+// namespace — bare to var and extern symbols, dotted to provision
+// outputs — and are recorded as references: records carry references,
+// never inlined values (A-10). Sections bind by their own compartment
+// rules, outside the element's schema.
 //
 // With elem nil (an unresolved reference) the body is still walked —
-// references resolve and section diagnostics fire — but keys and
+// references resolve and sections validate — but parameter keys and
 // values go unchecked.
-func (ln *linker) bind(elem *catalogueElement, at *ast.TypeRef, body *ast.Body) (bindings []image.Binding, ok bool) {
+func (ln *linker) bind(elem *catalogueElement, at *ast.TypeRef, body *ast.Body) (inst compartments, ok bool) {
 	ok = true
 	if body == nil {
-		return nil, true
+		return compartments{}, true
 	}
 	sf := &surface{ln: ln, elem: elem, at: at}
 	for _, item := range body.Items {
+		it, isParam := item.(*ast.Param)
+		if !isParam {
+			continue // sections bind below
+		}
+		b, bound := ln.bindParam(sf, it, image.SourceInstance)
+		if ln.internal != nil {
+			return compartments{}, false
+		}
+		if !bound {
+			ok = false
+			continue
+		}
+		inst.params = append(inst.params, b)
+	}
+	slices.SortFunc(inst.params, func(a, b image.Binding) int {
+		return strings.Compare(a.Key, b.Key)
+	})
+	var sectionsOK bool
+	inst.on, inst.metadata, sectionsOK = ln.sections(body, image.SourceInstance)
+	return inst, ok && sectionsOK
+}
+
+// sections validates and binds a body's section compartments with the
+// given provenance. Two sections exist, on and metadata, at most once
+// each per body; the grammar keeps their names outside the parameter
+// namespace, so future sections can never collide with catalogue slot
+// names.
+func (ln *linker) sections(body *ast.Body, source string) (on, metadata []image.Binding, ok bool) {
+	ok = true
+	if body == nil {
+		return nil, nil, true
+	}
+	seen := make(map[string]token.Position, 2)
+	for _, item := range body.Items {
+		sec, isSection := item.(*ast.Section)
+		if !isSection {
+			continue
+		}
+		name := sec.Name.Name
+		if name != "on" && name != "metadata" {
+			ln.errorf(sec.Name.NamePos, "unknown section %s: sections are on and metadata", name)
+			ok = false
+			continue
+		}
+		if first, dup := seen[name]; dup {
+			ln.errorf(sec.Name.NamePos, "duplicate %s section (first declared at %s)", name, first)
+			ok = false
+			continue
+		}
+		seen[name] = sec.Name.NamePos
+		bindings, bound := ln.sectionParams(sec, source)
+		if !bound {
+			ok = false
+		}
+		if name == "on" {
+			on = bindings
+		} else {
+			metadata = bindings
+		}
+	}
+	return on, metadata, ok
+}
+
+// sectionParams validates one section body — parameters only, no
+// nesting — and binds its values by the section's rules. Bindings
+// come back key-sorted.
+func (ln *linker) sectionParams(sec *ast.Section, source string) (bindings []image.Binding, ok bool) {
+	ok = true
+	for _, item := range sec.Body.Items {
 		switch it := item.(type) {
 		case *ast.Section:
-			ln.errorf(it.Name.NamePos, "%s sections not yet supported by this compiler rung", it.Name.Name)
+			ln.errorf(it.Name.NamePos, "%s sections take parameters only, not nested sections", sec.Name.Name)
 			ok = false
-
 		case *ast.Param:
-			b, bound := ln.bindParam(sf, it, image.SourceInstance)
-			if ln.internal != nil {
-				return nil, false
-			}
+			b, bound := ln.sectionParam(sec.Name.Name, it, source)
 			if !bound {
 				ok = false
 				continue
@@ -999,6 +1106,41 @@ func (ln *linker) bind(elem *catalogueElement, at *ast.TypeRef, body *ast.Body) 
 		return strings.Compare(a.Key, b.Key)
 	})
 	return bindings, ok
+}
+
+// sectionParam binds one section parameter. metadata values are
+// string literals only — the compartment is constrained to portable
+// keys and values. on values are literals or opaque profile tokens: a
+// bare identifier in an on body names a point in the platform's
+// deployment profile (working key set: location), never a solution
+// symbol, so the compartment stays outside the flat namespace and the
+// binding DAG; checking tokens against a profile is a recorded door.
+func (ln *linker) sectionParam(section string, it *ast.Param, source string) (image.Binding, bool) {
+	if _, isBad := it.Value.(*ast.BadValue); isBad {
+		return image.Binding{}, false // the parse already reported it
+	}
+	if section == "metadata" {
+		lit, isString := it.Value.(*ast.StringLit)
+		if !isString {
+			ln.errorf(it.Value.Pos(), "metadata values must be string literals")
+			return image.Binding{}, false
+		}
+		return image.Binding{Key: it.Key.Name, Value: image.String(lit.Value), Source: source}, true
+	}
+	if ref, isRef := it.Value.(*ast.RefExpr); isRef {
+		if ref.Sel != nil {
+			ln.errorf(ref.Pos(), "on values are literals or profile tokens, not output references")
+			return image.Binding{}, false
+		}
+		return image.Binding{Key: it.Key.Name, Value: image.Token(ref.X.Name), Source: source}, true
+	}
+	val, _, isLiteral := literalValue(it.Value)
+	if !isLiteral {
+		// Unreachable past a clean parse: every remaining value node
+		// is a literal.
+		return image.Binding{}, false
+	}
+	return image.Binding{Key: it.Key.Name, Value: val, Source: source}, true
 }
 
 // bindParam binds one body parameter with the given provenance: a

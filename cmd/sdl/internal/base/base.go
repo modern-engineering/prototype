@@ -29,17 +29,21 @@ import (
 	"strings"
 )
 
-// A Command is an implementation of an sdl command like sdl build.
+// A Command is an implementation of an sdl command like sdl build, or
+// a command group like sdl image that only dispatches to the
+// subcommands it carries (cmd/go's precedent: go mod, go tool).
 type Command struct {
 	// Run runs the command. The args are the arguments after the
 	// command name, with the command's flags already parsed out.
 	//
 	// The returned error selects the exit code (see the package
-	// documentation); nil means success.
+	// documentation); nil means success. Run is nil on a command
+	// group.
 	Run func(ctx context.Context, cmd *Command, args []string) error
 
-	// UsageLine is the one-line usage message. The first word after
-	// "sdl" is taken to be the command name.
+	// UsageLine is the one-line usage message, opening with the full
+	// command path ("sdl image edit"); [Command.LongName] and
+	// [Command.Name] derive from it.
 	UsageLine string
 
 	// Short is the short description shown in the 'sdl help' output.
@@ -49,30 +53,53 @@ type Command struct {
 	// output.
 	Long string
 
+	// Commands are the subcommands of a command group, in help order;
+	// empty for a runnable command. Main dispatches through the group
+	// one name at a time.
+	Commands []*Command
+
 	// Flag is a set of flags specific to this command. The zero value
 	// is ready for the command's init to populate; main wires Usage and
 	// parses it before calling Run.
 	Flag flag.FlagSet
 }
 
-// Name returns the command's name: the second word of the usage line.
-func (c *Command) Name() string {
-	fields := strings.Fields(c.UsageLine)
-	if len(fields) < 2 {
-		return c.UsageLine
+// LongName returns the command's long name: the usage line's command
+// path with the leading "sdl" dropped ("image edit").
+func (c *Command) LongName() string {
+	name := c.UsageLine
+	if i := strings.Index(name, " ["); i >= 0 {
+		name = name[:i]
 	}
-	return fields[1]
+	if i := strings.Index(name, " <"); i >= 0 {
+		name = name[:i]
+	}
+	return strings.TrimPrefix(name, "sdl ")
 }
 
-// Commands lists the available commands. The order here is the order in
-// which they are printed by 'sdl help'. Package main populates the list;
-// keeping the assembly there avoids initialization cycles between the
-// verb packages and base.
+// Name returns the command's name: the last word of the long name.
+func (c *Command) Name() string {
+	name := c.LongName()
+	if i := strings.LastIndex(name, " "); i >= 0 {
+		name = name[i+1:]
+	}
+	return name
+}
+
+// Runnable reports whether the command runs; a command group only
+// dispatches.
+func (c *Command) Runnable() bool { return c.Run != nil }
+
+// Commands lists the top-level commands. The order here is the order
+// in which they are printed by 'sdl help'. Package main populates the
+// list; keeping the assembly there avoids initialization cycles
+// between the verb packages and base.
 var Commands []*Command
 
-// Lookup returns the command with the given name, or nil.
-func Lookup(name string) *Command {
-	for _, cmd := range Commands {
+// Lookup returns the command of cmds with the given name, or nil.
+// Dispatch through a command group looks up one level at a time.
+func Lookup(cmds []*Command, name string) *Command {
+	for _, cmd := range cmds {
 		if cmd.Name() == name {
 			return cmd
 		}

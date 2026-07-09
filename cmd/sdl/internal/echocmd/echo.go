@@ -37,16 +37,18 @@ standard input when no file is given — and prints it to standard output
 as one canonical solution unit: the solution clause, one import per
 catalogue package sorted by path, the symbol table as extern and var
 declarations in image order, and one single-form deploy or provision
-statement per record in image order, parameters included. A provision
-statement always writes its kind word — the compiler resolved any
-omission, and the canonical form keeps the record explicit.
+statement per record in image order — parameters first, then the on
+and metadata sections. A provision statement always writes its kind
+word — the compiler resolved any omission, and the canonical form
+keeps the record explicit.
 
 The unit is a re-rendering, not the original sources: images store
 canonical values rather than the author's lexemes or layout, so echo
 prints every value in its canonical spelling (strings quoted like Go,
 integers in decimal, durations as Go renders them, booleans as true or
 false, symbol references as bare identifiers, output references as
-instance.output pairs) and emits nothing the image does not carry.
+instance.output pairs, profile tokens bare) and emits nothing the
+image does not carry.
 Building the echoed unit against the same catalogue reproduces an
 equal image.
 
@@ -265,8 +267,9 @@ func provision(rec image.Record, refs map[string]string) (*ast.ProvisionDecl, er
 }
 
 // recordSpec renders the spec material shared by both record verbs:
-// the qualified type reference, the instance name, and the parameter
-// body (nil for a parameterless record).
+// the qualified type reference, the instance name, and the body —
+// parameters first, then the on and metadata sections — or a nil body
+// for a bare record.
 func recordSpec(rec image.Record, refs map[string]string) (*ast.TypeRef, *ast.Ident, *ast.Body, error) {
 	ref, ok := refs[rec.Element.Package]
 	if !ok {
@@ -278,25 +281,87 @@ func recordSpec(rec image.Record, refs map[string]string) (*ast.TypeRef, *ast.Id
 	if err := checkIdent(fmt.Sprintf("instance name %q", rec.Name), rec.Name); err != nil {
 		return nil, nil, nil, err
 	}
-	var body *ast.Body
-	if len(rec.Params) > 0 {
-		body = new(ast.Body)
-		for _, b := range rec.Params {
-			if err := checkIdent(fmt.Sprintf("parameter key %q", b.Key), b.Key); err != nil {
-				return nil, nil, nil, err
-			}
-			value, err := bindingValue(b)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("parameter %s: %w", b.Key, err)
-			}
-			body.Items = append(body.Items, &ast.Param{
-				Key:   &ast.Ident{Name: b.Key},
-				Value: value,
-			})
+	var items []ast.BodyItem
+	for _, b := range rec.Params {
+		if err := checkIdent(fmt.Sprintf("parameter key %q", b.Key), b.Key); err != nil {
+			return nil, nil, nil, err
 		}
+		value, err := bindingValue(b)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("parameter %s: %w", b.Key, err)
+		}
+		items = append(items, &ast.Param{
+			Key:   &ast.Ident{Name: b.Key},
+			Value: value,
+		})
+	}
+	for _, sec := range []struct {
+		name     string
+		bindings []image.Binding
+	}{
+		{"on", rec.On},
+		{"metadata", rec.Metadata},
+	} {
+		node, err := section(sec.name, sec.bindings)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if node != nil {
+			items = append(items, node)
+		}
+	}
+	var body *ast.Body
+	if len(items) > 0 {
+		body = &ast.Body{Items: items}
 	}
 	typeRef := &ast.TypeRef{Pkg: &ast.Ident{Name: ref}, Name: &ast.Ident{Name: rec.Element.Name}}
 	return typeRef, &ast.Ident{Name: rec.Name}, body, nil
+}
+
+// section renders one compartment as a colon-less section, nil when
+// the compartment is empty. Compartment rules hold on the way out: on
+// values are literals or tokens (tokens print bare), metadata values
+// strings, and neither carries references.
+func section(name string, bindings []image.Binding) (*ast.Section, error) {
+	if len(bindings) == 0 {
+		return nil, nil
+	}
+	body := new(ast.Body)
+	for _, b := range bindings {
+		if err := checkIdent(fmt.Sprintf("%s key %q", name, b.Key), b.Key); err != nil {
+			return nil, err
+		}
+		value, err := sectionValue(name, b)
+		if err != nil {
+			return nil, fmt.Errorf("%s parameter %s: %w", name, b.Key, err)
+		}
+		body.Items = append(body.Items, &ast.Param{
+			Key:   &ast.Ident{Name: b.Key},
+			Value: value,
+		})
+	}
+	return &ast.Section{Name: &ast.Ident{Name: name}, Body: body}, nil
+}
+
+// sectionValue lifts one compartment binding's payload into a value
+// node.
+func sectionValue(name string, b image.Binding) (ast.Value, error) {
+	if b.Ref != nil {
+		return nil, fmt.Errorf("carries a symbol reference; %s values never resolve symbols", name)
+	}
+	if b.Value == nil {
+		return nil, fmt.Errorf("binding has no value")
+	}
+	if name == "metadata" && b.Value.Kind != image.KindString {
+		return nil, fmt.Errorf("metadata values are strings, not %q", b.Value.Kind)
+	}
+	if b.Value.Kind == image.KindToken {
+		if err := checkIdent(fmt.Sprintf("token %q", b.Value.Tok), b.Value.Tok); err != nil {
+			return nil, err
+		}
+		return &ast.RefExpr{X: &ast.Ident{Name: b.Value.Tok}}, nil
+	}
+	return valueNode(b.Value)
 }
 
 // bindingValue lifts one binding's payload into a value node: a symbol

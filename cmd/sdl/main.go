@@ -12,6 +12,7 @@
 //	build       compile a solution directory into its desired-state image
 //	echo        render a desired-state image as canonical SDL
 //	fmt         reformat solution units in canonical form
+//	image       amend and query desired-state image files
 //
 // Use "sdl help <command>" for more information about a command.
 package main
@@ -22,11 +23,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/buildcmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/echocmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/fmtcmd"
+	"github.com/modern-engineering/prototype/cmd/sdl/internal/imagecmd"
 )
 
 func init() {
@@ -36,6 +39,7 @@ func init() {
 		buildcmd.CmdBuild,
 		echocmd.CmdEcho,
 		fmtcmd.CmdFmt,
+		imagecmd.CmdImage,
 	}
 }
 
@@ -47,6 +51,7 @@ func main() {
 // code, translating the dispatched command's error per the base package
 // contract: nil is 0, a DiagnosticsError prints its lines and is 1,
 // everything else — usage faults and internal failures alike — is 2.
+// Command groups dispatch one name at a time, cmd/go's BigCmdLoop.
 func invoke(ctx context.Context, args []string) int {
 	if len(args) < 1 {
 		printUsage(os.Stderr)
@@ -55,17 +60,36 @@ func invoke(ctx context.Context, args []string) int {
 	if args[0] == "help" {
 		return help(args[1:])
 	}
-	cmd := base.Lookup(args[0])
-	if cmd == nil {
-		fmt.Fprintf(os.Stderr, "sdl %s: unknown command\nRun 'sdl help' for usage.\n", args[0])
-		return 2
+	cmds, path := base.Commands, "sdl"
+	for {
+		cmd := base.Lookup(cmds, args[0])
+		if cmd == nil {
+			fmt.Fprintf(os.Stderr, "%s %s: unknown command\nRun 'sdl help' for usage.\n", path, args[0])
+			return 2
+		}
+		if len(cmd.Commands) > 0 {
+			path += " " + args[0]
+			args = args[1:]
+			if len(args) == 0 {
+				fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
+				fmt.Fprintf(os.Stderr, "Run 'sdl help %s' for details.\n", cmd.LongName())
+				return 2
+			}
+			cmds = cmd.Commands
+			continue
+		}
+		return run(ctx, cmd, args[1:])
 	}
+}
 
+// run parses one runnable command's flags and translates its error
+// into the exit code.
+func run(ctx context.Context, cmd *base.Command, args []string) int {
 	cmd.Flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
-		fmt.Fprintf(os.Stderr, "Run 'sdl help %s' for details.\n", cmd.Name())
+		fmt.Fprintf(os.Stderr, "Run 'sdl help %s' for details.\n", cmd.LongName())
 	}
-	if err := cmd.Flag.Parse(args[1:]); err != nil {
+	if err := cmd.Flag.Parse(args); err != nil {
 		// The flag package already printed the fault and the usage
 		// line; -h lands here too, as in cmd/go.
 		return 2
@@ -85,29 +109,38 @@ func invoke(ctx context.Context, args []string) int {
 	var usage *base.UsageError
 	if errors.As(err, &usage) {
 		fmt.Fprintf(os.Stderr, "sdl: %s\n", usage.Msg)
-		fmt.Fprintf(os.Stderr, "Run 'sdl help %s' for usage.\n", cmd.Name())
+		fmt.Fprintf(os.Stderr, "Run 'sdl help %s' for usage.\n", cmd.LongName())
 		return 2
 	}
 	fmt.Fprintf(os.Stderr, "sdl: %v\n", err)
 	return 2
 }
 
-// help implements 'sdl help [command]'.
+// help implements 'sdl help [command...]', walking command groups the
+// same way dispatch does.
 func help(args []string) int {
 	if len(args) == 0 {
 		printUsage(os.Stdout)
 		return 0
 	}
-	if len(args) > 1 {
-		fmt.Fprintln(os.Stderr, "usage: sdl help [command]")
-		return 2
-	}
-	cmd := base.Lookup(args[0])
-	if cmd == nil {
-		fmt.Fprintf(os.Stderr, "sdl help %s: unknown help topic\nRun 'sdl help' for usage.\n", args[0])
-		return 2
+	cmds := base.Commands
+	var cmd *base.Command
+	for i, name := range args {
+		cmd = base.Lookup(cmds, name)
+		if cmd == nil {
+			fmt.Fprintf(os.Stderr, "sdl help %s: unknown help topic\nRun 'sdl help' for usage.\n", strings.Join(args[:i+1], " "))
+			return 2
+		}
+		cmds = cmd.Commands
 	}
 	fmt.Printf("usage: %s\n\n%s\n", cmd.UsageLine, cmd.Long)
+	if len(cmd.Commands) > 0 {
+		fmt.Printf("\nThe commands are:\n\n")
+		for _, sub := range cmd.Commands {
+			fmt.Printf("\t%-11s %s\n", sub.Name(), sub.Short)
+		}
+		fmt.Printf("\nUse \"sdl help %s <command>\" for more information about a command.\n", cmd.LongName())
+	}
 	return 0
 }
 

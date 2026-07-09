@@ -32,6 +32,8 @@ func TestValueJSONRoundTrip(t *testing.T) {
 		{"duration zero", image.Duration(0), `{"kind":"duration","duration":"0s"}`},
 		{"duration max", image.Duration(math.MaxInt64), `{"kind":"duration","duration":"2562047h47m16.854775807s"}`},
 		{"duration min", image.Duration(math.MinInt64), `{"kind":"duration","duration":"-2562047h47m16.854775808s"}`},
+		{"token", image.Token("euCentral1"), `{"kind":"token","token":"euCentral1"}`},
+		{"token empty", image.Token(""), `{"kind":"token","token":""}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -54,8 +56,8 @@ func TestValueJSONRoundTrip(t *testing.T) {
 }
 
 func TestValueMarshalUnknownKind(t *testing.T) {
-	_, err := json.Marshal(&image.Value{Kind: "token"})
-	if err == nil || !strings.Contains(err.Error(), `unknown value kind "token"`) {
+	_, err := json.Marshal(&image.Value{Kind: "float"})
+	if err == nil || !strings.Contains(err.Error(), `unknown value kind "float"`) {
 		t.Errorf("Marshal unknown kind: err = %v, want unknown-kind error", err)
 	}
 }
@@ -66,11 +68,12 @@ func TestValueUnmarshalErrors(t *testing.T) {
 		json string
 		want string // substring of the error
 	}{
-		{"unknown kind", `{"kind":"token","token":"x"}`, `unknown value kind "token"`},
+		{"unknown kind", `{"kind":"float","float":1.5}`, `unknown value kind "float"`},
 		{"missing string arm", `{"kind":"string"}`, `missing its "string" field`},
 		{"missing int arm", `{"kind":"int"}`, `missing its "int" field`},
 		{"missing bool arm", `{"kind":"bool"}`, `missing its "bool" field`},
 		{"missing duration arm", `{"kind":"duration"}`, `missing its "duration" field`},
+		{"missing token arm", `{"kind":"token"}`, `missing its "token" field`},
 		{"mismatched arm", `{"kind":"int","string":"5"}`, `missing its "int" field`},
 		{"bad duration", `{"kind":"duration","duration":"soon"}`, `invalid duration value "soon"`},
 	}

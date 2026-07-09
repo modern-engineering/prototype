@@ -87,6 +87,13 @@ func TestEchoGolden(t *testing.T) {
 				Params: []image.Binding{
 					{Key: "admin", Ref: &image.SymbolRef{Symbol: "rootKey"}, Source: image.SourceInstance, Sensitive: true},
 				},
+				On: []image.Binding{
+					{Key: "location", Value: image.Token("euCentral1"), Source: image.SourceDefaultProvision},
+					{Key: "tier", Value: image.String("gold"), Source: image.SourceInstance},
+				},
+				Metadata: []image.Binding{
+					{Key: "team", Value: image.String("search"), Source: image.SourceInstance},
+				},
 			},
 			{
 				Verb:    image.VerbProvision,
@@ -126,6 +133,13 @@ deploy util2.Cache as C1 {
 
 provision util2.Grid slice as grid {
 	admin: rootKey
+	on {
+		location: euCentral1
+		tier: "gold"
+	}
+	metadata {
+		team: "search"
+	}
 }
 
 provision ff.Store attach as legacy
@@ -201,6 +215,28 @@ func TestEchoFaults(t *testing.T) {
 		"UnrenderableOutput": {
 			mutate: func(img *image.Image) {
 				img.Records[0].Params[0] = image.Binding{Key: "count", Ref: &image.SymbolRef{Symbol: "grid", Output: "log-level"}}
+			},
+			want: "SDL identifier",
+		},
+		"TokenInParams": {
+			mutate: func(img *image.Image) { img.Records[0].Params[0].Value = image.Token("here") },
+			want:   `value kind "token"`,
+		},
+		"TokenInMetadata": {
+			mutate: func(img *image.Image) {
+				img.Records[0].Metadata = []image.Binding{{Key: "team", Value: image.Token("search")}}
+			},
+			want: "metadata values are strings",
+		},
+		"RefInOn": {
+			mutate: func(img *image.Image) {
+				img.Records[0].On = []image.Binding{{Key: "location", Ref: &image.SymbolRef{Symbol: "subject"}}}
+			},
+			want: "never resolve symbols",
+		},
+		"UnrenderableToken": {
+			mutate: func(img *image.Image) {
+				img.Records[0].On = []image.Binding{{Key: "location", Value: image.Token("eu west")}}
 			},
 			want: "SDL identifier",
 		},

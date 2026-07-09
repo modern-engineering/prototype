@@ -838,6 +838,114 @@ func TestMainCompileProvisionDefaults(t *testing.T) {
 	}
 }
 
+// TestMainCompileCompartments proves the section compartments end to
+// end: on takes literals and opaque profile tokens — a bare identifier
+// never resolves against the namespace, even when it spells a declared
+// symbol — metadata takes string literals, and each compartment merges
+// per record across the same tiers as params (verb default under type
+// default under instance), each verb reaching only its own records,
+// with Source naming every binding's layer.
+func TestMainCompileCompartments(t *testing.T) {
+	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+		"import (\n" +
+		"\tff \"example.com/acme/pingpong\"\n" +
+		"\tsub \"example.com/acme/substrate\"\n" +
+		")\n" +
+		"var awsUsEast1: 1s\n" + // a symbol spelled like the token below; the token must win
+		"default deploy {\n" +
+		"\ton {\n" +
+		"\t\tlocation: awsUsEast1\n" +
+		"\t\ttier: \"bronze\"\n" +
+		"\t}\n" +
+		"\tmetadata {\n" +
+		"\t\towner: \"core\"\n" +
+		"\t}\n" +
+		"}\n" +
+		"default ff.Ping {\n" +
+		"\ton {\n" +
+		"\t\tlocation: euWest1\n" +
+		"\t}\n" +
+		"}\n" +
+		"deploy ff.Ping as P {\n" +
+		"\ton {\n" +
+		"\t\ttier: \"gold\"\n" +
+		"\t\treplicas: 3\n" +
+		"\t}\n" +
+		"\tmetadata {\n" +
+		"\t\tteam: \"search\"\n" +
+		"\t}\n" +
+		"}\n" +
+		"deploy ff.Pong as Q\n" +
+		"provision sub.Bus slice as bus {\n" +
+		"\ton {\n" +
+		"\t\tlocation: dcLocal\n" +
+		"\t}\n" +
+		"}\n"}}
+	cfg := solution.CompileConfig{
+		Solution:  "sample",
+		Units:     units,
+		Catalogue: testCatalogue(),
+	}
+	code, stdout, stderr := compile(t, cfg)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	img, err := image.Decode(strings.NewReader(stdout))
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(img.Records) != 3 {
+		t.Fatalf("got %d records, want 3", len(img.Records))
+	}
+
+	checkBindings(t, "P.On", img.Records[0].On, []wantBinding{
+		{"location", image.Token("euWest1"), image.SourceDefaultType},
+		{"replicas", image.Int(3), image.SourceInstance},
+		{"tier", image.String("gold"), image.SourceInstance},
+	})
+	checkBindings(t, "P.Metadata", img.Records[0].Metadata, []wantBinding{
+		{"owner", image.String("core"), image.SourceDefaultDeploy},
+		{"team", image.String("search"), image.SourceInstance},
+	})
+	checkBindings(t, "Q.On", img.Records[1].On, []wantBinding{
+		{"location", image.Token("awsUsEast1"), image.SourceDefaultDeploy},
+		{"tier", image.String("bronze"), image.SourceDefaultDeploy},
+	})
+	checkBindings(t, "Q.Metadata", img.Records[1].Metadata, []wantBinding{
+		{"owner", image.String("core"), image.SourceDefaultDeploy},
+	})
+	checkBindings(t, "bus.On", img.Records[2].On, []wantBinding{
+		{"location", image.Token("dcLocal"), image.SourceInstance},
+	})
+	if img.Records[2].Metadata != nil {
+		t.Errorf("bus.Metadata = %+v, want none: default deploy must not reach provisions", img.Records[2].Metadata)
+	}
+}
+
+// A wantBinding is one expected compartment binding: a literal or
+// token value with its provenance.
+type wantBinding struct {
+	key    string
+	value  *image.Value
+	source string
+}
+
+// checkBindings compares one compartment against its expectation.
+func checkBindings(t *testing.T, what string, got []image.Binding, want []wantBinding) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Errorf("%s = %+v, want %d bindings", what, got, len(want))
+		return
+	}
+	for i, w := range want {
+		g := got[i]
+		if g.Key != w.key || g.Source != w.source || g.Ref != nil ||
+			g.Value == nil || *g.Value != *w.value {
+			t.Errorf("%s[%d] = %+v, want %s=%+v from %q", what, i, g, w.key, *w.value, w.source)
+		}
+	}
+}
+
 // ----------------------------------------------------------------------------
 // Diagnostics
 
@@ -969,7 +1077,7 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			want:     []string{"u.sdl:2:8: unqualified type reference Ping: element references must be package-qualified through an import (e.g. pkg.Ping)"},
 		},
 		{
-			name: "language beyond this rung",
+			name: "provision of a component",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"provision ff.Ping slice as Q\n" +
@@ -983,7 +1091,75 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			want: []string{
 				"u.sdl:3:11: cannot provision ff.Ping: element is a component, not a provision type",
 				"u.sdl:5:10: instance Q has no outputs: only provision instances emit outputs",
-				"u.sdl:6:2: on sections not yet supported by this compiler rung",
+			},
+		},
+		{
+			name: "unknown section",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\tmount {\n" +
+				"\t\tpath: \"/data\"\n" +
+				"\t}\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:4:2: unknown section mount: sections are on and metadata"},
+		},
+		{
+			name: "duplicate section in one body",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\ton {\n" +
+				"\t\tlocation: here\n" +
+				"\t}\n" +
+				"\ton {\n" +
+				"\t\tlocation: there\n" +
+				"\t}\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:7:2: duplicate on section (first declared at u.sdl:4:2)"},
+		},
+		{
+			name: "nested section inside on",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\ton {\n" +
+				"\t\tinner {\n" +
+				"\t\t\tlocation: here\n" +
+				"\t\t}\n" +
+				"\t}\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:5:3: on sections take parameters only, not nested sections"},
+		},
+		{
+			name: "output reference inside on",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\ton {\n" +
+				"\t\tlocation: acct.config\n" +
+				"\t}\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:5:13: on values are literals or profile tokens, not output references"},
+		},
+		{
+			name: "metadata value beyond a string literal",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\tmetadata {\n" +
+				"\t\tteam: search\n" +
+				"\t\tsize: 7\n" +
+				"\t}\n" +
+				"}\n"}},
+			wantCode: 1,
+			want: []string{
+				"u.sdl:5:9: metadata values must be string literals",
+				"u.sdl:6:9: metadata values must be string literals",
 			},
 		},
 		{
@@ -1148,6 +1324,7 @@ func TestMainCompileDiagnostics(t *testing.T) {
 		{
 			// Type-scoped defaults validate eagerly: the faults surface
 			// with no record of the element anywhere in the solution.
+			// The on section is valid and simply never folds.
 			name: "default body validates without records",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
@@ -1165,7 +1342,6 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			want: []string{
 				"u.sdl:4:2: unknown parameter nope: element ff.Ping has no such parameter",
 				`u.sdl:5:9: invalid value for parameter count: parse error`,
-				"u.sdl:6:2: on sections not yet supported by this compiler rung",
 				"u.sdl:11:10: undefined symbol missing",
 			},
 		},

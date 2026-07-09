@@ -54,7 +54,9 @@ func recordEqual(a, b Record) bool {
 		a.Kind == b.Kind &&
 		a.Element == b.Element &&
 		a.Name == b.Name &&
-		slices.EqualFunc(a.Params, b.Params, bindingEqual)
+		slices.EqualFunc(a.Params, b.Params, bindingEqual) &&
+		slices.EqualFunc(a.On, b.On, bindingEqual) &&
+		slices.EqualFunc(a.Metadata, b.Metadata, bindingEqual)
 }
 
 // bindingEqual compares the key, the payload (literal value or symbol
@@ -100,6 +102,8 @@ func valueEqual(a, b *Value) bool {
 		return a.Bool == b.Bool
 	case KindDuration:
 		return a.Dur == b.Dur
+	case KindToken:
+		return a.Tok == b.Tok
 	}
 	return *a == *b
 }

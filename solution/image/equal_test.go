@@ -75,6 +75,12 @@ func testImage() *image.Image {
 				Params: []image.Binding{
 					{Key: "cluster", Value: image.String("us-east"), Source: image.SourceInstance},
 				},
+				On: []image.Binding{
+					{Key: "location", Value: image.Token("euCentral1"), Source: image.SourceDefaultProvision},
+				},
+				Metadata: []image.Binding{
+					{Key: "team", Value: image.String("search"), Source: image.SourceInstance},
+				},
 			},
 		},
 	}
@@ -98,6 +104,12 @@ func TestEqualMasksProvenance(t *testing.T) {
 	source.Records[0].Params[0].Source = "default-type"
 	if !image.Equal(base, source) {
 		t.Error("Equal must mask Binding.Source: differing sources compared unequal")
+	}
+
+	compartment := testImage()
+	compartment.Records[1].On[0].Source = image.SourceInstance
+	if !image.Equal(base, compartment) {
+		t.Error("Equal must mask Source in on bindings too")
 	}
 
 	both := testImage()
@@ -197,6 +209,15 @@ func TestEqualCatchesRealDifferences(t *testing.T) {
 		}},
 		{"catalogue provision kinds change", func(img *image.Image) {
 			img.Catalogue[0].Elements[2].Kinds = []string{image.KindSlice}
+		}},
+		{"on token change", func(img *image.Image) {
+			img.Records[1].On[0].Value = image.Token("usEast1")
+		}},
+		{"on binding dropped", func(img *image.Image) {
+			img.Records[1].On = nil
+		}},
+		{"metadata value change", func(img *image.Image) {
+			img.Records[1].Metadata[0].Value = image.String("core")
 		}},
 	}
 	for _, tt := range tests {
