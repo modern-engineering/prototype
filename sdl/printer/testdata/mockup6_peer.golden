@@ -1,0 +1,14 @@
+// --- a peer file, e.g. sample_extra.sdl ---
+
+// Peer files repeat the solution clause and carry their OWN import block:
+// a unit imports only what it references and stays self-contained, the Go
+// source-file model. Linking still unions the whole directory; duplicate
+// instance names are still link errors.
+solution sample
+
+import ff "example.com/acme/pingpong"
+
+deploy ff.Ping as Ping3 {
+	target: echoSubject
+	nats: natsAccount.config
+}

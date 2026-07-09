@@ -1,0 +1,35 @@
+solution layout
+
+import (
+	ff "example.com/ff"
+)
+
+extern (
+	one ff.NATSCluster
+	two ff.Secret
+)
+
+var lonely: "spaced"
+var (
+	a: 1s
+	b: true
+
+	c: 250ms
+)
+deploy ff.Ping as OneLine {
+	count: 7
+}
+deploy ff.Ping as Empty {}
+deploy (
+	ff.Ping as Tight
+)
+default deploy {
+	on {
+		location: here
+	}
+
+	metadata {
+		team: "search"
+	}
+}
+provision ff.NATS slice as acct

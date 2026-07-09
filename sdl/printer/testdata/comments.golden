@@ -1,0 +1,50 @@
+// File header group, first line.
+// File header group, second line.
+
+// A second header group, detached by a blank line.
+solution torture // suffix on the solution clause
+
+import ( // suffix on the opening paren
+	// before the first spec
+	ff "example.com/ff" // suffix on a spec
+
+	"example.com/platform/substrate"
+
+	// stranded before the closing paren
+
+	// a second stranded group
+)
+
+// before a single-form extern
+extern natsCluster substrate.NATSCluster // suffix on a single-form spec
+
+var ( // π: non-ASCII in a suffix comment
+	quoted: "say \"hi\"\n\\"
+	answer: -42
+	// stranded before the closing paren
+)
+
+default ff.Ping { // suffix on the opening brace
+	interval: 1s // suffix on a parameter
+	// before the closing brace
+}
+
+deploy (
+	ff.Ping as P1 {
+		count: +3
+
+		on {
+			location: awsUsEast1 // suffix inside a section
+		}
+		// end of the body
+	} // suffix on the closing brace
+	ff.Pong as P2
+)
+
+provision substrate.NATS slice as acct {
+	cluster: natsCluster
+} // suffix on a single-form closing brace
+
+// Trailing comments at EOF.
+
+// A second trailing group — 中文 and emoji 🎄 survive.

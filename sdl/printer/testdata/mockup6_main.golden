@@ -1,0 +1,91 @@
+// Mockup 6: supersedes 5. Adds the import dimension (A-14 surveys it, D-10
+// decides it): each file opens with a Go-style import block naming the
+// catalogue packages it uses, and EVERY element reference — component,
+// provision type, symbol type — is package-qualified (`ff.Ping`, never bare
+// `Ping`). Solution-local names stay unqualified: var/extern symbols and
+// instance names live in the solution's own flat namespace. Everything else
+// is as mockup 5 decided (compartments, symbol staging, defaults and merge
+// order, slice/attach, peer-file linking); mockup 5's longer notes apply
+// unchanged.
+//
+// Import paths resolve exactly as the `go` CLI would in the solution's
+// directory: the ambient module (local replaces respected, so a solution
+// beside its catalogue's source sees that source), the ambient workspace,
+// or — with no module context — the generated program's own module at latest
+// versions. `sdl build` generates a main importing these packages (the
+// `go test` trick), compiles it in that context, and runs it; the binary is
+// the compiler's back half, so params are checked by the very flag.Value
+// code that parses them at run time, and the image is emitted where the
+// user's values are live.
+
+solution sample
+
+import (
+	ff "example.com/acme/pingpong" // aliased: this file's short name for the package
+	"example.com/platform/substrate" // default: referenced by its package name
+)
+
+// Dynamic symbols: the deployment environment MUST bind these at reification.
+// Symbol TYPES come from the catalogue, so they are qualified like any other
+// element; the symbols themselves stay solution-local.
+extern (
+	natsCluster substrate.NATSCluster
+	natsAdmin substrate.Secret // sensitive: taints every field wired from it
+	pgServer substrate.PostgresServer // legacy per-customer substrate
+)
+
+// Weak symbols: defaults bound at compile; a site MAY override uniformly.
+var (
+	echoSubject: "com.acme.Echo"
+	pingInterval: 1s
+)
+
+// Type-level defaults address the element by its qualified name.
+default ff.Ping {
+	interval: pingInterval
+	count: -1 // endless
+}
+
+// Verb-level defaults; merge order: catalog < default verb < default type < instance.
+default deploy {
+	on {
+		location: awsUsEast1
+	}
+}
+
+// `slice` OWNS a partition carved from guaranteed substrate; `attach` plugs
+// in verify-only and emits the same output scheme (registered on the
+// provision TYPE), so downstream wiring cannot tell them apart.
+provision substrate.NATS slice as natsAccount {
+	cluster: natsCluster
+	adminAccount: natsAdmin
+}
+
+provision substrate.Postgres attach as pgLegacy {
+	server: pgServer
+}
+
+deploy ff.Ping as Ping1 {
+	target: echoSubject
+	nats: natsAccount.config // reconcile-time output: instance.output, unqualified
+}
+
+deploy ff.Ping as Ping2 {
+	count: 10 // overrides the default
+	target: echoSubject
+	nats: natsAccount.config
+
+	on {
+		location: euCentral1 // overrides `default deploy`
+	}
+	metadata {
+		team: "search"
+	}
+}
+
+// An instance may reuse an element's short name: `Pong` names the instance;
+// the element is always `ff.Pong`.
+deploy ff.Pong as Pong {
+	subject: echoSubject // Pong derives its ".>" subscription internally
+	nats: natsAccount.config
+}
