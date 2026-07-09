@@ -4,23 +4,34 @@
 // Package work drives the back half of sdl build: it lays the generated
 // compiler down in a temporary work directory, synthesizes a module
 // context that resolves packages exactly as the go CLI would in the
-// solution's own module, builds the compiler, and runs it.
+// solution directory, builds the compiler, and runs it.
 //
 // # Module context
 //
-// The temporary module mirrors the solution module's resolution state
-// from one 'go list -m' run: every module of the graph is required at
-// its resolved version, every replacement is mirrored — module
-// replacements at their replacement path and version, directory
+// Detect classifies the solution directory the way the go CLI itself
+// would: an active go.work selects workspace mode, otherwise an
+// enclosing go.mod selects module mode.
+//
+// In module mode the temporary module mirrors the solution module's
+// resolution state from one 'go list -m' run: every module of the graph
+// is required at its resolved version, every replacement is mirrored —
+// module replacements at their replacement path and version, directory
 // replacements with the directory rebased to an absolute path — the
 // user's main module is required at a synthetic version backed by a
-// directory replacement, and the user's go.sum is copied verbatim. The build then runs with the default
-// -mod=readonly: if it still wants to update go.mod, that is a bug in
-// this synthesis, never something to paper over with -mod=mod.
+// directory replacement, and the user's go.sum is copied verbatim. The
+// build then runs with the default -mod=readonly: if it still wants to
+// update go.mod, that is a bug in this synthesis, never something to
+// paper over with -mod=mod.
 //
-// Workspaces are a later rung: every go invocation here runs with
-// GOWORK=off (and an emptied GOFLAGS), so an enclosing go.work neither
-// helps nor hurts until then.
+// In workspace mode the work directory instead joins a synthesized copy
+// of the user's workspace: a go.work that use's every directory of the
+// user's go.work plus the work directory itself, the user's replace
+// directives mirrored and go.work.sum copied verbatim. The union build
+// list then resolves the generated compiler's imports — local member
+// source included — with no requirements synthesized at all, because a
+// workspace resolves any member's imports through the union graph.
+//
+// Solutions outside any module context arrive at a later rung.
 package work
 
 import (
@@ -51,6 +62,10 @@ type Config struct {
 	// context every go invocation resolves in.
 	Dir string
 
+	// Context is the module context Detect reported for Dir; it selects
+	// the synthesis strategy. Required.
+	Context *Context
+
 	// Source is the generated compiler's Go source, written to
 	// solmain.go in the work directory.
 	Source []byte
@@ -68,27 +83,28 @@ type Config struct {
 	Stderr io.Writer
 }
 
-// Run executes the driver: synthesize the work module, build the
-// generated compiler, run it, and relay its verdict. Solution faults
-// come back as *base.DiagnosticsError (exit code 1, matching the
-// compiler's own exit 1); everything else — including a compiler that
-// exits 2 — is an ordinary error (exit code 2).
+// Run executes the driver: synthesize the work directory's module
+// context, build the generated compiler, run it, and relay its verdict.
+// Solution faults come back as *base.DiagnosticsError (exit code 1,
+// matching the compiler's own exit 1); everything else — including a
+// compiler that exits 2 — is an ordinary error (exit code 2).
 func Run(ctx context.Context, cfg Config) error {
 	stderr := cfg.Stderr
 	if stderr == nil {
 		stderr = os.Stderr
 	}
-	env := environ()
+	if cfg.Context.Mode() == ModeWorkspace {
+		return runWorkspace(ctx, cfg, stderr)
+	}
+	return runModule(ctx, cfg, stderr)
+}
 
-	gomod, err := goEnvGOMOD(ctx, cfg.Dir, env)
-	if err != nil {
-		return err
-	}
-	if gomod == "" || gomod == os.DevNull {
-		return &base.DiagnosticsError{Lines: []string{
-			fmt.Sprintf("no go.mod in %s or any parent: sdl build resolves imports in the enclosing Go module; module-less solutions arrive at a later rung", cfg.Dir),
-		}}
-	}
+// runModule drives a build inside an enclosing module: the work
+// directory carries a synthesized go.mod mirroring the module's whole
+// resolution state.
+func runModule(ctx context.Context, cfg Config, stderr io.Writer) error {
+	env := cfg.Context.Env()
+	gomod := cfg.Context.gomod
 
 	graph, err := listModuleGraph(ctx, cfg.Dir, filepath.Dir(gomod), env)
 	if err != nil {
@@ -102,19 +118,11 @@ func Run(ctx context.Context, cfg Config) error {
 		return err
 	}
 
-	workdir, err := os.MkdirTemp("", "sdl-build-")
+	workdir, cleanup, err := makeWorkdir(cfg.Keep, stderr)
 	if err != nil {
-		return fmt.Errorf("creating work directory: %v", err)
+		return err
 	}
-	if cfg.Keep {
-		printf(stderr, "WORK=%s\n", workdir)
-	} else {
-		defer func() {
-			if err := os.RemoveAll(workdir); err != nil {
-				printf(stderr, "sdl: removing work directory: %v\n", err)
-			}
-		}()
-	}
+	defer cleanup()
 
 	if err := os.WriteFile(filepath.Join(workdir, "solmain.go"), cfg.Source, 0o666); err != nil {
 		return fmt.Errorf("writing generated compiler: %v", err)
@@ -132,22 +140,32 @@ func Run(ctx context.Context, cfg Config) error {
 	return runCompiler(ctx, workdir, cfg.Output, stderr)
 }
 
-// environ is the module-context environment of every child process:
-// the caller's environment with workspace mode forced off (a later
-// rung) and GOFLAGS emptied, so stray -mod=mod or -modfile flags cannot
-// change how the synthesized module resolves.
-func environ() []string {
-	return append(os.Environ(), "GOWORK=off", "GOFLAGS=")
-}
-
-// goEnvGOMOD reports the go.mod path governing dir, empty when there is
-// none.
-func goEnvGOMOD(ctx context.Context, dir string, env []string) (string, error) {
-	out, err := goOutput(ctx, dir, env, "env", "GOMOD")
+// makeWorkdir creates the temporary build directory and hands back its
+// cleanup. Keep mode announces the directory instead (the cmd/go -work
+// precedent) and the cleanup keeps its hands off.
+//
+// The directory is handed out with its symlinks resolved: the system
+// temp directory is a symlink on darwin, and a child go process
+// resolves its working directory (no PWD is exported to vouch for the
+// alias), so an unresolved path would fail the go.work membership
+// check of workspace mode — the go CLI compares the two as strings.
+func makeWorkdir(keep bool, stderr io.Writer) (workdir string, cleanup func(), err error) {
+	workdir, err = os.MkdirTemp("", "sdl-build-")
 	if err != nil {
-		return "", err
+		return "", nil, fmt.Errorf("creating work directory: %v", err)
 	}
-	return strings.TrimSpace(out), nil
+	if resolved, err := filepath.EvalSymlinks(workdir); err == nil {
+		workdir = resolved
+	}
+	if keep {
+		printf(stderr, "WORK=%s\n", workdir)
+		return workdir, func() {}, nil
+	}
+	return workdir, func() {
+		if err := os.RemoveAll(workdir); err != nil {
+			printf(stderr, "sdl: removing work directory: %v\n", err)
+		}
+	}, nil
 }
 
 // A module is one row of the solution's module graph: the module path,
@@ -170,30 +188,31 @@ type moduleGraph struct {
 	deps []module // remaining graph modules, in go list order
 }
 
+// moduleRowFormat is the go list -m template rendering one module row:
+// "path version" — the version empty on a main module — with each
+// replacement behind an explicit discriminator, "=> mod path version"
+// or "=> dir directory", so the two replacement kinds parse
+// unambiguously even though a directory may contain spaces. A module
+// replacement is identified by its non-empty Replace.Version; its
+// Replace.Dir (filled once the module cache holds the replacement,
+// empty until then) is never asked for, because the module identity is
+// the faithful mirror either way.
+const moduleRowFormat = "{{.Path}} {{.Version}}{{with .Replace}}{{if .Version}} => mod {{.Path}} {{.Version}}{{else}} => dir {{.Dir}}{{end}}{{end}}"
+
 // listModuleGraph captures the module graph with one go list run — one
 // consistent snapshot for requirements, replacements, and the skew
-// handshake alike. The template renders each replacement behind an
-// explicit discriminator, "=> mod path version" or "=> dir directory",
-// so the two replacement kinds parse unambiguously even though a
-// directory may contain spaces. A module replacement is identified by
-// its non-empty Replace.Version; its Replace.Dir (filled once the module
-// cache holds the replacement, empty until then) is never asked for,
-// because the module identity is the faithful mirror either way.
+// handshake alike.
 func listModuleGraph(ctx context.Context, dir, mainDir string, env []string) (*moduleGraph, error) {
-	const format = "{{.Path}} {{.Version}}{{with .Replace}}{{if .Version}} => mod {{.Path}} {{.Version}}{{else}} => dir {{.Dir}}{{end}}{{end}}"
-	out, err := goOutput(ctx, dir, env, "list", "-m", "-f", format, "all")
+	out, err := goOutput(ctx, dir, env, "list", "-m", "-f", moduleRowFormat, "all")
 	if err != nil {
 		return nil, err
 	}
 	return parseModuleGraph(out, mainDir)
 }
 
-// parseModuleGraph reads the go list template output. Each line carries
-// "path version" — the version empty on the main module's line — and a
-// replaced module appends "=> mod rpath rversion" or "=> dir directory".
-// The directory is the final field, so it may contain spaces; relative
-// directories are rebased onto the main module root, where the user's
-// go.mod resolved them.
+// parseModuleGraph reads the go list template output, one moduleRowFormat
+// row per line, into the main module (the only version-less,
+// replacement-less row) and its dependency modules.
 func parseModuleGraph(out, mainDir string) (*moduleGraph, error) {
 	g := &moduleGraph{}
 	for line := range strings.Lines(out) {
@@ -201,37 +220,48 @@ func parseModuleGraph(out, mainDir string) (*moduleGraph, error) {
 		if line == "" {
 			continue
 		}
-		// Module paths and versions never contain spaces; SplitN keeps
-		// the directory field intact.
-		parts := strings.SplitN(line, " ", 5)
-		switch {
-		case len(parts) == 1:
-			if g.main.path != "" {
-				return nil, fmt.Errorf("module graph lists two main modules: %s and %s", g.main.path, parts[0])
-			}
-			g.main = module{path: parts[0], dir: mainDir}
-		case len(parts) == 2:
-			g.deps = append(g.deps, module{path: parts[0], version: parts[1]})
-		case len(parts) == 5 && parts[2] == "=>" && parts[3] == "mod":
-			rpath, rversion, ok := strings.Cut(parts[4], " ")
-			if !ok {
-				return nil, fmt.Errorf("malformed module graph line %q", line)
-			}
-			g.deps = append(g.deps, module{path: parts[0], version: parts[1], replPath: rpath, replVersion: rversion})
-		case len(parts) == 5 && parts[2] == "=>" && parts[3] == "dir":
-			dir := parts[4]
-			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(mainDir, dir)
-			}
-			g.deps = append(g.deps, module{path: parts[0], version: parts[1], dir: dir})
-		default:
-			return nil, fmt.Errorf("malformed module graph line %q", line)
+		m, err := parseModuleRow(line, mainDir)
+		if err != nil {
+			return nil, err
 		}
+		if m.version == "" {
+			if g.main.path != "" {
+				return nil, fmt.Errorf("module graph lists two main modules: %s and %s", g.main.path, m.path)
+			}
+			g.main = module{path: m.path, dir: mainDir}
+			continue
+		}
+		g.deps = append(g.deps, m)
 	}
 	if g.main.path == "" {
 		return nil, errors.New("module graph lists no main module")
 	}
 	return g, nil
+}
+
+// parseModuleRow reads one moduleRowFormat row. The replacement
+// directory is the final field, so it may contain spaces; a relative
+// one is rebased onto base, where the file declaring the replacement
+// resolved it.
+func parseModuleRow(line, base string) (module, error) {
+	// Module paths and versions never contain spaces; SplitN keeps
+	// the directory field intact.
+	parts := strings.SplitN(line, " ", 5)
+	switch {
+	case len(parts) == 1:
+		return module{path: parts[0]}, nil
+	case len(parts) == 2:
+		return module{path: parts[0], version: parts[1]}, nil
+	case len(parts) == 5 && parts[2] == "=>" && parts[3] == "mod":
+		rpath, rversion, ok := strings.Cut(parts[4], " ")
+		if !ok {
+			break
+		}
+		return module{path: parts[0], version: parts[1], replPath: rpath, replVersion: rversion}, nil
+	case len(parts) == 5 && parts[2] == "=>" && parts[3] == "dir":
+		return module{path: parts[0], version: parts[1], dir: rebase(parts[4], base)}, nil
+	}
+	return module{}, fmt.Errorf("malformed module graph line %q", line)
 }
 
 // checkPrototype guards the generated compiler's own dependency: the
@@ -241,19 +271,19 @@ func parseModuleGraph(out, mainDir string) (*moduleGraph, error) {
 // fatal), because the compiled semantics come from the solution's copy,
 // not from the binary the user invoked.
 func checkPrototype(g *moduleGraph, gomod string, stderr io.Writer) *base.DiagnosticsError {
-	var cliVersion string
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Path == prototypePath {
-		cliVersion = info.Main.Version
-	}
-	return checkPrototypeVersion(g, gomod, cliVersion, stderr)
+	return checkPrototypeVersion(g, gomod, cliVersion(), stderr)
 }
 
-// checkPrototypeVersion is checkPrototype behind its build-info read;
-// cliVersion is empty when the running binary does not know its own
-// version. A directory-replaced prototype never warns: the graph then
-// pins no meaningful version to compare — the requirement's version is
-// a placeholder and the replacement has none — and that is the everyday
-// dev-loop shape, where the solution deliberately tracks local source.
+// cliVersion is the running CLI's own prototype-module version, empty
+// when the binary does not know it.
+func cliVersion() string {
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Path == prototypePath {
+		return info.Main.Version
+	}
+	return ""
+}
+
+// checkPrototypeVersion is checkPrototype behind its build-info read.
 func checkPrototypeVersion(g *moduleGraph, gomod, cliVersion string, stderr io.Writer) *base.DiagnosticsError {
 	if g.main.path == prototypePath {
 		return nil // the examples case: the main-module replace covers everything
@@ -262,22 +292,33 @@ func checkPrototypeVersion(g *moduleGraph, gomod, cliVersion string, stderr io.W
 		if dep.path != prototypePath {
 			continue
 		}
-		if dep.dir != "" {
-			return nil // directory replace: no version to compare
-		}
-		version := dep.version
-		if dep.replVersion != "" {
-			version = dep.replVersion // the copy the build will actually resolve
-		}
-		if cliVersion != "" && cliVersion != version {
-			printf(stderr, "sdl: warning: solution resolves %s %s but this sdl binary was built from %s; align them if results surprise\n",
-				prototypePath, version, cliVersion)
-		}
+		comparePrototype(dep, cliVersion, stderr)
 		return nil
 	}
 	return &base.DiagnosticsError{Lines: []string{
 		fmt.Sprintf("module %s does not require %s, which the generated solution compiler imports; add it to %s", g.main.path, prototypePath, gomod),
 	}}
+}
+
+// comparePrototype warns when the prototype version a build will
+// resolve differs from the CLI's own; cliVersion is empty when the
+// running binary does not know its version. A locally sourced prototype
+// — a directory replacement, or a version-less row naming a main or
+// workspace module — never warns: the graph then pins no meaningful
+// version to compare, and that is the everyday dev-loop shape, where
+// the solution deliberately tracks local source.
+func comparePrototype(m module, cliVersion string, stderr io.Writer) {
+	if m.dir != "" || m.version == "" {
+		return // local source: no version to compare
+	}
+	version := m.version
+	if m.replVersion != "" {
+		version = m.replVersion // the copy the build will actually resolve
+	}
+	if cliVersion != "" && cliVersion != version {
+		printf(stderr, "sdl: warning: solution resolves %s %s but this sdl binary was built from %s; align them if results surprise\n",
+			prototypePath, version, cliVersion)
+	}
 }
 
 // modDirectives reads the go and toolchain directives of the module

@@ -1063,6 +1063,130 @@ func TestFmtExamples(t *testing.T) {
 	}
 }
 
+// writeFile lays down one file of a test fixture.
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o666); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// workspaceCatalogue renders the workspace catalogue module's source
+// with one mutable flag default — the marker the test reads back out of
+// the built image to prove which source the build resolved.
+func workspaceCatalogue(greeting string) string {
+	return fmt.Sprintf(`package catalogue
+
+import (
+	"context"
+	"flag"
+
+	"github.com/modern-engineering/prototype/application"
+)
+
+// Hello greets its audience.
+var Hello = &application.Descriptor{
+	Name: "hello",
+	Doc:  "hello greets its audience",
+	Make: application.MakeFunc(func() (application.Runner, *flag.FlagSet) {
+		fs := flag.NewFlagSet("hello", flag.ContinueOnError)
+		fs.String("greeting", %q, "what hello says")
+		return application.RunnerFunc(func(context.Context) error { return nil }), fs
+	}),
+}
+`, greeting)
+}
+
+// TestBuildWorkspace is the workspace-mode proof: a solution inside one
+// module of an active go.work resolves its catalogue imports through
+// the workspace's union of modules, exactly as the go CLI would — no
+// replace or require directives anywhere, because a workspace resolves
+// member imports without them (a member requiring another member still
+// needs that version's go.mod fetchable for the module graph, so the
+// require-less shape is also the only hermetic one). The catalogue
+// module's path is served by no proxy, so only local member source can
+// satisfy it; the prototype rides along as one more member, keeping
+// the version-skew handshake silent. Editing the catalogue source
+// between builds must reach the very next image: the workspace tracks
+// member directories, never a fetched copy.
+func TestBuildWorkspace(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	ws := t.TempDir()
+	modA := filepath.Join(ws, "modA") // holds the solution
+	modB := filepath.Join(ws, "modB") // holds the catalogue
+	for _, dir := range []string{modA, modB} {
+		if err := os.Mkdir(dir, 0o777); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(modA, "go.mod"), "module example.test/sol\n\ngo 1.25.0\n")
+	writeFile(t, filepath.Join(modA, "hello.sdl"), `solution wsdemo
+
+import cat "example.test/catalogue"
+
+deploy cat.Hello as Hello1 {
+	greeting: "hi"
+}
+`)
+	writeFile(t, filepath.Join(modB, "go.mod"), "module example.test/catalogue\n\ngo 1.25.0\n")
+	writeFile(t, filepath.Join(modB, "catalogue.go"), workspaceCatalogue("workspace-before"))
+	writeFile(t, filepath.Join(ws, "go.work"), fmt.Sprintf("go 1.25.0\n\nuse (\n\t./modA\n\t./modB\n\t%s\n)\n", repoRoot))
+
+	build := func() *image.Image {
+		t.Helper()
+		out := filepath.Join(t.TempDir(), "out.json")
+		res := runSDL(t, modA, "build", "-o", out)
+		if res.code != 0 {
+			t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+		}
+		if strings.Contains(res.stderr, "warning") {
+			t.Errorf("skew warning despite the prototype being a workspace member:\n%s", res.stderr)
+		}
+		data, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		img, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("emitted image does not decode: %v", err)
+		}
+		return img
+	}
+
+	img := build()
+	if len(img.Catalogue) != 1 || img.Catalogue[0].Path != "example.test/catalogue" {
+		t.Fatalf("catalogue = %+v, want the workspace module example.test/catalogue", img.Catalogue)
+	}
+	if got := helloDefault(t, img); got != "workspace-before" {
+		t.Errorf("greeting default = %q, want the member source's %q", got, "workspace-before")
+	}
+	if len(img.Records) != 1 || img.Records[0].Name != "Hello1" {
+		t.Fatalf("records = %+v, want the one Hello1 deploy", img.Records)
+	}
+
+	writeFile(t, filepath.Join(modB, "catalogue.go"), workspaceCatalogue("workspace-after"))
+	if got := helloDefault(t, build()); got != "workspace-after" {
+		t.Errorf("greeting default after the edit = %q, want %q", got, "workspace-after")
+	}
+}
+
+// helloDefault digs the greeting parameter's pinned default out of the
+// image's catalogue schema.
+func helloDefault(t *testing.T, img *image.Image) string {
+	t.Helper()
+	for _, el := range img.Catalogue[0].Elements {
+		for _, p := range el.Params {
+			if p.Name == "greeting" {
+				return p.Default
+			}
+		}
+	}
+	t.Fatalf("no greeting parameter in catalogue %+v", img.Catalogue)
+	return ""
+}
+
 // TestWorkFlag is (d): -work announces the work directory and leaves
 // the generated compiler behind for inspection.
 func TestWorkFlag(t *testing.T) {

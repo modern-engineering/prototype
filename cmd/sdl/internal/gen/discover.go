@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"go/types"
 	"io"
-	"os"
 	"slices"
 	"strings"
 
@@ -63,10 +62,10 @@ type Package struct {
 // descriptor vars are warnings on warn, not errors. The result is
 // sorted by path.
 //
-// The module context matches the build driver's: GOWORK=off (workspace
-// mode is a later rung) and an emptied GOFLAGS, so discovery and the
-// generated compiler resolve packages identically.
-func Discover(dir string, imports []load.Import, warn io.Writer) ([]Package, error) {
+// The env is the module-context environment of the enclosing build
+// (work.Context.Env), so discovery and the generated compiler resolve
+// packages identically in every module mode — workspace mode included.
+func Discover(dir string, imports []load.Import, env []string, warn io.Writer) ([]Package, error) {
 	if len(imports) == 0 {
 		return nil, nil
 	}
@@ -79,7 +78,7 @@ func Discover(dir string, imports []load.Import, warn io.Writer) ([]Package, err
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedTypes,
 		Dir:  dir,
-		Env:  append(os.Environ(), "GOWORK=off", "GOFLAGS="),
+		Env:  env,
 	}
 	pkgs, err := packages.Load(cfg, patterns...)
 	if err != nil {

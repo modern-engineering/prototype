@@ -147,6 +147,96 @@ func TestParseModuleGraphFaults(t *testing.T) {
 	}
 }
 
+// TestSynthesizeGoWork drives the pure half of the workspace synthesis:
+// one parsed go.work state in, one temporary go.work out — the user's
+// directories and replaces mirrored, the work directory joining as a
+// member.
+func TestSynthesizeGoWork(t *testing.T) {
+	tests := []struct {
+		name string
+		ws   *workspace
+		want string
+	}{
+		{
+			// Every directive shape at once: language directives, a
+			// use'd directory with a space, both replacement kinds, and
+			// a versioned replace target.
+			name: "full workspace",
+			ws: &workspace{
+				goVersion: "1.25.0",
+				toolchain: "go1.26.5",
+				dirs:      []string{"/home/u/modA", "/home/u/dir with space"},
+				replaces: []replacement{
+					{oldPath: "example.com/old", oldVersion: "v1.0.0", newPath: "example.com/new", newVersion: "v2.0.0"},
+					{oldPath: "example.com/local", newPath: "/home/u/local"},
+				},
+			},
+			want: `go 1.25.0
+
+toolchain go1.26.5
+
+use (
+	/home/u/modA
+	"/home/u/dir with space"
+	.
+)
+
+replace example.com/old v1.0.0 => example.com/new v2.0.0
+
+replace example.com/local => /home/u/local
+`,
+		},
+		{
+			name: "bare workspace",
+			ws:   &workspace{dirs: []string{"/w/m"}},
+			want: "\nuse (\n\t/w/m\n\t.\n)\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := string(synthesizeGoWork(tt.ws)); got != tt.want {
+				t.Errorf("synthesizeGoWork mismatch\n--- got ---\n%s\n--- want ---\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestScaffoldGoMod(t *testing.T) {
+	if got, want := string(scaffoldGoMod("1.25.0")), "module sdl.invalid/solmain\n\ngo 1.25.0\n"; got != want {
+		t.Errorf("scaffoldGoMod(1.25.0) = %q, want %q", got, want)
+	}
+	if got, want := string(scaffoldGoMod("")), "module sdl.invalid/solmain\n"; got != want {
+		t.Errorf("scaffoldGoMod(\"\") = %q, want %q", got, want)
+	}
+}
+
+// TestComparePrototype pins the workspace-facing row shapes of the skew
+// handshake: a version-less row is a main or workspace module — local
+// source, never compared — while ordinary and replaced versions warn
+// exactly as they do in module mode.
+func TestComparePrototype(t *testing.T) {
+	tests := []struct {
+		name     string
+		m        module
+		wantWarn bool
+	}{
+		{name: "workspace member", m: module{path: prototypePath}},
+		{name: "matching version", m: module{path: prototypePath, version: "v0.4.0"}},
+		{name: "other version", m: module{path: prototypePath, version: "v0.3.1"}, wantWarn: true},
+		{name: "dir replace", m: module{path: prototypePath, version: "v0.3.1", dir: "/src/proto"}},
+		{name: "mod replace at another version", m: module{path: prototypePath, version: "v0.4.0", replPath: "example.com/fork", replVersion: "v0.5.0"}, wantWarn: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stderr bytes.Buffer
+			comparePrototype(tt.m, "v0.4.0", &stderr)
+			if warned := strings.Contains(stderr.String(), "warning"); warned != tt.wantWarn {
+				t.Errorf("warned = %v, want %v\nstderr: %s", warned, tt.wantWarn, stderr.String())
+			}
+		})
+	}
+}
+
 // TestCheckPrototypeVersion drives the skew handshake over every graph
 // shape the prototype module can resolve through. Only a version the
 // build will genuinely use is compared: a directory replace pins no

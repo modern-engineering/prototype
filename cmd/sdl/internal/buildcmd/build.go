@@ -27,11 +27,12 @@ var CmdBuild = &base.Command{
 into its desired-state image.
 
 Build reads every .sdl file of the directory, resolves the imported
-catalogue packages in the enclosing Go module context, and generates a
-small Go program that embeds the solution sources and links them against
-the live catalogue. The program is compiled in a temporary module
-mirroring the solution module's dependency resolution and then run; it
-emits the image as canonical JSON.
+catalogue packages exactly as the go command would in that directory —
+through the enclosing module's requirements and replaces, or through an
+active workspace's union of modules — and generates a small Go program
+that embeds the solution sources and links them against the live
+catalogue. The program is compiled in a temporary context mirroring
+that resolution and then run; it emits the image as canonical JSON.
 
 The -o flag writes the image to a file instead of standard output.
 
@@ -73,16 +74,26 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	pkgs, err := gen.Discover(sol.Dir, sol.Imports, os.Stderr)
+	mc, err := work.Detect(ctx, sol.Dir)
+	if err != nil {
+		return err
+	}
+	if mc.Mode() == work.ModeNone {
+		return &base.DiagnosticsError{Lines: []string{
+			fmt.Sprintf("no go.mod or go.work in %s or any parent: sdl build resolves imports in the enclosing Go module or workspace; module-less solutions arrive at a later rung", sol.Dir),
+		}}
+	}
+	pkgs, err := gen.Discover(sol.Dir, sol.Imports, mc.Env(), os.Stderr)
 	if err != nil {
 		return err
 	}
 	source := gen.Source(sol, pkgs, flagGeneration)
 	return work.Run(ctx, work.Config{
-		Dir:    sol.Dir,
-		Source: source,
-		Output: flagOutput,
-		Keep:   flagWork,
-		Stderr: os.Stderr,
+		Dir:     sol.Dir,
+		Context: mc,
+		Source:  source,
+		Output:  flagOutput,
+		Keep:    flagWork,
+		Stderr:  os.Stderr,
 	})
 }
