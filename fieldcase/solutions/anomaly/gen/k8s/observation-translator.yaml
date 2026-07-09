@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: observation-translator-cm
+  labels:
+    app: observation-translator
+    solution: anomaly
+data:
+  # The enable key: the pod's env selects exactly this instance out of
+  # the shared host image (tri-state enable semantics).
+  observationTranslator: "true"
+  health: ":3000"
+  # The site fragment this instance's bindings reach; the host reads
+  # it at startup (args[0]) and enforces the extern gate again.
+  site.conf: |
+    extern.kafkaCluster = localhost:9092
+    driver.kafka.brokers = localhost:9092
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observation-translator
+  labels:
+    app: observation-translator
+    solution: anomaly
+  annotations:
+    solution.metadata/chart: "observation-translator"
+    solution.metadata/component: "observation-translator"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: observation-translator
+  template:
+    metadata:
+      labels:
+        app: observation-translator
+        solution: anomaly
+      annotations:
+        checksum/config: bbdd626be635afb92fa0056791402ac3eac626a1519af8a6941176cfe681f604
+    spec:
+      containers:
+        - name: observation-translator
+          # One host image serves every instance of the solution; the
+          # deployment pipeline substitutes the token.
+          image: ${ANOMALY_HOST_IMAGE}
+          args:
+            - /etc/solution/config/site.conf
+          env:
+            - name: OBSERVATIONTRANSLATOR
+              valueFrom:
+                configMapKeyRef:
+                  name: observation-translator-cm
+                  key: observationTranslator
+            - name: HEALTH
+              valueFrom:
+                configMapKeyRef:
+                  name: observation-translator-cm
+                  key: health
+          ports:
+            - name: health
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 6
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "100Mi"
+            limits:
+              cpu: "300m"
+              memory: "100Mi"
+          volumeMounts:
+            - name: site-config
+              mountPath: /etc/solution/config
+              readOnly: true
+      volumes:
+        - name: site-config
+          configMap:
+            name: observation-translator-cm
+            items:
+              - key: site.conf
+                path: site.conf

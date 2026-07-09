@@ -1,0 +1,48 @@
+# The anomaly dev site: local stand-ins for every extern the solution
+# reaches, one demonstrative var override, and the driver sections the
+# dev provision drivers echo as outputs. Format: one "key = value" per
+# line; full-line comments only (a '#' after '=' is value bytes).
+#
+# extern.* is MUST-bind (the host refuses to start on any gap);
+# var.* is MAY-rebind (A-10); driver.<instance>.<output> feeds the
+# dev drivers, which verify presence and echo — no external infrastructure.
+
+# Site-bound substrate handles.
+extern.kafkaCluster = localhost:9092
+extern.redisServer = localhost:6379
+extern.neo4jServer = bolt://localhost:7687
+extern.postgresServer = localhost:5432
+
+# Operator-supplied credentials (substrate.Secret; audit-redacted).
+extern.tenantID = 0abcdef0-dev0-4000-8000-devaccount00
+extern.organizationID = 0abcdef0-dev0-4000-8000-devorg000000
+
+# The customer SIEM endpoint (per-site MUST-bind).
+extern.siemServer = 127.0.0.1:5514
+
+# MAY-rebind demonstration: dev polls a local mock console instead of
+# the network controller (the image default is https://controller.example).
+var.networkController = http://127.0.0.1:8081/api
+
+# Provision driver sections, one block per provision instance.
+driver.kafka.brokers = localhost:9092
+
+driver.controllerTokenCache.host = 127.0.0.1
+driver.controllerTokenCache.port = 6379
+driver.controllerTokenCache.db = 0
+driver.controllerTokenCache.username = dev-token-cache
+driver.controllerTokenCache.password = dev-token-cache-pass
+
+driver.identityState.address = 127.0.0.1:6379
+driver.identityState.db = 1
+driver.identityState.username = dev-anomaly
+driver.identityState.password = dev-anomaly-pass
+
+driver.twinDB.uri = bolt://127.0.0.1:7687
+driver.twinDB.username = neo4j
+driver.twinDB.password = dev-twin-pass
+
+driver.alertsDB.address = 127.0.0.1:5432
+driver.alertsDB.database = postgres
+driver.alertsDB.username = postgres
+driver.alertsDB.password = dev-alerts-pass

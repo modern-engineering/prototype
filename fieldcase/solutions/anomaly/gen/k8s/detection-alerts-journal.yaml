@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: detection-alerts-journal-cm
+  labels:
+    app: detection-alerts-journal
+    solution: anomaly
+data:
+  # The enable key: the pod's env selects exactly this instance out of
+  # the shared host image (tri-state enable semantics).
+  detectionAlertsJournal: "true"
+  health: ":3000"
+  # The site fragment this instance's bindings reach; the host reads
+  # it at startup (args[0]) and enforces the extern gate again.
+  site.conf: |
+    extern.kafkaCluster = localhost:9092
+    extern.postgresServer = localhost:5432
+    driver.kafka.brokers = localhost:9092
+    driver.alertsDB.address = 127.0.0.1:5432
+    driver.alertsDB.database = postgres
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: detection-alerts-journal-secret
+  labels:
+    app: detection-alerts-journal
+    solution: anomaly
+type: Opaque
+stringData:
+  # The sensitive half of the site: extern Secrets and tainted driver
+  # outputs, mounted as a second site file (path-in-args), never in a
+  # ConfigMap and never in env.
+  secret.conf: |
+    driver.alertsDB.password = dev-alerts-pass
+    driver.alertsDB.username = postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: detection-alerts-journal
+  labels:
+    app: detection-alerts-journal
+    solution: anomaly
+  annotations:
+    solution.metadata/chart: "detection-alerts-journal"
+    solution.metadata/component: "detection-alerts-journal"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: detection-alerts-journal
+  template:
+    metadata:
+      labels:
+        app: detection-alerts-journal
+        solution: anomaly
+      annotations:
+        checksum/config: e4cf87febd9c46075eeea649d6e73da50c945c6c8d168a85d3775d0a724846f1
+    spec:
+      containers:
+        - name: detection-alerts-journal
+          # One host image serves every instance of the solution; the
+          # deployment pipeline substitutes the token.
+          image: ${ANOMALY_HOST_IMAGE}
+          args:
+            - /etc/solution/config/site.conf
+            - /etc/solution/secret/secret.conf
+          env:
+            - name: DETECTIONALERTSJOURNAL
+              valueFrom:
+                configMapKeyRef:
+                  name: detection-alerts-journal-cm
+                  key: detectionAlertsJournal
+            - name: HEALTH
+              valueFrom:
+                configMapKeyRef:
+                  name: detection-alerts-journal-cm
+                  key: health
+          ports:
+            - name: health
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 6
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "250Mi"
+            limits:
+              cpu: "300m"
+              memory: "250Mi"
+          volumeMounts:
+            - name: site-config
+              mountPath: /etc/solution/config
+              readOnly: true
+            - name: site-secret
+              mountPath: /etc/solution/secret
+              readOnly: true
+      volumes:
+        - name: site-config
+          configMap:
+            name: detection-alerts-journal-cm
+            items:
+              - key: site.conf
+                path: site.conf
+        - name: site-secret
+          secret:
+            secretName: detection-alerts-journal-secret

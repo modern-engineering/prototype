@@ -1,0 +1,2058 @@
+{
+  "format": "solution-image/1",
+  "solution": "anomaly",
+  "generation": 1,
+  "catalogue": [
+    {
+      "path": "github.com/modern-engineering/prototype/fieldcase/catalog/detection",
+      "name": "detection",
+      "elements": [
+        {
+          "name": "Journal",
+          "kind": "component",
+          "doc": "detectionAlertsJournal upserts alerts into PostgreSQL\n\nIn this scenario, the detection-alerts-journal component\n(the field case). It consumes the alerts bus,\nupserts each alert into the journal tables, and provisions views\nreadable by the role the PostgREST facade queries with.",
+          "params": [
+            {
+              "name": "consumesAlerts",
+              "usage": "topic of JSON alerts"
+            },
+            {
+              "name": "kafkaBrokers",
+              "usage": "comma-separated Kafka bootstrap brokers (shared flag kafka-brokers, required)"
+            },
+            {
+              "name": "kafkaConfig",
+              "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
+            },
+            {
+              "name": "postgresAddress",
+              "usage": "postgres server address"
+            },
+            {
+              "name": "postgresDBName",
+              "usage": "postgres db name"
+            },
+            {
+              "name": "postgresPassword",
+              "usage": "postgres server password"
+            },
+            {
+              "name": "postgresRoleName",
+              "usage": "PostgreSQL role granted access to the journal views"
+            },
+            {
+              "name": "postgresUsername",
+              "usage": "postgres server username"
+            }
+          ]
+        },
+        {
+          "name": "IdentityAnomalyDetector",
+          "kind": "component",
+          "doc": "identityAnomalyDetector alerts when an identity appears from an unexpected endpoint\n\nIn this scenario, the identity-anomaly-detector component\n(the field case). It consumes gob-encoded graph-change\ndigests, tracks identity-to-endpoint associations in Redis, and publishes a JSON\nalert whenever a known identity appears from a new endpoint.",
+          "params": [
+            {
+              "name": "consumesGraphChanged",
+              "usage": "topic of gob-encoded graph-change digests"
+            },
+            {
+              "name": "handlersLimit",
+              "usage": "goroutines handling assemblies concurrently; negative means unlimited, zero is not allowed",
+              "default": "0"
+            },
+            {
+              "name": "kafkaBrokers",
+              "usage": "comma-separated Kafka bootstrap brokers (shared flag kafka-brokers, required)"
+            },
+            {
+              "name": "kafkaConfig",
+              "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
+            },
+            {
+              "name": "policyRuleName",
+              "usage": "policy rule naming the generated alerts"
+            },
+            {
+              "name": "producesAlerts",
+              "usage": "topic for JSON alerts"
+            },
+            {
+              "name": "redisAddress",
+              "usage": "redis host address",
+              "default": "localhost:6379"
+            },
+            {
+              "name": "redisDBNumber",
+              "usage": "redis db number",
+              "default": "0"
+            },
+            {
+              "name": "redisPassword",
+              "usage": "redis password"
+            },
+            {
+              "name": "redisUsername",
+              "usage": "redis user"
+            }
+          ]
+        },
+        {
+          "name": "SyslogExporter",
+          "kind": "component",
+          "doc": "detectionSyslogExporter pushes alerts to a SIEM syslog endpoint\n\nIn this scenario, the detection-syslog-exporter component\n(the field case). It consumes the alerts bus,\nencodes each alert in the configured syslog format, and writes it\nto the customer's SIEM server. The field case declares an explicitly\nempty aspects list: this component only egresses.",
+          "params": [
+            {
+              "name": "consumesAlerts",
+              "usage": "topic of JSON alerts"
+            },
+            {
+              "name": "format",
+              "usage": "syslog format for the alerts, rfc5424 or rfc3164"
+            },
+            {
+              "name": "kafkaBrokers",
+              "usage": "comma-separated Kafka bootstrap brokers (shared flag kafka-brokers, required)"
+            },
+            {
+              "name": "kafkaConfig",
+              "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
+            },
+            {
+              "name": "protocol",
+              "usage": "transport protocol for the syslog connection, udp or tcp"
+            },
+            {
+              "name": "serverAddress",
+              "usage": "host:port of the SIEM syslog server"
+            },
+            {
+              "name": "timeout",
+              "usage": "write timeout on the syslog connection",
+              "default": "0s"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "github.com/modern-engineering/prototype/fieldcase/catalog/controller",
+      "name": "controller",
+      "elements": [
+        {
+          "name": "Instrument",
+          "kind": "component",
+          "doc": "networkObservationCollector polls the network controller for device visibility\n\nIn this scenario, the network-observation-collector component\n(the network-controller API). Every polling cycle it\nfetches asset, session, link, and gateway\nreports from the network controller over HTTPS, caching API tokens in\nRedis, and publishes raw protobuf records to its five aspects.",
+          "params": [
+            {
+              "name": "backoff",
+              "usage": "constant backoff between HTTP retries",
+              "default": "0s"
+            },
+            {
+              "name": "baseURL",
+              "usage": "network controller base URL"
+            },
+            {
+              "name": "apiUsername",
+              "usage": "API username for controller login"
+            },
+            {
+              "name": "apiPassword",
+              "usage": "basic-auth password for controller login"
+            },
+            {
+              "name": "normalizeHardwareAddress",
+              "usage": "canonicalize hardware addresses in asset observations",
+              "default": "false",
+              "boolean": true
+            },
+            {
+              "name": "fileTokensPath",
+              "usage": "directory of bootstrap token files, a mounted Secret volume"
+            },
+            {
+              "name": "fileTokensReadOnly",
+              "usage": "whether the bootstrap token files are read-only",
+              "default": "false",
+              "boolean": true
+            },
+            {
+              "name": "focusedNetworks",
+              "usage": "comma-separated controller networks to poll"
+            },
+            {
+              "name": "kafkaBrokers",
+              "usage": "comma-separated Kafka bootstrap brokers (shared flag kafka-brokers, required)"
+            },
+            {
+              "name": "kafkaConfig",
+              "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
+            },
+            {
+              "name": "maxWorkers",
+              "usage": "concurrent console fetch workers, at least 1",
+              "default": "0"
+            },
+            {
+              "name": "controllerTenantID",
+              "usage": "controller tenant identifier"
+            },
+            {
+              "name": "controllerOrganizationID",
+              "usage": "controller organization identifier"
+            },
+            {
+              "name": "pollingInterval",
+              "usage": "period between controller polls",
+              "default": "0s"
+            },
+            {
+              "name": "producesAssetObservation",
+              "usage": "topic for raw asset observations"
+            },
+            {
+              "name": "producesLink",
+              "usage": "topic for raw connectivity reports"
+            },
+            {
+              "name": "producesSession",
+              "usage": "topic for raw session reports"
+            },
+            {
+              "name": "producesGateway",
+              "usage": "topic for raw gateway reports"
+            },
+            {
+              "name": "producesTrafficStatus",
+              "usage": "topic for traffic status samples"
+            },
+            {
+              "name": "redisConnDB",
+              "usage": "token-cache Redis logical database",
+              "default": "0"
+            },
+            {
+              "name": "redisConnHost",
+              "usage": "token-cache Redis host"
+            },
+            {
+              "name": "redisConnPort",
+              "usage": "token-cache Redis port",
+              "default": "0"
+            },
+            {
+              "name": "redisPassword",
+              "usage": "token-cache Redis password"
+            },
+            {
+              "name": "redisUser",
+              "usage": "token-cache Redis username"
+            },
+            {
+              "name": "retryMax",
+              "usage": "max retries per controller HTTP request",
+              "default": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "github.com/modern-engineering/prototype/fieldcase/catalog/digitaltwin",
+      "name": "digitaltwin",
+      "elements": [
+        {
+          "name": "GraphComponent",
+          "kind": "component",
+          "doc": "digitalTwinGraph applies mutation batches to the Neo4j digital twin of a target network\n\nIn this scenario, the digital-twin-graph component (scenario/\nvisibility/digitaltwin/the graph implementation), deployed as the\ndigital-twin chart. It applies graph mutation batches to the twin\ndatabase and publishes a gob-encoded GraphChanged digest every cycle.",
+          "params": [
+            {
+              "name": "apocBatchSize",
+              "usage": "APOC write-pipelining batch size",
+              "default": "0"
+            },
+            {
+              "name": "applyLimit",
+              "usage": "max compilations applied per batch, at most fetchLimit",
+              "default": "0"
+            },
+            {
+              "name": "batchTTL",
+              "usage": "max wait before flushing a compilation batch",
+              "default": "0s"
+            },
+            {
+              "name": "consumesRemoteCompilation",
+              "usage": "topic of graph mutation batches"
+            },
+            {
+              "name": "cycle",
+              "usage": "changeset flush frequency",
+              "default": "0s"
+            },
+            {
+              "name": "database",
+              "usage": "name of the neo4j database to use"
+            },
+            {
+              "name": "doAPOCParallel",
+              "usage": "use APOC parallel processing for write pipelining",
+              "default": "false",
+              "boolean": true
+            },
+            {
+              "name": "fetchLimit",
+              "usage": "max compilations fetched concurrently",
+              "default": "0"
+            },
+            {
+              "name": "initialSnapshotTimeout",
+              "usage": "max wait for the initial snapshot before processing compilations",
+              "default": "0s"
+            },
+            {
+              "name": "kafkaBrokers",
+              "usage": "comma-separated Kafka bootstrap brokers (shared flag kafka-brokers, required)"
+            },
+            {
+              "name": "kafkaConfig",
+              "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
+            },
+            {
+              "name": "neo4j",
+              "usage": "URL of the backing neo4j server"
+            },
+            {
+              "name": "pass",
+              "usage": "neo4j basic auth password",
+              "default": "neo4j"
+            },
+            {
+              "name": "producesGraphChanged",
+              "usage": "topic for gob-encoded graph-change digests"
+            },
+            {
+              "name": "readTimeout",
+              "usage": "max duration for reading assemblies",
+              "default": "0s"
+            },
+            {
+              "name": "receiveTimeout",
+              "usage": "watchdog: shut down if no message arrives in time; zero disables",
+              "default": "0s"
+            },
+            {
+              "name": "user",
+              "usage": "neo4j basic auth username",
+              "default": "neo4j"
+            },
+            {
+              "name": "writeTimeout",
+              "usage": "max duration for writing assemblies",
+              "default": "0s"
+            }
+          ]
+        },
+        {
+          "name": "TranslatorComponent",
+          "kind": "component",
+          "doc": "digitaltwin compiles canonical events into graph mutation batches\n\nIn this scenario, the digital-twin-translator deployment (descriptor\n\"digitaltwin\" in the field case). It consumes\neleven canonical event streams and publishes graph mutation batches for\nthe digital-twin graph to apply.",
+          "params": [
+            {
+              "name": "consumesSessionEstablished",
+              "usage": "topic of canonical network sessions"
+            },
+            {
+              "name": "consumesLinkChanged",
+              "usage": "topic of canonical connectivity changes"
+            },
+            {
+              "name": "consumesAssetLocationData",
+              "usage": "topic of asset location observations"
+            },
+            {
+              "name": "consumesAssetTelemetry",
+              "usage": "topic of asset telemetry observations"
+            },
+            {
+              "name": "consumesAssetsBehindGateway",
+              "usage": "topic of assets behind a gateway statuses"
+            },
+            {
+              "name": "consumesAssetObserved",
+              "usage": "topic of canonical asset observations"
+            },
+            {
+              "name": "consumesNetworkStates",
+              "usage": "topic of datapath network states"
+            },
+            {
+              "name": "consumesRouteChanged",
+              "usage": "topic of canonical route changes"
+            },
+            {
+              "name": "consumesUnmanagedAssetObserved",
+              "usage": "topic of unmanaged asset observations"
+            },
+            {
+              "name": "consumesNetworkDomain",
+              "usage": "topic of network-domain changes"
+            },
+            {
+              "name": "consumesIdentityObserved",
+              "usage": "topic of canonical identity observations"
+            },
+            {
+              "name": "assetObservedURL",
+              "usage": "SQS queue URL for asset observations"
+            },
+            {
+              "name": "assetsBehindGatewayStatusURL",
+              "usage": "SQS queue URL for assets behind a gateway status"
+            },
+            {
+              "name": "fetchLimit",
+              "usage": "max messages fetched concurrently for dependency analysis",
+              "default": "0"
+            },
+            {
+              "name": "kafkaBrokers",
+              "usage": "comma-separated Kafka bootstrap brokers (shared flag kafka-brokers, required)"
+            },
+            {
+              "name": "kafkaConfig",
+              "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
+            },
+            {
+              "name": "producesRemoteCompilation",
+              "usage": "topic for graph mutation batches"
+            },
+            {
+              "name": "region",
+              "usage": "AWS region for SQS queues; empty disables SQS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+      "name": "substrate",
+      "elements": [
+        {
+          "name": "Endpoint",
+          "kind": "symbol",
+          "doc": "a site-bound network coordinate such as the SIEM syslog server address"
+        },
+        {
+          "name": "Kafka",
+          "kind": "provision",
+          "doc": "access to a Kafka cluster: sliced from the per-environment Strimzi operator or attached to an external broker",
+          "params": [
+            {
+              "name": "cluster",
+              "usage": "substrate cluster to hold or verify the access on"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "brokers"
+            }
+          ],
+          "kinds": [
+            "slice",
+            "attach"
+          ]
+        },
+        {
+          "name": "KafkaCluster",
+          "kind": "symbol",
+          "doc": "a Strimzi-managed Kafka cluster, named by the site (site-kafka-bootstrap in cloud, an edge broker on-prem)"
+        },
+        {
+          "name": "Neo4j",
+          "kind": "provision",
+          "doc": "access to a Neo4j server for the digital twin of a target network's graph database",
+          "params": [
+            {
+              "name": "server",
+              "usage": "Neo4j server to hold or verify the access on"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "password",
+              "sensitive": true
+            },
+            {
+              "name": "uri"
+            },
+            {
+              "name": "username",
+              "sensitive": true
+            }
+          ],
+          "kinds": [
+            "slice",
+            "attach"
+          ]
+        },
+        {
+          "name": "Neo4jServer",
+          "kind": "symbol",
+          "doc": "the Neo4j server backing the digital twin of a target network (bolt://twin-neo4j:7687 in the deployment bundle)"
+        },
+        {
+          "name": "Postgres",
+          "kind": "provision",
+          "doc": "access to a named database on the PostgreSQL server",
+          "params": [
+            {
+              "name": "database",
+              "usage": "database name the access is scoped to (for example \"postgres\")"
+            },
+            {
+              "name": "server",
+              "usage": "PostgreSQL server to hold or verify the access on"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "address"
+            },
+            {
+              "name": "database"
+            },
+            {
+              "name": "password",
+              "sensitive": true
+            },
+            {
+              "name": "username",
+              "sensitive": true
+            }
+          ],
+          "kinds": [
+            "slice",
+            "attach"
+          ]
+        },
+        {
+          "name": "PostgresServer",
+          "kind": "symbol",
+          "doc": "the PostgreSQL server behind the alerts journal and the PostgREST facade (postgresql:5432)"
+        },
+        {
+          "name": "Redis",
+          "kind": "provision",
+          "doc": "an account on one logical database of the shared Redis server",
+          "params": [
+            {
+              "name": "db",
+              "usage": "logical database number the access is scoped to",
+              "default": "0"
+            },
+            {
+              "name": "server",
+              "usage": "Redis server to carve the database access from"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "address"
+            },
+            {
+              "name": "db"
+            },
+            {
+              "name": "host"
+            },
+            {
+              "name": "password",
+              "sensitive": true
+            },
+            {
+              "name": "port"
+            },
+            {
+              "name": "username",
+              "sensitive": true
+            }
+          ],
+          "kinds": [
+            "slice",
+            "attach"
+          ]
+        },
+        {
+          "name": "RedisServer",
+          "kind": "symbol",
+          "doc": "the shared Redis instance of the deployment (security-redis:6379 in the deployment bundle)"
+        },
+        {
+          "name": "Secret",
+          "kind": "symbol",
+          "doc": "an operator-supplied credential, delivered as a Kubernetes Secret key in the scenario deployment",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "path": "github.com/modern-engineering/prototype/fieldcase/catalog/translator",
+      "name": "translator",
+      "elements": [
+        {
+          "name": "Component",
+          "kind": "component",
+          "doc": "observationTranslator turns raw controller observations into canonical events\n\nIn this scenario, the observation-translator component\n(the field case). Each pipeline consumes\none raw topic, transforms the controller observation, and publishes the\ncanonical event the twin compiler consumes.",
+          "params": [
+            {
+              "name": "consumesAssetObservation",
+              "usage": "topic of raw asset observations"
+            },
+            {
+              "name": "consumesLink",
+              "usage": "topic of raw connectivity reports"
+            },
+            {
+              "name": "consumesSession",
+              "usage": "topic of raw session reports"
+            },
+            {
+              "name": "consumesGateway",
+              "usage": "topic of raw gateway reports"
+            },
+            {
+              "name": "fetchLimit",
+              "usage": "max messages fetched concurrently for dependency analysis",
+              "default": "0"
+            },
+            {
+              "name": "kafkaBrokers",
+              "usage": "comma-separated Kafka bootstrap brokers (shared flag kafka-brokers, required)"
+            },
+            {
+              "name": "kafkaConfig",
+              "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
+            },
+            {
+              "name": "kafkaTopicOptions",
+              "usage": "gocloud topic batcher options as ;-separated key=value pairs (shared env KAFKA_TOPIC_OPTIONS)"
+            },
+            {
+              "name": "producesSessionEstablished",
+              "usage": "topic for canonical network sessions"
+            },
+            {
+              "name": "producesLinkChanged",
+              "usage": "topic for canonical connectivity changes"
+            },
+            {
+              "name": "producesAssetObserved",
+              "usage": "topic for canonical asset observations"
+            },
+            {
+              "name": "producesRouteChanged",
+              "usage": "topic for canonical route changes"
+            },
+            {
+              "name": "producesIdentityObserved",
+              "usage": "topic for canonical identity observations"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "name": "tenantID",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Secret"
+      }
+    },
+    {
+      "name": "kafkaCluster",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "KafkaCluster"
+      }
+    },
+    {
+      "name": "kafkaConfig",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "Version=3.2.1;Producer.MaxMessageBytes=10000000"
+      }
+    },
+    {
+      "name": "networkController",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "https://controller.example"
+      }
+    },
+    {
+      "name": "neo4jServer",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Neo4jServer"
+      }
+    },
+    {
+      "name": "organizationID",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Secret"
+      }
+    },
+    {
+      "name": "postgresServer",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "PostgresServer"
+      }
+    },
+    {
+      "name": "redisServer",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "RedisServer"
+      }
+    },
+    {
+      "name": "siemServer",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Endpoint"
+      }
+    },
+    {
+      "name": "topicAlerts",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "security.alerts"
+      }
+    },
+    {
+      "name": "topicSessionEstablished",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.session-established"
+      }
+    },
+    {
+      "name": "topicLinkChanged",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.link-changed"
+      }
+    },
+    {
+      "name": "topicAssetObservation",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "AssetObservationsTopic"
+      }
+    },
+    {
+      "name": "topicAssetLocationData",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.asset-location-observed"
+      }
+    },
+    {
+      "name": "topicAssetTelemetry",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.asset-telemetry-observed"
+      }
+    },
+    {
+      "name": "topicAssetsBehindGateway",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.assets-observed-behind-gateway"
+      }
+    },
+    {
+      "name": "topicAssetObserved",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.asset-observed"
+      }
+    },
+    {
+      "name": "topicGraphChanged",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.digital-twin.graph-changed"
+      }
+    },
+    {
+      "name": "topicLink",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "LinkObservationsTopic"
+      }
+    },
+    {
+      "name": "topicNetworkStates",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "network-states"
+      }
+    },
+    {
+      "name": "topicRouteChanged",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.route-changed"
+      }
+    },
+    {
+      "name": "topicUnmanagedAssetObserved",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.unmanaged-asset-observed"
+      }
+    },
+    {
+      "name": "topicSession",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "SessionObservationsTopic"
+      }
+    },
+    {
+      "name": "topicRemoteCompilation",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.digital-twin-graph.remote-compilation"
+      }
+    },
+    {
+      "name": "topicNetworkDomain",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.network-domain"
+      }
+    },
+    {
+      "name": "topicGateway",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "GatewayObservationsTopic"
+      }
+    },
+    {
+      "name": "topicIdentityObserved",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.identity-observed"
+      }
+    },
+    {
+      "name": "topicTrafficStatus",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "TrafficStatusTopic"
+      }
+    }
+  ],
+  "records": [
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/detection",
+        "name": "IdentityAnomalyDetector"
+      },
+      "name": "identityAnomalyDetector",
+      "params": [
+        {
+          "key": "consumesGraphChanged",
+          "ref": {
+            "symbol": "topicGraphChanged"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "handlersLimit",
+          "value": {
+            "kind": "int",
+            "int": 10
+          },
+          "source": "instance"
+        },
+        {
+          "key": "kafkaBrokers",
+          "ref": {
+            "symbol": "kafka",
+            "output": "brokers"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "kafkaConfig",
+          "ref": {
+            "symbol": "kafkaConfig"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "policyRuleName",
+          "value": {
+            "kind": "string",
+            "string": "UnexpectedEndpoint"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesAlerts",
+          "ref": {
+            "symbol": "topicAlerts"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "redisAddress",
+          "ref": {
+            "symbol": "identityState",
+            "output": "address"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "redisDBNumber",
+          "ref": {
+            "symbol": "identityState",
+            "output": "db"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "redisPassword",
+          "ref": {
+            "symbol": "identityState",
+            "output": "password"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "redisUsername",
+          "ref": {
+            "symbol": "identityState",
+            "output": "username"
+          },
+          "source": "instance",
+          "sensitive": true
+        }
+      ],
+      "on": [
+        {
+          "key": "cpu",
+          "value": {
+            "kind": "string",
+            "string": "300m"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "memory",
+          "value": {
+            "kind": "string",
+            "string": "250Mi"
+          },
+          "source": "instance"
+        }
+      ],
+      "metadata": [
+        {
+          "key": "chart",
+          "value": {
+            "kind": "string",
+            "string": "identity-anomaly-detector"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "component",
+          "value": {
+            "kind": "string",
+            "string": "identity-anomaly-detector"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/detection",
+        "name": "Journal"
+      },
+      "name": "detectionAlertsJournal",
+      "params": [
+        {
+          "key": "consumesAlerts",
+          "ref": {
+            "symbol": "topicAlerts"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "kafkaBrokers",
+          "ref": {
+            "symbol": "kafka",
+            "output": "brokers"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "kafkaConfig",
+          "ref": {
+            "symbol": "kafkaConfig"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "postgresAddress",
+          "ref": {
+            "symbol": "alertsDB",
+            "output": "address"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "postgresDBName",
+          "ref": {
+            "symbol": "alertsDB",
+            "output": "database"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "postgresPassword",
+          "ref": {
+            "symbol": "alertsDB",
+            "output": "password"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "postgresRoleName",
+          "value": {
+            "kind": "string",
+            "string": "postgrest_view"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "postgresUsername",
+          "ref": {
+            "symbol": "alertsDB",
+            "output": "username"
+          },
+          "source": "instance",
+          "sensitive": true
+        }
+      ],
+      "on": [
+        {
+          "key": "cpu",
+          "value": {
+            "kind": "string",
+            "string": "300m"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "memory",
+          "value": {
+            "kind": "string",
+            "string": "250Mi"
+          },
+          "source": "instance"
+        }
+      ],
+      "metadata": [
+        {
+          "key": "chart",
+          "value": {
+            "kind": "string",
+            "string": "detection-alerts-journal"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "component",
+          "value": {
+            "kind": "string",
+            "string": "detection-alerts-journal"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/detection",
+        "name": "SyslogExporter"
+      },
+      "name": "detectionSyslogExporter",
+      "params": [
+        {
+          "key": "consumesAlerts",
+          "ref": {
+            "symbol": "topicAlerts"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "format",
+          "value": {
+            "kind": "string",
+            "string": "rfc5424"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "kafkaBrokers",
+          "ref": {
+            "symbol": "kafka",
+            "output": "brokers"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "kafkaConfig",
+          "ref": {
+            "symbol": "kafkaConfig"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "protocol",
+          "value": {
+            "kind": "string",
+            "string": "udp"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "serverAddress",
+          "ref": {
+            "symbol": "siemServer"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "timeout",
+          "value": {
+            "kind": "duration",
+            "duration": "10s"
+          },
+          "source": "instance"
+        }
+      ],
+      "on": [
+        {
+          "key": "cpu",
+          "value": {
+            "kind": "string",
+            "string": "300m"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "memory",
+          "value": {
+            "kind": "string",
+            "string": "250Mi"
+          },
+          "source": "instance"
+        }
+      ],
+      "metadata": [
+        {
+          "key": "chart",
+          "value": {
+            "kind": "string",
+            "string": "detection-syslog-exporter"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "component",
+          "value": {
+            "kind": "string",
+            "string": "detection-syslog-exporter"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "provision",
+      "kind": "slice",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Kafka"
+      },
+      "name": "kafka",
+      "params": [
+        {
+          "key": "cluster",
+          "ref": {
+            "symbol": "kafkaCluster"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "provision",
+      "kind": "slice",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Redis"
+      },
+      "name": "controllerTokenCache",
+      "params": [
+        {
+          "key": "db",
+          "value": {
+            "kind": "int",
+            "int": 0
+          },
+          "source": "instance"
+        },
+        {
+          "key": "server",
+          "ref": {
+            "symbol": "redisServer"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "provision",
+      "kind": "slice",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Redis"
+      },
+      "name": "identityState",
+      "params": [
+        {
+          "key": "db",
+          "value": {
+            "kind": "int",
+            "int": 1
+          },
+          "source": "instance"
+        },
+        {
+          "key": "server",
+          "ref": {
+            "symbol": "redisServer"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "provision",
+      "kind": "slice",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Neo4j"
+      },
+      "name": "twinDB",
+      "params": [
+        {
+          "key": "server",
+          "ref": {
+            "symbol": "neo4jServer"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "provision",
+      "kind": "slice",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Postgres"
+      },
+      "name": "alertsDB",
+      "params": [
+        {
+          "key": "database",
+          "value": {
+            "kind": "string",
+            "string": "postgres"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "server",
+          "ref": {
+            "symbol": "postgresServer"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/controller",
+        "name": "Instrument"
+      },
+      "name": "networkObservationCollector",
+      "params": [
+        {
+          "key": "backoff",
+          "value": {
+            "kind": "duration",
+            "duration": "1s"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "baseURL",
+          "ref": {
+            "symbol": "networkController"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "apiUsername",
+          "value": {
+            "kind": "string",
+            "string": ""
+          },
+          "source": "instance"
+        },
+        {
+          "key": "apiPassword",
+          "value": {
+            "kind": "string",
+            "string": ""
+          },
+          "source": "instance"
+        },
+        {
+          "key": "normalizeHardwareAddress",
+          "value": {
+            "kind": "bool",
+            "bool": false
+          },
+          "source": "instance"
+        },
+        {
+          "key": "fileTokensPath",
+          "value": {
+            "kind": "string",
+            "string": "/controller/tokens/"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "fileTokensReadOnly",
+          "value": {
+            "kind": "bool",
+            "bool": true
+          },
+          "source": "instance"
+        },
+        {
+          "key": "focusedNetworks",
+          "value": {
+            "kind": "string",
+            "string": "Example Campus Network"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "kafkaBrokers",
+          "ref": {
+            "symbol": "kafka",
+            "output": "brokers"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "kafkaConfig",
+          "ref": {
+            "symbol": "kafkaConfig"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "maxWorkers",
+          "value": {
+            "kind": "int",
+            "int": 10
+          },
+          "source": "instance"
+        },
+        {
+          "key": "controllerTenantID",
+          "ref": {
+            "symbol": "tenantID"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "controllerOrganizationID",
+          "ref": {
+            "symbol": "organizationID"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "pollingInterval",
+          "value": {
+            "kind": "duration",
+            "duration": "15s"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesAssetObservation",
+          "ref": {
+            "symbol": "topicAssetObservation"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesLink",
+          "ref": {
+            "symbol": "topicLink"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesSession",
+          "ref": {
+            "symbol": "topicSession"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesGateway",
+          "ref": {
+            "symbol": "topicGateway"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesTrafficStatus",
+          "ref": {
+            "symbol": "topicTrafficStatus"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "redisConnDB",
+          "ref": {
+            "symbol": "controllerTokenCache",
+            "output": "db"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "redisConnHost",
+          "ref": {
+            "symbol": "controllerTokenCache",
+            "output": "host"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "redisConnPort",
+          "ref": {
+            "symbol": "controllerTokenCache",
+            "output": "port"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "redisPassword",
+          "ref": {
+            "symbol": "controllerTokenCache",
+            "output": "password"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "redisUser",
+          "ref": {
+            "symbol": "controllerTokenCache",
+            "output": "username"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "retryMax",
+          "value": {
+            "kind": "int",
+            "int": 5
+          },
+          "source": "instance"
+        }
+      ],
+      "on": [
+        {
+          "key": "cpu",
+          "value": {
+            "kind": "string",
+            "string": "150m"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "memory",
+          "value": {
+            "kind": "string",
+            "string": "100Mi"
+          },
+          "source": "instance"
+        }
+      ],
+      "metadata": [
+        {
+          "key": "chart",
+          "value": {
+            "kind": "string",
+            "string": "network-observation-collector"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "component",
+          "value": {
+            "kind": "string",
+            "string": "network-observation-collector"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/translator",
+        "name": "Component"
+      },
+      "name": "observationTranslator",
+      "params": [
+        {
+          "key": "consumesAssetObservation",
+          "ref": {
+            "symbol": "topicAssetObservation"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesLink",
+          "ref": {
+            "symbol": "topicLink"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesSession",
+          "ref": {
+            "symbol": "topicSession"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesGateway",
+          "ref": {
+            "symbol": "topicGateway"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "fetchLimit",
+          "value": {
+            "kind": "int",
+            "int": 1
+          },
+          "source": "instance"
+        },
+        {
+          "key": "kafkaBrokers",
+          "ref": {
+            "symbol": "kafka",
+            "output": "brokers"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "kafkaConfig",
+          "ref": {
+            "symbol": "kafkaConfig"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "kafkaTopicOptions",
+          "value": {
+            "kind": "string",
+            "string": "BatcherOptions.MinBatchSize=1;BatcherOptions.MaxBatchSize=0"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesSessionEstablished",
+          "ref": {
+            "symbol": "topicSessionEstablished"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesLinkChanged",
+          "ref": {
+            "symbol": "topicLinkChanged"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesAssetObserved",
+          "ref": {
+            "symbol": "topicAssetObserved"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesRouteChanged",
+          "ref": {
+            "symbol": "topicRouteChanged"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesIdentityObserved",
+          "ref": {
+            "symbol": "topicIdentityObserved"
+          },
+          "source": "instance"
+        }
+      ],
+      "on": [
+        {
+          "key": "cpu",
+          "value": {
+            "kind": "string",
+            "string": "300m"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "memory",
+          "value": {
+            "kind": "string",
+            "string": "100Mi"
+          },
+          "source": "instance"
+        }
+      ],
+      "metadata": [
+        {
+          "key": "chart",
+          "value": {
+            "kind": "string",
+            "string": "observation-translator"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "component",
+          "value": {
+            "kind": "string",
+            "string": "observation-translator"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/digitaltwin",
+        "name": "TranslatorComponent"
+      },
+      "name": "digitaltwin",
+      "params": [
+        {
+          "key": "consumesSessionEstablished",
+          "ref": {
+            "symbol": "topicSessionEstablished"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesLinkChanged",
+          "ref": {
+            "symbol": "topicLinkChanged"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesAssetLocationData",
+          "ref": {
+            "symbol": "topicAssetLocationData"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesAssetTelemetry",
+          "ref": {
+            "symbol": "topicAssetTelemetry"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesAssetsBehindGateway",
+          "ref": {
+            "symbol": "topicAssetsBehindGateway"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesAssetObserved",
+          "ref": {
+            "symbol": "topicAssetObserved"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesNetworkStates",
+          "ref": {
+            "symbol": "topicNetworkStates"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesRouteChanged",
+          "ref": {
+            "symbol": "topicRouteChanged"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesUnmanagedAssetObserved",
+          "ref": {
+            "symbol": "topicUnmanagedAssetObserved"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesNetworkDomain",
+          "ref": {
+            "symbol": "topicNetworkDomain"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesIdentityObserved",
+          "ref": {
+            "symbol": "topicIdentityObserved"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "fetchLimit",
+          "value": {
+            "kind": "int",
+            "int": 1
+          },
+          "source": "instance"
+        },
+        {
+          "key": "kafkaBrokers",
+          "ref": {
+            "symbol": "kafka",
+            "output": "brokers"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "kafkaConfig",
+          "ref": {
+            "symbol": "kafkaConfig"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "producesRemoteCompilation",
+          "ref": {
+            "symbol": "topicRemoteCompilation"
+          },
+          "source": "instance"
+        }
+      ],
+      "on": [
+        {
+          "key": "cpu",
+          "value": {
+            "kind": "string",
+            "string": "1"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "memory",
+          "value": {
+            "kind": "string",
+            "string": "250Mi"
+          },
+          "source": "instance"
+        }
+      ],
+      "metadata": [
+        {
+          "key": "chart",
+          "value": {
+            "kind": "string",
+            "string": "digital-twin-translator"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "component",
+          "value": {
+            "kind": "string",
+            "string": "digitaltwin"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/digitaltwin",
+        "name": "GraphComponent"
+      },
+      "name": "digitalTwinGraph",
+      "params": [
+        {
+          "key": "apocBatchSize",
+          "value": {
+            "kind": "int",
+            "int": 10
+          },
+          "source": "instance"
+        },
+        {
+          "key": "applyLimit",
+          "value": {
+            "kind": "int",
+            "int": 500
+          },
+          "source": "instance"
+        },
+        {
+          "key": "batchTTL",
+          "value": {
+            "kind": "duration",
+            "duration": "500ms"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesRemoteCompilation",
+          "ref": {
+            "symbol": "topicRemoteCompilation"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "cycle",
+          "value": {
+            "kind": "duration",
+            "duration": "15s"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "database",
+          "value": {
+            "kind": "string",
+            "string": "twin-db"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "doAPOCParallel",
+          "value": {
+            "kind": "bool",
+            "bool": true
+          },
+          "source": "instance"
+        },
+        {
+          "key": "fetchLimit",
+          "value": {
+            "kind": "int",
+            "int": 1000
+          },
+          "source": "instance"
+        },
+        {
+          "key": "initialSnapshotTimeout",
+          "value": {
+            "kind": "duration",
+            "duration": "15m0s"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "kafkaBrokers",
+          "ref": {
+            "symbol": "kafka",
+            "output": "brokers"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "kafkaConfig",
+          "ref": {
+            "symbol": "kafkaConfig"
+          },
+          "source": "default-deploy"
+        },
+        {
+          "key": "neo4j",
+          "ref": {
+            "symbol": "twinDB",
+            "output": "uri"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "pass",
+          "ref": {
+            "symbol": "twinDB",
+            "output": "password"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "producesGraphChanged",
+          "ref": {
+            "symbol": "topicGraphChanged"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "readTimeout",
+          "value": {
+            "kind": "duration",
+            "duration": "2m0s"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "user",
+          "ref": {
+            "symbol": "twinDB",
+            "output": "username"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "writeTimeout",
+          "value": {
+            "kind": "duration",
+            "duration": "2m0s"
+          },
+          "source": "instance"
+        }
+      ],
+      "on": [
+        {
+          "key": "cpu",
+          "value": {
+            "kind": "string",
+            "string": "1"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "memory",
+          "value": {
+            "kind": "string",
+            "string": "250Mi"
+          },
+          "source": "instance"
+        }
+      ],
+      "metadata": [
+        {
+          "key": "chart",
+          "value": {
+            "kind": "string",
+            "string": "digital-twin"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "component",
+          "value": {
+            "kind": "string",
+            "string": "digital-twin-graph"
+          },
+          "source": "instance"
+        }
+      ]
+    }
+  ]
+}

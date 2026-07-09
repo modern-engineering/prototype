@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: network-observation-collector-cm
+  labels:
+    app: network-observation-collector
+    solution: anomaly
+data:
+  # The enable key: the pod's env selects exactly this instance out of
+  # the shared host image (tri-state enable semantics).
+  networkObservationCollector: "true"
+  health: ":3000"
+  # The site fragment this instance's bindings reach; the host reads
+  # it at startup (args[0]) and enforces the extern gate again.
+  site.conf: |
+    extern.kafkaCluster = localhost:9092
+    var.networkController = http://127.0.0.1:8081/api
+    extern.redisServer = localhost:6379
+    driver.kafka.brokers = localhost:9092
+    driver.controllerTokenCache.db = 0
+    driver.controllerTokenCache.host = 127.0.0.1
+    driver.controllerTokenCache.port = 6379
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: network-observation-collector-secret
+  labels:
+    app: network-observation-collector
+    solution: anomaly
+type: Opaque
+stringData:
+  # The sensitive half of the site: extern Secrets and tainted driver
+  # outputs, mounted as a second site file (path-in-args), never in a
+  # ConfigMap and never in env.
+  secret.conf: |
+    extern.organizationID = 0abcdef0-dev0-4000-8000-devorg000000
+    extern.tenantID = 0abcdef0-dev0-4000-8000-devaccount00
+    driver.controllerTokenCache.password = dev-token-cache-pass
+    driver.controllerTokenCache.username = dev-token-cache
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: network-observation-collector
+  labels:
+    app: network-observation-collector
+    solution: anomaly
+  annotations:
+    solution.metadata/chart: "network-observation-collector"
+    solution.metadata/component: "network-observation-collector"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: network-observation-collector
+  template:
+    metadata:
+      labels:
+        app: network-observation-collector
+        solution: anomaly
+      annotations:
+        checksum/config: f063757503aef1f20643d3468cf5c5561dc47b7a4f162cec6da0804555871ac0
+    spec:
+      containers:
+        - name: network-observation-collector
+          # One host image serves every instance of the solution; the
+          # deployment pipeline substitutes the token.
+          image: ${ANOMALY_HOST_IMAGE}
+          args:
+            - /etc/solution/config/site.conf
+            - /etc/solution/secret/secret.conf
+          env:
+            - name: NETWORKOBSERVATIONCOLLECTOR
+              valueFrom:
+                configMapKeyRef:
+                  name: network-observation-collector-cm
+                  key: networkObservationCollector
+            - name: HEALTH
+              valueFrom:
+                configMapKeyRef:
+                  name: network-observation-collector-cm
+                  key: health
+          ports:
+            - name: health
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 6
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "100Mi"
+            limits:
+              cpu: "150m"
+              memory: "100Mi"
+          volumeMounts:
+            - name: site-config
+              mountPath: /etc/solution/config
+              readOnly: true
+            - name: site-secret
+              mountPath: /etc/solution/secret
+              readOnly: true
+      volumes:
+        - name: site-config
+          configMap:
+            name: network-observation-collector-cm
+            items:
+              - key: site.conf
+                path: site.conf
+        - name: site-secret
+          secret:
+            secretName: network-observation-collector-secret

@@ -1,0 +1,42 @@
+# A production-shaped site for the managed-network security scenario.
+# Credentials are deliberately redacted, and this file is not consumed by tests.
+
+# Site-owned service endpoints.
+extern.kafkaCluster = site-kafka-bootstrap:9092
+extern.redisServer = security-redis:6379
+extern.neo4jServer = bolt://twin-neo4j:7687
+extern.postgresServer = postgresql:5432
+
+# Operator-supplied credentials (substrate.Secret; audit-redacted).
+extern.tenantID = REDACTED-see-controller-credentials/controller.tenant.id
+extern.organizationID = REDACTED-see-controller-credentials/controller.organization.id
+
+# The customer-owned SIEM endpoint.
+extern.siemServer = 127.0.0.1:514
+
+# The site accepts the solution's channel and controller defaults.
+
+# Example outputs from adopter-owned provision drivers.
+driver.kafka.brokers = site-kafka-bootstrap:9092
+
+driver.controllerTokenCache.host = security-redis
+driver.controllerTokenCache.port = 6379
+driver.controllerTokenCache.db = 0
+driver.controllerTokenCache.username = REDACTED-see-controller-credentials/redis.user
+driver.controllerTokenCache.password = REDACTED-see-controller-credentials/redis.password
+
+# The detector receives an account dedicated to its correlation state.
+driver.identityState.address = security-redis:6379
+driver.identityState.db = 1
+driver.identityState.username = REDACTED-own-account-username
+driver.identityState.password = REDACTED-own-account-password
+
+# Tainted graph credentials remain outside ordinary configuration.
+driver.twinDB.uri = bolt://twin-neo4j:7687
+driver.twinDB.username = REDACTED-neo4j-username
+driver.twinDB.password = REDACTED-neo4j-password
+
+driver.alertsDB.address = postgresql:5432
+driver.alertsDB.database = postgres
+driver.alertsDB.username = REDACTED-see-postgresql-secret/postgresqlUsername
+driver.alertsDB.password = REDACTED-see-postgresql-secret/postgresqlPassword

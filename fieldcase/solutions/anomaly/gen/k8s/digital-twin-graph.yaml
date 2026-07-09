@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: digital-twin-graph-cm
+  labels:
+    app: digital-twin-graph
+    solution: anomaly
+data:
+  # The enable key: the pod's env selects exactly this instance out of
+  # the shared host image (tri-state enable semantics).
+  digitalTwinGraph: "true"
+  health: ":3000"
+  # The site fragment this instance's bindings reach; the host reads
+  # it at startup (args[0]) and enforces the extern gate again.
+  site.conf: |
+    extern.kafkaCluster = localhost:9092
+    extern.neo4jServer = bolt://localhost:7687
+    driver.kafka.brokers = localhost:9092
+    driver.twinDB.uri = bolt://127.0.0.1:7687
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: digital-twin-graph-secret
+  labels:
+    app: digital-twin-graph
+    solution: anomaly
+type: Opaque
+stringData:
+  # The sensitive half of the site: extern Secrets and tainted driver
+  # outputs, mounted as a second site file (path-in-args), never in a
+  # ConfigMap and never in env.
+  secret.conf: |
+    driver.twinDB.password = dev-twin-pass
+    driver.twinDB.username = neo4j
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: digital-twin-graph
+  labels:
+    app: digital-twin-graph
+    solution: anomaly
+  annotations:
+    solution.metadata/chart: "digital-twin"
+    solution.metadata/component: "digital-twin-graph"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: digital-twin-graph
+  template:
+    metadata:
+      labels:
+        app: digital-twin-graph
+        solution: anomaly
+      annotations:
+        checksum/config: f79dde22fd938c85abca837ee3446385b8c87b2997ecb01b9b4838f4147730c5
+    spec:
+      containers:
+        - name: digital-twin-graph
+          # One host image serves every instance of the solution; the
+          # deployment pipeline substitutes the token.
+          image: ${ANOMALY_HOST_IMAGE}
+          args:
+            - /etc/solution/config/site.conf
+            - /etc/solution/secret/secret.conf
+          env:
+            - name: DIGITALTWINGRAPH
+              valueFrom:
+                configMapKeyRef:
+                  name: digital-twin-graph-cm
+                  key: digitalTwinGraph
+            - name: HEALTH
+              valueFrom:
+                configMapKeyRef:
+                  name: digital-twin-graph-cm
+                  key: health
+          ports:
+            - name: health
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 6
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: "1"
+              memory: "250Mi"
+            limits:
+              cpu: "1"
+              memory: "250Mi"
+          volumeMounts:
+            - name: site-config
+              mountPath: /etc/solution/config
+              readOnly: true
+            - name: site-secret
+              mountPath: /etc/solution/secret
+              readOnly: true
+      volumes:
+        - name: site-config
+          configMap:
+            name: digital-twin-graph-cm
+            items:
+              - key: site.conf
+                path: site.conf
+        - name: site-secret
+          secret:
+            secretName: digital-twin-graph-secret
