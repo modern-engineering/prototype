@@ -162,7 +162,20 @@ var ErrCanceled = errors.New("context canceled by app runtime")
 //
 //}
 
-func (r *Runtime) Shutdown(context.Context) error {
+// Shutdown asks every running Shutdowner to stop, concurrently, and
+// waits for them all; the per-runner errors come back joined.
+//
+// The ctx bounds each runner's graceful window and is passed through
+// verbatim. It is deliberately not the runtime's own context: a
+// shutdown sequence has typically cancelled that one already (or is
+// about to), and handing it to the Shutdowners — as earlier versions
+// did — collapsed every graceful window to zero the moment it fired,
+// turning each graceful stop into an abrupt one.
+//
+// Shutdown does not cancel the runtime's context; runners that outlive
+// their graceful stop remain the caller's to release (Cancel, then
+// Wait).
+func (r *Runtime) Shutdown(ctx context.Context) error {
 	var (
 		wg   sync.WaitGroup
 		mu   sync.Mutex
@@ -174,7 +187,7 @@ func (r *Runtime) Shutdown(context.Context) error {
 			continue
 		}
 		wg.Go(func() {
-			err := shutdowner.Shutdown(r.Context())
+			err := shutdowner.Shutdown(ctx)
 			if err != nil {
 				mu.Lock()
 				defer mu.Unlock()

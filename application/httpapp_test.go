@@ -25,7 +25,10 @@ func TestHttpApplications(t *testing.T) {
 		t.Errorf("Shutdown() = %v; want nil", err)
 	}
 
-	// TODO(@danielorbach) why doesn't Shutdown cause the Runner goroutine to return? Why must we call Cancel()?
+	// Shutdown stops the listener gracefully but never cancels the
+	// runtime's own context — that stays the caller's decision — and
+	// HTTPServer.Run holds its close-watcher goroutine until the
+	// context ends, so Cancel releases the runner before Wait.
 	r.Cancel()
 	if err := r.Wait(); err != nil {
 		t.Errorf("Wait() = %v; want nil", err)

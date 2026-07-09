@@ -29,8 +29,15 @@ type BoolFlag interface {
 	IsBoolFlag() bool
 }
 
+// IsBooleanFlag reports whether the named flag may be set without a
+// value. An unregistered name is simply not boolean — tolerated the
+// same way SetBoolean tolerates it, rather than a panic on the nil
+// lookup.
 func IsBooleanFlag(fs *flag.FlagSet, name string) bool {
 	f := fs.Lookup(name)
+	if f == nil {
+		return false
+	}
 	return IsBoolean(f.Value)
 }
 
@@ -40,6 +47,3 @@ func IsBoolean(v flag.Value) bool {
 	}
 	return false
 }
-
-// TODO: test IsBooleanFlag with non-existing flag, existing flag without BoolFlag, and existing flag with BoolFlag (set both true and false).
-// TODO: test IsBoolean with nil value, value without IsRequiredFlag, and value with IsRequiredFlag (set both true and false).

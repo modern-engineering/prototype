@@ -145,6 +145,45 @@ func ExampleRuntime_Running() {
 	// App #2: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Running.func3
 }
 
+// TestShutdownHonorsContext pins Shutdown's context contract: the
+// caller's ctx — not the runtime's own, which a shutdown sequence has
+// typically cancelled already — reaches every Shutdowner, alive.
+func TestShutdownHonorsContext(t *testing.T) {
+	r := new(application.Runtime)
+	probe := new(shutdownProbe)
+	r.Run(probe)
+	r.Cancel() // the runtime's own context is down, as during shutdown
+
+	type marker struct{}
+	ctx := context.WithValue(context.Background(), marker{}, t.Name())
+	if err := r.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown() = %v; want nil", err)
+	}
+	if probe.got != ctx {
+		t.Errorf("Shutdowner received %v; want the caller's context", probe.got)
+	}
+	select {
+	case <-probe.got.Done():
+		t.Error("Shutdowner received a cancelled context; its graceful window was gone before it started")
+	default:
+	}
+	if err := r.Wait(); err != nil {
+		t.Errorf("Wait() = %v; want nil", err)
+	}
+}
+
+// A shutdownProbe records the context its Shutdown receives; the
+// wg.Wait inside Runtime.Shutdown orders the write before the test's
+// read.
+type shutdownProbe struct{ got context.Context }
+
+func (p *shutdownProbe) Run(context.Context) error { return nil }
+
+func (p *shutdownProbe) Shutdown(ctx context.Context) error {
+	p.got = ctx
+	return nil
+}
+
 func ExampleRuntime_Shutdown() {
 	var r application.Runtime
 	r.Run(&ShutdownRunner{
