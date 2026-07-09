@@ -26,7 +26,9 @@ package base
 import (
 	"context"
 	"flag"
+	"os"
 	"strings"
+	"sync"
 )
 
 // A Command is an implementation of an sdl command like sdl build, or
@@ -105,6 +107,40 @@ func Lookup(cmds []*Command, name string) *Command {
 		}
 	}
 	return nil
+}
+
+// atExit holds the registered process-exit cleanups (cmd/go's AtExit
+// precedent).
+var atExit struct {
+	sync.Mutex
+	funcs []func()
+}
+
+// AtExit registers a cleanup to run when the process exits through
+// [Exit]. Commands register anything a plain return would have
+// released through defer — the build's temporary work directory,
+// notably — so an interrupt that cancels the run and any future
+// early-exit path still drain the same registry. Cleanups run
+// last-registered first, mirroring defer order, and must tolerate
+// having already run.
+func AtExit(f func()) {
+	atExit.Lock()
+	defer atExit.Unlock()
+	atExit.funcs = append(atExit.funcs, f)
+}
+
+// Exit runs the registered cleanups and terminates the process with
+// code. It is the one exit gate of package main; nothing else calls
+// os.Exit.
+func Exit(code int) {
+	atExit.Lock()
+	funcs := atExit.funcs
+	atExit.funcs = nil
+	atExit.Unlock()
+	for i := len(funcs) - 1; i >= 0; i-- {
+		funcs[i]()
+	}
+	os.Exit(code)
 }
 
 // A DiagnosticsError reports solution diagnostics: faults in the

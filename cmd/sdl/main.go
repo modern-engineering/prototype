@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/buildcmd"
@@ -44,7 +46,15 @@ func init() {
 }
 
 func main() {
-	os.Exit(invoke(context.Background(), os.Args[1:]))
+	// An interrupt cancels the invocation context rather than killing
+	// the process outright: context-aware children (the go toolchain,
+	// the generated compiler) die with it, the command unwinds through
+	// its defers, and base.Exit drains whatever cleanups — work
+	// directories, notably — the run registered along the way.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	code := invoke(ctx, os.Args[1:])
+	stop()
+	base.Exit(code)
 }
 
 // invoke dispatches one sdl invocation and returns the process exit

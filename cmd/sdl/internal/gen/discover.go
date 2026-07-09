@@ -62,23 +62,44 @@ type Package struct {
 // descriptor vars are warnings on warn, not errors. The result is
 // sorted by path.
 //
+// Internal packages are rejected up front, positioned at their import
+// specs: the generated compiler builds as its own synthesized module
+// (sdl.invalid/solmain), outside every internal boundary, so the Go
+// toolchain would refuse the import anyway — the diagnostic here names
+// the limitation instead of relaying a build failure. A later rung
+// could lift it by synthesizing the work module under the solution
+// module's own path; that is a recorded door, not a grammar gap.
+//
 // The env is the module-context environment of the enclosing build
 // (work.Context.Env), so discovery and the generated compiler resolve
 // packages identically in every module mode — workspace mode included.
+// Loading passes -mod=readonly explicitly, so a vendored solution
+// module resolves through its module graph exactly as the synthesized
+// build will (the work module carries no vendor tree).
 func Discover(dir string, imports []load.Import, env []string, warn io.Writer) ([]Package, error) {
 	if len(imports) == 0 {
 		return nil, nil
 	}
 	patterns := make([]string, len(imports))
 	specs := make(map[string]load.Import, len(imports))
+	var internal []string
 	for i, imp := range imports {
 		patterns[i] = imp.Path
 		specs[imp.Path] = imp
+		if internalPath(imp.Path) {
+			internal = append(internal, fmt.Sprintf(
+				"%s: import %q: internal package: the generated compiler builds outside the package's internal boundary and cannot import it; export the catalogue package",
+				imp.Pos, imp.Path))
+		}
+	}
+	if len(internal) > 0 {
+		return nil, &base.DiagnosticsError{Lines: internal}
 	}
 	cfg := &packages.Config{
-		Mode: packages.NeedName | packages.NeedTypes,
-		Dir:  dir,
-		Env:  env,
+		Mode:       packages.NeedName | packages.NeedTypes,
+		Dir:        dir,
+		Env:        env,
+		BuildFlags: []string{"-mod=readonly"},
 	}
 	pkgs, err := packages.Load(cfg, patterns...)
 	if err != nil {
@@ -173,6 +194,15 @@ func citizenKind(t types.Type) (kind, typeName string, ok bool) {
 		return KindSymbol, "solution.SymbolType", true
 	}
 	return "", "", false
+}
+
+// internalPath reports whether path lies inside an internal directory
+// — the Go import-visibility boundary, cmd/go's own element rule.
+func internalPath(path string) bool {
+	return path == "internal" ||
+		strings.HasPrefix(path, "internal/") ||
+		strings.HasSuffix(path, "/internal") ||
+		strings.Contains(path, "/internal/")
 }
 
 // isNamed reports whether t is the named type path.name.

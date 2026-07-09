@@ -24,6 +24,12 @@
 // update go.mod, that is a bug in this synthesis, never something to
 // paper over with -mod=mod.
 //
+// A vendored solution module resolves the same way: the driver reads
+// the module graph with an explicit -mod=readonly (vendor mode cannot
+// answer module queries), and the synthesized module carries no
+// vendor directory, so the build resolves from the module cache —
+// never from the solution's vendor/ tree.
+//
 // In workspace mode the work directory instead joins a synthesized copy
 // of the user's workspace: a go.work that use's every directory of the
 // user's go.work plus the work directory itself, the user's replace
@@ -55,6 +61,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 )
@@ -153,7 +160,11 @@ func runModule(ctx context.Context, cfg Config, stderr io.Writer) error {
 
 // makeWorkdir creates the temporary build directory and hands back its
 // cleanup. Keep mode announces the directory instead (the cmd/go -work
-// precedent) and the cleanup keeps its hands off.
+// precedent) and the cleanup keeps its hands off. The cleanup also
+// registers with base.AtExit, so a run that ends through base.Exit —
+// an interrupt's route — still removes the directory; sync.OnceFunc
+// keeps the deferred call and the exit drain from racing to remove it
+// twice.
 //
 // The directory is handed out with its symlinks resolved: the system
 // temp directory is a symlink on darwin, and a child go process
@@ -172,11 +183,13 @@ func makeWorkdir(keep bool, stderr io.Writer) (workdir string, cleanup func(), e
 		printf(stderr, "WORK=%s\n", workdir)
 		return workdir, func() {}, nil
 	}
-	return workdir, func() {
+	cleanup = sync.OnceFunc(func() {
 		if err := os.RemoveAll(workdir); err != nil {
 			printf(stderr, "sdl: removing work directory: %v\n", err)
 		}
-	}, nil
+	})
+	base.AtExit(cleanup)
+	return workdir, cleanup, nil
 }
 
 // A module is one row of the solution's module graph: the module path,
@@ -212,9 +225,12 @@ const moduleRowFormat = "{{.Path}} {{.Version}}{{with .Replace}}{{if .Version}} 
 
 // listModuleGraph captures the module graph with one go list run — one
 // consistent snapshot for requirements, replacements, and the skew
-// handshake alike.
+// handshake alike. The explicit -mod=readonly turns vendor mode off
+// for the query: a vendored solution module would otherwise refuse to
+// compute its module graph at all, and the synthesis needs the graph,
+// not the vendor tree it never copies.
 func listModuleGraph(ctx context.Context, dir, mainDir string, env []string) (*moduleGraph, error) {
-	out, err := goOutput(ctx, dir, env, "list", "-m", "-f", moduleRowFormat, "all")
+	out, err := goOutput(ctx, dir, env, "list", "-mod=readonly", "-m", "-f", moduleRowFormat, "all")
 	if err != nil {
 		return nil, err
 	}
@@ -546,7 +562,22 @@ func goOutput(ctx context.Context, dir string, env []string, args ...string) (st
 		if detail == "" {
 			detail = err.Error()
 		}
-		return "", fmt.Errorf("go %s: %s", strings.Join(args, " "), detail)
+		return "", fmt.Errorf("%s: %s", goCommand(args), detail)
 	}
 	return out.String(), nil
+}
+
+// goCommand renders one go invocation for error messages, with any -f
+// template body elided: the relayed go error orients the reader, and
+// the row template is machinery that would drown it.
+func goCommand(args []string) string {
+	display := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		if args[i] == "-f" && i+1 < len(args) {
+			i++
+			continue
+		}
+		display = append(display, args[i])
+	}
+	return "go " + strings.Join(display, " ")
 }

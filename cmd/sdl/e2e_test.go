@@ -1566,6 +1566,51 @@ deploy bad.Thing as T
 	})
 }
 
+// TestBuildVendored proves a vendored solution module builds: the
+// driver queries the module graph and loads catalogue packages with an
+// explicit -mod=readonly — vendor mode cannot answer module queries —
+// and the synthesized build resolves from the module cache and the
+// mirrored replaces, never from the solution's vendor/ tree. The
+// vendor tree here is deliberately minimal (modules.txt alone flips
+// the go tool into vendor mode): if any stage consulted it, the build
+// would fail loudly.
+func TestBuildVendored(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := solutionModule(t, "sol.sdl", `solution vendored
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1 {
+	count: 1
+	target: "pong"
+}
+`)
+	if err := os.Mkdir(filepath.Join(dir, "vendor"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(dir, "vendor", "modules.txt"),
+		"# github.com/modern-engineering/prototype v0.0.0 => "+repoRoot+"\n## explicit; go 1.25.0\n")
+
+	out := filepath.Join(t.TempDir(), "out.json")
+	res := runSDL(t, dir, "build", "-o", out)
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d in the vendored module\n%s", res.code, res.stderr)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("emitted image does not decode: %v", err)
+	}
+	if len(img.Records) != 1 || img.Records[0].Name != "Ping1" {
+		t.Errorf("records = %+v, want the one Ping1 deploy", img.Records)
+	}
+}
+
 // TestBuildOutputAtomic pins the -o replacement contract: a failed
 // rebuild leaves the previous image byte-identical — whether the fault
 // dies early, at parse before the toolchain runs, or late, inside the

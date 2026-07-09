@@ -181,14 +181,20 @@ func addImport(diags *scanner.ErrorList, paths map[string]token.Position, spec *
 
 // checkImportPath rejects strings that cannot be a single package's
 // import path before they reach the Go toolchain as load patterns:
-// wildcards, meta-patterns, and shell-hostile shapes would either fan
-// out to several packages or be misread as something other than a path.
+// wildcards, meta-patterns, relative and absolute paths, and
+// shell-hostile shapes would either fan out to several packages, be
+// misread as something other than a path, or resolve against the wrong
+// root once the build moves into its synthesized work module.
 func checkImportPath(path string) error {
 	switch {
 	case path == "":
 		return errors.New("empty import path")
 	case path == "all" || path == "std" || path == "cmd":
 		return errors.New("not a package path")
+	case path == "." || path == ".." || strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../"):
+		return errors.New("relative import paths are not supported; import the package by its full module-rooted path")
+	case strings.HasPrefix(path, "/"):
+		return errors.New("absolute import paths are not supported; import the package by its full module-rooted path")
 	case strings.Contains(path, "..."):
 		return errors.New("import path must not contain wildcards")
 	case strings.HasPrefix(path, "-"):
