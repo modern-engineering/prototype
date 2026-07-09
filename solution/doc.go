@@ -117,6 +117,5 @@ supports flags as the means to define an app's configuration surface explicitly.
 We assume this specific app has a token flag, though paths are hard-coded. (TODO: consider app that reads env without flag, like AWS SDK, but still needs to be explicitly surfaced for documentation somehow).
 
 Then, the company's Kubernetes deployment environment must collaborate with that specific application. It must also bridge some knowledge gaps, like where are secrets stored, and which specific secret is relevant here.
-
 */
 package solution
