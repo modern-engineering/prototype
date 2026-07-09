@@ -6,10 +6,10 @@
 // solution unit, the IR made visible. Echo is canonical re-rendering,
 // never a byte round trip of the original sources: the image stores
 // values, not lexemes or layout, so every literal prints in its
-// canonical spelling — where sdl fmt would preserve "0x10", echo has
-// only the 16. Building the echoed unit yields an image [image.Equal]
-// to the input; that equivalence is the round-trip contract, proven end
-// to end in the cmd/sdl tests.
+// canonical spelling — where sdl fmt would preserve "90m", echo has
+// only the 1h30m0s. Building the echoed unit yields an image
+// [image.Equal] to the input; that equivalence is the round-trip
+// contract, proven end to end in the cmd/sdl tests.
 package echocmd
 
 import (
@@ -56,7 +56,7 @@ Imports are aliased so references resolve exactly as compiled: the
 reference name is the package's registered name, spelled out when the
 import path's last element would not suggest it, and disambiguated with
 a numeric suffix (name, name2, ...) when several packages share one
-name.
+name or when the name is an SDL keyword no reference could spell.
 
 Exit status 0 means the unit was printed; 2 reports an unreadable or
 undecodable image, or one that this rung cannot render.`,
@@ -199,20 +199,22 @@ func symbols(defs []image.SymbolDef, refs map[string]string) (externs *ast.Exter
 
 // imports derives one import spec per catalogue package, in catalogue
 // (path) order, and the reference-name table the records resolve
-// through. The reference name is the package's registered Go name; when
-// several packages share a name, later ones (by path order) take a
-// deterministic numeric suffix. The alias is written out whenever the
-// unit would otherwise mislead: when the name was disambiguated, or
-// when the path's last element differs from it.
+// through. The reference name is the package's registered Go name;
+// when several packages share a name, later ones (by path order) take
+// a deterministic numeric suffix, and a name that is an SDL keyword
+// (a Go package named "extern", say) takes the suffix the same way,
+// since the bare name could never appear in a reference. The alias is
+// written out whenever the unit would otherwise mislead: when the name
+// was disambiguated, or when the path's last element differs from it.
 func imports(catalogue []image.Package) (refs map[string]string, specs []*ast.ImportSpec, err error) {
 	refs = make(map[string]string, len(catalogue))
 	used := make(map[string]bool, len(catalogue))
 	for _, pkg := range catalogue {
-		if err := checkIdent(fmt.Sprintf("package %q: name %q", pkg.Path, pkg.Name), pkg.Name); err != nil {
-			return nil, nil, err
+		if !identShape(pkg.Name) {
+			return nil, nil, fmt.Errorf("package %q: name %q: cannot render as an SDL identifier", pkg.Path, pkg.Name)
 		}
 		ref := pkg.Name
-		for n := 2; used[ref]; n++ {
+		for n := 2; used[ref] || token.Lookup(ref) != token.IDENT; n++ {
 			ref = pkg.Name + strconv.Itoa(n)
 		}
 		used[ref] = true
@@ -424,15 +426,25 @@ func checkKey(what, name string) error {
 // Names beyond it (a flag named "log-level", say) have no SDL rendering
 // yet, and a loud fault beats printing a unit that cannot parse.
 func checkIdent(what, name string) error {
-	ok := name != "" && token.Lookup(name) == token.IDENT
-	for i, r := range name {
-		letter := unicode.IsLetter(r) || r == '_'
-		if !letter && (i == 0 || !unicode.IsDigit(r)) {
-			ok = false
-		}
-	}
-	if !ok {
+	if !identShape(name) || token.Lookup(name) != token.IDENT {
 		return fmt.Errorf("%s: cannot render as an SDL identifier", what)
 	}
 	return nil
+}
+
+// identShape reports whether name has the shape of an SDL identifier
+// (the scanner's rule): a letter or underscore first, letters, digits,
+// and underscores after. Keywords pass — spelling them is the caller's
+// concern.
+func identShape(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		letter := unicode.IsLetter(r) || r == '_'
+		if !letter && (i == 0 || !unicode.IsDigit(r)) {
+			return false
+		}
+	}
+	return true
 }

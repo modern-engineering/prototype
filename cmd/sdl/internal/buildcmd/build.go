@@ -38,7 +38,8 @@ canonical JSON.
 
 The -o flag writes the image to a file instead of standard output.
 
-The -generation flag stamps the image's generation (default 1).
+The -generation flag stamps the image's generation (default 1); the
+generation must be positive.
 
 The -work flag preserves the temporary work directory and prints its
 location, WORK=<dir>, to standard error.
@@ -70,6 +71,11 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) error {
 		dir = args[0]
 	default:
 		return &base.UsageError{Msg: fmt.Sprintf("build takes at most one directory argument, got %d", len(args))}
+	}
+	if flagGeneration < 1 {
+		// The counter is monotonic from 1 (the image edit precedent);
+		// stamping zero or less is a mistyped invocation, not a build.
+		return &base.UsageError{Msg: "build: generation must be positive"}
 	}
 
 	sol, err := load.Dir(dir)

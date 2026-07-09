@@ -185,6 +185,36 @@ deploy ff.Ping as P
 	}
 }
 
+// TestEchoKeywordPackageName routes a package whose registered Go name
+// is an SDL keyword through the alias machinery: the reference name
+// takes the numeric suffix, exactly as a name collision would, since
+// the bare keyword could never appear in a reference — and the unit
+// renders instead of failing.
+func TestEchoKeywordPackageName(t *testing.T) {
+	img := &image.Image{
+		Format:    image.Format,
+		Solution:  "kw",
+		Catalogue: []image.Package{pkg("example.com/extern", "extern")},
+		Records:   []image.Record{record("example.com/extern", "Ping", "P")},
+	}
+	want := `solution kw
+
+import extern2 "example.com/extern"
+
+deploy extern2.Ping as P
+`
+	got, err := render(t, img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Errorf("echoed unit:\n%s--- want ---\n%s", got, want)
+	}
+	if _, err := parser.ParseFile("echo.sdl", []byte(got)); err != nil {
+		t.Errorf("echoed unit does not parse: %v", err)
+	}
+}
+
 // TestEchoFaults exercises the exit-2 material: images echo cannot or
 // must not render.
 func TestEchoFaults(t *testing.T) {

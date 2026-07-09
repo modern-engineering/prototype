@@ -168,6 +168,62 @@ func TestBuildDeterminism(t *testing.T) {
 	}
 }
 
+// TestBuildStdout pins the default output mode: without -o the image
+// goes to standard output, byte-identical to what -o would have
+// written, with nothing else mixed into either stream.
+func TestBuildStdout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	res := runSDL(t, repoRoot, "build", "examples/pingpong")
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	if res.stderr != "" {
+		t.Errorf("stderr = %q, want empty", res.stderr)
+	}
+	want, err := os.ReadFile(filepath.Join("testdata", "pingpong.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.stdout != string(want) {
+		t.Errorf("stdout differs from the golden image\n--- got ---\n%s", res.stdout)
+	}
+}
+
+// TestBuildGeneration pins the -generation flag: a positive value
+// stamps the image, and a non-positive one is a usage fault (exit 2)
+// before any toolchain work starts.
+func TestBuildGeneration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	out := filepath.Join(t.TempDir(), "out.json")
+	res := runSDL(t, repoRoot, "build", "-generation", "7", "-o", out, "examples/pingpong")
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("emitted image does not decode: %v", err)
+	}
+	if img.Generation != 7 {
+		t.Errorf("Generation = %d, want 7", img.Generation)
+	}
+
+	res = runSDL(t, repoRoot, "build", "-generation", "0", "examples/pingpong")
+	if res.code != 2 {
+		t.Fatalf("exit %d, want 2\n%s", res.code, res.stderr)
+	}
+	if !strings.Contains(res.stderr, "generation must be positive") {
+		t.Errorf("stderr does not name the usage fault:\n%s", res.stderr)
+	}
+}
+
 // solutionModule lays down a throwaway module holding one solution
 // unit, with the prototype module dir-replaced to this checkout — the
 // shape of a user module consuming the framework.
