@@ -68,20 +68,19 @@ type Descriptor struct {
 	// documentation for this application.
 	URL string
 
-	// Run applies the analyzer to a package.
-	// It returns an error if the analyzer failed.
-	//
-	// On success, the Run function may return a result
-	// computed by the Analyzer; its type must match ResultType.
-	// The driver makes this result available as an input to
-	// another Analyzer that depends directly on this one (see
-	// Requires) when it analyzes the same package.
-	//
-	// To pass analysis results between packages (and thus
-	// potentially between address spaces), use Facts, which are
-	// serializable.
+	// New constructs the application service for running. It is the
+	// fallible, context-aware construction path: loaders call it at run
+	// time, where construction may perform I/O and refuse to proceed.
+	// Optional; when nil, loaders construct via Make.
 	New func(context.Context) (Service, error)
 
+	// Make is the pure factory: it returns a fresh Service on every call,
+	// declares the service's flags, and does nothing else — no I/O, no
+	// side effects, no failure. Tooling relies on this dry-instantiation
+	// invariant to obtain the parameter surface without running anything
+	// (help rendering, schema extraction, solution compilation). Every
+	// catalogue citizen must set Make; [MakeFor] and [MakeFunc] adapt the
+	// common construction shapes.
 	Make func() Service
 }
 
@@ -101,10 +100,20 @@ func (x serviceFunc) Flags() *flag.FlagSet {
 	return x.flags
 }
 
-// Flags exposes any flags accepted by the application. The manner in which these
-// flags are exposed to the user depends on the driver which runs the analyzer.
+// Flags exposes the parameter surface the application declares, obtained by
+// dry instantiation: Make constructs a fresh throwaway Service whose flag
+// set is returned and whose runner is discarded. Each call yields a fresh
+// set, so callers may mutate the result freely.
+//
+// Flags may return nil when the application declares no parameters (for
+// example, [Main] adapters). It panics when Make is nil: a Descriptor
+// without a pure factory has no inspectable surface and is not a catalogue
+// citizen.
 func (a *Descriptor) Flags() *flag.FlagSet {
-	panic("not implemented")
+	if a.Make == nil {
+		panic(fmt.Sprintf("application: descriptor %q has no Make factory", a.Name))
+	}
+	return a.Make().Flags()
 }
 
 // --- end ---
@@ -175,15 +184,6 @@ func MakeFor[T any, PT interface {
 		var ptr PT = &val // Take the address to satisfy the pointer constraint.
 		return ptr
 	}
-}
-
-type Instance struct {
-	*Descriptor
-
-	// Flags defines any flags accepted by the analyzer.
-	// The manner in which these flags are exposed to the user
-	// depends on the driver which runs the analyzer.
-	Flags flag.FlagSet
 }
 
 type HealthChecker interface {
