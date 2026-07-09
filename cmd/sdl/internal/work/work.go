@@ -437,41 +437,88 @@ func buildCompiler(ctx context.Context, workdir string, env []string, stderr io.
 // runCompiler executes the generated compiler and propagates its
 // verdict: stdout is the image (routed to the -o file when set), stderr
 // relays verbatim, exit 1 stays a diagnostics failure, everything else
-// nonzero stays an internal one. A failed run — a failed close of the
-// output file included — removes the output file: the compiler emits
-// the image only after all checks pass, so a partial file only
-// misleads.
+// nonzero stays an internal one.
+//
+// The -o file is replaced atomically: the child's stdout lands in a
+// temporary file beside the target and moves onto it only after the
+// compiler exits 0, so a failed rebuild leaves whatever image the
+// target held byte-identical. A non-regular target (/dev/null, a
+// device, a pipe) cannot be replaced by rename and holds no previous
+// image to protect, so it is streamed into directly instead.
 func runCompiler(ctx context.Context, workdir, output string, stderr io.Writer) error {
 	cmd := exec.CommandContext(ctx, filepath.Join(workdir, "sol.bin"))
 	cmd.Dir = workdir
 	cmd.Stderr = stderr
-	cmd.Stdout = os.Stdout
-	var f *os.File
-	if output != "" {
-		var err error
-		f, err = os.Create(output)
+	if output == "" {
+		cmd.Stdout = os.Stdout
+		return verdict(cmd.Run())
+	}
+
+	prev, statErr := os.Stat(output)
+	if statErr == nil && !prev.Mode().IsRegular() {
+		f, err := os.OpenFile(output, os.O_WRONLY, 0)
 		if err != nil {
-			return fmt.Errorf("creating output file: %v", err)
+			return fmt.Errorf("opening output file: %v", err)
 		}
 		cmd.Stdout = f
-	}
-	err := cmd.Run()
-	if f != nil {
+		err = cmd.Run()
 		if cerr := f.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("writing output file: %v", cerr)
+		}
+		return verdict(err)
+	}
+
+	tmp, err := createBeside(output)
+	if err != nil {
+		return fmt.Errorf("creating output file: %v", err)
+	}
+	tmpName := tmp.Name()
+	cmd.Stdout = tmp
+	err = cmd.Run()
+	if cerr := tmp.Close(); cerr != nil && err == nil {
+		err = fmt.Errorf("writing output file: %v", cerr)
+	}
+	if err == nil && statErr == nil {
+		// Replacing an existing image keeps its permissions, the way
+		// truncating it in place would have.
+		if cerr := os.Chmod(tmpName, prev.Mode().Perm()); cerr != nil {
 			err = fmt.Errorf("writing output file: %v", cerr)
 		}
 	}
 	if err == nil {
-		return nil
+		err = os.Rename(tmpName, output)
 	}
-	if output != "" {
-		if rerr := os.Remove(output); rerr != nil {
-			printf(stderr, "sdl: removing incomplete output: %v\n", rerr)
+	if err != nil {
+		_ = os.Remove(tmpName) // the run's own fault is the one worth reporting
+		return verdict(err)
+	}
+	return nil
+}
+
+// createBeside creates a fresh temporary file next to path for an
+// atomic replacement. Unlike os.CreateTemp it asks for mode 0666, so
+// after the umask a renamed fresh output carries the permissions a
+// plain create would have given it.
+func createBeside(path string) (*os.File, error) {
+	for i := 0; ; i++ {
+		name := fmt.Sprintf("%s.tmp-%d-%d", path, os.Getpid(), i)
+		f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o666)
+		if !errors.Is(err, os.ErrExist) {
+			return f, err
 		}
+	}
+}
+
+// verdict translates the generated compiler's run error into the
+// driver's: exit 1 is a diagnostics failure whose lines are already on
+// the relayed stderr, everything else an internal one.
+func verdict(err error) error {
+	if err == nil {
+		return nil
 	}
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 1 {
-		return &base.DiagnosticsError{} // diagnostics already on stderr
+		return &base.DiagnosticsError{}
 	}
 	return fmt.Errorf("solution compiler: %v", err)
 }

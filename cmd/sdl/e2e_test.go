@@ -1493,6 +1493,124 @@ deploy bad.Thing as T
 	})
 }
 
+// TestBuildOutputAtomic pins the -o replacement contract: a failed
+// rebuild leaves the previous image byte-identical — whether the fault
+// dies early, at parse before the toolchain runs, or late, inside the
+// generated compiler — and leaves no temporary litter beside it, while
+// a successful rebuild replaces it.
+func TestBuildOutputAtomic(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	const good = `solution atomic
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1 {
+	count: 1
+	target: "pong"
+}
+`
+	dir := solutionModule(t, "sol.sdl", good)
+	out := filepath.Join(dir, "out.json")
+	res := runSDL(t, dir, "build", "-o", out)
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	prior, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rebuild := func(name, unit string) {
+		t.Helper()
+		writeFile(t, filepath.Join(dir, "sol.sdl"), unit)
+		res := runSDL(t, dir, "build", "-o", out)
+		if res.code != 1 {
+			t.Fatalf("%s: exit %d, want 1\n%s", name, res.code, res.stderr)
+		}
+		got, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(got, prior) {
+			t.Errorf("%s: failed rebuild changed the previous image\n--- now ---\n%s", name, got)
+		}
+	}
+	// Early: the unit no longer parses, so the fault dies before the
+	// toolchain ever runs.
+	rebuild("parse diagnostic", "solution atomic\n\ndeploy 7\n")
+	// Late: the unit parses and the generated compiler rejects it.
+	rebuild("compiler diagnostic", `solution atomic
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Gone as G
+`)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".tmp-") {
+			t.Errorf("failed rebuilds left temporary litter: %s", e.Name())
+		}
+	}
+
+	writeFile(t, filepath.Join(dir, "sol.sdl"), strings.ReplaceAll(good, "count: 1", "count: 2"))
+	res = runSDL(t, dir, "build", "-o", out)
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	got, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(got, prior) {
+		t.Error("successful rebuild left the previous image in place")
+	}
+	if _, err := image.Decode(bytes.NewReader(got)); err != nil {
+		t.Errorf("replaced image does not decode: %v", err)
+	}
+}
+
+// TestBuildOutputDevice pins the non-regular -o special case: a device
+// target is streamed into directly — rename cannot replace it and it
+// holds no previous image to protect — and a failed build neither
+// warns about nor attempts its removal.
+func TestBuildOutputDevice(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := solutionModule(t, "sol.sdl", `solution device
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1
+`)
+	res := runSDL(t, dir, "build", "-o", os.DevNull)
+	if res.code != 0 {
+		t.Fatalf("sdl build -o %s exited %d\n%s", os.DevNull, res.code, res.stderr)
+	}
+	if res.stderr != "" {
+		t.Errorf("stderr = %q, want empty", res.stderr)
+	}
+
+	writeFile(t, filepath.Join(dir, "sol.sdl"), `solution device
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Gone as G
+`)
+	res = runSDL(t, dir, "build", "-o", os.DevNull)
+	if res.code != 1 {
+		t.Fatalf("exit %d, want 1\n%s", res.code, res.stderr)
+	}
+	if strings.Contains(res.stderr, "removing") {
+		t.Errorf("failed device-target build warned about removal:\n%s", res.stderr)
+	}
+}
+
 // TestWorkFlag is (d): -work announces the work directory and leaves
 // the generated compiler behind for inspection.
 func TestWorkFlag(t *testing.T) {
