@@ -102,11 +102,24 @@ type linker struct {
 	diags    scanner.ErrorList
 	internal *internalError
 
-	packages  map[string]*regPackage    // import path -> registration
-	imports   map[string]importBinding  // reference name -> import
-	instances map[string]token.Position // instance name -> first definition
-	records   []image.Record
+	packages map[string]*regPackage   // import path -> registration
+	imports  map[string]importBinding // reference name -> import
+	symbols  map[string]*symbol       // flat namespace: name -> first declaration
+	records  []image.Record
 }
+
+// A symbol is one row of the solution's flat namespace. Instance names,
+// var symbols, and extern symbols share the one namespace (D-08's link
+// model extended), so a name resolves to at most one declaration
+// solution-wide; this rung declares instances only, and the symbols
+// rung adds the value-carrying classes.
+type symbol struct {
+	class string         // classInstance
+	pos   token.Position // the declaring name, anchor of duplicate reports
+}
+
+// The symbol classes of the flat namespace.
+const classInstance = "instance"
 
 // A regPackage is one validated catalogue package registration.
 type regPackage struct {
@@ -173,10 +186,10 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 	}
 
 	ln := &linker{
-		cfg:       cfg,
-		packages:  make(map[string]*regPackage, len(cfg.Catalogue)),
-		imports:   make(map[string]importBinding),
-		instances: make(map[string]token.Position),
+		cfg:      cfg,
+		packages: make(map[string]*regPackage, len(cfg.Catalogue)),
+		imports:  make(map[string]importBinding),
+		symbols:  make(map[string]*symbol),
 	}
 	for i, pkg := range cfg.Catalogue {
 		if pkg.Path == "" {
@@ -303,11 +316,16 @@ func (ln *linker) addImport(spec *ast.ImportSpec) {
 	ln.imports[name] = importBinding{path: path, pos: spec.Pos()}
 }
 
-// check walks the declarations of every unit in order: it enforces this
-// rung's language subset and resolves, checks, and records the deploy
-// statements. Diagnostics accumulate; only a panic in user code stops
-// the walk.
+// check links the declarations in two phases. collect first enters
+// every declared name of every unit into the solution's flat symbol
+// namespace, so a statement may reference a symbol declared later or
+// in another unit (cross-unit forward references are legal from the
+// symbols rung on); the second phase then enforces this rung's
+// language subset and resolves, dry-instantiates, and binds the
+// statements in unit order. Diagnostics accumulate; only a panic in
+// user code stops the walk.
 func (ln *linker) check() {
+	ln.collect()
 	for _, f := range ln.files {
 		for _, decl := range f.Decls {
 			switch d := decl.(type) {
@@ -331,10 +349,40 @@ func (ln *linker) check() {
 	}
 }
 
+// collect walks every unit's declarations and enters each declared
+// name — instance names now; var and extern symbols from the symbols
+// rung — into the flat namespace, in unit-then-statement order.
+func (ln *linker) collect() {
+	for _, f := range ln.files {
+		for _, decl := range f.Decls {
+			if d, ok := decl.(*ast.DeployDecl); ok {
+				for _, spec := range d.Specs {
+					ln.declare(spec.Name, &symbol{class: classInstance, pos: spec.Name.NamePos})
+				}
+			}
+		}
+	}
+}
+
+// declare enters one named declaration into the flat namespace. The
+// first declaration owns the name; any second one, whatever the
+// classes involved, is a duplicate symbol diagnosed at the later
+// declaration, carrying the owning position.
+func (ln *linker) declare(name *ast.Ident, sym *symbol) {
+	if first, ok := ln.symbols[name.Name]; ok {
+		ln.errorf(name.NamePos, "duplicate symbol %s (first declared at %s)", name.Name, first.pos)
+		return
+	}
+	ln.symbols[name.Name] = sym
+}
+
 // deploy checks one deploy spec end to end; a fully clean spec appends a
-// record.
+// record. The spec's name was declared by collect: the spec owns the
+// name iff the declaring position is its own, and a duplicate (already
+// diagnosed there) must not append a second record for it.
 func (ln *linker) deploy(spec *ast.DeploySpec) {
-	ok := ln.declare(spec.Name)
+	sym := ln.symbols[spec.Name.Name]
+	ok := sym != nil && sym.pos == spec.Name.NamePos
 	elem := ln.resolve(spec.Type)
 	if elem == nil {
 		ok = false
@@ -351,17 +399,6 @@ func (ln *linker) deploy(spec *ast.DeploySpec) {
 		Name:    spec.Name.Name,
 		Params:  bindings,
 	})
-}
-
-// declare enters an instance name into the solution's flat namespace,
-// reporting a duplicate symbol at its second definition.
-func (ln *linker) declare(name *ast.Ident) bool {
-	if first, ok := ln.instances[name.Name]; ok {
-		ln.errorf(name.NamePos, "duplicate symbol %s (first deployed at %s)", name.Name, first)
-		return false
-	}
-	ln.instances[name.Name] = name.NamePos
-	return true
 }
 
 // resolve maps a type reference through the union import table and the

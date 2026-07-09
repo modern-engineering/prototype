@@ -436,7 +436,28 @@ func TestMainCompileDiagnostics(t *testing.T) {
 					"deploy ff.Pong as Twin\n"},
 			},
 			wantCode: 1,
-			want:     []string{"b.sdl:3:19: duplicate symbol Twin (first deployed at a.sdl:3:19)"},
+			want:     []string{"b.sdl:3:19: duplicate symbol Twin (first declared at a.sdl:3:19)"},
+		},
+		{
+			// The regression pin of the collect phase: names enter the
+			// namespace in unit-then-statement order before anything
+			// binds, so every duplicate anchors at the one owning
+			// declaration, never at a nearer duplicate.
+			name: "duplicate symbols anchor at the first declaration",
+			units: []solution.Unit{
+				{Name: "a.sdl", Source: "solution sample\n" +
+					"import ff \"example.com/acme/pingpong\"\n" +
+					"deploy ff.Ping as Twin\n" +
+					"deploy ff.Pong as Twin\n"},
+				{Name: "b.sdl", Source: "solution sample\n" +
+					"import ff \"example.com/acme/pingpong\"\n" +
+					"deploy ff.Pong as Twin\n"},
+			},
+			wantCode: 1,
+			want: []string{
+				"a.sdl:4:19: duplicate symbol Twin (first declared at a.sdl:3:19)",
+				"b.sdl:3:19: duplicate symbol Twin (first declared at a.sdl:3:19)",
+			},
 		},
 		{
 			name: "conflicting import name",
