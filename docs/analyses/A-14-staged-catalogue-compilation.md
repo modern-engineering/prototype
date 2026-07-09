@@ -1,6 +1,8 @@
 ---
 status: draft
 since: 2026-07-09
+refined-by:
+  - D-10-generate-compile-run
 ---
 
 # Staged Catalogue Compilation: How the Compiler Knows User-Defined Elements
