@@ -235,6 +235,42 @@ provision pg.Postgres as legacy
 	}
 }
 
+// TestParseDottedKeys drives the composite-key production: dotted
+// segments join into one key string anchored at the first segment,
+// inside instance bodies and section bodies alike.
+func TestParseDottedKeys(t *testing.T) {
+	f := parse(t, `solution s
+
+deploy ff.Ping as P {
+	retry.max: 3
+	retry.backoff.base: 250ms
+	on {
+		zone.primary: "eu"
+	}
+}
+`)
+	body := f.Decls[0].(*ast.DeployDecl).Specs[0].Body
+	if len(body.Items) != 3 {
+		t.Fatalf("body items: got %d, want 3", len(body.Items))
+	}
+	max := body.Items[0].(*ast.Param)
+	if max.Key.Name != "retry.max" || max.Value.(*ast.IntLit).Value != 3 {
+		t.Errorf("item 0: key %q value %+v", max.Key.Name, max.Value)
+	}
+	if got := lineCol(max.Key.NamePos); got != "4:2" {
+		t.Errorf("dotted key position: got %s, want 4:2 (the first segment)", got)
+	}
+	base := body.Items[1].(*ast.Param)
+	if base.Key.Name != "retry.backoff.base" || base.Value.(*ast.DurationLit).Value != 250*time.Millisecond {
+		t.Errorf("item 1: key %q value %+v", base.Key.Name, base.Value)
+	}
+	on := body.Items[2].(*ast.Section)
+	zone := on.Body.Items[0].(*ast.Param)
+	if zone.Key.Name != "zone.primary" {
+		t.Errorf("section key: got %q", zone.Key.Name)
+	}
+}
+
 func TestParseErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -247,6 +283,24 @@ func TestParseErrors(t *testing.T) {
 			"solution s\n\ndeploy ff.Ping as P {\n\tcount: 1\n\tcount: 2\n}\n",
 			"5:2",
 			"duplicate parameter key count",
+		},
+		{
+			"duplicate dotted parameter key",
+			"solution s\n\ndeploy ff.Ping as P {\n\tretry.max: 3\n\tretry.max: 4\n}\n",
+			"5:2",
+			"duplicate parameter key retry.max",
+		},
+		{
+			"dotted section name",
+			"solution s\n\ndeploy ff.Ping as P {\n\ta.b {\n\t}\n}\n",
+			"4:6",
+			"expected ':', found '{'",
+		},
+		{
+			"key ending in a dot",
+			"solution s\n\ndeploy ff.Ping as P {\n\ta.: 1\n}\n",
+			"4:4",
+			"expected identifier, found ':'",
 		},
 		{
 			"missing as",

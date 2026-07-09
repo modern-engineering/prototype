@@ -713,6 +713,86 @@ func TestMainCompilePerFileImports(t *testing.T) {
 	}
 }
 
+// TestMainCompileDottedKeys drives a composite (flattened) parameter
+// name end to end: a catalogue flag named with dots binds from the
+// dotted SDL key like any other slot, and the binding carries the full
+// key.
+func TestMainCompileDottedKeys(t *testing.T) {
+	catalogue := []solution.Package{{
+		Path: "example.com/acme/deep",
+		Name: "deep",
+		Elements: []solution.Element{solution.App("Deep", &application.Descriptor{
+			Name: "deep",
+			Doc:  "declares a flattened composite parameter",
+			Make: application.MakeFunc(func() (application.Runner, *flag.FlagSet) {
+				fs := flag.NewFlagSet("deep", flag.ContinueOnError)
+				fs.Int64("retry.max", 3, "retry budget")
+				return idle(), fs
+			}),
+		})},
+	}}
+	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+		"import deep \"example.com/acme/deep\"\n" +
+		"deploy deep.Deep as D {\n" +
+		"\tretry.max: 7\n" +
+		"}\n"}}
+	code, stdout, stderr := compile(t, solution.CompileConfig{
+		Solution: "sample", Units: units, Catalogue: catalogue,
+	})
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	if stderr != "" {
+		t.Errorf("stderr = %q, want empty (dotted names are expressible)", stderr)
+	}
+	img, err := image.Decode(strings.NewReader(stdout))
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	params := img.Records[0].Params
+	if len(params) != 1 || params[0].Key != "retry.max" ||
+		params[0].Value == nil || params[0].Value.Int != 7 || params[0].Source != image.SourceInstance {
+		t.Errorf("params = %+v, want retry.max bound to 7", params)
+	}
+}
+
+// TestMainCompileInexpressibleParamWarning pins the registration-time
+// warning: a catalogue flag whose name no SDL key can spell — a
+// character beyond the ident-and-dot grammar, or a keyword segment —
+// warns on stderr, once per flag, and never fails the compilation.
+func TestMainCompileInexpressibleParamWarning(t *testing.T) {
+	catalogue := []solution.Package{{
+		Path: "example.com/acme/hyphen",
+		Name: "hyphen",
+		Elements: []solution.Element{solution.App("H", &application.Descriptor{
+			Name: "hyphen",
+			Doc:  "declares parameters SDL cannot spell",
+			Make: application.MakeFunc(func() (application.Runner, *flag.FlagSet) {
+				fs := flag.NewFlagSet("hyphen", flag.ContinueOnError)
+				fs.String("deploy", "", "a keyword as a flag name")
+				fs.String("log-level", "info", "a hyphenated flag name")
+				fs.String("ok.name", "", "an expressible dotted name")
+				return idle(), fs
+			}),
+		})},
+	}}
+	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n"}}
+	code, stdout, stderr := compile(t, solution.CompileConfig{
+		Solution: "sample", Units: units, Catalogue: catalogue,
+	})
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	want := "sdl: warning: element hyphen.H: parameter \"deploy\" is not expressible as an SDL key\n" +
+		"sdl: warning: element hyphen.H: parameter \"log-level\" is not expressible as an SDL key\n"
+	if stderr != want {
+		t.Errorf("stderr:\n%s--- want ---\n%s", stderr, want)
+	}
+	if _, err := image.Decode(strings.NewReader(stdout)); err != nil {
+		t.Errorf("image does not decode despite the warning: %v", err)
+	}
+}
+
 // TestMainCompileDefaultMergeOrder proves the four value tiers over
 // one parameter: the catalogue slot default (count is 1 in the pinned
 // schema) yields no binding at all, and each SDL layer above it —

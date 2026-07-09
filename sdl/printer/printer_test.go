@@ -100,6 +100,9 @@ var adversarialSources = []string{
 	"solution s\n\n// alpha\n\n// beta\n// beta continued\n",
 	// Excess blank lines everywhere.
 	"solution s\n\n\n\n\nimport ff \"example.com/ff\"\n\n\n\ndeploy ff.Ping as A {\n\n\tcount: 1\n\n\n\ttarget: \"x\"\n\n}\n",
+	// Dotted parameter keys join into one key and print back verbatim,
+	// in instance bodies and section bodies alike.
+	"solution s\n\nimport ff \"example.com/ff\"\n\ndeploy ff.Ping as A {\n\tretry.max: 3\n\ton {\n\t\tzone.primary: \"eu\"\n\t}\n}\n",
 }
 
 // sources returns every corpus file plus the adversarial cases, keyed

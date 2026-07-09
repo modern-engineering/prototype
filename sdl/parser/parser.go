@@ -308,6 +308,14 @@ func (p *parser) parseBody(owner *ast.Comments) *ast.Body {
 		}
 		before := p.takePending()
 		name := p.parseIdent()
+		dotted := false
+		for p.tok == token.PERIOD {
+			// A dotted key spells one composite (flattened) parameter
+			// name; the segments join into a single identifier node.
+			p.next()
+			name.Name += "." + p.parseIdent().Name
+			dotted = true
+		}
 		switch p.tok {
 		case token.COLON:
 			p.next()
@@ -320,6 +328,14 @@ func (p *parser) parseBody(owner *ast.Comments) *ast.Body {
 			p.finishLine(&param.Comments)
 			b.Items = append(b.Items, param)
 		case token.LBRACE:
+			if dotted {
+				// Section names are plain identifiers; only parameter
+				// keys dot.
+				p.errorExpected(p.pos, "':'")
+				p.restorePending(before)
+				p.advance()
+				continue
+			}
 			section := &ast.Section{Name: name}
 			section.Before = before
 			section.Body = p.parseBody(&section.Comments)

@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/modern-engineering/prototype/application"
 	"github.com/modern-engineering/prototype/sdl/ast"
@@ -98,7 +99,8 @@ func MainCompile(cfg CompileConfig) int {
 // faults in the machine-supplied inputs or in user Go code abort through
 // newLinker errors and internal (exit 2).
 type linker struct {
-	cfg CompileConfig
+	cfg    CompileConfig
+	stderr io.Writer // resolved cfg.Stderr; warnings print here
 
 	files []*ast.File // parsed units, parallel to cfg.Units
 	cur   int         // index of the unit being linked; selects its import table
@@ -272,8 +274,13 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 		unitNames[u.Name] = true
 	}
 
+	stderr := cfg.Stderr
+	if stderr == nil {
+		stderr = os.Stderr
+	}
 	ln := &linker{
 		cfg:          cfg,
+		stderr:       stderr,
 		packages:     make(map[string]*regPackage, len(cfg.Catalogue)),
 		symbols:      make(map[string]*symbol),
 		verbDefaults: make(map[string]*defaultBody),
@@ -1005,7 +1012,47 @@ func (ln *linker) dry(elem *catalogueElement, at *ast.TypeRef) bool {
 		elem.keys[p.Name] = true
 	}
 	elem.dried = true
+	ln.warnInexpressible(elem)
 	return true
+}
+
+// warnInexpressible flags freshly pinned parameters no SDL key can
+// spell: such a flag registers legally, but no solution statement can
+// ever bind it, and that surprise belongs on stderr once, when the
+// schema pins, rather than at the end of an author's fruitless grammar
+// hunt. A warning, never a fault — the parameter still binds at
+// reification through site overrides.
+func (ln *linker) warnInexpressible(elem *catalogueElement) {
+	for _, p := range elem.schema {
+		if !expressibleKey(p.Name) {
+			printf(ln.stderr, "sdl: warning: element %s: parameter %q is not expressible as an SDL key\n", elem, p.Name)
+		}
+	}
+}
+
+// expressibleKey reports whether an SDL parameter key could spell
+// name: dot-separated segments, each an identifier that is not a
+// keyword (the parser's Key production).
+func expressibleKey(name string) bool {
+	for seg := range strings.SplitSeq(name, ".") {
+		if !identSegment(seg) {
+			return false
+		}
+	}
+	return true
+}
+
+// identSegment reports whether s is one SDL identifier: a letter or
+// underscore first, letters, digits, and underscores after (the
+// scanner's identifier rule), and not a keyword.
+func identSegment(s string) bool {
+	for i, r := range s {
+		if unicode.IsLetter(r) || r == '_' || (i > 0 && unicode.IsDigit(r)) {
+			continue
+		}
+		return false
+	}
+	return s != "" && token.Lookup(s) == token.IDENT
 }
 
 // bind checks a statement body and binds its compartments, each
@@ -1448,6 +1495,7 @@ func (ln *linker) emit() (*image.Image, *internalError) {
 					}
 					elem.schema = paramSchemas(fs)
 					elem.dried = true
+					ln.warnInexpressible(elem)
 				}
 				es.Params = elem.schema
 				if elem.kind == image.KindComponent {

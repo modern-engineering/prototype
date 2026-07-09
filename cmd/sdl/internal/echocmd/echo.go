@@ -283,7 +283,7 @@ func recordSpec(rec image.Record, refs map[string]string) (*ast.TypeRef, *ast.Id
 	}
 	var items []ast.BodyItem
 	for _, b := range rec.Params {
-		if err := checkIdent(fmt.Sprintf("parameter key %q", b.Key), b.Key); err != nil {
+		if err := checkKey(fmt.Sprintf("parameter key %q", b.Key), b.Key); err != nil {
 			return nil, nil, nil, err
 		}
 		value, err := bindingValue(b)
@@ -328,7 +328,7 @@ func section(name string, bindings []image.Binding) (*ast.Section, error) {
 	}
 	body := new(ast.Body)
 	for _, b := range bindings {
-		if err := checkIdent(fmt.Sprintf("%s key %q", name, b.Key), b.Key); err != nil {
+		if err := checkKey(fmt.Sprintf("%s key %q", name, b.Key), b.Key); err != nil {
 			return nil, err
 		}
 		value, err := sectionValue(name, b)
@@ -404,6 +404,19 @@ func valueNode(v *image.Value) (ast.Value, error) {
 		return &ast.DurationLit{Value: v.Dur}, nil
 	}
 	return nil, fmt.Errorf("cannot render value kind %q", v.Kind)
+}
+
+// checkKey verifies that a binding key from the image can be spelled
+// as an SDL parameter key: dot-separated identifier segments, the
+// parser's Key production (dotted keys name composite, flattened
+// parameters).
+func checkKey(what, name string) error {
+	for _, seg := range strings.Split(name, ".") {
+		if err := checkIdent(what, seg); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // checkIdent verifies that a name from the image can be spelled as an

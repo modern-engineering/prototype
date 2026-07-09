@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/modern-engineering/prototype/sdl/parser"
 	"github.com/modern-engineering/prototype/solution/image"
 )
 
@@ -49,9 +50,10 @@ func binding(key string, v *image.Value) image.Binding {
 // collision resolved by numeric suffix — plus the symbol table (two
 // externs come back factored, one var single-form, types qualified by
 // the same reference names the records use), every value kind, a
-// reference binding, an output-reference binding, provision records of
-// both kinds (the kind word always written), and a parameterless
-// record.
+// dotted parameter key, a reference binding, an output-reference
+// binding, provision records of both kinds (the kind word always
+// written), and a parameterless record. The rendered unit must also
+// parse cleanly, the other half of the round-trip contract.
 func TestEchoGolden(t *testing.T) {
 	img := &image.Image{
 		Format:     image.Format,
@@ -71,6 +73,7 @@ func TestEchoGolden(t *testing.T) {
 		Records: []image.Record{
 			record("example.com/acme/util-go", "Server", "S1",
 				binding("retries", image.Int(-3)),
+				binding("retry.backoff.base", image.Duration(250*time.Millisecond)),
 				binding("timeout", image.Duration(90*time.Minute)),
 				image.Binding{Key: "token", Ref: &image.SymbolRef{Symbol: "apiKey"}, Source: image.SourceInstance, Sensitive: true},
 				image.Binding{Key: "wire", Ref: &image.SymbolRef{Symbol: "grid", Output: "config"}, Source: image.SourceInstance, Sensitive: true},
@@ -121,6 +124,7 @@ var subject: "com.acme.Echo"
 
 deploy util.Server as S1 {
 	retries: -3
+	retry.backoff.base: 250ms
 	timeout: 1h30m0s
 	token: apiKey
 	wire: grid.config
@@ -152,6 +156,9 @@ deploy ff.Pong as Pong
 	}
 	if got != want {
 		t.Errorf("echoed unit:\n%s--- want ---\n%s", got, want)
+	}
+	if _, err := parser.ParseFile("echo.sdl", []byte(got)); err != nil {
+		t.Errorf("echoed unit does not parse: %v", err)
 	}
 }
 

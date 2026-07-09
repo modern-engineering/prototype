@@ -29,17 +29,22 @@
 //	ProvisionSpec  = TypeRef [ ident ] "as" ident [ Body ] .
 //	Body           = "{" { BodyItem } "}" .
 //	BodyItem       = Param | Section .
-//	Param          = ident ":" Value .
+//	Param          = Key ":" Value .
+//	Key            = ident { "." ident } .
 //	Section        = ident Body .
 //	Value          = Literal | Ref .
 //	Literal        = string | int | duration | bool .
 //	Ref            = ident [ "." ident ] .
 //	TypeRef        = ident "." ident .
 //
+// A dotted Key spells one composite parameter name — the flattened
+// dotted flag names of the A-14/D-10 story — and joins into a single
+// key string; section names stay plain identifiers.
+//
 // Statements are NEWLINE-terminated; the last statement before a closing
 // ")" or "}" or before EOF needs no line break of its own. Because
 // parameter keys are grammar identifiers, a keyword (solution, deploy,
-// as, true, ...) cannot be used as a parameter key or section name.
+// as, true, ...) cannot be used as a key segment or section name.
 //
 // # What the parser enforces
 //

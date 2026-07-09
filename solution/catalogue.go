@@ -215,6 +215,6 @@ type CompileConfig struct {
 	// Output receives the image JSON; nil means os.Stdout.
 	Output io.Writer
 
-	// Stderr receives diagnostics; nil means os.Stderr.
+	// Stderr receives diagnostics and warnings; nil means os.Stderr.
 	Stderr io.Writer
 }
