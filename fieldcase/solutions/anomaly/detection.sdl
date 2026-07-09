@@ -1,0 +1,75 @@
+// The detection unit correlates identity observations and fans resulting
+// security alerts out to durable storage and the customer's SIEM.
+solution anomaly
+
+import (
+	"github.com/modern-engineering/prototype/fieldcase/catalog/detection"
+)
+
+deploy detection.IdentityAnomalyDetector as identityAnomalyDetector {
+	// Scenario options: policyrule is a nested struct in the field case
+	// options node ({name: "UnexpectedEndpoint"}), flattened to one param here.
+	policyRuleName: "UnexpectedEndpoint"
+	handlersLimit: 10
+
+	// Component flags: address and db number sit in the ConfigMap, the
+	// credentials in a Secret shared with another service (a
+	// TODO in the deployment manifest); the provision gives this instance its
+	// own account instead.
+	redisAddress: identityState.address
+	redisDBNumber: identityState.db
+	redisUsername: identityState.username
+	redisPassword: identityState.password
+
+	consumesGraphChanged: topicGraphChanged
+	producesAlerts: topicAlerts
+
+	on {
+		cpu: "300m"
+		memory: "250Mi"
+	}
+	metadata {
+		chart: "identity-anomaly-detector"
+		component: "identity-anomaly-detector"
+	}
+}
+
+// The journal and exporter consume the same alert stream independently.
+deploy detection.Journal as detectionAlertsJournal {
+	postgresRoleName: "postgrest_view" // the role PostgREST queries with
+
+	postgresAddress: alertsDB.address
+	postgresUsername: alertsDB.username
+	postgresPassword: alertsDB.password
+	postgresDBName: alertsDB.database
+
+	consumesAlerts: topicAlerts
+
+	on {
+		cpu: "300m"
+		memory: "250Mi"
+	}
+	metadata {
+		chart: "detection-alerts-journal"
+		component: "detection-alerts-journal"
+	}
+}
+
+// Sites with a SIEM enable the exporter as the egress edge of the flow.
+deploy detection.SyslogExporter as detectionSyslogExporter {
+	format: "rfc5424"
+	protocol: "udp"
+	serverAddress: siemServer // each site binds its own SIEM endpoint
+	timeout: 10s
+
+	consumesAlerts: topicAlerts
+
+	on {
+		cpu: "300m"
+		memory: "250Mi"
+	}
+	metadata {
+		chart: "detection-syslog-exporter"
+		component: "detection-syslog-exporter"
+	}
+}

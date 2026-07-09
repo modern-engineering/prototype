@@ -1,0 +1,89 @@
+// The substrate unit names the site-owned services, credentials, channels,
+// and provisioned accounts used by the managed-network security flow.
+solution anomaly
+
+import (
+	"github.com/modern-engineering/prototype/fieldcase/catalog/substrate"
+)
+
+// Each site binds its messaging, state, graph, journal, controller, and SIEM
+// endpoints without changing the logical solution.
+extern (
+	kafkaCluster substrate.KafkaCluster
+	redisServer substrate.RedisServer
+	neo4jServer substrate.Neo4jServer
+	postgresServer substrate.PostgresServer
+	tenantID substrate.Secret // controller-credentials/controller.tenant.id
+	organizationID substrate.Secret // controller-credentials/controller.organization.id
+	siemServer substrate.Endpoint
+)
+
+// Producers and consumers bind the same channel symbol, making the event
+// topology explicit in one place.
+var (
+	kafkaConfig: "Version=3.2.1;Producer.MaxMessageBytes=10000000"
+	networkController: "https://controller.example"
+
+	// Raw instrument observations (controller observations).
+	topicAssetObservation: "AssetObservationsTopic"
+	topicLink: "LinkObservationsTopic"
+	topicSession: "SessionObservationsTopic"
+	topicGateway: "GatewayObservationsTopic"
+	topicTrafficStatus: "TrafficStatusTopic"
+
+	// Canonical events (typed).
+	topicAssetObserved: "twin.asset-observed"
+	topicLinkChanged: "twin.link-changed"
+	topicSessionEstablished: "twin.session-established"
+	topicRouteChanged: "twin.route-changed"
+	topicIdentityObserved: "twin.identity-observed"
+
+	// Twin pipeline (gob past the graph) and the alerts fan-in bus
+	// (JSON; several detectors outside this solution publish to
+	// security.alerts too — sharing across solutions is by string
+	// equality, nothing more).
+	topicRemoteCompilation: "twin.digital-twin-graph.remote-compilation"
+	topicGraphChanged: "twin.digital-twin.graph-changed"
+	topicAlerts: "security.alerts"
+
+	// Streams the digital-twin translator consumes whose producers live
+	// outside this solution (gateway polling, location/ops collectors, datapath
+	// monitor).
+	topicUnmanagedAssetObserved: "twin.unmanaged-asset-observed"
+	topicAssetsBehindGateway: "twin.assets-observed-behind-gateway"
+	topicAssetLocationData: "twin.asset-location-observed"
+	topicAssetTelemetry: "twin.asset-telemetry-observed"
+	topicNetworkDomain: "twin.network-domain"
+	topicNetworkStates: "network-states"
+)
+
+// One deployment default carries the shared Kafka connection policy.
+default deploy {
+	kafkaBrokers: kafka.brokers
+	kafkaConfig: kafkaConfig
+}
+
+// A site may slice a managed Kafka cluster or attach an external broker.
+provision substrate.Kafka slice as kafka {
+	cluster: kafkaCluster
+}
+
+// Separate Redis provisions isolate controller tokens from detector state.
+provision substrate.Redis slice as controllerTokenCache {
+	server: redisServer
+	db: 0
+}
+
+provision substrate.Redis slice as identityState {
+	server: redisServer
+	db: 1
+}
+
+provision substrate.Neo4j slice as twinDB {
+	server: neo4jServer
+}
+
+provision substrate.Postgres slice as alertsDB {
+	server: postgresServer
+	database: "postgres"
+}
