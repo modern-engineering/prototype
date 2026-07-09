@@ -10,10 +10,12 @@ import (
 	"github.com/modern-engineering/prototype/solution/image"
 )
 
-// testImage builds a fresh image with one pinned package, a symbol of
-// each class, and one record binding literals, a plain reference, and
-// a tainted reference; every call returns an independent value so
-// tests may mutate freely.
+// testImage builds a fresh image with one pinned package (a component,
+// a symbol type, and a provision type), a symbol of each class, and
+// two records: a deploy binding literals, a plain reference, a tainted
+// reference, and a tainted output reference, and a provision slice
+// binding a literal; every call returns an independent value so tests
+// may mutate freely.
 func testImage() *image.Image {
 	return &image.Image{
 		Format:     image.Format,
@@ -38,23 +40,43 @@ func testImage() *image.Image {
 					Doc:       "an operator-held credential",
 					Sensitive: true,
 				},
+				{
+					Name:    "Grid",
+					Kind:    image.KindProvision,
+					Doc:     "an account on the shared grid",
+					Params:  []image.ParamSchema{{Name: "cluster", Usage: "cluster to hold the account"}},
+					Outputs: []image.OutputSchema{{Name: "config", Sensitive: true}},
+					Kinds:   []string{image.KindSlice, image.KindAttach},
+				},
 			},
 		}},
 		Symbols: []image.SymbolDef{
 			{Name: "adminKey", Class: image.ClassExtern, Type: &image.Ref{Package: "example.com/acme/pingpong", Name: "Token"}},
 			{Name: "subject", Class: image.ClassVar, Value: image.String("com.acme.Echo")},
 		},
-		Records: []image.Record{{
-			Verb:    image.VerbDeploy,
-			Element: image.Ref{Package: "example.com/acme/pingpong", Name: "Ping"},
-			Name:    "Ping1",
-			Params: []image.Binding{
-				{Key: "count", Value: image.Int(-1), Source: image.SourceInstance},
-				{Key: "interval", Value: image.Duration(time.Second), Source: image.SourceInstance},
-				{Key: "key", Ref: &image.SymbolRef{Symbol: "adminKey"}, Source: image.SourceInstance, Sensitive: true},
-				{Key: "target", Ref: &image.SymbolRef{Symbol: "subject"}, Source: image.SourceInstance},
+		Records: []image.Record{
+			{
+				Verb:    image.VerbDeploy,
+				Element: image.Ref{Package: "example.com/acme/pingpong", Name: "Ping"},
+				Name:    "Ping1",
+				Params: []image.Binding{
+					{Key: "count", Value: image.Int(-1), Source: image.SourceInstance},
+					{Key: "interval", Value: image.Duration(time.Second), Source: image.SourceInstance},
+					{Key: "key", Ref: &image.SymbolRef{Symbol: "adminKey"}, Source: image.SourceInstance, Sensitive: true},
+					{Key: "target", Ref: &image.SymbolRef{Symbol: "subject"}, Source: image.SourceInstance},
+					{Key: "wire", Ref: &image.SymbolRef{Symbol: "grid1", Output: "config"}, Source: image.SourceInstance, Sensitive: true},
+				},
 			},
-		}},
+			{
+				Verb:    image.VerbProvision,
+				Kind:    image.KindSlice,
+				Element: image.Ref{Package: "example.com/acme/pingpong", Name: "Grid"},
+				Name:    "grid1",
+				Params: []image.Binding{
+					{Key: "cluster", Value: image.String("us-east"), Source: image.SourceInstance},
+				},
+			},
+		},
 	}
 }
 
@@ -160,6 +182,21 @@ func TestEqualCatchesRealDifferences(t *testing.T) {
 		}},
 		{"binding taint change", func(img *image.Image) {
 			img.Records[0].Params[2].Sensitive = false
+		}},
+		{"record kind change", func(img *image.Image) {
+			img.Records[1].Kind = image.KindAttach
+		}},
+		{"binding output change", func(img *image.Image) {
+			img.Records[0].Params[4].Ref = &image.SymbolRef{Symbol: "grid1", Output: "url"}
+		}},
+		{"output ref becomes symbol ref", func(img *image.Image) {
+			img.Records[0].Params[4].Ref = &image.SymbolRef{Symbol: "grid1"}
+		}},
+		{"catalogue output change", func(img *image.Image) {
+			img.Catalogue[0].Elements[2].Outputs[0].Sensitive = false
+		}},
+		{"catalogue provision kinds change", func(img *image.Image) {
+			img.Catalogue[0].Elements[2].Kinds = []string{image.KindSlice}
 		}},
 	}
 	for _, tt := range tests {

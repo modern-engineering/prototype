@@ -37,7 +37,9 @@ func elementEqual(a, b ElementSchema) bool {
 		a.Kind == b.Kind &&
 		a.Doc == b.Doc &&
 		a.Sensitive == b.Sensitive &&
-		slices.Equal(a.Params, b.Params)
+		slices.Equal(a.Params, b.Params) &&
+		slices.Equal(a.Outputs, b.Outputs) &&
+		slices.Equal(a.Kinds, b.Kinds)
 }
 
 func symbolEqual(a, b SymbolDef) bool {
@@ -49,6 +51,7 @@ func symbolEqual(a, b SymbolDef) bool {
 
 func recordEqual(a, b Record) bool {
 	return a.Verb == b.Verb &&
+		a.Kind == b.Kind &&
 		a.Element == b.Element &&
 		a.Name == b.Name &&
 		slices.EqualFunc(a.Params, b.Params, bindingEqual)

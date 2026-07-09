@@ -28,10 +28,10 @@
 // different default layers.
 //
 // The type set is deliberately minimal: this rung emits components,
-// symbol types, deploy records, and the symbol table their bindings
-// reference; later rungs extend the schema by adding fields (JSON
-// forward compatibility by addition), never by reshaping the ones
-// below.
+// provision types, symbol types, deploy and provision records, and the
+// symbol table their bindings reference; later rungs extend the schema
+// by adding fields (JSON forward compatibility by addition), never by
+// reshaping the ones below.
 package image
 
 import (
@@ -50,14 +50,30 @@ const (
 	// descriptor.
 	KindComponent = "component"
 
+	// KindProvision marks an element schema pinned from a provision
+	// type: substrate access an instance holds, sliced or attached.
+	KindProvision = "provision"
+
 	// KindSymbol marks an element schema pinned from a symbol type:
 	// the class of late-bound values an extern symbol declares.
 	KindSymbol = "symbol"
 )
 
-// VerbDeploy marks a record produced by a deploy statement. It is the
-// only verb this rung emits.
-const VerbDeploy = "deploy"
+// The record verbs, one per statement class.
+const (
+	// VerbDeploy marks a record produced by a deploy statement.
+	VerbDeploy = "deploy"
+
+	// VerbProvision marks a record produced by a provision statement.
+	VerbProvision = "provision"
+)
+
+// The provision kinds a record may carry: a slice owns the partition it
+// carves, an attachment verifies substrate it never owns (A-11).
+const (
+	KindSlice  = "slice"
+	KindAttach = "attach"
+)
 
 // The symbol classes of [SymbolDef], mirroring linkage: a var is bound
 // at compile time and a site may rebind it; an extern is unbound in
@@ -69,14 +85,16 @@ const (
 
 // The binding sources, recording which layer bound a parameter: the
 // instance's own statement, or one of the default layers folded under
-// it (the merge order is catalogue slot default, then default-deploy,
+// it (the merge order is catalogue slot default, then the verb default
+// — default-deploy or default-provision, matching the record's verb —
 // then default-type, then instance; the catalogue layer lives in the
 // pinned schema and emits no binding). Source is provenance: [Equal]
 // masks it.
 const (
-	SourceInstance      = "instance"
-	SourceDefaultType   = "default-type"
-	SourceDefaultDeploy = "default-deploy"
+	SourceInstance         = "instance"
+	SourceDefaultType      = "default-type"
+	SourceDefaultDeploy    = "default-deploy"
+	SourceDefaultProvision = "default-provision"
 )
 
 // An Image is one solution's desired state: the identity header, the
@@ -127,7 +145,8 @@ type ElementSchema struct {
 	// Name is the element's exported identifier within its package.
 	Name string `json:"name"`
 
-	// Kind classifies the element; always [KindComponent] in this rung.
+	// Kind classifies the element: [KindComponent], [KindProvision],
+	// or [KindSymbol].
 	Kind string `json:"kind"`
 
 	// Doc is the element's documentation, copied from its descriptor.
@@ -138,9 +157,30 @@ type ElementSchema struct {
 	// elements; symbol types have none.
 	Params []ParamSchema `json:"params,omitempty"`
 
+	// Outputs is a provision type's output scheme, sorted by Name.
+	// The scheme belongs to the type, not the kind: slices and
+	// attachments of one type emit the same outputs.
+	Outputs []OutputSchema `json:"outputs,omitempty"`
+
+	// Kinds are the provision kinds the type registers: a non-empty
+	// subset of [KindSlice] and [KindAttach], in that order.
+	Kinds []string `json:"kinds,omitempty"`
+
 	// Sensitive marks a symbol type whose values must not be logged
 	// or exposed. Bindings referencing an extern of this type carry
 	// the taint.
+	Sensitive bool `json:"sensitive,omitempty"`
+}
+
+// An OutputSchema describes one reconcile-time output a provision type
+// declares.
+type OutputSchema struct {
+	// Name is the output's name; record bindings reference it through
+	// [SymbolRef].
+	Name string `json:"name"`
+
+	// Sensitive marks outputs that must not be logged or exposed.
+	// Bindings referencing the output carry the taint.
 	Sensitive bool `json:"sensitive,omitempty"`
 }
 
@@ -186,8 +226,13 @@ type SymbolDef struct {
 // A Record is one reconciliation unit: the effective desired state of
 // one deployment statement.
 type Record struct {
-	// Verb names the statement class; always [VerbDeploy] in this rung.
+	// Verb names the statement class, [VerbDeploy] or [VerbProvision].
 	Verb string `json:"verb"`
+
+	// Kind is a provision record's kind, [KindSlice] or [KindAttach];
+	// empty for deploy records. The compiler resolves an omitted kind
+	// word, so the image always carries it explicitly.
+	Kind string `json:"kind,omitempty"`
 
 	// Element resolves into the image's catalogue section.
 	Element Ref `json:"element"`
@@ -233,11 +278,18 @@ type Binding struct {
 	Sensitive bool `json:"sensitive,omitempty"`
 }
 
-// A SymbolRef is a record binding's reference into the image's symbol
-// table.
+// A SymbolRef is a record binding's reference to a late-bound value:
+// a row of the image's symbol table, or — with Output set — a
+// provision instance's reconcile-time output.
 type SymbolRef struct {
-	// Symbol is the referenced symbol's name.
+	// Symbol is the referenced symbol's name: a var or extern of the
+	// symbol table or, when Output is set, a provision record's
+	// instance name.
 	Symbol string `json:"symbol"`
+
+	// Output names the referenced output in the instance's provision
+	// type scheme; empty for symbol-table references.
+	Output string `json:"output,omitempty"`
 }
 
 // Encode writes the image in its canonical byte form: two-space-indented

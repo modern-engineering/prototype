@@ -77,9 +77,39 @@ func boomDescriptor() *application.Descriptor {
 	}
 }
 
-// testCatalogue registers the well-behaved descriptors and both symbol
-// types. Packages and elements are deliberately listed out of
-// canonical order; the image must sort them.
+// busProvisionType registers both kinds, a two-slot parameter surface,
+// and a mixed-sensitivity output scheme listed out of canonical order
+// (the image must sort outputs by name).
+func busProvisionType() *solution.ProvisionType {
+	return &solution.ProvisionType{
+		Doc: "an account carved from the shared message bus",
+		Params: func(fs *flag.FlagSet) {
+			fs.String("admin", "", "admin credential to provision with")
+			fs.String("cluster", "", "cluster to hold the account")
+		},
+		Outputs: []solution.Output{
+			{Name: "url", Doc: "endpoint of the account"},
+			{Name: "config", Doc: "account configuration", Sensitive: true},
+		},
+		Kinds: solution.Slice | solution.Attach,
+	}
+}
+
+// storeProvisionType registers a single kind and no parameters at all:
+// the nil-Params dry path and the kind-word omission both prove out on
+// it.
+func storeProvisionType() *solution.ProvisionType {
+	return &solution.ProvisionType{
+		Doc:     "a verified attachment to the legacy store",
+		Outputs: []solution.Output{{Name: "dsn", Doc: "connection string of the store"}},
+		Kinds:   solution.Attach,
+	}
+}
+
+// testCatalogue registers the well-behaved descriptors, both symbol
+// types, and both provision types. Packages and elements are
+// deliberately listed out of canonical order; the image must sort
+// them.
 func testCatalogue() []solution.Package {
 	return []solution.Package{
 		{
@@ -92,7 +122,9 @@ func testCatalogue() []solution.Package {
 			Name: "substrate",
 			Elements: []solution.Element{
 				solution.Symbol("Secret", &solution.SymbolType{Doc: "an operator-held credential", Sensitive: true}),
+				solution.Provision("Store", storeProvisionType()),
 				solution.Symbol("Endpoint", &solution.SymbolType{Doc: "a site-bound network coordinate"}),
+				solution.Provision("Bus", busProvisionType()),
 			},
 		},
 		{
@@ -117,6 +149,20 @@ func brokenCatalogue() []solution.Package {
 	}}
 }
 
+// panickyProvisionCatalogue registers a provision type whose Params
+// hook panics — the provision twin of brokenCatalogue.
+func panickyProvisionCatalogue() []solution.Package {
+	return []solution.Package{{
+		Path: "example.com/acme/panicky",
+		Name: "panicky",
+		Elements: []solution.Element{solution.Provision("Grid", &solution.ProvisionType{
+			Doc:    "panic on dry instantiation",
+			Params: func(fs *flag.FlagSet) { panic("zap") },
+			Kinds:  solution.Slice,
+		})},
+	}}
+}
+
 // compile runs MainCompile with buffered output streams.
 func compile(t *testing.T, cfg solution.CompileConfig) (code int, stdout, stderr string) {
 	t.Helper()
@@ -130,13 +176,17 @@ func compile(t *testing.T, cfg solution.CompileConfig) (code int, stdout, stderr
 // ----------------------------------------------------------------------------
 // Happy path
 
-// mainUnit binds every literal kind and both symbol classes. The
-// parameters are written out of order (bindings must sort by key), the
-// duration literals in non-canonical spellings (values must
-// canonicalize by literal kind, not flag echo — "window" is a
-// flag.Func whose String() is always empty), target and subject bind
-// by reference (subject through a sensitive extern, so the taint must
-// surface), and the last deploy has no body at all.
+// mainUnit binds every literal kind, both symbol classes, and both
+// provision kinds. The parameters are written out of order (bindings
+// must sort by key), the duration literals in non-canonical spellings
+// (values must canonicalize by literal kind, not flag echo — "window"
+// is a flag.Func whose String() is always empty), target and subject
+// bind by reference (subject through a sensitive extern, so the taint
+// must surface), and Hush has no body at all. Ping2 wires provision
+// outputs declared further down the unit (forward references), one of
+// them sensitive; the bus slice binds an extern next to a literal; the
+// legacy attachment omits its kind word, which resolves because Store
+// registers exactly one kind.
 const mainUnit = `solution sample
 
 import (
@@ -161,15 +211,31 @@ deploy ff.Pong as Pong1 {
 	subject: apiKey
 }
 
+deploy ff.Ping as Ping2 {
+	target: bus.url
+	window: bus.config
+}
+
 deploy quiet.Quiet as Hush
+
+provision sub.Bus slice as bus {
+	cluster: "nats://core"
+	admin: apiKey
+}
+
+provision sub.Store as legacy
 `
 
 // goldenImage is the canonical image for mainUnit against
 // testCatalogue: packages sorted by path, elements and symbols by
-// name, bindings by key, the unreferenced Pong and Endpoint pinned all
-// the same, durations rendered canonically (1500ms as 1.5s, 2h45m as
-// 2h45m0s), reference bindings carrying refs instead of values, and
-// the extern-bound subject tainted by its sensitive symbol type.
+// name, bindings by key, outputs by name, the unreferenced Pong and
+// Endpoint pinned all the same, durations rendered canonically
+// (1500ms as 1.5s, 2h45m as 2h45m0s), reference bindings carrying
+// refs instead of values, the extern-bound subject and admin tainted
+// by their sensitive symbol type, the output-bound window tainted by
+// its sensitive output, provision records carrying their kind
+// explicitly — the omitted kind word resolved to attach — and the
+// parameterless Store pinned without params.
 const goldenImage = `{
   "format": "solution-image/1",
   "solution": "sample",
@@ -239,6 +305,34 @@ const goldenImage = `{
       "name": "substrate",
       "elements": [
         {
+          "name": "Bus",
+          "kind": "provision",
+          "doc": "an account carved from the shared message bus",
+          "params": [
+            {
+              "name": "admin",
+              "usage": "admin credential to provision with"
+            },
+            {
+              "name": "cluster",
+              "usage": "cluster to hold the account"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "config",
+              "sensitive": true
+            },
+            {
+              "name": "url"
+            }
+          ],
+          "kinds": [
+            "slice",
+            "attach"
+          ]
+        },
+        {
           "name": "Endpoint",
           "kind": "symbol",
           "doc": "a site-bound network coordinate"
@@ -248,6 +342,19 @@ const goldenImage = `{
           "kind": "symbol",
           "doc": "an operator-held credential",
           "sensitive": true
+        },
+        {
+          "name": "Store",
+          "kind": "provision",
+          "doc": "a verified attachment to the legacy store",
+          "outputs": [
+            {
+              "name": "dsn"
+            }
+          ],
+          "kinds": [
+            "attach"
+          ]
         }
       ]
     }
@@ -341,10 +448,73 @@ const goldenImage = `{
     {
       "verb": "deploy",
       "element": {
+        "package": "example.com/acme/pingpong",
+        "name": "Ping"
+      },
+      "name": "Ping2",
+      "params": [
+        {
+          "key": "target",
+          "ref": {
+            "symbol": "bus",
+            "output": "url"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "window",
+          "ref": {
+            "symbol": "bus",
+            "output": "config"
+          },
+          "source": "instance",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
         "package": "example.com/acme/quiet",
         "name": "Quiet"
       },
       "name": "Hush"
+    },
+    {
+      "verb": "provision",
+      "kind": "slice",
+      "element": {
+        "package": "example.com/acme/substrate",
+        "name": "Bus"
+      },
+      "name": "bus",
+      "params": [
+        {
+          "key": "admin",
+          "ref": {
+            "symbol": "apiKey"
+          },
+          "source": "instance",
+          "sensitive": true
+        },
+        {
+          "key": "cluster",
+          "value": {
+            "kind": "string",
+            "string": "nats://core"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "provision",
+      "kind": "attach",
+      "element": {
+        "package": "example.com/acme/substrate",
+        "name": "Store"
+      },
+      "name": "legacy"
     }
   ]
 }
@@ -613,6 +783,61 @@ func TestMainCompileDefaultRefs(t *testing.T) {
 	}
 }
 
+// TestMainCompileProvisionDefaults proves the verb tier folds by the
+// record's own verb: default provision reaches provision records with
+// its own Source and never touches deploys, the type default overrides
+// it key-wise, elements that do not declare a defaulted key are passed
+// by, and provision-type defaults validate against the dry Params
+// schema like component defaults do.
+func TestMainCompileProvisionDefaults(t *testing.T) {
+	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+		"import (\n" +
+		"\tff \"example.com/acme/pingpong\"\n" +
+		"\tsub \"example.com/acme/substrate\"\n" +
+		")\n" +
+		"default provision {\n" +
+		"\tcluster: \"nats://default\"\n" +
+		"\tadmin: \"root\"\n" +
+		"}\n" +
+		"default sub.Bus {\n" +
+		"\tcluster: \"nats://bus\"\n" +
+		"}\n" +
+		"provision sub.Bus slice as bus\n" +
+		"provision sub.Store as legacy\n" +
+		"deploy ff.Ping as P\n"}}
+	cfg := solution.CompileConfig{
+		Solution:  "sample",
+		Units:     units,
+		Catalogue: testCatalogue(),
+	}
+	code, stdout, stderr := compile(t, cfg)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	img, err := image.Decode(strings.NewReader(stdout))
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(img.Records) != 3 {
+		t.Fatalf("got %d records, want 3", len(img.Records))
+	}
+	bus := img.Records[0]
+	if bus.Kind != image.KindSlice || len(bus.Params) != 2 ||
+		bus.Params[0].Key != "admin" || bus.Params[0].Value == nil ||
+		bus.Params[0].Value.Str != "root" || bus.Params[0].Source != image.SourceDefaultProvision ||
+		bus.Params[1].Key != "cluster" || bus.Params[1].Value == nil ||
+		bus.Params[1].Value.Str != "nats://bus" || bus.Params[1].Source != image.SourceDefaultType {
+		t.Errorf("bus = %+v, want admin from %q and cluster from %q",
+			bus, image.SourceDefaultProvision, image.SourceDefaultType)
+	}
+	if legacy := img.Records[1]; len(legacy.Params) != 0 {
+		t.Errorf("legacy params = %+v, want none: Store declares neither defaulted key", legacy.Params)
+	}
+	if ping := img.Records[2]; len(ping.Params) != 0 {
+		t.Errorf("P params = %+v, want none: default provision must not fold into deploys", ping.Params)
+	}
+}
+
 // ----------------------------------------------------------------------------
 // Diagnostics
 
@@ -756,10 +981,116 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				"}\n"}},
 			wantCode: 1,
 			want: []string{
-				"u.sdl:3:1: provision declarations not yet supported by this compiler rung",
-				"u.sdl:5:10: output reference Q.config not yet supported by this compiler rung: provision outputs arrive at a later rung",
+				"u.sdl:3:11: cannot provision ff.Ping: element is a component, not a provision type",
+				"u.sdl:5:10: instance Q has no outputs: only provision instances emit outputs",
 				"u.sdl:6:2: on sections not yet supported by this compiler rung",
 			},
+		},
+		{
+			name: "unknown output",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import (\n" +
+				"\tff \"example.com/acme/pingpong\"\n" +
+				"\tsub \"example.com/acme/substrate\"\n" +
+				")\n" +
+				"provision sub.Bus slice as bus\n" +
+				"deploy ff.Ping as P {\n" +
+				"\ttarget: bus.nope\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:8:14: unknown output nope: provision type substrate.Bus declares no such output"},
+		},
+		{
+			name: "dotted reference to a value symbol",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"var subj: \"x\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\ttarget: subj.out\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:5:10: symbol subj is a var, not a provision instance"},
+		},
+		{
+			name: "provision referencing its own output",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"provision sub.Bus slice as bus {\n" +
+				"\tadmin: bus.config\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:28: provision reference cycle: bus -> bus"},
+		},
+		{
+			name: "two provisions cycling through outputs",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"provision sub.Bus slice as b1 {\n" +
+				"\tadmin: b2.config\n" +
+				"}\n" +
+				"provision sub.Bus slice as b2 {\n" +
+				"\tadmin: b1.config\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:28: provision reference cycle: b1 -> b2 -> b1"},
+		},
+		{
+			name: "omitted kind word on a two-kind type",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"provision sub.Bus as b\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:11: missing provision kind: type sub.Bus registers both slice and attach"},
+		},
+		{
+			name: "kind word the type does not register",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"provision sub.Store slice as s\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:21: type sub.Store does not register slice"},
+		},
+		{
+			name: "kind word that is no kind at all",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"provision sub.Bus wedge as w\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:19: unknown provision kind wedge: kinds are slice and attach"},
+		},
+		{
+			name: "provision of a symbol type",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"provision sub.Secret slice as s\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:11: cannot provision sub.Secret: element is a symbol type, not a provision type"},
+		},
+		{
+			name: "deploy of a provision type",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"deploy sub.Bus as b\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:8: cannot deploy sub.Bus: element is a provision type, not a component"},
+		},
+		{
+			name: "extern of a provision type",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"extern k sub.Bus\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:10: element sub.Bus is a provision type, not a symbol type"},
+		},
+		{
+			name: "provision default validates eagerly",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"default sub.Bus {\n" +
+				"\tnope: 1\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:4:2: unknown parameter nope: element sub.Bus has no such parameter"},
 		},
 		{
 			name: "duplicate default for an element type",
@@ -974,6 +1305,22 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			wantCode:  2,
 			want:      []string{"compile: element broken.Boom: Make panicked: kaboom"},
 		},
+		{
+			name: "panicking Params attributed to the referencing statement",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import \"example.com/acme/panicky\"\n" +
+				"provision panicky.Grid slice as g\n"}},
+			catalogue: panickyProvisionCatalogue(),
+			wantCode:  2,
+			want:      []string{"u.sdl:3:11: element panicky.Grid: Params panicked: zap"},
+		},
+		{
+			name:      "panicking Params of an unreferenced element",
+			units:     []solution.Unit{{Name: "u.sdl", Source: "solution sample\n"}},
+			catalogue: panickyProvisionCatalogue(),
+			wantCode:  2,
+			want:      []string{"compile: element panicky.Grid: Params panicked: zap"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1082,6 +1429,45 @@ func TestMainCompileUsageErrors(t *testing.T) {
 			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
 				Catalogue: pkg(solution.Symbol("X", nil))},
 			want: `compile: catalogue: package "example.com/p": element X has a nil symbol type`,
+		},
+		{
+			name: "nil provision type",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Provision("X", nil))},
+			want: `compile: catalogue: package "example.com/p": element X has a nil provision type`,
+		},
+		{
+			// Kinds are the author's explicit declaration (A-11): the
+			// compiler never defaults them, so forgetting both is a
+			// registration fault, not a slice.
+			name: "provision type without kinds",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Provision("X", &solution.ProvisionType{Doc: "kindless"}))},
+			want: `compile: catalogue: package "example.com/p": element X registers no provision kinds (declare Slice, Attach, or both)`,
+		},
+		{
+			name: "provision type with unknown kind bits",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Provision("X", &solution.ProvisionType{Kinds: 1 << 5}))},
+			want: `compile: catalogue: package "example.com/p": element X registers unknown provision kinds 0b100000`,
+		},
+		{
+			name: "provision type with a duplicate output",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Provision("X", &solution.ProvisionType{
+					Kinds:   solution.Slice,
+					Outputs: []solution.Output{{Name: "dsn"}, {Name: "dsn"}},
+				}))},
+			want: `compile: catalogue: package "example.com/p": element X declares output dsn twice`,
+		},
+		{
+			name: "provision type with an invalid output name",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Provision("X", &solution.ProvisionType{
+					Kinds:   solution.Attach,
+					Outputs: []solution.Output{{Name: "not name"}},
+				}))},
+			want: `compile: catalogue: package "example.com/p": element X output name "not name" is not a valid Go identifier`,
 		},
 	}
 	for _, tt := range tests {

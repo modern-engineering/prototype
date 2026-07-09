@@ -49,7 +49,9 @@ func binding(key string, v *image.Value) image.Binding {
 // collision resolved by numeric suffix — plus the symbol table (two
 // externs come back factored, one var single-form, types qualified by
 // the same reference names the records use), every value kind, a
-// reference binding, and a parameterless record.
+// reference binding, an output-reference binding, provision records of
+// both kinds (the kind word always written), and a parameterless
+// record.
 func TestEchoGolden(t *testing.T) {
 	img := &image.Image{
 		Format:     image.Format,
@@ -71,11 +73,27 @@ func TestEchoGolden(t *testing.T) {
 				binding("retries", image.Int(-3)),
 				binding("timeout", image.Duration(90*time.Minute)),
 				image.Binding{Key: "token", Ref: &image.SymbolRef{Symbol: "apiKey"}, Source: image.SourceInstance, Sensitive: true},
+				image.Binding{Key: "wire", Ref: &image.SymbolRef{Symbol: "grid", Output: "config"}, Source: image.SourceInstance, Sensitive: true},
 			),
 			record("example.com/beta/util", "Cache", "C1",
 				binding("enabled", image.Bool(true)),
 				binding("name", image.String(`say "hi"`)),
 			),
+			{
+				Verb:    image.VerbProvision,
+				Kind:    image.KindSlice,
+				Element: image.Ref{Package: "example.com/beta/util", Name: "Grid"},
+				Name:    "grid",
+				Params: []image.Binding{
+					{Key: "admin", Ref: &image.SymbolRef{Symbol: "rootKey"}, Source: image.SourceInstance, Sensitive: true},
+				},
+			},
+			{
+				Verb:    image.VerbProvision,
+				Kind:    image.KindAttach,
+				Element: image.Ref{Package: "example.com/ff", Name: "Store"},
+				Name:    "legacy",
+			},
 			record("example.com/ff", "Pong", "Pong"),
 		},
 	}
@@ -98,12 +116,19 @@ deploy util.Server as S1 {
 	retries: -3
 	timeout: 1h30m0s
 	token: apiKey
+	wire: grid.config
 }
 
 deploy util2.Cache as C1 {
 	enabled: true
 	name: "say \"hi\""
 }
+
+provision util2.Grid slice as grid {
+	admin: rootKey
+}
+
+provision ff.Store attach as legacy
 
 deploy ff.Pong as Pong
 `
@@ -155,8 +180,29 @@ func TestEchoFaults(t *testing.T) {
 		want   string
 	}{
 		"UnsupportedVerb": {
-			mutate: func(img *image.Image) { img.Records[0].Verb = "provision" },
-			want:   `verb "provision"`,
+			mutate: func(img *image.Image) { img.Records[0].Verb = "destroy" },
+			want:   `verb "destroy"`,
+		},
+		"DeployWithProvisionKind": {
+			mutate: func(img *image.Image) { img.Records[0].Kind = image.KindSlice },
+			want:   `provision kind "slice"`,
+		},
+		"ProvisionWithUnknownKind": {
+			mutate: func(img *image.Image) {
+				img.Records[0].Verb = image.VerbProvision
+				img.Records[0].Kind = "grow"
+			},
+			want: `provision kind "grow"`,
+		},
+		"ProvisionWithoutKind": {
+			mutate: func(img *image.Image) { img.Records[0].Verb = image.VerbProvision },
+			want:   `provision kind ""`,
+		},
+		"UnrenderableOutput": {
+			mutate: func(img *image.Image) {
+				img.Records[0].Params[0] = image.Binding{Key: "count", Ref: &image.SymbolRef{Symbol: "grid", Output: "log-level"}}
+			},
+			want: "SDL identifier",
 		},
 		"UnpinnedElementPackage": {
 			mutate: func(img *image.Image) { img.Records[0].Element.Package = "example.com/other" },

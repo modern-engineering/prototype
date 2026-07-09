@@ -31,6 +31,7 @@ const (
 // the exported var.
 const (
 	KindComponent = "component" // *application.Descriptor, packaged by solution.App
+	KindProvision = "provision" // *solution.ProvisionType, packaged by solution.Provision
 	KindSymbol    = "symbol"    // *solution.SymbolType, packaged by solution.Symbol
 )
 
@@ -167,6 +168,8 @@ func citizenKind(t types.Type) (kind, typeName string, ok bool) {
 	switch {
 	case isNamed(t, descriptorPath, "Descriptor"):
 		return KindComponent, "application.Descriptor", true
+	case isNamed(t, solutionPath, "ProvisionType"):
+		return KindProvision, "solution.ProvisionType", true
 	case isNamed(t, solutionPath, "SymbolType"):
 		return KindSymbol, "solution.SymbolType", true
 	}

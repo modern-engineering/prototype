@@ -38,11 +38,12 @@ import (
 //
 // This rung compiles solution and import clauses, extern and var
 // declarations, default declarations (folded into the records they
-// modify, provenance kept in each binding's Source), and deploy
-// statements whose parameters are literals or symbol references.
-// Every parsed construct beyond it (provision, sections, output
-// references) is reported as a positioned diagnostic rather than
-// silently dropped.
+// modify, provenance kept in each binding's Source), and deploy and
+// provision statements whose parameters are literals, symbol
+// references, or provision-output references (a.b); reference edges
+// form a DAG, and cycles among provision outputs are link errors.
+// Every parsed construct beyond it (sections) is reported as a
+// positioned diagnostic rather than silently dropped.
 func MainCompile(cfg CompileConfig) int {
 	stderr := cfg.Stderr
 	if stderr == nil {
@@ -142,6 +143,13 @@ type symbol struct {
 	// Extern symbols carry their declared symbol type and its taint.
 	typeRef   image.Ref
 	sensitive bool
+
+	// Instance symbols carry their statement's element, resolved
+	// quietly at collection so output references can consult the
+	// type's scheme wherever the statement lives; nil when the
+	// reference does not resolve (the statement itself diagnoses
+	// that, loudly, once).
+	elem *catalogueElement
 }
 
 // The symbol classes of the flat namespace.
@@ -158,24 +166,55 @@ type regPackage struct {
 }
 
 // A catalogueElement is one validated catalogue registration: a
-// component together with its dry-extracted parameter schema, or a
-// symbol type. A component's schema is extracted at most once, at the
-// element's first reference or, for unreferenced elements, when the
-// catalogue section is pinned.
+// component or provision type together with its dry-extracted
+// parameter schema, or a symbol type. A parameter schema is extracted
+// at most once, at the element's first reference or, for unreferenced
+// elements, when the catalogue section is pinned.
 type catalogueElement struct {
 	pkgPath string
 	pkgName string
 	name    string
-	kind    string // image.KindComponent or image.KindSymbol
+	kind    string // image.KindComponent, image.KindProvision, or image.KindSymbol
 
-	// Components:
-	desc   *application.Descriptor
+	// Components and provision types:
 	dried  bool
 	schema []image.ParamSchema
 	keys   map[string]bool
 
+	// Components:
+	desc *application.Descriptor
+
+	// Provision types:
+	prov    *ProvisionType
+	outputs map[string]*Output // by name; validated at registration
+
 	// Symbol types:
 	symbol *SymbolType
+}
+
+// String renders the element's registered identity, package name
+// qualified — the spelling diagnostics fall back to when the unit's
+// own spelling is out of reach.
+func (ce *catalogueElement) String() string { return ce.pkgName + "." + ce.name }
+
+// noun names the element's kind the way diagnostics speak about it.
+func (ce *catalogueElement) noun() string {
+	switch ce.kind {
+	case image.KindProvision:
+		return "provision type"
+	case image.KindSymbol:
+		return "symbol type"
+	}
+	return ce.kind
+}
+
+// factory names the element's dry-instantiation entry point for panic
+// attribution: a component's Make, a provision type's Params.
+func (ce *catalogueElement) factory() string {
+	if ce.kind == image.KindProvision {
+		return "Params"
+	}
+	return "Make"
 }
 
 // An importBinding is one entry of the union import table.
@@ -249,6 +288,8 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 			switch el := el.(type) {
 			case *appElement:
 				ce.kind, ce.name, ce.desc = image.KindComponent, el.name, el.desc
+			case *provisionElement:
+				ce.kind, ce.name, ce.prov = image.KindProvision, el.name, el.typ
 			case *symbolElement:
 				ce.kind, ce.name, ce.symbol = image.KindSymbol, el.name, el.typ
 			default:
@@ -268,6 +309,10 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 				if ce.desc.Make == nil {
 					return nil, fmt.Errorf("catalogue: package %q: element %s: descriptor has no Make factory", pkg.Path, ce.name)
 				}
+			case image.KindProvision:
+				if err := checkProvisionType(ce); err != nil {
+					return nil, fmt.Errorf("catalogue: package %q: element %s %v", pkg.Path, ce.name, err)
+				}
 			case image.KindSymbol:
 				if ce.symbol == nil {
 					return nil, fmt.Errorf("catalogue: package %q: element %s has a nil symbol type", pkg.Path, ce.name)
@@ -278,6 +323,34 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 		ln.packages[pkg.Path] = rp
 	}
 	return ln, nil
+}
+
+// checkProvisionType validates one provision-type registration and
+// indexes its output scheme. Kinds are the author's explicit
+// declaration (A-11): registering none is a fault here, never a
+// default the compiler supplies.
+func checkProvisionType(ce *catalogueElement) error {
+	if ce.prov == nil {
+		return errors.New("has a nil provision type")
+	}
+	if ce.prov.Kinds == 0 {
+		return errors.New("registers no provision kinds (declare Slice, Attach, or both)")
+	}
+	if ce.prov.Kinds&^(Slice|Attach) != 0 {
+		return fmt.Errorf("registers unknown provision kinds %#b", uint8(ce.prov.Kinds))
+	}
+	ce.outputs = make(map[string]*Output, len(ce.prov.Outputs))
+	for i := range ce.prov.Outputs {
+		out := &ce.prov.Outputs[i]
+		if !gotoken.IsIdentifier(out.Name) {
+			return fmt.Errorf("output name %q is not a valid Go identifier", out.Name)
+		}
+		if _, ok := ce.outputs[out.Name]; ok {
+			return fmt.Errorf("declares output %s twice", out.Name)
+		}
+		ce.outputs[out.Name] = out
+	}
+	return nil
 }
 
 // errorf records one positioned diagnostic.
@@ -384,28 +457,40 @@ func (ln *linker) check() {
 						return
 					}
 				}
+			case *ast.ProvisionDecl:
+				for _, spec := range d.Specs {
+					ln.provision(spec)
+					if ln.internal != nil {
+						return
+					}
+				}
 			case *ast.ExternDecl, *ast.VarDecl, *ast.DefaultDecl:
 				// Collected already; defaults fold at the records.
-			case *ast.ProvisionDecl:
-				ln.errorf(d.Pos(), "provision declarations not yet supported by this compiler rung")
 			}
 		}
 	}
+	ln.checkCycles()
 }
 
 // collect walks every unit's declarations and enters each declared
 // name — instance names, var symbols, and extern symbols — into the
-// flat namespace, in unit-then-statement order. Provision names join
-// at the rung that gives the statements meaning. Defaults collect in
-// a second pass: their bodies may reference any symbol, so they wait
-// for the namespace to be complete.
+// flat namespace, in unit-then-statement order. Instance symbols take
+// their statement's element quietly, so output references resolve
+// against the type's scheme wherever the statement lives; the loud
+// resolution diagnostics stay with the statement check. Defaults
+// collect in a second pass: their bodies may reference any symbol, so
+// they wait for the namespace to be complete.
 func (ln *linker) collect() {
 	for _, f := range ln.files {
 		for _, decl := range f.Decls {
 			switch d := decl.(type) {
 			case *ast.DeployDecl:
 				for _, spec := range d.Specs {
-					ln.declare(spec.Name, &symbol{class: classInstance, pos: spec.Name.NamePos})
+					ln.declare(spec.Name, &symbol{class: classInstance, pos: spec.Name.NamePos, elem: ln.lookupElement(spec.Type)})
+				}
+			case *ast.ProvisionDecl:
+				for _, spec := range d.Specs {
+					ln.declare(spec.Name, &symbol{class: classInstance, pos: spec.Name.NamePos, elem: ln.lookupElement(spec.Type)})
 				}
 			case *ast.ExternDecl:
 				for _, spec := range d.Specs {
@@ -447,18 +532,15 @@ func (ln *linker) collectDefault(d *ast.DefaultDecl) {
 			return
 		}
 		source := image.SourceDefaultDeploy
-		if t.Name != "deploy" {
-			// Provision records arrive at a later rung; until they do
-			// this default never folds, and its source value is that
-			// rung's to choose.
-			source = ""
+		if t.Name == "provision" {
+			source = image.SourceDefaultProvision
 		}
 		ln.verbDefaults[t.Name] = &defaultBody{pos: d.Keyword, body: d.Body, source: source}
 		ln.checkDefaultBody(d.Body, true)
 
 	case *ast.TypeRef:
 		elem := ln.resolve(t)
-		if elem != nil && elem.kind != image.KindComponent {
+		if elem != nil && elem.kind == image.KindSymbol {
 			ln.errorf(t.Pos(), "cannot default %s: a symbol type takes no parameters", refString(t))
 			elem = nil
 		}
@@ -495,9 +577,20 @@ func (ln *linker) checkDefaultBody(body *ast.Body, checkRefs bool) {
 				continue
 			}
 			if ref, isRef := it.Value.(*ast.RefExpr); isRef {
-				ln.resolveRef(ref)
+				ln.checkRef(ref)
 			}
 		}
+	}
+}
+
+// checkRef resolves a value-position reference for its diagnostics
+// alone, dispatching on its shape: bare references name value
+// symbols, dotted ones name provision outputs.
+func (ln *linker) checkRef(ref *ast.RefExpr) {
+	if ref.Sel != nil {
+		ln.resolveOutput(ref)
+	} else {
+		ln.resolveRef(ref)
 	}
 }
 
@@ -523,7 +616,7 @@ func (ln *linker) resolveSymbolType(t *ast.TypeRef) *catalogueElement {
 		return nil
 	}
 	if elem.kind != image.KindSymbol {
-		ln.errorf(t.Pos(), "element %s is a %s, not a symbol type", refString(t), elem.kind)
+		ln.errorf(t.Pos(), "element %s is a %s, not a symbol type", refString(t), elem.noun())
 		return nil
 	}
 	return elem
@@ -562,7 +655,7 @@ func (ln *linker) deploy(spec *ast.DeploySpec) {
 	ok := sym != nil && sym.pos == spec.Name.NamePos
 	elem := ln.resolve(spec.Type)
 	if elem != nil && elem.kind != image.KindComponent {
-		ln.errorf(spec.Type.Pos(), "cannot deploy %s: element is a symbol type, not a component", refString(spec.Type))
+		ln.errorf(spec.Type.Pos(), "cannot deploy %s: element is a %s, not a component", refString(spec.Type), elem.noun())
 		elem = nil
 	}
 	if elem == nil {
@@ -570,12 +663,12 @@ func (ln *linker) deploy(spec *ast.DeploySpec) {
 	} else if !ln.dry(elem, spec.Type) {
 		return
 	}
-	bindings, bindOK := ln.bind(elem, spec)
+	bindings, bindOK := ln.bind(elem, spec.Type, spec.Body)
 	if ln.internal != nil {
 		return
 	}
 	if elem != nil {
-		bindings = ln.fold(elem, spec, bindings)
+		bindings = ln.fold(elem, image.VerbDeploy, spec.Type, bindings)
 		if ln.internal != nil {
 			return
 		}
@@ -591,20 +684,103 @@ func (ln *linker) deploy(spec *ast.DeploySpec) {
 	})
 }
 
+// provision checks one provision spec end to end, deploy's twin with
+// the kind dimension added: the statement carries which access kind it
+// holds — slice or attach — and the record always says so explicitly,
+// the compiler resolving an omitted kind word while the type registers
+// exactly one.
+func (ln *linker) provision(spec *ast.ProvisionSpec) {
+	sym := ln.symbols[spec.Name.Name]
+	ok := sym != nil && sym.pos == spec.Name.NamePos
+	elem := ln.resolve(spec.Type)
+	if elem != nil && elem.kind != image.KindProvision {
+		ln.errorf(spec.Type.Pos(), "cannot provision %s: element is a %s, not a provision type", refString(spec.Type), elem.noun())
+		elem = nil
+	}
+	kind, kindOK := ln.provisionKind(spec, elem)
+	if elem == nil {
+		ok = false
+	} else if !ln.dry(elem, spec.Type) {
+		return
+	}
+	bindings, bindOK := ln.bind(elem, spec.Type, spec.Body)
+	if ln.internal != nil {
+		return
+	}
+	if elem != nil {
+		bindings = ln.fold(elem, image.VerbProvision, spec.Type, bindings)
+		if ln.internal != nil {
+			return
+		}
+	}
+	if !ok || !bindOK || !kindOK {
+		return
+	}
+	ln.records = append(ln.records, image.Record{
+		Verb:    image.VerbProvision,
+		Kind:    kind,
+		Element: image.Ref{Package: elem.pkgPath, Name: elem.name},
+		Name:    spec.Name.Name,
+		Params:  bindings,
+	})
+}
+
+// provisionKind resolves a spec's provision kind against its type's
+// registration: a written kind word must name a kind the type
+// registers, and an omitted word resolves only while the type
+// registers exactly one (CP-A). With elem nil the word is checked for
+// being a kind at all; registration cannot be consulted, and the
+// element fault is already diagnosed.
+func (ln *linker) provisionKind(spec *ast.ProvisionSpec, elem *catalogueElement) (string, bool) {
+	if spec.Kind == nil {
+		if elem == nil {
+			return "", false
+		}
+		switch elem.prov.Kinds {
+		case Slice:
+			return image.KindSlice, true
+		case Attach:
+			return image.KindAttach, true
+		}
+		ln.errorf(spec.Type.Pos(), "missing provision kind: type %s registers both slice and attach", refString(spec.Type))
+		return "", false
+	}
+	word := spec.Kind.Name
+	var kind Kinds
+	switch word {
+	case image.KindSlice:
+		kind = Slice
+	case image.KindAttach:
+		kind = Attach
+	default:
+		ln.errorf(spec.Kind.NamePos, "unknown provision kind %s: kinds are slice and attach", word)
+		return "", false
+	}
+	if elem == nil {
+		return "", false
+	}
+	if elem.prov.Kinds&kind == 0 {
+		ln.errorf(spec.Kind.NamePos, "type %s does not register %s", refString(spec.Type), word)
+		return "", false
+	}
+	return word, true
+}
+
 // fold merges the default layers under a statement's own bindings.
 // The nearest layer wins a key: the instance over the element-scoped
-// default over the verb-scoped one; the catalogue's slot defaults are
-// no layer at all — a binding exists iff some SDL statement set it,
-// and unset slots stay with the pinned schema. Source keeps each
-// surviving binding's provenance (image.Equal masks it).
-func (ln *linker) fold(elem *catalogueElement, spec *ast.DeploySpec, instance []image.Binding) []image.Binding {
-	verb, typed := ln.verbDefaults["deploy"], ln.typeDefaults[elem]
-	if verb == nil && typed == nil {
+// default over the verb-scoped one, each verb folding only its own
+// default; the catalogue's slot defaults are no layer at all — a
+// binding exists iff some SDL statement set it, and unset slots stay
+// with the pinned schema. Source keeps each surviving binding's
+// provenance (image.Equal masks it).
+func (ln *linker) fold(elem *catalogueElement, verb string, at *ast.TypeRef, instance []image.Binding) []image.Binding {
+	verbDef, typed := ln.verbDefaults[verb], ln.typeDefaults[elem]
+	if verbDef == nil && typed == nil {
 		return instance
 	}
 	merged := make(map[string]image.Binding)
-	if verb != nil {
-		for _, b := range ln.defaultFolds(verb, elem, spec.Type, false) {
+	if verbDef != nil {
+		for _, b := range ln.defaultFolds(verbDef, elem, at, false) {
 			merged[b.Key] = b
 		}
 		if ln.internal != nil {
@@ -612,7 +788,7 @@ func (ln *linker) fold(elem *catalogueElement, spec *ast.DeploySpec, instance []
 		}
 	}
 	if typed != nil {
-		for _, b := range ln.defaultFolds(typed, elem, spec.Type, true) {
+		for _, b := range ln.defaultFolds(typed, elem, at, true) {
 			merged[b.Key] = b
 		}
 	}
@@ -665,6 +841,10 @@ func (ln *linker) buildDefault(d *defaultBody, elem *catalogueElement, at *ast.T
 			b, bound = ln.bindParam(sf, it, d.source)
 		case !elem.keys[it.Key.Name]:
 			// Not this element's parameter; the default passes it by.
+		case isRef && ref.Sel != nil:
+			if out := ln.lookupOutput(ref); out != nil {
+				b, bound = ln.bindOutput(sf, it.Key, ref, out, d.source)
+			}
 		case isRef:
 			if sym := ln.lookupValueSymbol(ref); sym != nil {
 				b, bound = ln.bindSymbol(sf, it.Key, ref, sym, d.source)
@@ -682,18 +862,45 @@ func (ln *linker) buildDefault(d *defaultBody, elem *catalogueElement, at *ast.T
 	return bindings
 }
 
-// lookupValueSymbol returns the var or extern symbol a reference
-// names, or nil quietly: the context-free faults (dangling, dotted,
+// lookupValueSymbol returns the var or extern symbol a bare reference
+// names, or nil quietly: the context-free faults (dangling,
 // instance-valued) were diagnosed when the reference was collected.
 func (ln *linker) lookupValueSymbol(ref *ast.RefExpr) *symbol {
-	if ref.Sel != nil {
-		return nil
-	}
 	sym := ln.symbols[ref.X.Name]
 	if sym == nil || sym.class == classInstance {
 		return nil
 	}
 	return sym
+}
+
+// lookupOutput returns the provision output a dotted reference names,
+// or nil quietly: the context-free faults were diagnosed when the
+// reference was collected.
+func (ln *linker) lookupOutput(ref *ast.RefExpr) *Output {
+	sym := ln.symbols[ref.X.Name]
+	if sym == nil || sym.class != classInstance || sym.elem == nil || sym.elem.kind != image.KindProvision {
+		return nil
+	}
+	return sym.elem.outputs[ref.Sel.Name]
+}
+
+// lookupElement resolves a type reference quietly: collect uses it to
+// seed instance symbols with their elements before any statement is
+// checked; the loud diagnosis of a missing link belongs to [resolve],
+// at the statement itself.
+func (ln *linker) lookupElement(t *ast.TypeRef) *catalogueElement {
+	if t.Pkg == nil {
+		return nil
+	}
+	imp, ok := ln.imports[t.Pkg.Name]
+	if !ok {
+		return nil
+	}
+	pkg, ok := ln.packages[imp.path]
+	if !ok {
+		return nil
+	}
+	return pkg.elements[t.Name.Name]
 }
 
 // resolve maps a type reference through the union import table and the
@@ -733,11 +940,11 @@ func (ln *linker) dry(elem *catalogueElement, at *ast.TypeRef) bool {
 	if elem.dried {
 		return true
 	}
-	fs, panicked := dryFlags(elem.desc)
+	fs, panicked := elemFlags(elem)
 	if panicked != nil {
 		ln.internal = &internalError{
 			pos: at.Pos(),
-			msg: fmt.Sprintf("element %s: Make panicked: %v", refString(at), panicked),
+			msg: fmt.Sprintf("element %s: %s panicked: %v", refString(at), elem.factory(), panicked),
 		}
 		return false
 	}
@@ -750,26 +957,27 @@ func (ln *linker) dry(elem *catalogueElement, at *ast.TypeRef) bool {
 	return true
 }
 
-// bind checks a spec's body and binds its parameters, sorted by key.
-// Literal parameters validate through a throwaway service's own
-// flag.Value.Set — a fresh Make per statement, the very surface the
+// bind checks a statement body and binds its parameters, sorted by
+// key. Literal parameters validate through a throwaway instance's own
+// flag.Value.Set — a fresh dry surface per statement, the very one the
 // running instance will parse with, so no state leaks between
 // statements or into the pinned schema; the canonical bound value is
 // owned by the SDL literal kind, and the flag's own String() is never
-// read back. Symbol references resolve against the flat namespace and
-// are recorded as references — records carry references, never
-// inlined symbol values (A-10).
+// read back. References resolve against the flat namespace — bare to
+// var and extern symbols, dotted to provision outputs — and are
+// recorded as references: records carry references, never inlined
+// values (A-10).
 //
 // With elem nil (an unresolved reference) the body is still walked —
-// symbol references resolve and section diagnostics fire — but keys
-// and values go unchecked.
-func (ln *linker) bind(elem *catalogueElement, spec *ast.DeploySpec) (bindings []image.Binding, ok bool) {
+// references resolve and section diagnostics fire — but keys and
+// values go unchecked.
+func (ln *linker) bind(elem *catalogueElement, at *ast.TypeRef, body *ast.Body) (bindings []image.Binding, ok bool) {
 	ok = true
-	if spec.Body == nil {
+	if body == nil {
 		return nil, true
 	}
-	sf := &surface{ln: ln, elem: elem, at: spec.Type}
-	for _, item := range spec.Body.Items {
+	sf := &surface{ln: ln, elem: elem, at: at}
+	for _, item := range body.Items {
 		switch it := item.(type) {
 		case *ast.Section:
 			ln.errorf(it.Name.NamePos, "%s sections not yet supported by this compiler rung", it.Name.Name)
@@ -795,12 +1003,20 @@ func (ln *linker) bind(elem *catalogueElement, spec *ast.DeploySpec) (bindings [
 
 // bindParam binds one body parameter with the given provenance: a
 // literal validates through its slot and lands as a canonical value, a
-// symbol reference resolves and lands as a reference. It reports
+// reference resolves — bare against the value symbols, dotted against
+// the provision output schemes — and lands as a reference. It reports
 // whether a binding was produced; a false return has recorded its
 // diagnostic (or aborted through ln.internal), except for the
 // *ast.BadValue the parse phase already reported.
 func (ln *linker) bindParam(sf *surface, it *ast.Param, source string) (image.Binding, bool) {
 	if ref, isRef := it.Value.(*ast.RefExpr); isRef {
+		if ref.Sel != nil {
+			out := ln.resolveOutput(ref)
+			if out == nil {
+				return image.Binding{}, false
+			}
+			return ln.bindOutput(sf, it.Key, ref, out, source)
+		}
 		sym := ln.resolveRef(ref)
 		if sym == nil {
 			return image.Binding{}, false
@@ -830,14 +1046,10 @@ func (ln *linker) bindParam(sf *surface, it *ast.Param, source string) (image.Bi
 	return image.Binding{Key: it.Key.Name, Value: val, Source: source}, true
 }
 
-// resolveRef resolves a value-position reference against the flat
-// namespace to a value-carrying symbol; nil (with the fault diagnosed)
-// otherwise.
+// resolveRef resolves a bare value-position reference against the
+// flat namespace to a value-carrying symbol; nil (with the fault
+// diagnosed) otherwise.
 func (ln *linker) resolveRef(ref *ast.RefExpr) *symbol {
-	if ref.Sel != nil {
-		ln.errorf(ref.Pos(), "output reference %s not yet supported by this compiler rung: provision outputs arrive at a later rung", refExprString(ref))
-		return nil
-	}
 	sym, ok := ln.symbols[ref.X.Name]
 	if !ok {
 		ln.errorf(ref.Pos(), "undefined symbol %s", ref.X.Name)
@@ -848,6 +1060,56 @@ func (ln *linker) resolveRef(ref *ast.RefExpr) *symbol {
 		return nil
 	}
 	return sym
+}
+
+// resolveOutput resolves a dotted value-position reference a.b to the
+// output b in the scheme of provision instance a's type; nil (with the
+// fault diagnosed) otherwise. The scheme is registered on the type
+// (A-11), so the resolution cannot tell a slice from an attachment —
+// by design, since migrating between them must not touch downstream
+// wiring.
+func (ln *linker) resolveOutput(ref *ast.RefExpr) *Output {
+	sym, ok := ln.symbols[ref.X.Name]
+	if !ok {
+		ln.errorf(ref.Pos(), "undefined symbol %s", ref.X.Name)
+		return nil
+	}
+	if sym.class != classInstance {
+		ln.errorf(ref.Pos(), "symbol %s is a %s, not a provision instance", ref.X.Name, sym.class)
+		return nil
+	}
+	if sym.elem == nil {
+		// The instance's own statement failed to resolve its element
+		// and diagnosed that loudly; the use site has nothing to add.
+		return nil
+	}
+	if sym.elem.kind != image.KindProvision {
+		ln.errorf(ref.Pos(), "instance %s has no outputs: only provision instances emit outputs", ref.X.Name)
+		return nil
+	}
+	out, ok := sym.elem.outputs[ref.Sel.Name]
+	if !ok {
+		ln.errorf(ref.Sel.NamePos, "unknown output %s: provision type %s declares no such output", ref.Sel.Name, sym.elem)
+		return nil
+	}
+	return out
+}
+
+// bindOutput binds one resolved provision-output reference. Like an
+// extern, an output has no value to validate at compile time — the
+// deployment environment resolves it at reconcile time, stage (d) —
+// so only the key is checked, the reference alone is recorded, and a
+// sensitive output taints the binding (A-10).
+func (ln *linker) bindOutput(sf *surface, key *ast.Ident, ref *ast.RefExpr, out *Output, source string) (image.Binding, bool) {
+	if sf.elem == nil || !sf.known(key) {
+		return image.Binding{}, false
+	}
+	return image.Binding{
+		Key:       key.Name,
+		Ref:       &image.SymbolRef{Symbol: ref.X.Name, Output: ref.Sel.Name},
+		Source:    source,
+		Sensitive: out.Sensitive,
+	}, true
 }
 
 // bindSymbol binds one resolved var or extern reference. A var's
@@ -923,11 +1185,11 @@ func (s *surface) slot(key *ast.Ident) *flag.Flag {
 		return nil
 	}
 	if s.fs == nil {
-		fs, panicked := dryFlags(s.elem.desc)
+		fs, panicked := elemFlags(s.elem)
 		if panicked != nil {
 			s.ln.internal = &internalError{
 				pos: s.at.Pos(),
-				msg: fmt.Sprintf("element %s: Make panicked: %v", refString(s.at), panicked),
+				msg: fmt.Sprintf("element %s: %s panicked: %v", refString(s.at), s.elem.factory(), panicked),
 			}
 			return nil
 		}
@@ -939,19 +1201,82 @@ func (s *surface) slot(key *ast.Ident) *flag.Flag {
 		// factory broke the dry-instantiation invariant.
 		s.ln.internal = &internalError{
 			pos: s.at.Pos(),
-			msg: fmt.Sprintf("element %s: Make broke the dry-instantiation invariant: fresh instance lacks parameter %s", refString(s.at), key.Name),
+			msg: fmt.Sprintf("element %s: %s broke the dry-instantiation invariant: fresh instance lacks parameter %s", refString(s.at), s.elem.factory(), key.Name),
 		}
 		return nil
 	}
 	return f
 }
 
+// checkCycles rejects reference cycles among the records. The image's
+// reference edges form the binding DAG (A-10): a binding referencing
+// output a.b makes its record depend on instance a, while var and
+// extern symbols have no dependencies of their own — so only provision
+// instances can close a cycle, including the length-1 cycle of an
+// instance referencing its own output. on and metadata compartments
+// stay outside the DAG. Records whose statements failed their checks
+// appended nothing and are simply absent; their faults are already
+// diagnosed.
+func (ln *linker) checkCycles() {
+	edges := make(map[string][]string, len(ln.records))
+	for _, rec := range ln.records {
+		var deps []string
+		for _, b := range rec.Params {
+			if b.Ref != nil && b.Ref.Output != "" {
+				deps = append(deps, b.Ref.Symbol)
+			}
+		}
+		edges[rec.Name] = deps
+	}
+
+	// Depth-first walk in record order, so reports are deterministic.
+	// One cycle is reported per walk: the first back edge found names
+	// the whole loop, positioned at the instance that closes it.
+	const unvisited, walking, done = 0, 1, 2
+	state := make(map[string]int, len(edges))
+	var stack []string
+	var visit func(name string) bool
+	visit = func(name string) bool {
+		state[name] = walking
+		stack = append(stack, name)
+		for _, dep := range edges[name] {
+			switch state[dep] {
+			case unvisited:
+				if visit(dep) {
+					return true
+				}
+			case walking:
+				cycle := append(slices.Clone(stack[slices.Index(stack, dep):]), dep)
+				ln.errorf(ln.symbols[dep].pos, "provision reference cycle: %s", strings.Join(cycle, " -> "))
+				return true
+			}
+		}
+		stack = stack[:len(stack)-1]
+		state[name] = done
+		return false
+	}
+	for _, rec := range ln.records {
+		if state[rec.Name] != unvisited {
+			continue
+		}
+		if visit(rec.Name) {
+			// The stack holds the cycle and whatever led into it; one
+			// report covers it all, so mark it settled and move on.
+			for _, name := range stack {
+				state[name] = done
+			}
+			stack = stack[:0]
+		}
+	}
+}
+
 // emit pins the catalogue and assembles the canonical image: every
 // registered package — referenced or not, since the registration is
 // what this compilation was checked against — sorted by path, elements
 // by name, symbols by name, records in unit-then-statement order.
-// Pinning a component not yet dried instantiates it here; without a
-// referencing statement a panic is reported positionless.
+// Pinning a component or provision type not yet dried instantiates it
+// here; without a referencing statement a panic is reported
+// positionless.
 func (ln *linker) emit() (*image.Image, *internalError) {
 	catalogue := make([]image.Package, 0, len(ln.packages))
 	for _, path := range slices.Sorted(maps.Keys(ln.packages)) {
@@ -961,18 +1286,25 @@ func (ln *linker) emit() (*image.Image, *internalError) {
 			elem := pkg.elements[name]
 			es := image.ElementSchema{Name: elem.name, Kind: elem.kind}
 			switch elem.kind {
-			case image.KindComponent:
+			case image.KindComponent, image.KindProvision:
 				if !elem.dried {
-					fs, panicked := dryFlags(elem.desc)
+					fs, panicked := elemFlags(elem)
 					if panicked != nil {
 						return nil, &internalError{
-							msg: fmt.Sprintf("element %s.%s: Make panicked: %v", elem.pkgName, elem.name, panicked),
+							msg: fmt.Sprintf("element %s: %s panicked: %v", elem, elem.factory(), panicked),
 						}
 					}
 					elem.schema = paramSchemas(fs)
 					elem.dried = true
 				}
-				es.Doc, es.Params = elem.desc.Doc, elem.schema
+				es.Params = elem.schema
+				if elem.kind == image.KindComponent {
+					es.Doc = elem.desc.Doc
+				} else {
+					es.Doc = elem.prov.Doc
+					es.Outputs = outputSchemas(elem.prov.Outputs)
+					es.Kinds = kindStrings(elem.prov.Kinds)
+				}
 			case image.KindSymbol:
 				es.Doc, es.Sensitive = elem.symbol.Doc, elem.symbol.Sensitive
 			}
@@ -1015,17 +1347,58 @@ func (ln *linker) emit() (*image.Image, *internalError) {
 	}, nil
 }
 
-// dryFlags performs one recover-guarded dry instantiation: Make a fresh
-// service, take its flag surface, discard the runner. A nil flag set is
-// a flagless service. panicked carries any panic — from Make itself,
-// from Flags, or from a Make that returned no service.
-func dryFlags(d *application.Descriptor) (fs *flag.FlagSet, panicked any) {
+// elemFlags performs one recover-guarded dry instantiation of an
+// element's parameter surface. A component Makes a fresh service and
+// takes its flag surface, discarding the runner; a provision type
+// declares its Params on a fresh set, uniform with the descriptor
+// path. A nil flag set is a parameterless element. panicked carries
+// any panic out of the user code involved — the factory itself, or a
+// Make that returned no service.
+func elemFlags(elem *catalogueElement) (fs *flag.FlagSet, panicked any) {
 	defer func() {
 		if p := recover(); p != nil {
 			fs, panicked = nil, p
 		}
 	}()
-	return d.Make().Flags(), nil
+	if elem.kind == image.KindProvision {
+		if elem.prov.Params == nil {
+			return nil, nil
+		}
+		fs = flag.NewFlagSet(elem.name, flag.ContinueOnError)
+		elem.prov.Params(fs)
+		return fs, nil
+	}
+	return elem.desc.Make().Flags(), nil
+}
+
+// outputSchemas pins a provision type's output scheme sorted by name,
+// the canonical order shared with parameter schemas; registration
+// order carries no meaning the image would need to keep.
+func outputSchemas(outputs []Output) []image.OutputSchema {
+	if len(outputs) == 0 {
+		return nil
+	}
+	schemas := make([]image.OutputSchema, 0, len(outputs))
+	for _, out := range outputs {
+		schemas = append(schemas, image.OutputSchema{Name: out.Name, Sensitive: out.Sensitive})
+	}
+	slices.SortFunc(schemas, func(a, b image.OutputSchema) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return schemas
+}
+
+// kindStrings renders a registered kind set in the image's canonical
+// order, slice before attach.
+func kindStrings(k Kinds) []string {
+	var kinds []string
+	if k&Slice != 0 {
+		kinds = append(kinds, image.KindSlice)
+	}
+	if k&Attach != 0 {
+		kinds = append(kinds, image.KindAttach)
+	}
+	return kinds
 }
 
 // paramSchemas reads a dry flag surface into the pinned parameter
@@ -1106,12 +1479,4 @@ func refString(t *ast.TypeRef) string {
 		return t.Pkg.Name + "." + t.Name.Name
 	}
 	return t.Name.Name
-}
-
-// refExprString renders a value-position reference as the unit wrote it.
-func refExprString(r *ast.RefExpr) string {
-	if r.Sel != nil {
-		return r.X.Name + "." + r.Sel.Name
-	}
-	return r.X.Name
 }

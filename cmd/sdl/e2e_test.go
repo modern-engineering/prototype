@@ -429,7 +429,173 @@ deploy ff.Ping as Ping1 {
 		"broken.sdl:8:18: unknown element Gone",
 		"broken.sdl:12:19: duplicate symbol Ping1 (first declared at broken.sdl:10:5)",
 		"broken.sdl:13:10: undefined symbol missing",
-		"broken.sdl:14:9: output reference acct.config not yet supported",
+		"broken.sdl:14:9: undefined symbol acct",
+	} {
+		if !strings.Contains(res.stderr, want) {
+			t.Errorf("stderr is missing %q:\n%s", want, res.stderr)
+		}
+	}
+}
+
+// provisionsUnit wires both provision kinds against the substrate
+// catalogue: a slice carving a NATS account out of site-bound
+// substrate, an attachment onto a legacy server, and a deploy
+// consuming the slice's sensitive output at reconcile time.
+const provisionsUnit = `solution provisions
+
+import (
+	ff "github.com/modern-engineering/prototype/examples/ff"
+	sub "github.com/modern-engineering/prototype/examples/substrate"
+)
+
+extern (
+	natsCluster sub.NATSCluster
+	natsAdmin sub.Secret
+	pgServer sub.PostgresServer
+)
+
+provision sub.NATS slice as natsAccount {
+	cluster: natsCluster
+	adminAccount: natsAdmin
+}
+
+provision sub.Postgres attach as pgLegacy {
+	server: pgServer
+}
+
+deploy ff.Ping as Ping1 {
+	count: 1
+	target: natsAccount.config
+}
+`
+
+// TestProvisionsRoundTrip drives the provisions vertical end to end:
+// slice and attach records survive into the image with their kinds
+// explicit, the output reference lands as a symbol-plus-output ref
+// tainted by the output's sensitivity, echo renders the provision
+// statements and the dotted reference back, and the echoed unit
+// rebuilds to an Equal — and, with no defaults in play, byte-identical
+// — image.
+func TestProvisionsRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := solutionModule(t, "provisions.sdl", provisionsUnit)
+	outA := filepath.Join(dir, "a.json")
+	res := runSDL(t, dir, "build", "-o", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	bytesA, err := os.ReadFile(outA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgA, err := image.Decode(bytes.NewReader(bytesA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(imgA.Records) != 3 ||
+		imgA.Records[0].Verb != image.VerbProvision || imgA.Records[0].Kind != image.KindSlice || imgA.Records[0].Name != "natsAccount" ||
+		imgA.Records[1].Verb != image.VerbProvision || imgA.Records[1].Kind != image.KindAttach || imgA.Records[1].Name != "pgLegacy" ||
+		imgA.Records[2].Verb != image.VerbDeploy || imgA.Records[2].Kind != "" {
+		t.Fatalf("records = %+v, want slice natsAccount, attach pgLegacy, deploy Ping1", imgA.Records)
+	}
+	target := imgA.Records[2].Params[1]
+	if target.Key != "target" || target.Ref == nil ||
+		target.Ref.Symbol != "natsAccount" || target.Ref.Output != "config" || !target.Sensitive {
+		t.Errorf("Ping1 target = %+v, want a sensitive ref to natsAccount.config", target)
+	}
+
+	res = runSDL(t, dir, "echo", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl echo exited %d\n%s", res.code, res.stderr)
+	}
+	echoed := res.stdout
+	t.Logf("echoed unit:\n%s", echoed)
+	for _, want := range []string{
+		// Echo references through the registered package name, not the
+		// original unit's sub alias.
+		"provision substrate.NATS slice as natsAccount {",
+		"provision substrate.Postgres attach as pgLegacy {",
+		"target: natsAccount.config",
+	} {
+		if !strings.Contains(echoed, want) {
+			t.Errorf("echoed unit is missing %q:\n%s", want, echoed)
+		}
+	}
+
+	dir2 := solutionModule(t, "provisions.sdl", echoed)
+	if res := runSDL(t, dir2, "fmt", "-l", "."); res.code != 0 || res.stdout != "" {
+		t.Errorf("echoed unit is not canonical: fmt -l exited %d, listed %q\n%s",
+			res.code, res.stdout, res.stderr)
+	}
+	outB := filepath.Join(dir2, "b.json")
+	res = runSDL(t, dir2, "build", "-o", outB)
+	if res.code != 0 {
+		t.Fatalf("sdl build of the echoed unit exited %d\n%s", res.code, res.stderr)
+	}
+	bytesB, err := os.ReadFile(outB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgB, err := image.Decode(bytes.NewReader(bytesB))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !image.Equal(imgA, imgB) {
+		t.Errorf("round-tripped image is not Equal to the original\n--- rebuilt ---\n%s", bytesB)
+	}
+	if !bytes.Equal(bytesA, bytesB) {
+		t.Errorf("round-tripped image differs byte-wise\n--- original ---\n%s--- rebuilt ---\n%s", bytesA, bytesB)
+	}
+}
+
+// TestProvisionDiagnostics packs the negative provision material into
+// one unit — an ambiguous omitted kind word, a kind the type does not
+// register, a self-referencing slice, a two-instance output cycle, and
+// dotted references to a missing symbol, a missing output, and a
+// deploy instance — and expects every fault positioned, exit 1.
+func TestProvisionDiagnostics(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := solutionModule(t, "broken.sdl", `solution broken
+
+import (
+	ff "github.com/modern-engineering/prototype/examples/ff"
+	sub "github.com/modern-engineering/prototype/examples/substrate"
+)
+
+provision sub.NATS as amb
+provision sub.Postgres slice as wrongKind
+provision sub.NATS slice as selfRef {
+	adminAccount: selfRef.config
+}
+provision sub.NATS slice as loopA {
+	adminAccount: loopB.config
+}
+provision sub.NATS slice as loopB {
+	adminAccount: loopA.config
+}
+deploy ff.Pong as Echo
+deploy ff.Ping as P {
+	target: natsMissing.config
+	count: selfRef.nope
+	interval: Echo.config
+}
+`)
+	res := runSDL(t, dir, "build")
+	if res.code != 1 {
+		t.Fatalf("exit %d, want 1\n%s", res.code, res.stderr)
+	}
+	for _, want := range []string{
+		"broken.sdl:8:11: missing provision kind: type sub.NATS registers both slice and attach",
+		"broken.sdl:9:24: type sub.Postgres does not register slice",
+		"broken.sdl:10:29: provision reference cycle: selfRef -> selfRef",
+		"broken.sdl:13:29: provision reference cycle: loopA -> loopB -> loopA",
+		"broken.sdl:21:10: undefined symbol natsMissing",
+		"broken.sdl:22:17: unknown output nope: provision type substrate.NATS declares no such output",
+		"broken.sdl:23:12: instance Echo has no outputs: only provision instances emit outputs",
 	} {
 		if !strings.Contains(res.stderr, want) {
 			t.Errorf("stderr is missing %q:\n%s", want, res.stderr)

@@ -4,15 +4,16 @@
 package solution
 
 import (
+	"flag"
 	"io"
 
 	"github.com/modern-engineering/prototype/application"
 )
 
 // An Element is one catalogue entry a solution unit can reference. The
-// interface is sealed; this rung knows two element kinds: the
-// application component packaged by [App] and the symbol type packaged
-// by [Symbol].
+// interface is sealed over the three element kinds: the application
+// component packaged by [App], the provision type packaged by
+// [Provision], and the symbol type packaged by [Symbol].
 type Element interface{ element() }
 
 // App packages an application descriptor as a catalogue element
@@ -39,6 +40,82 @@ type appElement struct {
 }
 
 func (*appElement) element() {}
+
+// A ProvisionType describes one way of holding backing services: code
+// that runs at provisioning time against platform-guaranteed substrate
+// (A-11). Its parameter surface binds at compile time like a
+// component's; its outputs exist only once the provisioned resource
+// does, so records reference them symbolically and the deployment
+// environment resolves them at reconcile time.
+type ProvisionType struct {
+	// Doc documents what provisioning this type performs.
+	Doc string
+
+	// Params declares the type's parameter slots on fs, mirroring the
+	// dry-instantiation contract of a component's Make: pure flag
+	// declarations, no side effects, the same schema on every call.
+	// Nil declares a parameterless type.
+	Params func(fs *flag.FlagSet)
+
+	// Outputs is the scheme of reconcile-time values instances emit.
+	// The scheme belongs to the type, not the kind: a slice and an
+	// attachment of the same type emit the same outputs, so downstream
+	// wiring cannot tell them apart (A-11).
+	Outputs []Output
+
+	// Kinds declares which provision kinds the type registers. The
+	// declaration is explicit — zero kinds is a registration error —
+	// and a solution statement may omit its kind word only while the
+	// type registers exactly one.
+	Kinds Kinds
+}
+
+// An Output is one reconcile-time value of a provision type's scheme.
+type Output struct {
+	// Name is the output's name; statements reference it as
+	// instance.name.
+	Name string
+
+	// Doc documents what the output carries.
+	Doc string
+
+	// Sensitive marks outputs that must not be logged or exposed.
+	// Bindings referencing a sensitive output carry the taint (A-10).
+	Sensitive bool
+}
+
+// Kinds is the bitset of provision kinds a [ProvisionType] registers.
+type Kinds uint8
+
+// The provision kinds. A slice owns a partition carved out of shared
+// substrate: its driver creates it, mutates it, and — delete protection
+// satisfied — destroys it. An attachment plugs into substrate without
+// taking ownership: its driver verifies existence and compatibility at
+// reconcile time and is never pruned (A-11).
+const (
+	Slice Kinds = 1 << iota
+	Attach
+)
+
+// Provision packages a provision type as a catalogue element registered
+// under name.
+//
+// As with [App] and [Symbol], the name is the Go identifier of the
+// exported package variable holding p: a Go value cannot know the name
+// of the variable that holds it, and generated code is the one place
+// that sees the identifier and the value side by side.
+func Provision(name string, p *ProvisionType) Element {
+	return &provisionElement{name: name, typ: p}
+}
+
+// A provisionElement is a provision type under the exported identifier
+// its defining package gives it.
+type provisionElement struct {
+	name string
+	typ  *ProvisionType
+}
+
+func (*provisionElement) element() {}
 
 // A SymbolType classifies the late-bound values extern symbols carry:
 // a solution unit declares "extern name pkg.Type" against a registered

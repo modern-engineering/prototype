@@ -36,16 +36,19 @@ var CmdEcho = &base.Command{
 standard input when no file is given — and prints it to standard output
 as one canonical solution unit: the solution clause, one import per
 catalogue package sorted by path, the symbol table as extern and var
-declarations in image order, and one single-form deploy statement per
-record in image order, parameters included.
+declarations in image order, and one single-form deploy or provision
+statement per record in image order, parameters included. A provision
+statement always writes its kind word — the compiler resolved any
+omission, and the canonical form keeps the record explicit.
 
 The unit is a re-rendering, not the original sources: images store
 canonical values rather than the author's lexemes or layout, so echo
 prints every value in its canonical spelling (strings quoted like Go,
 integers in decimal, durations as Go renders them, booleans as true or
-false, symbol references as their bare identifiers) and emits nothing
-the image does not carry. Building the echoed unit against the same
-catalogue reproduces an equal image.
+false, symbol references as bare identifiers, output references as
+instance.output pairs) and emits nothing the image does not carry.
+Building the echoed unit against the same catalogue reproduces an
+equal image.
 
 Imports are aliased so references resolve exactly as compiled: the
 reference name is the package's registered name, spelled out when the
@@ -97,10 +100,10 @@ func echo(r io.Reader, w io.Writer) error {
 
 // reconstruct builds the canonical unit for an image: the solution
 // clause, the import block, the symbol table as an extern and a var
-// declaration, and one single-form deploy declaration per record.
-// Factoring within a declaration follows the printer's rule — one spec
-// prints single-form, several print as one factored block — since the
-// image records no authoring layout.
+// declaration, and one single-form deploy or provision declaration per
+// record. Factoring within a declaration follows the printer's rule —
+// one spec prints single-form, several print as one factored block —
+// since the image records no authoring layout.
 func reconstruct(img *image.Image) (*ast.File, error) {
 	if err := checkIdent("solution name", img.Solution); err != nil {
 		return nil, err
@@ -127,7 +130,16 @@ func reconstruct(img *image.Image) (*ast.File, error) {
 	}
 
 	for i, rec := range img.Records {
-		decl, err := deploy(rec, refs)
+		var decl ast.Decl
+		var err error
+		switch rec.Verb {
+		case image.VerbDeploy:
+			decl, err = deploy(rec, refs)
+		case image.VerbProvision:
+			decl, err = provision(rec, refs)
+		default:
+			err = fmt.Errorf("cannot render verb %q", rec.Verb)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("record %d (%s): %w", i, rec.Name, err)
 		}
@@ -224,46 +236,72 @@ func lastElement(path string) string {
 
 // deploy renders one record as a single-form deploy declaration.
 func deploy(rec image.Record, refs map[string]string) (*ast.DeployDecl, error) {
-	if rec.Verb != image.VerbDeploy {
-		return nil, fmt.Errorf("cannot render verb %q: this rung echoes deploy records only", rec.Verb)
+	if rec.Kind != "" {
+		return nil, fmt.Errorf("deploy record carries provision kind %q", rec.Kind)
 	}
+	typeRef, name, body, err := recordSpec(rec, refs)
+	if err != nil {
+		return nil, err
+	}
+	spec := &ast.DeploySpec{Type: typeRef, Name: name, Body: body}
+	return &ast.DeployDecl{Specs: []*ast.DeploySpec{spec}}, nil
+}
+
+// provision renders one record as a single-form provision declaration.
+// The kind word is always written out: the compiler resolved any
+// omission at build time, and the canonical unit keeps the record
+// explicit rather than re-deriving what a fresh catalogue might
+// resolve differently.
+func provision(rec image.Record, refs map[string]string) (*ast.ProvisionDecl, error) {
+	if rec.Kind != image.KindSlice && rec.Kind != image.KindAttach {
+		return nil, fmt.Errorf("cannot render provision kind %q", rec.Kind)
+	}
+	typeRef, name, body, err := recordSpec(rec, refs)
+	if err != nil {
+		return nil, err
+	}
+	spec := &ast.ProvisionSpec{Type: typeRef, Kind: &ast.Ident{Name: rec.Kind}, Name: name, Body: body}
+	return &ast.ProvisionDecl{Specs: []*ast.ProvisionSpec{spec}}, nil
+}
+
+// recordSpec renders the spec material shared by both record verbs:
+// the qualified type reference, the instance name, and the parameter
+// body (nil for a parameterless record).
+func recordSpec(rec image.Record, refs map[string]string) (*ast.TypeRef, *ast.Ident, *ast.Body, error) {
 	ref, ok := refs[rec.Element.Package]
 	if !ok {
-		return nil, fmt.Errorf("element package %q is not pinned in the catalogue", rec.Element.Package)
+		return nil, nil, nil, fmt.Errorf("element package %q is not pinned in the catalogue", rec.Element.Package)
 	}
 	if err := checkIdent(fmt.Sprintf("element name %q", rec.Element.Name), rec.Element.Name); err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	if err := checkIdent(fmt.Sprintf("instance name %q", rec.Name), rec.Name); err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
-
-	spec := &ast.DeploySpec{
-		Type: &ast.TypeRef{Pkg: &ast.Ident{Name: ref}, Name: &ast.Ident{Name: rec.Element.Name}},
-		Name: &ast.Ident{Name: rec.Name},
-	}
+	var body *ast.Body
 	if len(rec.Params) > 0 {
-		spec.Body = new(ast.Body)
+		body = new(ast.Body)
 		for _, b := range rec.Params {
 			if err := checkIdent(fmt.Sprintf("parameter key %q", b.Key), b.Key); err != nil {
-				return nil, err
+				return nil, nil, nil, err
 			}
 			value, err := bindingValue(b)
 			if err != nil {
-				return nil, fmt.Errorf("parameter %s: %w", b.Key, err)
+				return nil, nil, nil, fmt.Errorf("parameter %s: %w", b.Key, err)
 			}
-			spec.Body.Items = append(spec.Body.Items, &ast.Param{
+			body.Items = append(body.Items, &ast.Param{
 				Key:   &ast.Ident{Name: b.Key},
 				Value: value,
 			})
 		}
 	}
-	return &ast.DeployDecl{Specs: []*ast.DeploySpec{spec}}, nil
+	typeRef := &ast.TypeRef{Pkg: &ast.Ident{Name: ref}, Name: &ast.Ident{Name: rec.Element.Name}}
+	return typeRef, &ast.Ident{Name: rec.Name}, body, nil
 }
 
 // bindingValue lifts one binding's payload into a value node: a symbol
-// reference prints as its bare identifier, a literal in its canonical
-// spelling.
+// reference prints as its bare identifier, an output reference as its
+// instance.output pair, a literal in its canonical spelling.
 func bindingValue(b image.Binding) (ast.Value, error) {
 	if b.Ref != nil {
 		if b.Value != nil {
@@ -272,7 +310,14 @@ func bindingValue(b image.Binding) (ast.Value, error) {
 		if err := checkIdent(fmt.Sprintf("referenced symbol %q", b.Ref.Symbol), b.Ref.Symbol); err != nil {
 			return nil, err
 		}
-		return &ast.RefExpr{X: &ast.Ident{Name: b.Ref.Symbol}}, nil
+		ref := &ast.RefExpr{X: &ast.Ident{Name: b.Ref.Symbol}}
+		if b.Ref.Output != "" {
+			if err := checkIdent(fmt.Sprintf("referenced output %q", b.Ref.Output), b.Ref.Output); err != nil {
+				return nil, err
+			}
+			ref.Sel = &ast.Ident{Name: b.Ref.Output}
+		}
+		return ref, nil
 	}
 	return valueNode(b.Value)
 }

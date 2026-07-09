@@ -4,6 +4,8 @@
 package substrate_test
 
 import (
+	"flag"
+	"reflect"
 	"testing"
 
 	"github.com/modern-engineering/prototype/examples/substrate"
@@ -16,8 +18,10 @@ import (
 // components), so the shape is the whole citizenship contract.
 func TestSymbolTypes(t *testing.T) {
 	for name, st := range map[string]*solution.SymbolType{
-		"Secret":   substrate.Secret,
-		"Endpoint": substrate.Endpoint,
+		"Secret":         substrate.Secret,
+		"Endpoint":       substrate.Endpoint,
+		"NATSCluster":    substrate.NATSCluster,
+		"PostgresServer": substrate.PostgresServer,
 	} {
 		if st == nil {
 			t.Errorf("%s is nil; discovery needs a live *solution.SymbolType", name)
@@ -33,4 +37,57 @@ func TestSymbolTypes(t *testing.T) {
 	if substrate.Endpoint.Sensitive {
 		t.Error("Endpoint must not be sensitive: it exists to demonstrate the plain case")
 	}
+}
+
+// TestProvisionTypes holds the provision citizens to their contract:
+// explicit kinds (zero is a compile-catalogue fault), documented
+// outputs, and a Params hook honouring the dry-instantiation
+// invariant — the same slot schema on every fresh flag set.
+func TestProvisionTypes(t *testing.T) {
+	for name, pt := range map[string]*solution.ProvisionType{
+		"NATS":     substrate.NATS,
+		"Postgres": substrate.Postgres,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if pt == nil {
+				t.Fatalf("%s is nil; discovery needs a live *solution.ProvisionType", name)
+			}
+			if pt.Doc == "" {
+				t.Error("no Doc; the image pins element documentation")
+			}
+			if pt.Kinds == 0 {
+				t.Error("no Kinds; registration is explicit and zero kinds is a catalogue error")
+			}
+			for _, out := range pt.Outputs {
+				if out.Doc == "" {
+					t.Errorf("output %s has no Doc", out.Name)
+				}
+			}
+			if pt.Params == nil {
+				return
+			}
+			if got, want := dryNames(pt), dryNames(pt); !reflect.DeepEqual(got, want) {
+				t.Errorf("Params is not dry: two fresh sets declare %v and %v", got, want)
+			}
+		})
+	}
+	if substrate.NATS.Kinds != solution.Slice|solution.Attach {
+		t.Error("NATS must register both kinds: it exists to demonstrate the kind word")
+	}
+	if substrate.Postgres.Kinds != solution.Attach {
+		t.Error("Postgres must register attach only: it exists to demonstrate kind omission and legacy substrate")
+	}
+	if len(substrate.NATS.Outputs) == 0 || !substrate.NATS.Outputs[0].Sensitive {
+		t.Error("NATS.config must be a sensitive output: it exists to demonstrate output taint")
+	}
+}
+
+// dryNames declares one throwaway flag set and reads back the slot
+// names it carries.
+func dryNames(pt *solution.ProvisionType) []string {
+	fs := flag.NewFlagSet("dry", flag.ContinueOnError)
+	pt.Params(fs)
+	var names []string
+	fs.VisitAll(func(f *flag.Flag) { names = append(names, f.Name) })
+	return names
 }

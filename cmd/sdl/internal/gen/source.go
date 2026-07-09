@@ -79,7 +79,10 @@ func Source(sol *load.Solution, pkgs []Package, generation int64) []byte {
 // constructor names the solution constructor packaging one citizen
 // kind.
 func constructor(kind string) string {
-	if kind == KindSymbol {
+	switch kind {
+	case KindProvision:
+		return "Provision"
+	case KindSymbol:
 		return "Symbol"
 	}
 	return "App"
