@@ -10,8 +10,9 @@ import (
 )
 
 // An Element is one catalogue entry a solution unit can reference. The
-// interface is sealed; this rung knows a single element kind, the
-// application component packaged by [App].
+// interface is sealed; this rung knows two element kinds: the
+// application component packaged by [App] and the symbol type packaged
+// by [Symbol].
 type Element interface{ element() }
 
 // App packages an application descriptor as a catalogue element
@@ -38,6 +39,45 @@ type appElement struct {
 }
 
 func (*appElement) element() {}
+
+// A SymbolType classifies the late-bound values extern symbols carry:
+// a solution unit declares "extern name pkg.Type" against a registered
+// symbol type, and the deploying site binds the value at reification.
+// The type is where sensitivity is declared (A-10): taint propagates
+// through references, so every binding wired from a sensitive symbol
+// is itself marked sensitive in the image.
+type SymbolType struct {
+	// Doc documents what values of this type carry.
+	Doc string
+
+	// Sensitive marks values that must not be logged or exposed.
+	// Consumers redact anything the taint reaches.
+	Sensitive bool
+}
+
+// Symbol packages a symbol type as a catalogue element registered
+// under name.
+//
+// As with [App], the name is the Go identifier of the exported package
+// variable holding t: a Go value cannot know the name of the variable
+// that holds it, and generated code is the one place that sees the
+// identifier and the value side by side. The design sketch carried a
+// Name field on SymbolType instead; it is dropped so every element
+// kind has the one identity rule — the exported identifier, supplied
+// at registration — rather than a second, drift-prone spelling of the
+// same fact.
+func Symbol(name string, t *SymbolType) Element {
+	return &symbolElement{name: name, typ: t}
+}
+
+// A symbolElement is a symbol type under the exported identifier its
+// defining package gives it.
+type symbolElement struct {
+	name string
+	typ  *SymbolType
+}
+
+func (*symbolElement) element() {}
 
 // A Package registers the catalogue elements one Go package exports.
 type Package struct {

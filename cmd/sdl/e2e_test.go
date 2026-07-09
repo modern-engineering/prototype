@@ -299,6 +299,144 @@ func TestRoundTripEcho(t *testing.T) {
 	}
 }
 
+// symbolsUnit wires both symbol classes across both example catalogue
+// packages: an extern of a sensitive symbol type bound into one deploy
+// and a var bound into another.
+const symbolsUnit = `solution symbols
+
+import (
+	ff "github.com/modern-engineering/prototype/examples/ff"
+	"github.com/modern-engineering/prototype/examples/substrate"
+)
+
+extern apiToken substrate.Secret
+
+var pongSubject: "ping"
+
+deploy ff.Ping as Ping1 {
+	count: 3
+	target: apiToken
+}
+
+deploy ff.Pong as Pong1 {
+	subject: pongSubject
+}
+`
+
+// TestSymbolsRoundTrip drives the symbols vertical end to end: the
+// solution's extern and var survive into the image (with the extern's
+// sensitivity tainting the binding that references it), echo renders
+// them back as declarations and bare-identifier references, and the
+// echoed unit rebuilds to an Equal image.
+func TestSymbolsRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := solutionModule(t, "symbols.sdl", symbolsUnit)
+	outA := filepath.Join(dir, "a.json")
+	res := runSDL(t, dir, "build", "-o", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	bytesA, err := os.ReadFile(outA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgA, err := image.Decode(bytes.NewReader(bytesA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(imgA.Symbols) != 2 ||
+		imgA.Symbols[0].Name != "apiToken" || imgA.Symbols[0].Class != image.ClassExtern ||
+		imgA.Symbols[1].Name != "pongSubject" || imgA.Symbols[1].Class != image.ClassVar {
+		t.Errorf("symbol table = %+v, want extern apiToken then var pongSubject", imgA.Symbols)
+	}
+	if len(imgA.Records) != 2 || len(imgA.Records[0].Params) != 2 {
+		t.Fatalf("records = %+v, want Ping1 (2 params) and Pong1", imgA.Records)
+	}
+	target := imgA.Records[0].Params[1]
+	if target.Key != "target" || target.Ref == nil || target.Ref.Symbol != "apiToken" || !target.Sensitive {
+		t.Errorf("Ping1 target = %+v, want a sensitive ref to apiToken", target)
+	}
+
+	res = runSDL(t, dir, "echo", outA)
+	if res.code != 0 {
+		t.Fatalf("sdl echo exited %d\n%s", res.code, res.stderr)
+	}
+	echoed := res.stdout
+	t.Logf("echoed unit:\n%s", echoed)
+	if !strings.Contains(echoed, "extern apiToken substrate.Secret") ||
+		!strings.Contains(echoed, `var pongSubject: "ping"`) ||
+		!strings.Contains(echoed, "target: apiToken") {
+		t.Errorf("echoed unit is missing the symbol blocks or the reference params:\n%s", echoed)
+	}
+
+	dir2 := solutionModule(t, "symbols.sdl", echoed)
+	if res := runSDL(t, dir2, "fmt", "-l", "."); res.code != 0 || res.stdout != "" {
+		t.Errorf("echoed unit is not canonical: fmt -l exited %d, listed %q\n%s",
+			res.code, res.stdout, res.stderr)
+	}
+	outB := filepath.Join(dir2, "b.json")
+	res = runSDL(t, dir2, "build", "-o", outB)
+	if res.code != 0 {
+		t.Fatalf("sdl build of the echoed unit exited %d\n%s", res.code, res.stderr)
+	}
+	bytesB, err := os.ReadFile(outB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgB, err := image.Decode(bytes.NewReader(bytesB))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !image.Equal(imgA, imgB) {
+		t.Errorf("round-tripped image is not Equal to the original\n--- rebuilt ---\n%s", bytesB)
+	}
+	if !bytes.Equal(bytesA, bytesB) {
+		t.Errorf("round-tripped image differs byte-wise\n--- original ---\n%s--- rebuilt ---\n%s", bytesA, bytesB)
+	}
+}
+
+// TestSymbolDiagnostics packs the negative symbol material into one
+// unit — an extern of an unknown type, a var colliding with an
+// instance name, a dangling reference, and a dotted output reference —
+// and expects every fault positioned, exit 1.
+func TestSymbolDiagnostics(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := solutionModule(t, "broken.sdl", `solution broken
+
+import (
+	ff "github.com/modern-engineering/prototype/examples/ff"
+	sub "github.com/modern-engineering/prototype/examples/substrate"
+)
+
+extern wrongType sub.Gone
+
+var Ping1: "taken"
+
+deploy ff.Ping as Ping1 {
+	target: missing
+	count: acct.config
+}
+`)
+	res := runSDL(t, dir, "build")
+	if res.code != 1 {
+		t.Fatalf("exit %d, want 1\n%s", res.code, res.stderr)
+	}
+	for _, want := range []string{
+		"broken.sdl:8:18: unknown element Gone",
+		"broken.sdl:12:19: duplicate symbol Ping1 (first declared at broken.sdl:10:5)",
+		"broken.sdl:13:10: undefined symbol missing",
+		"broken.sdl:14:9: output reference acct.config not yet supported",
+	} {
+		if !strings.Contains(res.stderr, want) {
+			t.Errorf("stderr is missing %q:\n%s", want, res.stderr)
+		}
+	}
+}
+
 // TestFmtExamples is (f): the checked-in examples are canonical, so the
 // repository holds the form the toolchain prints.
 func TestFmtExamples(t *testing.T) {

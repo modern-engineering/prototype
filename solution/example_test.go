@@ -59,6 +59,7 @@ func ExampleMainCompile() {
 	//       ]
 	//     }
 	//   ],
+	//   "symbols": [],
 	//   "records": [
 	//     {
 	//       "verb": "deploy",

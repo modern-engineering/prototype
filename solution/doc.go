@@ -24,13 +24,17 @@
 // [MainCompile] carries the compilation through its phases: parse
 // every unit, collecting all syntax errors before giving up; link the
 // units' headers (the shared solution clause and the union import
-// table); check each deploy statement — resolve its element through
-// the imports into the catalogue, extract the element's parameter
-// schema, and bind its literal parameters; and emit the desired-state
-// image of package
+// table); collect every declared name — instances, vars, externs —
+// into the solution's one flat namespace, so references resolve across
+// units and forward; check each deploy statement — resolve its element
+// through the imports into the catalogue, extract the element's
+// parameter schema, and bind its parameters, literal values through
+// the element's own flag surface and symbol references against the
+// namespace, with sensitivity tainting bindings wired from sensitive
+// symbol types; and emit the desired-state image of package
 // [github.com/modern-engineering/prototype/solution/image] as
 // canonical JSON, pinning the schema of every registered element
-// alongside the deployment records.
+// alongside the symbol table and the deployment records.
 //
 // Schema extraction leans on the dry-instantiation invariant of
 // package application: Make constructs a fresh service whose complete

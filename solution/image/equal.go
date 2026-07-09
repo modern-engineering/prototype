@@ -12,9 +12,9 @@ import "slices"
 // different layers or the producer stamped a different generation.
 //
 // The comparison is structural over the canonical order producers emit
-// (packages by path, elements by name, records in statement order,
-// bindings by key); images holding the same content in a non-canonical
-// order compare unequal.
+// (packages by path, elements by name, symbols by name, records in
+// statement order, bindings by key); images holding the same content
+// in a non-canonical order compare unequal.
 func Equal(a, b *Image) bool {
 	if a == nil || b == nil {
 		return a == b
@@ -22,6 +22,7 @@ func Equal(a, b *Image) bool {
 	return a.Format == b.Format &&
 		a.Solution == b.Solution &&
 		slices.EqualFunc(a.Catalogue, b.Catalogue, packageEqual) &&
+		slices.EqualFunc(a.Symbols, b.Symbols, symbolEqual) &&
 		slices.EqualFunc(a.Records, b.Records, recordEqual)
 }
 
@@ -35,7 +36,15 @@ func elementEqual(a, b ElementSchema) bool {
 	return a.Name == b.Name &&
 		a.Kind == b.Kind &&
 		a.Doc == b.Doc &&
+		a.Sensitive == b.Sensitive &&
 		slices.Equal(a.Params, b.Params)
+}
+
+func symbolEqual(a, b SymbolDef) bool {
+	return a.Name == b.Name &&
+		a.Class == b.Class &&
+		refEqual(a.Type, b.Type) &&
+		valueEqual(a.Value, b.Value)
 }
 
 func recordEqual(a, b Record) bool {
@@ -45,10 +54,27 @@ func recordEqual(a, b Record) bool {
 		slices.EqualFunc(a.Params, b.Params, bindingEqual)
 }
 
-// bindingEqual compares key and value; Source is provenance and stays
-// masked.
+// bindingEqual compares the key, the payload (literal value or symbol
+// reference), and the taint; Source is provenance and stays masked.
 func bindingEqual(a, b Binding) bool {
-	return a.Key == b.Key && valueEqual(a.Value, b.Value)
+	return a.Key == b.Key &&
+		a.Sensitive == b.Sensitive &&
+		valueEqual(a.Value, b.Value) &&
+		symbolRefEqual(a.Ref, b.Ref)
+}
+
+func refEqual(a, b *Ref) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func symbolRefEqual(a, b *SymbolRef) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }
 
 // valueEqual compares the literal a value represents: the kind and the

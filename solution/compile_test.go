@@ -77,15 +77,23 @@ func boomDescriptor() *application.Descriptor {
 	}
 }
 
-// testCatalogue registers the well-behaved descriptors. Packages and
-// elements are deliberately listed out of canonical order; the image
-// must sort them.
+// testCatalogue registers the well-behaved descriptors and both symbol
+// types. Packages and elements are deliberately listed out of
+// canonical order; the image must sort them.
 func testCatalogue() []solution.Package {
 	return []solution.Package{
 		{
 			Path:     "example.com/acme/quiet",
 			Name:     "quiet",
 			Elements: []solution.Element{solution.App("Quiet", quietDescriptor())},
+		},
+		{
+			Path: "example.com/acme/substrate",
+			Name: "substrate",
+			Elements: []solution.Element{
+				solution.Symbol("Secret", &solution.SymbolType{Doc: "an operator-held credential", Sensitive: true}),
+				solution.Symbol("Endpoint", &solution.SymbolType{Doc: "a site-bound network coordinate"}),
+			},
 		},
 		{
 			Path: "example.com/acme/pingpong",
@@ -122,33 +130,46 @@ func compile(t *testing.T, cfg solution.CompileConfig) (code int, stdout, stderr
 // ----------------------------------------------------------------------------
 // Happy path
 
-// mainUnit binds every literal kind. The parameters are written out of
-// order (bindings must sort by key), the duration literals in
-// non-canonical spellings (values must canonicalize by literal kind, not
-// flag echo — "window" is a flag.Func whose String() is always empty),
-// and the second deploy has no body at all.
+// mainUnit binds every literal kind and both symbol classes. The
+// parameters are written out of order (bindings must sort by key), the
+// duration literals in non-canonical spellings (values must
+// canonicalize by literal kind, not flag echo — "window" is a
+// flag.Func whose String() is always empty), target and subject bind
+// by reference (subject through a sensitive extern, so the taint must
+// surface), and the last deploy has no body at all.
 const mainUnit = `solution sample
 
 import (
 	ff "example.com/acme/pingpong"
 	"example.com/acme/quiet"
+	sub "example.com/acme/substrate"
 )
+
+extern apiKey sub.Secret
+
+var echoTarget: "com.acme.Echo"
 
 deploy ff.Ping as Ping1 {
 	window: 2h45m
 	verbose: true
-	target: "com.acme.Echo"
+	target: echoTarget
 	interval: 1500ms
 	count: -1
+}
+
+deploy ff.Pong as Pong1 {
+	subject: apiKey
 }
 
 deploy quiet.Quiet as Hush
 `
 
 // goldenImage is the canonical image for mainUnit against
-// testCatalogue: packages sorted by path, elements by name, bindings by
-// key, the unreferenced Pong pinned all the same, and durations
-// rendered canonically (1500ms as 1.5s, 2h45m as 2h45m0s).
+// testCatalogue: packages sorted by path, elements and symbols by
+// name, bindings by key, the unreferenced Pong and Endpoint pinned all
+// the same, durations rendered canonically (1500ms as 1.5s, 2h45m as
+// 2h45m0s), reference bindings carrying refs instead of values, and
+// the extern-bound subject tainted by its sensitive symbol type.
 const goldenImage = `{
   "format": "solution-image/1",
   "solution": "sample",
@@ -212,6 +233,41 @@ const goldenImage = `{
           "doc": "run silently"
         }
       ]
+    },
+    {
+      "path": "example.com/acme/substrate",
+      "name": "substrate",
+      "elements": [
+        {
+          "name": "Endpoint",
+          "kind": "symbol",
+          "doc": "a site-bound network coordinate"
+        },
+        {
+          "name": "Secret",
+          "kind": "symbol",
+          "doc": "an operator-held credential",
+          "sensitive": true
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "name": "apiKey",
+      "class": "extern",
+      "type": {
+        "package": "example.com/acme/substrate",
+        "name": "Secret"
+      }
+    },
+    {
+      "name": "echoTarget",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "com.acme.Echo"
+      }
     }
   ],
   "records": [
@@ -241,9 +297,8 @@ const goldenImage = `{
         },
         {
           "key": "target",
-          "value": {
-            "kind": "string",
-            "string": "com.acme.Echo"
+          "ref": {
+            "symbol": "echoTarget"
           },
           "source": "instance"
         },
@@ -262,6 +317,24 @@ const goldenImage = `{
             "duration": "2h45m0s"
           },
           "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "example.com/acme/pingpong",
+        "name": "Pong"
+      },
+      "name": "Pong1",
+      "params": [
+        {
+          "key": "subject",
+          "ref": {
+            "symbol": "apiKey"
+          },
+          "source": "instance",
+          "sensitive": true
         }
       ]
     },
@@ -356,6 +429,73 @@ func TestMainCompileMultiUnit(t *testing.T) {
 	}
 	if stdout == stdout8 {
 		t.Error("different generations should still change the bytes")
+	}
+}
+
+// TestMainCompileSymbolReferences proves the collect-then-bind phase
+// order end to end: unit a's bindings reference a var and an extern
+// that unit b declares, so resolution works across units and forward.
+// The extern's sensitive symbol type must taint the binding that
+// references it; the var-bound one stays plain.
+func TestMainCompileSymbolReferences(t *testing.T) {
+	units := []solution.Unit{
+		{Name: "a.sdl", Source: "solution sample\n" +
+			"import ff \"example.com/acme/pingpong\"\n" +
+			"deploy ff.Ping as PingA {\n\ttarget: adminKey\n}\n" +
+			"deploy ff.Pong as PongA {\n\tsubject: sharedSubject\n}\n"},
+		{Name: "b.sdl", Source: "solution sample\n" +
+			"import sub \"example.com/acme/substrate\"\n" +
+			"extern adminKey sub.Secret\n" +
+			"var sharedSubject: \"com.acme.Shared\"\n"},
+	}
+	cfg := solution.CompileConfig{
+		Solution:  "sample",
+		Units:     units,
+		Catalogue: testCatalogue(),
+	}
+	code, stdout, stderr := compile(t, cfg)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	img, err := image.Decode(strings.NewReader(stdout))
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+
+	wantSymbols := []image.SymbolDef{
+		{Name: "adminKey", Class: image.ClassExtern, Type: &image.Ref{Package: "example.com/acme/substrate", Name: "Secret"}},
+		{Name: "sharedSubject", Class: image.ClassVar, Value: image.String("com.acme.Shared")},
+	}
+	if len(img.Symbols) != len(wantSymbols) {
+		t.Fatalf("Symbols = %+v, want %+v", img.Symbols, wantSymbols)
+	}
+	for i, want := range wantSymbols {
+		got := img.Symbols[i]
+		if got.Name != want.Name || got.Class != want.Class ||
+			(got.Type == nil) != (want.Type == nil) || (got.Type != nil && *got.Type != *want.Type) ||
+			(got.Value == nil) != (want.Value == nil) || (got.Value != nil && *got.Value != *want.Value) {
+			t.Errorf("Symbols[%d] = %+v, want %+v", i, got, want)
+		}
+	}
+
+	if len(img.Records) != 2 {
+		t.Fatalf("got %d records, want 2", len(img.Records))
+	}
+	ping := img.Records[0]
+	if len(ping.Params) != 1 || ping.Params[0].Ref == nil ||
+		ping.Params[0].Ref.Symbol != "adminKey" || ping.Params[0].Value != nil {
+		t.Errorf("PingA target = %+v, want a bare ref to adminKey", ping.Params)
+	}
+	if len(ping.Params) == 1 && !ping.Params[0].Sensitive {
+		t.Error("PingA target references a sensitive extern; the binding must be tainted")
+	}
+	pong := img.Records[1]
+	if len(pong.Params) != 1 || pong.Params[0].Ref == nil ||
+		pong.Params[0].Ref.Symbol != "sharedSubject" || pong.Params[0].Value != nil {
+		t.Errorf("PongA subject = %+v, want a bare ref to sharedSubject", pong.Params)
+	}
+	if len(pong.Params) == 1 && pong.Params[0].Sensitive {
+		t.Error("PongA subject references a plain var; the binding must not be tainted")
 	}
 }
 
@@ -493,27 +633,115 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			name: "language beyond this rung",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
-				"extern natsAdmin ff.Secret\n" +
-				"var greeting: \"hi\"\n" +
 				"default ff.Ping {\n" +
 				"\tcount: 5\n" +
 				"}\n" +
 				"provision ff.Ping slice as Q\n" +
 				"deploy ff.Ping as P {\n" +
-				"\ttarget: greeting\n" +
+				"\ttarget: Q.config\n" +
 				"\ton {\n" +
 				"\t\tlocation: here\n" +
 				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
 			want: []string{
-				"u.sdl:3:1: extern declarations not yet supported by this compiler rung",
-				"u.sdl:4:1: var declarations not yet supported by this compiler rung",
-				"u.sdl:5:1: default declarations not yet supported by this compiler rung",
-				"u.sdl:8:1: provision declarations not yet supported by this compiler rung",
-				"u.sdl:10:10: symbol reference greeting not yet supported by this compiler rung",
-				"u.sdl:11:2: on sections not yet supported by this compiler rung",
+				"u.sdl:3:1: default declarations not yet supported by this compiler rung",
+				"u.sdl:6:1: provision declarations not yet supported by this compiler rung",
+				"u.sdl:8:10: output reference Q.config not yet supported by this compiler rung: provision outputs arrive at a later rung",
+				"u.sdl:9:2: on sections not yet supported by this compiler rung",
 			},
+		},
+		{
+			name: "undefined symbol",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\ttarget: missing\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:4:10: undefined symbol missing"},
+		},
+		{
+			name: "instance referenced as a value",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Pong as Echo\n" +
+				"deploy ff.Ping as P {\n" +
+				"\ttarget: Echo\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:5:10: instance Echo has no value"},
+		},
+		{
+			name: "extern with an unknown type",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"extern key sub.Missing\n"}},
+			wantCode: 1,
+			want:     []string{`u.sdl:3:12: unknown element Missing in package "example.com/acme/substrate"`},
+		},
+		{
+			name: "extern with a component type",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"extern key ff.Ping\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:12: element ff.Ping is a component, not a symbol type"},
+		},
+		{
+			name: "deploy of a symbol type",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"deploy sub.Secret as S\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:3:8: cannot deploy sub.Secret: element is a symbol type, not a component"},
+		},
+		{
+			name: "duplicate symbols across classes",
+			units: []solution.Unit{
+				{Name: "a.sdl", Source: "solution sample\n" +
+					"import ff \"example.com/acme/pingpong\"\n" +
+					"var Ping1: \"taken\"\n" +
+					"deploy ff.Ping as Ping1\n"},
+				{Name: "b.sdl", Source: "solution sample\n" +
+					"import sub \"example.com/acme/substrate\"\n" +
+					"extern token sub.Secret\n" +
+					"var token: \"x\"\n"},
+			},
+			wantCode: 1,
+			want: []string{
+				"a.sdl:4:19: duplicate symbol Ping1 (first declared at a.sdl:3:5)",
+				"b.sdl:4:5: duplicate symbol token (first declared at b.sdl:3:8)",
+			},
+		},
+		{
+			name: "var literal rejected by the referencing slots",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"var soon: \"whenever\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\twindow: soon\n" +
+				"\tinterval: soon\n" +
+				"}\n"}},
+			wantCode: 1,
+			want: []string{
+				`u.sdl:5:10: invalid value for parameter window: var soon: time: invalid duration "whenever"`,
+				"u.sdl:6:12: invalid value for parameter interval: var soon: parse error",
+			},
+		},
+		{
+			name: "unknown parameter bound to an extern",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import (\n" +
+				"\tff \"example.com/acme/pingpong\"\n" +
+				"\tsub \"example.com/acme/substrate\"\n" +
+				")\n" +
+				"extern apiKey sub.Secret\n" +
+				"deploy ff.Ping as P {\n" +
+				"\tnope: apiKey\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:8:2: unknown parameter nope: element ff.Ping has no such parameter"},
 		},
 		{
 			name: "parse errors aggregate across units",
@@ -647,6 +875,12 @@ func TestMainCompileUsageErrors(t *testing.T) {
 			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
 				Catalogue: pkg(solution.App("X", &application.Descriptor{Name: "x"}))},
 			want: `compile: catalogue: package "example.com/p": element X: descriptor has no Make factory`,
+		},
+		{
+			name: "nil symbol type",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Symbol("X", nil))},
+			want: `compile: catalogue: package "example.com/p": element X has a nil symbol type`,
 		},
 	}
 	for _, tt := range tests {

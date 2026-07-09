@@ -15,7 +15,8 @@ import (
 // golden is the exact expected output of [TestSource]'s fixture, with ~
 // standing in for backquotes (the generated code contains raw string
 // literals, so the golden itself cannot be one). The fixture exercises
-// the alias collision rule (two packages named ff), an empty
+// the alias collision rule (two packages named ff), both citizen kinds
+// (a symbol-type citizen registers through solution.Symbol), an empty
 // registration (no import, no Elements), and both unit quoting forms:
 // a.sdl survives a raw literal, b.sdl contains a backquote and falls
 // back to an interpreted literal.
@@ -57,6 +58,7 @@ deploy ff.Ping as P
 				Name: "ff",
 				Elements: []solution.Element{
 					solution.App("Echo", ff2.Echo),
+					solution.Symbol("Token", ff2.Token),
 				},
 			},
 			{
@@ -79,8 +81,14 @@ func TestSource(t *testing.T) {
 		},
 	}
 	pkgs := []Package{
-		{Path: "example.com/alpha/ff", Name: "ff", Citizens: []string{"Ping", "Pong"}},
-		{Path: "example.com/beta/ff", Name: "ff", Citizens: []string{"Echo"}},
+		{Path: "example.com/alpha/ff", Name: "ff", Citizens: []Citizen{
+			{Name: "Ping", Kind: KindComponent},
+			{Name: "Pong", Kind: KindComponent},
+		}},
+		{Path: "example.com/beta/ff", Name: "ff", Citizens: []Citizen{
+			{Name: "Echo", Kind: KindComponent},
+			{Name: "Token", Kind: KindSymbol},
+		}},
 		{Path: "example.com/empty", Name: "empty"},
 	}
 

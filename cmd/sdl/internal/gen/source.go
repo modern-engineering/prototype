@@ -63,7 +63,7 @@ func Source(sol *load.Solution, pkgs []Package, generation int64) []byte {
 			if len(p.Citizens) > 0 {
 				b.WriteString("\t\t\t\tElements: []solution.Element{\n")
 				for _, c := range p.Citizens {
-					fmt.Fprintf(&b, "\t\t\t\t\tsolution.App(%s, %s.%s),\n", strconv.Quote(c), aliases[p.Path], c)
+					fmt.Fprintf(&b, "\t\t\t\t\tsolution.%s(%s, %s.%s),\n", constructor(c.Kind), strconv.Quote(c.Name), aliases[p.Path], c.Name)
 				}
 				b.WriteString("\t\t\t\t},\n")
 			}
@@ -74,6 +74,15 @@ func Source(sol *load.Solution, pkgs []Package, generation int64) []byte {
 	fmt.Fprintf(&b, "\t\tGeneration: %d,\n", generation)
 	b.WriteString("\t}))\n}\n")
 	return b.Bytes()
+}
+
+// constructor names the solution constructor packaging one citizen
+// kind.
+func constructor(kind string) string {
+	if kind == KindSymbol {
+		return "Symbol"
+	}
+	return "App"
 }
 
 // packageAliases assigns each imported package a stable, unique local

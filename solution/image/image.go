@@ -15,9 +15,9 @@
 // order and a trailing newline; producers supply the element orders the
 // schema prescribes: catalogue packages sorted by path, elements by name,
 // parameter schemas in flag.FlagSet.VisitAll order (lexicographic),
-// records in unit-then-statement order, and bindings by key. The
-// canonical order is what lets [Equal] compare structurally and keeps
-// images diffable.
+// symbols sorted by name, records in unit-then-statement order, and
+// bindings by key. The canonical order is what lets [Equal] compare
+// structurally and keeps images diffable.
 //
 // # Provenance
 //
@@ -27,10 +27,11 @@
 // different generations or, later, with values arriving through
 // different default layers.
 //
-// The type set is deliberately minimal: this rung emits components and
-// deploy records only, and later rungs extend the schema by adding
-// fields (JSON forward compatibility by addition), never by reshaping
-// the ones below.
+// The type set is deliberately minimal: this rung emits components,
+// symbol types, deploy records, and the symbol table their bindings
+// reference; later rungs extend the schema by adding fields (JSON
+// forward compatibility by addition), never by reshaping the ones
+// below.
 package image
 
 import (
@@ -43,18 +44,40 @@ import (
 // [Decode] rejects documents declaring any other format.
 const Format = "solution-image/1"
 
-// KindComponent marks an element schema pinned from an application
-// descriptor. It is the only element kind this rung emits.
-const KindComponent = "component"
+// The element kinds a catalogue schema pins.
+const (
+	// KindComponent marks an element schema pinned from an application
+	// descriptor.
+	KindComponent = "component"
+
+	// KindSymbol marks an element schema pinned from a symbol type:
+	// the class of late-bound values an extern symbol declares.
+	KindSymbol = "symbol"
+)
 
 // VerbDeploy marks a record produced by a deploy statement. It is the
 // only verb this rung emits.
 const VerbDeploy = "deploy"
 
-// SourceInstance records that the instance's own statement bound the
-// parameter. It is the only binding source this rung emits; later rungs
-// add the default layers.
-const SourceInstance = "instance"
+// The symbol classes of [SymbolDef], mirroring linkage: a var is bound
+// at compile time and a site may rebind it; an extern is unbound in
+// the image and the site must bind it.
+const (
+	ClassVar    = "var"
+	ClassExtern = "extern"
+)
+
+// The binding sources, recording which layer bound a parameter: the
+// instance's own statement, or one of the default layers folded under
+// it (the merge order is catalogue slot default, then default-deploy,
+// then default-type, then instance; the catalogue layer lives in the
+// pinned schema and emits no binding). Source is provenance: [Equal]
+// masks it.
+const (
+	SourceInstance      = "instance"
+	SourceDefaultType   = "default-type"
+	SourceDefaultDeploy = "default-deploy"
+)
 
 // An Image is one solution's desired state: the identity header, the
 // pinned catalogue schemas the solution was compiled against, and the
@@ -72,6 +95,11 @@ type Image struct {
 
 	// Catalogue pins every registered package, sorted by Path.
 	Catalogue []Package `json:"catalogue"`
+
+	// Symbols is the solution's symbol table, sorted by Name. Record
+	// bindings reference into it; instance names, though they share
+	// the solution's namespace, are carried by the records themselves.
+	Symbols []SymbolDef `json:"symbols"`
 
 	// Records hold the deployment statements in unit-then-statement
 	// order.
@@ -107,8 +135,13 @@ type ElementSchema struct {
 
 	// Params describe the element's declared parameters in
 	// flag.FlagSet.VisitAll order (lexicographic). Empty for flagless
-	// elements.
+	// elements; symbol types have none.
 	Params []ParamSchema `json:"params,omitempty"`
+
+	// Sensitive marks a symbol type whose values must not be logged
+	// or exposed. Bindings referencing an extern of this type carry
+	// the taint.
+	Sensitive bool `json:"sensitive,omitempty"`
 }
 
 // A ParamSchema describes one parameter an element declares.
@@ -127,6 +160,27 @@ type ParamSchema struct {
 	// Boolean marks flags that may be set without a value
 	// (flag.Value's IsBoolFlag contract).
 	Boolean bool `json:"boolean,omitempty"`
+}
+
+// A SymbolDef is one row of the image's symbol table: a var with its
+// compile-bound literal default, or an extern the deploying site must
+// bind. Records reference symbols by name through [SymbolRef]; the
+// table is the one place a site override rebinds, reaching every use
+// site uniformly (A-10).
+type SymbolDef struct {
+	// Name is the symbol's solution-wide name.
+	Name string `json:"name"`
+
+	// Class is the symbol's linkage class, [ClassVar] or [ClassExtern].
+	Class string `json:"class"`
+
+	// Type references the symbol-type element an extern declares,
+	// resolving into the catalogue section; nil for vars.
+	Type *Ref `json:"type,omitempty"`
+
+	// Value is a var's compile-bound literal default; nil for externs,
+	// whose values exist only once a site binds them.
+	Value *Value `json:"value,omitempty"`
 }
 
 // A Record is one reconciliation unit: the effective desired state of
@@ -154,18 +208,36 @@ type Ref struct {
 	Name string `json:"name"`
 }
 
-// A Binding is one bound parameter: the key, the canonical value, and
+// A Binding is one bound parameter: the key, the payload — a canonical
+// literal value or a symbol reference, exactly one of the two — and
 // the provenance of the binding.
 type Binding struct {
 	// Key is the parameter name.
 	Key string `json:"key"`
 
-	// Value is the canonical bound value.
-	Value *Value `json:"value"`
+	// Value is the canonical bound value of a literal binding; nil
+	// when Ref is set.
+	Value *Value `json:"value,omitempty"`
 
-	// Source records which layer bound the value; always
-	// [SourceInstance] in this rung. It is provenance: [Equal] masks it.
+	// Ref is the symbol reference of a reference binding: records
+	// carry references, never inlined symbol values, so rebinding one
+	// symbol reaches every use site uniformly (A-10).
+	Ref *SymbolRef `json:"ref,omitempty"`
+
+	// Source records which layer bound the value. It is provenance:
+	// [Equal] masks it.
 	Source string `json:"source"`
+
+	// Sensitive marks a binding tainted by a sensitive symbol type:
+	// consumers must not log or expose the value it resolves to.
+	Sensitive bool `json:"sensitive,omitempty"`
+}
+
+// A SymbolRef is a record binding's reference into the image's symbol
+// table.
+type SymbolRef struct {
+	// Symbol is the referenced symbol's name.
+	Symbol string `json:"symbol"`
 }
 
 // Encode writes the image in its canonical byte form: two-space-indented

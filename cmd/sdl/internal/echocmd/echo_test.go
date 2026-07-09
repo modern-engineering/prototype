@@ -46,8 +46,10 @@ func binding(key string, v *image.Value) image.Binding {
 
 // TestEchoGolden pins the whole canonical unit for an image exercising
 // the aliasing rules — a package named unlike its path tail, an alias
-// collision resolved by numeric suffix — plus every value kind and a
-// parameterless record.
+// collision resolved by numeric suffix — plus the symbol table (two
+// externs come back factored, one var single-form, types qualified by
+// the same reference names the records use), every value kind, a
+// reference binding, and a parameterless record.
 func TestEchoGolden(t *testing.T) {
 	img := &image.Image{
 		Format:     image.Format,
@@ -59,10 +61,16 @@ func TestEchoGolden(t *testing.T) {
 			pkg("example.com/beta/util", "util"),    // collides: becomes util2
 			pkg("example.com/ff", "ff"),             // name matches the tail: no alias
 		},
+		Symbols: []image.SymbolDef{
+			{Name: "apiKey", Class: image.ClassExtern, Type: &image.Ref{Package: "example.com/acme/util-go", Name: "Token"}},
+			{Name: "rootKey", Class: image.ClassExtern, Type: &image.Ref{Package: "example.com/beta/util", Name: "Token"}},
+			{Name: "subject", Class: image.ClassVar, Value: image.String("com.acme.Echo")},
+		},
 		Records: []image.Record{
 			record("example.com/acme/util-go", "Server", "S1",
 				binding("retries", image.Int(-3)),
 				binding("timeout", image.Duration(90*time.Minute)),
+				image.Binding{Key: "token", Ref: &image.SymbolRef{Symbol: "apiKey"}, Source: image.SourceInstance, Sensitive: true},
 			),
 			record("example.com/beta/util", "Cache", "C1",
 				binding("enabled", image.Bool(true)),
@@ -79,9 +87,17 @@ import (
 	"example.com/ff"
 )
 
+extern (
+	apiKey util.Token
+	rootKey util2.Token
+)
+
+var subject: "com.acme.Echo"
+
 deploy util.Server as S1 {
 	retries: -3
 	timeout: 1h30m0s
+	token: apiKey
 }
 
 deploy util2.Cache as C1 {
@@ -153,6 +169,47 @@ func TestEchoFaults(t *testing.T) {
 		"UnrenderableKey": {
 			mutate: func(img *image.Image) { img.Records[0].Params[0].Key = "log-level" },
 			want:   "SDL identifier",
+		},
+		"ValueAndRef": {
+			mutate: func(img *image.Image) { img.Records[0].Params[0].Ref = &image.SymbolRef{Symbol: "x"} },
+			want:   "both a value and a reference",
+		},
+		"UnrenderableRef": {
+			mutate: func(img *image.Image) {
+				img.Records[0].Params[0] = image.Binding{Key: "count", Ref: &image.SymbolRef{Symbol: "log-level"}}
+			},
+			want: "SDL identifier",
+		},
+		"UnknownSymbolClass": {
+			mutate: func(img *image.Image) {
+				img.Symbols = []image.SymbolDef{{Name: "x", Class: "weak"}}
+			},
+			want: `class "weak"`,
+		},
+		"BadSymbolName": {
+			mutate: func(img *image.Image) {
+				img.Symbols = []image.SymbolDef{{Name: "not name", Class: image.ClassVar, Value: image.Int(1)}}
+			},
+			want: "SDL identifier",
+		},
+		"ExternWithoutType": {
+			mutate: func(img *image.Image) {
+				img.Symbols = []image.SymbolDef{{Name: "x", Class: image.ClassExtern}}
+			},
+			want: "has no type",
+		},
+		"ExternTypeUnpinned": {
+			mutate: func(img *image.Image) {
+				img.Symbols = []image.SymbolDef{{Name: "x", Class: image.ClassExtern,
+					Type: &image.Ref{Package: "example.com/other", Name: "Token"}}}
+			},
+			want: "not pinned",
+		},
+		"VarWithoutValue": {
+			mutate: func(img *image.Image) {
+				img.Symbols = []image.SymbolDef{{Name: "x", Class: image.ClassVar}}
+			},
+			want: "no value",
 		},
 		"KeywordInstanceName": {
 			mutate: func(img *image.Image) { img.Records[0].Name = "deploy" },

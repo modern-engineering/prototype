@@ -35,15 +35,17 @@ var CmdEcho = &base.Command{
 	Long: `Echo reads a desired-state image — from the named file, or from
 standard input when no file is given — and prints it to standard output
 as one canonical solution unit: the solution clause, one import per
-catalogue package sorted by path, and one single-form deploy statement
-per record in image order, parameters included.
+catalogue package sorted by path, the symbol table as extern and var
+declarations in image order, and one single-form deploy statement per
+record in image order, parameters included.
 
 The unit is a re-rendering, not the original sources: images store
 canonical values rather than the author's lexemes or layout, so echo
 prints every value in its canonical spelling (strings quoted like Go,
 integers in decimal, durations as Go renders them, booleans as true or
-false) and emits nothing the image does not carry. Building the echoed
-unit against the same catalogue reproduces an equal image.
+false, symbol references as their bare identifiers) and emits nothing
+the image does not carry. Building the echoed unit against the same
+catalogue reproduces an equal image.
 
 Imports are aliased so references resolve exactly as compiled: the
 reference name is the package's registered name, spelled out when the
@@ -94,9 +96,11 @@ func echo(r io.Reader, w io.Writer) error {
 }
 
 // reconstruct builds the canonical unit for an image: the solution
-// clause, the import block, and one single-form deploy declaration per
-// record. Factoring is an authoring nicety the image does not record,
-// so records always come back single-form.
+// clause, the import block, the symbol table as an extern and a var
+// declaration, and one single-form deploy declaration per record.
+// Factoring within a declaration follows the printer's rule — one spec
+// prints single-form, several print as one factored block — since the
+// image records no authoring layout.
 func reconstruct(img *image.Image) (*ast.File, error) {
 	if err := checkIdent("solution name", img.Solution); err != nil {
 		return nil, err
@@ -111,6 +115,17 @@ func reconstruct(img *image.Image) (*ast.File, error) {
 		f.Imports = []*ast.ImportDecl{{Specs: specs}}
 	}
 
+	externs, vars, err := symbols(img.Symbols, refs)
+	if err != nil {
+		return nil, err
+	}
+	if externs != nil {
+		f.Decls = append(f.Decls, externs)
+	}
+	if vars != nil {
+		f.Decls = append(f.Decls, vars)
+	}
+
 	for i, rec := range img.Records {
 		decl, err := deploy(rec, refs)
 		if err != nil {
@@ -119,6 +134,53 @@ func reconstruct(img *image.Image) (*ast.File, error) {
 		f.Decls = append(f.Decls, decl)
 	}
 	return f, nil
+}
+
+// symbols renders the image's symbol table: the externs as one extern
+// declaration and the vars as one var declaration, each in image
+// (name) order, extern block first. Extern types print qualified
+// through the same reference names the records resolve by.
+func symbols(defs []image.SymbolDef, refs map[string]string) (externs *ast.ExternDecl, vars *ast.VarDecl, err error) {
+	for _, def := range defs {
+		if err := checkIdent(fmt.Sprintf("symbol name %q", def.Name), def.Name); err != nil {
+			return nil, nil, err
+		}
+		switch def.Class {
+		case image.ClassExtern:
+			if def.Type == nil {
+				return nil, nil, fmt.Errorf("extern symbol %s has no type", def.Name)
+			}
+			ref, ok := refs[def.Type.Package]
+			if !ok {
+				return nil, nil, fmt.Errorf("symbol %s: type package %q is not pinned in the catalogue", def.Name, def.Type.Package)
+			}
+			if err := checkIdent(fmt.Sprintf("symbol %s: type name %q", def.Name, def.Type.Name), def.Type.Name); err != nil {
+				return nil, nil, err
+			}
+			if externs == nil {
+				externs = new(ast.ExternDecl)
+			}
+			externs.Specs = append(externs.Specs, &ast.ExternSpec{
+				Name: &ast.Ident{Name: def.Name},
+				Type: &ast.TypeRef{Pkg: &ast.Ident{Name: ref}, Name: &ast.Ident{Name: def.Type.Name}},
+			})
+		case image.ClassVar:
+			value, err := valueNode(def.Value)
+			if err != nil {
+				return nil, nil, fmt.Errorf("var symbol %s: %w", def.Name, err)
+			}
+			if vars == nil {
+				vars = new(ast.VarDecl)
+			}
+			vars.Specs = append(vars.Specs, &ast.VarSpec{
+				Name:  &ast.Ident{Name: def.Name},
+				Value: value,
+			})
+		default:
+			return nil, nil, fmt.Errorf("symbol %s: cannot render class %q", def.Name, def.Class)
+		}
+	}
+	return externs, vars, nil
 }
 
 // imports derives one import spec per catalogue package, in catalogue
@@ -186,7 +248,7 @@ func deploy(rec image.Record, refs map[string]string) (*ast.DeployDecl, error) {
 			if err := checkIdent(fmt.Sprintf("parameter key %q", b.Key), b.Key); err != nil {
 				return nil, err
 			}
-			value, err := valueNode(b.Value)
+			value, err := bindingValue(b)
 			if err != nil {
 				return nil, fmt.Errorf("parameter %s: %w", b.Key, err)
 			}
@@ -197,6 +259,22 @@ func deploy(rec image.Record, refs map[string]string) (*ast.DeployDecl, error) {
 		}
 	}
 	return &ast.DeployDecl{Specs: []*ast.DeploySpec{spec}}, nil
+}
+
+// bindingValue lifts one binding's payload into a value node: a symbol
+// reference prints as its bare identifier, a literal in its canonical
+// spelling.
+func bindingValue(b image.Binding) (ast.Value, error) {
+	if b.Ref != nil {
+		if b.Value != nil {
+			return nil, fmt.Errorf("carries both a value and a reference")
+		}
+		if err := checkIdent(fmt.Sprintf("referenced symbol %q", b.Ref.Symbol), b.Ref.Symbol); err != nil {
+			return nil, err
+		}
+		return &ast.RefExpr{X: &ast.Ident{Name: b.Ref.Symbol}}, nil
+	}
+	return valueNode(b.Value)
 }
 
 // valueNode lifts an image value into a lexeme-free literal node; the

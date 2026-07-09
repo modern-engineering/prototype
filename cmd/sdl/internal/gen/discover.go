@@ -21,21 +21,38 @@ import (
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/load"
 )
 
-// descriptorPath is the package whose Descriptor type marks a catalogue
-// citizen.
-const descriptorPath = "github.com/modern-engineering/prototype/application"
+// The packages whose named types mark catalogue citizens.
+const (
+	descriptorPath = "github.com/modern-engineering/prototype/application"
+	solutionPath   = "github.com/modern-engineering/prototype/solution"
+)
+
+// The element kinds discovery recognizes, keyed by the pointee type of
+// the exported var.
+const (
+	KindComponent = "component" // *application.Descriptor, packaged by solution.App
+	KindSymbol    = "symbol"    // *solution.SymbolType, packaged by solution.Symbol
+)
+
+// A Citizen is one discovered catalogue element: the exported var's Go
+// identifier — the reference name solutions link against — and the
+// element kind its type selects.
+type Citizen struct {
+	Name string
+	Kind string
+}
 
 // A Package is one discovered catalogue package: its import path, its Go
-// package name, and the exported identifiers of its citizens.
+// package name, and its citizens.
 type Package struct {
 	Path string
 	Name string
 
-	// Citizens are the exported package-level vars of type
-	// *application.Descriptor, in types.Scope.Names order (sorted).
-	// A package may have none; it is registered empty, and the linker
+	// Citizens are the exported package-level vars whose pointee type
+	// marks an element kind, in types.Scope.Names order (sorted). A
+	// package may have none; it is registered empty, and the linker
 	// reports any reference into it as an unknown element.
-	Citizens []string
+	Citizens []Citizen
 }
 
 // Discover resolves the solution's imports in dir's module context and
@@ -106,12 +123,13 @@ func Discover(dir string, imports []load.Import, warn io.Writer) ([]Package, err
 }
 
 // scan reads one loaded package's exported vars into its registration:
-// a pointer-to-Descriptor var is a citizen; a value-typed Descriptor var
-// earns a warning naming the pointer-style fix; a package with no
-// citizens at all earns a warning and an empty registration.
+// a pointer var whose pointee marks an element kind is a citizen; a
+// value-typed var of such a type earns a warning naming the
+// pointer-style fix; a package with no citizens at all earns a warning
+// and an empty registration.
 func scan(pkg *packages.Package, warn io.Writer) Package {
 	scope := pkg.Types.Scope()
-	var citizens []string
+	var citizens []Citizen
 	for _, name := range scope.Names() { // Names is sorted
 		v, ok := scope.Lookup(name).(*types.Var)
 		if !ok || !v.Exported() {
@@ -119,14 +137,14 @@ func scan(pkg *packages.Package, warn io.Writer) Package {
 		}
 		t := types.Unalias(v.Type())
 		if ptr, ok := t.(*types.Pointer); ok {
-			if isDescriptor(types.Unalias(ptr.Elem())) {
-				citizens = append(citizens, name)
+			if kind, _, ok := citizenKind(types.Unalias(ptr.Elem())); ok {
+				citizens = append(citizens, Citizen{Name: name, Kind: kind})
 			}
 			continue
 		}
-		if isDescriptor(t) {
-			printf(warn, "sdl: package %q: var %s is an application.Descriptor value; declare it as a pointer (var %s = &application.Descriptor{...}) to register it\n",
-				pkg.PkgPath, name, name)
+		if _, typeName, ok := citizenKind(t); ok {
+			printf(warn, "sdl: package %q: var %s is a value of type %s; declare it as a pointer (var %s = &%s{...}) to register it\n",
+				pkg.PkgPath, name, typeName, name, typeName)
 		}
 	}
 	if len(citizens) == 0 {
@@ -143,13 +161,25 @@ func printf(w io.Writer, format string, args ...any) {
 	_, _ = fmt.Fprintf(w, format, args...)
 }
 
-// isDescriptor reports whether t is the named type application.Descriptor.
-func isDescriptor(t types.Type) bool {
+// citizenKind classifies a candidate pointee type, returning the
+// element kind it marks and the qualified type name for messages.
+func citizenKind(t types.Type) (kind, typeName string, ok bool) {
+	switch {
+	case isNamed(t, descriptorPath, "Descriptor"):
+		return KindComponent, "application.Descriptor", true
+	case isNamed(t, solutionPath, "SymbolType"):
+		return KindSymbol, "solution.SymbolType", true
+	}
+	return "", "", false
+}
+
+// isNamed reports whether t is the named type path.name.
+func isNamed(t types.Type, path, name string) bool {
 	named, ok := t.(*types.Named)
 	if !ok {
 		return false
 	}
 	obj := named.Obj()
-	return obj != nil && obj.Name() == "Descriptor" &&
-		obj.Pkg() != nil && obj.Pkg().Path() == descriptorPath
+	return obj != nil && obj.Name() == name &&
+		obj.Pkg() != nil && obj.Pkg().Path() == path
 }
