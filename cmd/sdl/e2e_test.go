@@ -8,9 +8,11 @@
 package main_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1185,6 +1187,198 @@ func helloDefault(t *testing.T, img *image.Image) string {
 	}
 	t.Fatalf("no greeting parameter in catalogue %+v", img.Catalogue)
 	return ""
+}
+
+// runSDLEnv invokes the built CLI in dir with extra environment
+// variables appended to the inherited environment.
+func runSDLEnv(t *testing.T, dir string, env []string, args ...string) result {
+	t.Helper()
+	cmd := exec.Command(sdlPath, args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), env...)
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &errb
+	err := cmd.Run()
+	code := 0
+	if err != nil {
+		exit, ok := err.(*exec.ExitError)
+		if !ok {
+			t.Fatalf("sdl %s: %v", strings.Join(args, " "), err)
+		}
+		code = exit.ExitCode()
+	}
+	return result{code: code, stdout: outb.String(), stderr: errb.String()}
+}
+
+// writeProxy lays down a file:// module proxy serving this checkout as
+// github.com/modern-engineering/prototype@v0.1.0 in the cmd/go proxy
+// layout — @v/list, .info, .mod, and a module zip holding everything
+// the generated compiler imports (application, solution, sdl, and the
+// examples catalogue) plus the module's own metadata files.
+func writeProxy(t *testing.T, dir string) {
+	t.Helper()
+	const version = "v0.1.0"
+	vdir := filepath.Join(dir, "github.com", "modern-engineering", "prototype", "@v")
+	if err := os.MkdirAll(vdir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(vdir, "list"), version+"\n")
+	writeFile(t, filepath.Join(vdir, version+".info"), fmt.Sprintf("{\"Version\":%q}\n", version))
+	gomod, err := os.ReadFile(filepath.Join(repoRoot, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(vdir, version+".mod"), string(gomod))
+
+	var zbuf bytes.Buffer
+	zw := zip.NewWriter(&zbuf)
+	add := func(rel string) {
+		w, err := zw.Create("github.com/modern-engineering/prototype@" + version + "/" + filepath.ToSlash(rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(filepath.Join(repoRoot, rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write(data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, rel := range []string{"go.mod", "go.sum", "LICENSE"} {
+		add(rel)
+	}
+	for _, tree := range []string{"application", "solution", "sdl", "examples"} {
+		err := filepath.WalkDir(filepath.Join(repoRoot, tree), func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !d.IsDir() {
+				rel, err := filepath.Rel(repoRoot, p)
+				if err != nil {
+					return err
+				}
+				add(rel)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(vdir, version+".zip"), zbuf.Bytes(), 0o666); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// hermeticProxyEnv builds the module-resolution environment for the
+// module-less tests: a file:// proxy serving this checkout at v0.1.0,
+// falling back (on 404, the comma semantics) to the local module cache
+// in its download layout for the x/ dependencies — which the cache
+// holds whenever this suite runs at all, since building the CLI needs
+// them — and a fresh GOMODCACHE so nothing real is poisoned by the
+// fictional version. No route leaves the machine. The fresh cache is
+// scrubbed with go clean -modcache before removal: the cache write-
+// protects its directories, which os.RemoveAll alone cannot clear.
+func hermeticProxyEnv(t *testing.T) []string {
+	t.Helper()
+	proxy := t.TempDir()
+	writeProxy(t, proxy)
+	out, err := exec.Command("go", "env", "GOMODCACHE").Output()
+	if err != nil {
+		t.Fatalf("locating the module cache: %v", err)
+	}
+	download := filepath.Join(strings.TrimSpace(string(out)), "cache", "download")
+
+	cache := t.TempDir()
+	t.Cleanup(func() {
+		cmd := exec.Command("go", "clean", "-modcache")
+		cmd.Env = append(os.Environ(), "GOMODCACHE="+cache)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Logf("cleaning the test module cache: %v\n%s", err, out)
+		}
+	})
+	return []string{
+		"GOPROXY=file://" + filepath.ToSlash(proxy) + ",file://" + filepath.ToSlash(download),
+		"GOMODCACHE=" + cache,
+		"GOSUMDB=off",
+		// Neutralize developer overrides that could route the fictional
+		// module past the fixture.
+		"GOPRIVATE=", "GONOPROXY=", "GONOSUMDB=", "GOFLAGS=",
+	}
+}
+
+// TestBuildNoModule is the module-less proof: a solution directory
+// outside any go.mod or go.work builds by resolving its imports at
+// their latest versions through the ambient proxy configuration, the
+// generated program's own go.mod carrying the requirements. The fixture
+// proxy serves the prototype at the fictional v0.1.0, so the built CLI
+// necessarily reports version skew — the handshake's evidence — and an
+// unresolvable import still dies as a diagnostic positioned at its
+// import spec, tidy's own cause on stderr beside it.
+func TestBuildNoModule(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	env := hermeticProxyEnv(t)
+
+	t.Run("Image", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, filepath.Join(dir, "nomod.sdl"), `solution nomod
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1 {
+	count: 1
+	target: "pong"
+}
+`)
+		out := filepath.Join(dir, "out.json")
+		start := time.Now()
+		res := runSDLEnv(t, dir, env, "build", "-o", out)
+		t.Logf("module-less sdl build: %v", time.Since(start))
+		if res.code != 0 {
+			t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+		}
+		if !strings.Contains(res.stderr, "sdl: warning: solution resolves github.com/modern-engineering/prototype v0.1.0") {
+			t.Errorf("no skew warning against the fetched v0.1.0:\n%s", res.stderr)
+		}
+		data, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		img, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("emitted image does not decode: %v", err)
+		}
+		if len(img.Catalogue) != 1 || img.Catalogue[0].Path != "github.com/modern-engineering/prototype/examples/ff" {
+			t.Errorf("catalogue = %+v, want the proxy-served ff package", img.Catalogue)
+		}
+		if len(img.Records) != 1 || img.Records[0].Name != "Ping1" {
+			t.Errorf("records = %+v, want the one Ping1 deploy", img.Records)
+		}
+	})
+
+	t.Run("UnresolvableImport", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, filepath.Join(dir, "broken.sdl"), `solution broken
+
+import bad "example.test/nonexistent"
+
+deploy bad.Thing as T
+`)
+		res := runSDLEnv(t, dir, env, "build")
+		if res.code != 1 {
+			t.Fatalf("exit %d, want 1\n%s", res.code, res.stderr)
+		}
+		if !strings.Contains(res.stderr, `broken.sdl:3:8: import "example.test/nonexistent"`) {
+			t.Errorf("diagnostic not positioned at the import spec:\n%s", res.stderr)
+		}
+	})
 }
 
 // TestWorkFlag is (d): -work announces the work directory and leaves

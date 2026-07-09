@@ -148,11 +148,12 @@ func synthesizeGoWork(ws *workspace) []byte {
 	return b.Bytes()
 }
 
-// scaffoldGoMod renders the work module for workspace mode: a throwaway
-// identity plus the workspace's own language version, and no
-// requirements at all — the workspace's union build list resolves every
-// import of the generated compiler, the resolution the user's own
-// packages get.
+// scaffoldGoMod renders the work module for the modes that do not
+// mirror a user module's requirements: a throwaway identity plus a
+// language version, nothing more. In workspace mode the version is the
+// workspace's own and the union build list resolves every import; in
+// module-less mode it is the toolchain's and go mod tidy fills the
+// requirements in.
 func scaffoldGoMod(goVersion string) []byte {
 	var b bytes.Buffer
 	b.WriteString("module sdl.invalid/solmain\n")

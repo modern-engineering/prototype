@@ -9,8 +9,9 @@
 // # Module context
 //
 // Detect classifies the solution directory the way the go CLI itself
-// would: an active go.work selects workspace mode, otherwise an
-// enclosing go.mod selects module mode.
+// would: an active go.work selects workspace mode, an enclosing go.mod
+// selects module mode, and neither leaves resolution to the work
+// module itself.
 //
 // In module mode the temporary module mirrors the solution module's
 // resolution state from one 'go list -m' run: every module of the graph
@@ -31,7 +32,14 @@
 // source included — with no requirements synthesized at all, because a
 // workspace resolves any member's imports through the union graph.
 //
-// Solutions outside any module context arrive at a later rung.
+// With no module context at all, the work module's own go.mod carries
+// the solution's imports as ordinary requirements, resolved to their
+// latest versions the way the go tool resolves any missing dependency —
+// through the ambient GOPROXY and module cache configuration, network
+// included. That inverts the pipeline's usual order: discovery must run
+// after resolution, rooted in the work directory, because nowhere else
+// do the import paths mean anything; ResolveModuleless carries that
+// mode, Run the other two.
 package work
 
 import (
@@ -83,11 +91,14 @@ type Config struct {
 	Stderr io.Writer
 }
 
-// Run executes the driver: synthesize the work directory's module
-// context, build the generated compiler, run it, and relay its verdict.
-// Solution faults come back as *base.DiagnosticsError (exit code 1,
-// matching the compiler's own exit 1); everything else — including a
-// compiler that exits 2 — is an ordinary error (exit code 2).
+// Run executes the driver for the two enclosing-context modes:
+// synthesize the work directory's module context, build the generated
+// compiler, run it, and relay its verdict. (Builds outside any module
+// context go through ResolveModuleless instead, discovery between its
+// two halves.) Solution faults come back as *base.DiagnosticsError
+// (exit code 1, matching the compiler's own exit 1); everything else —
+// including a compiler that exits 2 — is an ordinary error (exit code
+// 2).
 func Run(ctx context.Context, cfg Config) error {
 	stderr := cfg.Stderr
 	if stderr == nil {

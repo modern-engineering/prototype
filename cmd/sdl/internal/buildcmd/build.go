@@ -28,11 +28,13 @@ into its desired-state image.
 
 Build reads every .sdl file of the directory, resolves the imported
 catalogue packages exactly as the go command would in that directory —
-through the enclosing module's requirements and replaces, or through an
-active workspace's union of modules — and generates a small Go program
-that embeds the solution sources and links them against the live
-catalogue. The program is compiled in a temporary context mirroring
-that resolution and then run; it emits the image as canonical JSON.
+through the enclosing module's requirements and replaces, through an
+active workspace's union of modules, or, outside any module context,
+at their latest versions via the ambient GOPROXY configuration — and
+generates a small Go program that embeds the solution sources and links
+them against the live catalogue. The program is compiled in a temporary
+context mirroring that resolution and then run; it emits the image as
+canonical JSON.
 
 The -o flag writes the image to a file instead of standard output.
 
@@ -79,9 +81,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	if mc.Mode() == work.ModeNone {
-		return &base.DiagnosticsError{Lines: []string{
-			fmt.Sprintf("no go.mod or go.work in %s or any parent: sdl build resolves imports in the enclosing Go module or workspace; module-less solutions arrive at a later rung", sol.Dir),
-		}}
+		return buildModuleless(ctx, sol, mc)
 	}
 	pkgs, err := gen.Discover(sol.Dir, sol.Imports, mc.Env(), os.Stderr)
 	if err != nil {
@@ -96,4 +96,31 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) error {
 		Keep:    flagWork,
 		Stderr:  os.Stderr,
 	})
+}
+
+// buildModuleless wires the pipeline for a solution outside any module
+// context, where the usual order inverts: the driver's first half
+// resolves the imports into the work module before discovery has
+// anywhere to root, and its second half compiles the program discovery
+// made generable.
+func buildModuleless(ctx context.Context, sol *load.Solution, mc *work.Context) error {
+	paths := make([]string, len(sol.Imports))
+	for i, imp := range sol.Imports {
+		paths[i] = imp.Path
+	}
+	m, err := work.ResolveModuleless(ctx, work.ModulelessConfig{
+		Context: mc,
+		Imports: paths,
+		Keep:    flagWork,
+		Stderr:  os.Stderr,
+	})
+	if err != nil {
+		return err
+	}
+	defer m.Close()
+	pkgs, err := gen.Discover(m.Dir, sol.Imports, m.Env(), os.Stderr)
+	if err != nil {
+		return err
+	}
+	return m.BuildAndRun(ctx, gen.Source(sol, pkgs, flagGeneration), flagOutput)
 }
