@@ -101,13 +101,14 @@ type linker struct {
 	cfg CompileConfig
 
 	files []*ast.File // parsed units, parallel to cfg.Units
+	cur   int         // index of the unit being linked; selects its import table
 
 	diags    scanner.ErrorList
 	internal *internalError
 
-	packages map[string]*regPackage   // import path -> registration
-	imports  map[string]importBinding // reference name -> import
-	symbols  map[string]*symbol       // flat namespace: name -> first declaration
+	packages map[string]*regPackage     // import path -> registration
+	imports  []map[string]importBinding // per-unit import tables, parallel to files
+	symbols  map[string]*symbol         // flat namespace: name -> first declaration
 
 	verbDefaults map[string]*defaultBody            // statement verb -> its one default
 	typeDefaults map[*catalogueElement]*defaultBody // element -> its one default
@@ -228,7 +229,7 @@ func (ce *catalogueElement) factory() string {
 	return "Make"
 }
 
-// An importBinding is one entry of the union import table.
+// An importBinding is one entry of a unit's import table.
 type importBinding struct {
 	path string
 	pos  token.Position // the binding import spec, for conflict reports
@@ -274,7 +275,6 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 	ln := &linker{
 		cfg:          cfg,
 		packages:     make(map[string]*regPackage, len(cfg.Catalogue)),
-		imports:      make(map[string]importBinding),
 		symbols:      make(map[string]*symbol),
 		verbDefaults: make(map[string]*defaultBody),
 		typeDefaults: make(map[*catalogueElement]*defaultBody),
@@ -398,18 +398,22 @@ func (ln *linker) parse() bool {
 	return len(ln.diags) == 0
 }
 
-// link verifies the shared solution clause and unions the units' import
-// tables into one reference-name table (D-08's link model: peer units,
-// one namespace).
+// link verifies the shared solution clause and binds each unit's import
+// table. Import scope is the unit, as in Go it is the source file
+// (D-10: per-file import blocks keep units self-contained), so one
+// alias may name different packages in different units, and a unit
+// resolves references only through its own imports — never a peer's.
 func (ln *linker) link() {
-	for _, f := range ln.files {
+	ln.imports = make([]map[string]importBinding, len(ln.files))
+	for i, f := range ln.files {
 		if f.Solution != nil && f.Solution.Name.Name != ln.cfg.Solution {
 			ln.errorf(f.Solution.Name.NamePos,
 				"solution mismatch: unit declares %s, want %s", f.Solution.Name.Name, ln.cfg.Solution)
 		}
+		ln.imports[i] = make(map[string]importBinding)
 		for _, decl := range f.Imports {
 			for _, spec := range decl.Specs {
-				ln.addImport(spec)
+				ln.addImport(ln.imports[i], spec)
 			}
 		}
 	}
@@ -417,12 +421,13 @@ func (ln *linker) link() {
 
 // addImport binds one import spec's reference name — its alias or, for
 // unaliased specs, the registered package name of its path — into the
-// union table. Without an alias the reference name lives in the imported
-// package itself, which only the catalogue can supply, so an unaliased
-// import of an unregistered path is reported at the spec; an aliased one
-// is diagnosed at its first use instead. Rebinding a name to a different
-// path is an error at the second spec.
-func (ln *linker) addImport(spec *ast.ImportSpec) {
+// declaring unit's table. Without an alias the reference name lives in
+// the imported package itself, which only the catalogue can supply, so
+// an unaliased import of an unregistered path is reported at the spec;
+// an aliased one is diagnosed at its first use instead. Rebinding a
+// name to a different path within the unit is an error at the second
+// spec.
+func (ln *linker) addImport(imports map[string]importBinding, spec *ast.ImportSpec) {
 	path := spec.Path.Value
 	var name string
 	switch {
@@ -436,13 +441,13 @@ func (ln *linker) addImport(spec *ast.ImportSpec) {
 		}
 		name = pkg.name
 	}
-	if prev, ok := ln.imports[name]; ok {
+	if prev, ok := imports[name]; ok {
 		if prev.path != path {
 			ln.errorf(spec.Pos(), "import name %s already bound to %q (first imported at %s)", name, prev.path, prev.pos)
 		}
 		return
 	}
-	ln.imports[name] = importBinding{path: path, pos: spec.Pos()}
+	imports[name] = importBinding{path: path, pos: spec.Pos()}
 }
 
 // check links the declarations in two phases. collect first enters
@@ -458,7 +463,8 @@ func (ln *linker) check() {
 	if ln.internal != nil {
 		return
 	}
-	for _, f := range ln.files {
+	for i, f := range ln.files {
+		ln.cur = i
 		for _, decl := range f.Decls {
 			switch d := decl.(type) {
 			case *ast.DeployDecl:
@@ -492,7 +498,8 @@ func (ln *linker) check() {
 // collect in a second pass: their bodies may reference any symbol, so
 // they wait for the namespace to be complete.
 func (ln *linker) collect() {
-	for _, f := range ln.files {
+	for i, f := range ln.files {
+		ln.cur = i
 		for _, decl := range f.Decls {
 			switch d := decl.(type) {
 			case *ast.DeployDecl:
@@ -514,7 +521,8 @@ func (ln *linker) collect() {
 			}
 		}
 	}
-	for _, f := range ln.files {
+	for i, f := range ln.files {
+		ln.cur = i
 		for _, decl := range f.Decls {
 			if d, ok := decl.(*ast.DefaultDecl); ok {
 				ln.collectDefault(d)
@@ -925,15 +933,15 @@ func (ln *linker) lookupOutput(ref *ast.RefExpr) *Output {
 	return sym.elem.outputs[ref.Sel.Name]
 }
 
-// lookupElement resolves a type reference quietly: collect uses it to
-// seed instance symbols with their elements before any statement is
-// checked; the loud diagnosis of a missing link belongs to [resolve],
-// at the statement itself.
+// lookupElement resolves a type reference quietly against the current
+// unit's imports: collect uses it to seed instance symbols with their
+// elements before any statement is checked; the loud diagnosis of a
+// missing link belongs to [resolve], at the statement itself.
 func (ln *linker) lookupElement(t *ast.TypeRef) *catalogueElement {
 	if t.Pkg == nil {
 		return nil
 	}
-	imp, ok := ln.imports[t.Pkg.Name]
+	imp, ok := ln.imports[ln.cur][t.Pkg.Name]
 	if !ok {
 		return nil
 	}
@@ -944,9 +952,11 @@ func (ln *linker) lookupElement(t *ast.TypeRef) *catalogueElement {
 	return pkg.elements[t.Name.Name]
 }
 
-// resolve maps a type reference through the union import table and the
-// registered catalogue to its element; it reports and returns nil when
-// any link of the chain is missing.
+// resolve maps a type reference through the referencing unit's import
+// table and the registered catalogue to its element; it reports and
+// returns nil when any link of the chain is missing. A peer unit's
+// import cannot satisfy the reference: units are self-contained, so
+// the unit itself must import what it names.
 func (ln *linker) resolve(t *ast.TypeRef) *catalogueElement {
 	if t.Pkg == nil {
 		// The parser tolerates the bare legacy form in importless
@@ -956,7 +966,7 @@ func (ln *linker) resolve(t *ast.TypeRef) *catalogueElement {
 			t.Name.Name, t.Name.Name)
 		return nil
 	}
-	imp, ok := ln.imports[t.Pkg.Name]
+	imp, ok := ln.imports[ln.cur][t.Pkg.Name]
 	if !ok {
 		ln.errorf(t.Pos(), "package %s is not imported", t.Pkg.Name)
 		return nil

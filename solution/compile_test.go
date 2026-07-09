@@ -669,6 +669,50 @@ func TestMainCompileSymbolReferences(t *testing.T) {
 	}
 }
 
+// TestMainCompilePerFileImports proves import scope is the unit, the
+// Go source-file model: two units bind the same alias to different
+// packages and a third binds a second alias to a path its peer also
+// imports, and every reference resolves through its own unit's table.
+func TestMainCompilePerFileImports(t *testing.T) {
+	units := []solution.Unit{
+		{Name: "a.sdl", Source: "solution sample\n" +
+			"import ff \"example.com/acme/pingpong\"\n" +
+			"deploy ff.Ping as P\n"},
+		{Name: "b.sdl", Source: "solution sample\n" +
+			"import ff \"example.com/acme/quiet\"\n" +
+			"deploy ff.Quiet as Q\n"},
+		{Name: "c.sdl", Source: "solution sample\n" +
+			"import pp \"example.com/acme/pingpong\"\n" +
+			"deploy pp.Pong as R\n"},
+	}
+	cfg := solution.CompileConfig{
+		Solution:  "sample",
+		Units:     units,
+		Catalogue: testCatalogue(),
+	}
+	code, stdout, stderr := compile(t, cfg)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	img, err := image.Decode(strings.NewReader(stdout))
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	want := []image.Ref{
+		{Package: "example.com/acme/pingpong", Name: "Ping"},
+		{Package: "example.com/acme/quiet", Name: "Quiet"},
+		{Package: "example.com/acme/pingpong", Name: "Pong"},
+	}
+	if len(img.Records) != len(want) {
+		t.Fatalf("got %d records, want %d", len(img.Records), len(want))
+	}
+	for i, ref := range want {
+		if img.Records[i].Element != ref {
+			t.Errorf("record %d element = %+v, want %+v (the unit's own binding of the alias)", i, img.Records[i].Element, ref)
+		}
+	}
+}
+
 // TestMainCompileDefaultMergeOrder proves the four value tiers over
 // one parameter: the catalogue slot default (count is 1 in the pinned
 // schema) yields no binding at all, and each SDL layer above it —
@@ -1047,19 +1091,35 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			},
 		},
 		{
-			name: "conflicting import name",
+			// Import scope is the unit: rebinding a name to a second
+			// path is a fault only within one unit's own import block.
+			name: "conflicting import name within one unit",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import (\n" +
+				"\tff \"example.com/acme/pingpong\"\n" +
+				"\tff \"example.com/acme/quiet\"\n" +
+				")\n" +
+				"deploy ff.Ping as P\n"}},
+			wantCode: 1,
+			want:     []string{`u.sdl:4:2: import name ff already bound to "example.com/acme/pingpong" (first imported at u.sdl:3:2)`},
+		},
+		{
+			// A peer unit's import satisfies nothing: the referencing
+			// unit itself must import what it names.
+			name: "package imported only by a peer unit",
 			units: []solution.Unit{
 				{Name: "a.sdl", Source: "solution sample\n" +
-					"import ff \"example.com/acme/pingpong\"\n" +
+					"import (\n" +
+					"\tff \"example.com/acme/pingpong\"\n" +
+					"\tsub \"example.com/acme/substrate\"\n" +
+					")\n" +
 					"deploy ff.Ping as P\n"},
-				// The deploy resolves through the first binding (ff.Ping
-				// exists in pingpong), so the conflict is the only fault.
 				{Name: "b.sdl", Source: "solution sample\n" +
-					"import ff \"example.com/acme/quiet\"\n" +
-					"deploy ff.Ping as Q\n"},
+					"import ff \"example.com/acme/pingpong\"\n" +
+					"extern key sub.Secret\n"},
 			},
 			wantCode: 1,
-			want:     []string{`b.sdl:2:8: import name ff already bound to "example.com/acme/pingpong" (first imported at a.sdl:2:8)`},
+			want:     []string{"b.sdl:3:12: package sub is not imported"},
 		},
 		{
 			name: "solution mismatch",

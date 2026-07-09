@@ -2,11 +2,12 @@
 // governed by the license that can be found in the LICENSE file.
 
 // Package load reads a solution directory into the inputs of the build
-// pipeline: the unit sources, the solution name, and the union import
-// table. It runs the checks that must fail fast before the Go toolchain
-// is invoked — syntax and import-table conflicts — and nothing more:
-// linking semantics (solution-clause agreement, reference resolution)
-// belong to solution.MainCompile inside the generated compiler.
+// pipeline: the unit sources, the solution name, and the set of
+// imported package paths. It runs the checks that must fail fast
+// before the Go toolchain is invoked — syntax and import-path shape —
+// and nothing more: linking semantics (solution-clause agreement,
+// reference resolution, per-unit import scope) belong to
+// solution.MainCompile inside the generated compiler.
 package load
 
 import (
@@ -57,9 +58,12 @@ type Solution struct {
 
 // Dir loads the solution in dir (empty means the current directory).
 // All units are parsed and every fault is collected before failing:
-// syntax errors, import paths that cannot be package-load patterns, and
-// one import name bound to two different paths all come back together
-// in one *base.DiagnosticsError.
+// syntax errors and import paths that cannot be package-load patterns
+// come back together in one *base.DiagnosticsError. Import names are
+// not checked at all — reference names scope to their declaring unit,
+// so binding them is the linker's business; the load set is the union
+// of the units' import paths, deduplicated, which is exactly what
+// discovery and code generation consume.
 func Dir(dir string) (*Solution, error) {
 	if dir == "" {
 		dir = "."
@@ -78,8 +82,7 @@ func Dir(dir string) (*Solution, error) {
 
 	sol := &Solution{Dir: abs}
 	var diags scanner.ErrorList
-	imports := make(map[string]importBinding) // reference name -> binding
-	paths := make(map[string]token.Position)  // import path -> first spec
+	paths := make(map[string]token.Position) // import path -> first spec
 	for _, name := range names {
 		src, err := os.ReadFile(filepath.Join(abs, name))
 		if err != nil {
@@ -110,7 +113,7 @@ func Dir(dir string) (*Solution, error) {
 		}
 		for _, decl := range f.Imports {
 			for _, spec := range decl.Specs {
-				addImport(&diags, imports, paths, spec)
+				addImport(&diags, paths, spec)
 			}
 		}
 	}
@@ -150,18 +153,12 @@ func unitNames(dir string) ([]string, error) {
 	return names, nil
 }
 
-// An importBinding is one entry of the union import table.
-type importBinding struct {
-	path string
-	pos  token.Position
-}
-
-// addImport records one import spec: the path joins the load set, and an
-// aliased spec binds its alias in the union table, where one name bound
-// to two different paths is a conflict reported at the later spec.
-// Unaliased specs bind the imported package's own name, which only
-// discovery can supply; their conflicts are the linker's to find.
-func addImport(diags *scanner.ErrorList, imports map[string]importBinding, paths map[string]token.Position, spec *ast.ImportSpec) {
+// addImport records one import spec: the path joins the load set,
+// deduplicated by path with the first spec keeping the position. The
+// spec's reference name is not load's business — import scope is the
+// unit, so the same alias may name different packages in different
+// units, and only the linker sees the units one table at a time.
+func addImport(diags *scanner.ErrorList, paths map[string]token.Position, spec *ast.ImportSpec) {
 	path, pos := spec.Path.Value, spec.Pos()
 	if err := checkImportPath(path); err != nil {
 		diags.Add(pos, fmt.Sprintf("import %q: %v", path, err))
@@ -170,17 +167,6 @@ func addImport(diags *scanner.ErrorList, imports map[string]importBinding, paths
 	if _, ok := paths[path]; !ok {
 		paths[path] = pos
 	}
-	if spec.Alias == nil {
-		return
-	}
-	alias := spec.Alias.Name
-	if prev, ok := imports[alias]; ok {
-		if prev.path != path {
-			diags.Add(pos, fmt.Sprintf("import name %s already bound to %q (first imported at %s)", alias, prev.path, prev.pos))
-		}
-		return
-	}
-	imports[alias] = importBinding{path: path, pos: pos}
 }
 
 // checkImportPath rejects strings that cannot be a single package's

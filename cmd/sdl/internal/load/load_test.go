@@ -50,16 +50,6 @@ func TestDirDiagnostics(t *testing.T) {
 			},
 		},
 		{
-			name: "alias conflict across two files",
-			files: map[string]string{
-				"a.sdl": "solution s\n\nimport ff \"example.com/one\"\n",
-				"b.sdl": "solution s\n\nimport ff \"example.com/two\"\n",
-			},
-			want: []string{
-				`b.sdl:3:8: import name ff already bound to "example.com/one" (first imported at a.sdl:3:8)`,
-			},
-		},
-		{
 			name:  "no sdl files",
 			files: map[string]string{"README.md": "not a unit\n"},
 			want:  []string{"no .sdl files in %DIR%"},
@@ -82,6 +72,29 @@ func TestDirDiagnostics(t *testing.T) {
 					strings.Join(got, "\n"), strings.Join(want, "\n"))
 			}
 		})
+	}
+}
+
+// TestDirAliasScope pins that reference names are none of load's
+// business: one alias naming two different paths in two units is legal
+// (import scope is the unit, the linker's per-file tables resolve it),
+// and load's union is only the deduplicated path set for discovery.
+func TestDirAliasScope(t *testing.T) {
+	dir := writeUnits(t, map[string]string{
+		"a.sdl": "solution s\n\nimport ff \"example.com/one\"\n",
+		"b.sdl": "solution s\n\nimport ff \"example.com/two\"\n",
+		"c.sdl": "solution s\n\nimport pp \"example.com/one\"\n",
+	})
+	sol, err := Dir(dir)
+	if err != nil {
+		t.Fatalf("Dir: %v", err)
+	}
+	var paths []string
+	for _, imp := range sol.Imports {
+		paths = append(paths, imp.Path)
+	}
+	if want := []string{"example.com/one", "example.com/two"}; !equal(paths, want) {
+		t.Errorf("import set = %v, want %v (deduplicated by path)", paths, want)
 	}
 }
 

@@ -173,6 +173,13 @@ func TestBuildDeterminism(t *testing.T) {
 // shape of a user module consuming the framework.
 func solutionModule(t *testing.T, unitName, unitSource string) string {
 	t.Helper()
+	return solutionModuleFiles(t, map[string]string{unitName: unitSource})
+}
+
+// solutionModuleFiles is solutionModule for multi-unit solutions: one
+// throwaway module holding every named unit.
+func solutionModuleFiles(t *testing.T, units map[string]string) string {
+	t.Helper()
 	dir := t.TempDir()
 	gomod := fmt.Sprintf(`module example.test/sol
 
@@ -192,8 +199,10 @@ replace github.com/modern-engineering/prototype => %s
 	if err := os.WriteFile(filepath.Join(dir, "go.sum"), sum, 0o666); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, unitName), []byte(unitSource), 0o666); err != nil {
-		t.Fatal(err)
+	for name, source := range units {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(source), 0o666); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return dir
 }
@@ -236,6 +245,109 @@ deploy ff.Gone as G
 		}
 		if !strings.Contains(res.stderr, "sol.sdl:5:8: unknown element Gone") {
 			t.Errorf("diagnostic not positioned at the element reference:\n%s", res.stderr)
+		}
+	})
+}
+
+// TestPerFileImportScope proves import scope end to end: units bind
+// aliases independently — one alias may name different packages in
+// different units, one package may go by different aliases — while the
+// driver still generates one import per package path; and a unit
+// referencing a package only a peer imports is a positioned fault.
+func TestPerFileImportScope(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+
+	t.Run("AliasesAreUnitLocal", func(t *testing.T) {
+		dir := solutionModuleFiles(t, map[string]string{
+			"a.sdl": `solution scoped
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1 {
+	count: 1
+	target: "pong"
+}
+`,
+			// The same alias names another package here, and pp names
+			// the package a.sdl calls ff — both Go-legal, both local.
+			"b.sdl": `solution scoped
+
+import (
+	ff "github.com/modern-engineering/prototype/examples/substrate"
+	pp "github.com/modern-engineering/prototype/examples/ff"
+)
+
+provision ff.Postgres attach as legacy
+
+deploy pp.Pong as Pong1 {
+	subject: "ping"
+}
+`,
+		})
+		out := filepath.Join(dir, "out.json")
+		res := runSDL(t, dir, "build", "-o", out)
+		if res.code != 0 {
+			t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+		}
+		data, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		img, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("emitted image does not decode: %v", err)
+		}
+		want := []image.Ref{
+			{Package: "github.com/modern-engineering/prototype/examples/ff", Name: "Ping"},
+			{Package: "github.com/modern-engineering/prototype/examples/substrate", Name: "Postgres"},
+			{Package: "github.com/modern-engineering/prototype/examples/ff", Name: "Pong"},
+		}
+		if len(img.Records) != len(want) {
+			t.Fatalf("records = %+v, want %d records", img.Records, len(want))
+		}
+		for i, ref := range want {
+			if img.Records[i].Element != ref {
+				t.Errorf("record %d element = %+v, want %+v", i, img.Records[i].Element, ref)
+			}
+		}
+		// Each package pins once, however many aliases name it.
+		if len(img.Catalogue) != 2 {
+			t.Errorf("catalogue pins %d packages, want 2 (one per import path)", len(img.Catalogue))
+		}
+	})
+
+	t.Run("ForgottenImport", func(t *testing.T) {
+		dir := solutionModuleFiles(t, map[string]string{
+			"a.sdl": `solution scoped
+
+import (
+	ff "github.com/modern-engineering/prototype/examples/ff"
+	sub "github.com/modern-engineering/prototype/examples/substrate"
+)
+
+deploy ff.Ping as Ping1
+`,
+			// sub resolves only through a.sdl's imports; this unit
+			// never imports it.
+			"b.sdl": `solution scoped
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+extern key sub.Secret
+
+deploy ff.Pong as Pong1 {
+	subject: key
+}
+`,
+		})
+		res := runSDL(t, dir, "build")
+		if res.code != 1 {
+			t.Fatalf("exit %d, want 1\n%s", res.code, res.stderr)
+		}
+		if !strings.Contains(res.stderr, "b.sdl:5:12: package sub is not imported") {
+			t.Errorf("diagnostic not positioned at the peer-only reference:\n%s", res.stderr)
 		}
 	})
 }
