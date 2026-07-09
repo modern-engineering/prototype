@@ -43,7 +43,9 @@ type Import struct {
 // code generation.
 type Solution struct {
 	// Name is the solution name declared by the first unit's solution
-	// clause. Whether the other units agree is the linker's business.
+	// clause; a loaded solution always has one, since a clause-less
+	// unit is a load diagnostic. Whether the other units agree is the
+	// linker's business.
 	Name string
 
 	// Dir is the absolute solution directory.
@@ -108,7 +110,15 @@ func Dir(dir string) (*Solution, error) {
 			// hide another's conflicts.
 			continue
 		}
-		if sol.Name == "" && f.Solution != nil {
+		if f.Solution == nil {
+			// Only an empty or comment-only unit parses without a
+			// clause (the parser demands one ahead of any declaration).
+			// Diagnosing it here keeps build and fmt agreeing that the
+			// unit is not well-formed, and keeps the fault the
+			// author's: without this, a clause-less lone unit would
+			// surface as the generated compiler's config error, exit 2.
+			diags.Add(token.Position{Filename: name, Line: 1, Column: 1}, "unit declares no solution clause")
+		} else if sol.Name == "" {
 			sol.Name = f.Solution.Name.Name
 		}
 		for _, decl := range f.Imports {

@@ -285,6 +285,15 @@ func TestParseErrors(t *testing.T) {
 			"duplicate parameter key count",
 		},
 		{
+			// A non-empty unit must open with its solution clause; only
+			// empty and comment-only units parse without one (they are
+			// the linker's to diagnose).
+			"missing solution clause",
+			"deploy ff.Ping as P\n",
+			"1:1",
+			"expected 'solution', found deploy",
+		},
+		{
 			"duplicate dotted parameter key",
 			"solution s\n\ndeploy ff.Ping as P {\n\tretry.max: 3\n\tretry.max: 4\n}\n",
 			"5:2",

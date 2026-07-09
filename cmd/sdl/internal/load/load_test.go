@@ -50,6 +50,19 @@ func TestDirDiagnostics(t *testing.T) {
 			},
 		},
 		{
+			// An empty (or comment-only) unit parses without a solution
+			// clause; the load diagnoses it so a clause-less lone unit
+			// never reaches the generated compiler as an exit-2 config
+			// fault, and build agrees with fmt that the unit is not
+			// well-formed.
+			name: "unit without a solution clause",
+			files: map[string]string{
+				"a.sdl":     "solution s\n",
+				"empty.sdl": "",
+			},
+			want: []string{"empty.sdl:1:1: unit declares no solution clause"},
+		},
+		{
 			name:  "no sdl files",
 			files: map[string]string{"README.md": "not a unit\n"},
 			want:  []string{"no .sdl files in %DIR%"},

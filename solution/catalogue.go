@@ -191,7 +191,9 @@ type Unit struct {
 // no arguments.
 type CompileConfig struct {
 	// Solution is the solution name every unit's solution clause must
-	// declare.
+	// declare. A unit without a clause at all — an empty or
+	// comment-only unit — is a positioned link diagnostic, not a
+	// config fault: the unit is the author's material.
 	Solution string
 
 	// Dir is the solution directory the units were read from. It serves

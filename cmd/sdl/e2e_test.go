@@ -247,6 +247,23 @@ deploy ff.Gone as G
 			t.Errorf("diagnostic not positioned at the element reference:\n%s", res.stderr)
 		}
 	})
+
+	t.Run("ClauselessUnit", func(t *testing.T) {
+		// An empty peer unit is not well-formed: build diagnoses it
+		// positioned at exit 1 (as fmt refuses it too), never as an
+		// internal exit-2 fault.
+		dir := solutionModuleFiles(t, map[string]string{
+			"sol.sdl":   "solution broken\n",
+			"empty.sdl": "// a stray comment-only unit\n",
+		})
+		res := runSDL(t, dir, "build")
+		if res.code != 1 {
+			t.Fatalf("exit %d, want 1\n%s", res.code, res.stderr)
+		}
+		if !strings.Contains(res.stderr, "empty.sdl:1:1: unit declares no solution clause") {
+			t.Errorf("diagnostic not positioned at the clause-less unit:\n%s", res.stderr)
+		}
+	})
 }
 
 // TestPerFileImportScope proves import scope end to end: units bind

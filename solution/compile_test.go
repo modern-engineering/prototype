@@ -1202,6 +1202,22 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			want:     []string{"b.sdl:3:12: package sub is not imported"},
 		},
 		{
+			// Empty and comment-only units parse without a solution
+			// clause; the linker diagnoses them positioned, so the
+			// fault stays the author's (exit 1), never a config error.
+			name: "unit without a solution clause",
+			units: []solution.Unit{
+				{Name: "a.sdl", Source: "solution sample\n"},
+				{Name: "b.sdl", Source: ""},
+				{Name: "c.sdl", Source: "// commentary only\n"},
+			},
+			wantCode: 1,
+			want: []string{
+				"b.sdl:1:1: unit declares no solution clause",
+				"c.sdl:1:1: unit declares no solution clause",
+			},
+		},
+		{
 			name: "solution mismatch",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution wrong\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +

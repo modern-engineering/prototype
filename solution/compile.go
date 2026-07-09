@@ -410,10 +410,19 @@ func (ln *linker) parse() bool {
 // (D-10: per-file import blocks keep units self-contained), so one
 // alias may name different packages in different units, and a unit
 // resolves references only through its own imports — never a peer's.
+//
+// A unit without a solution clause — possible only for an empty or
+// comment-only unit, since the parser demands the clause ahead of any
+// declaration — is diagnosed here: the unit is the author's material,
+// so the fault is theirs to fix (exit 1), never a config fault.
 func (ln *linker) link() {
 	ln.imports = make([]map[string]importBinding, len(ln.files))
 	for i, f := range ln.files {
-		if f.Solution != nil && f.Solution.Name.Name != ln.cfg.Solution {
+		switch {
+		case f.Solution == nil:
+			ln.errorf(token.Position{Filename: ln.cfg.Units[i].Name, Line: 1, Column: 1},
+				"unit declares no solution clause")
+		case f.Solution.Name.Name != ln.cfg.Solution:
 			ln.errorf(f.Solution.Name.NamePos,
 				"solution mismatch: unit declares %s, want %s", f.Solution.Name.Name, ln.cfg.Solution)
 		}
