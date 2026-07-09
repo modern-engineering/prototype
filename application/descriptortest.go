@@ -16,6 +16,7 @@ func CheckDescriptor(tb testing.TB, d *Descriptor) {
 	tb.Helper()
 	if d == nil {
 		tb.Fatal("CheckDescriptor: descriptor is nil")
+		return // unreachable: Fatal never returns, but tb is an interface and static analysis cannot see that
 	}
 	if !token.IsIdentifier(d.Name) {
 		tb.Fatalf("descriptor name %q is not a valid Go identifier", d.Name)

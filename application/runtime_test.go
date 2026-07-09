@@ -18,12 +18,10 @@ func ExampleRuntime_cancelsOnError() {
 	r.Go(func(context.Context) error { return errors.New("runtime: doomed") })
 	r.Go(func(ctx context.Context) error {
 		fmt.Println("Waiting for other goroutine to fail...")
-		select {
-		case <-ctx.Done():
-			cause := context.Cause(ctx)
-			fmt.Printf("Done; context.Cause(ctx) = %v\n", cause)
-			return nil
-		}
+		<-ctx.Done()
+		cause := context.Cause(ctx)
+		fmt.Printf("Done; context.Cause(ctx) = %v\n", cause)
+		return nil
 	})
 
 	gErr := r.Wait()

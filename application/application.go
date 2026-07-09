@@ -7,50 +7,7 @@ import (
 	"iter"
 	"reflect"
 	"runtime"
-	"sync"
 )
-
-func LoadApp(ctx context.Context, app Descriptor) {
-	//env := &Environment{
-	//	appName: app.name,
-	//	parameters: []loaderflags.Parser{
-	//		cmdlineParser{},
-	//		envParser{},
-	//	},
-	//}
-	//
-	//main, err := app.newFunc(env)
-	//if err != nil {
-	//	panic(err) // TODO: improve.
-	//}
-
-	var wg sync.WaitGroup
-	wg.Go(func() {
-		//main(ctx)
-	})
-	wg.Wait()
-}
-
-func LoadHelp(app Descriptor) {
-	//env := &Environment{
-	//	appName: app.name,
-	//	parameters: []loaderflags.Parser{
-	//		helpParser{},
-	//	},
-	//}
-	//
-	//_, err := app.newFunc(env)
-	//if !errors.Is(err, flag.ErrHelp) {
-	//	panic(err) // TODO: improve.
-	//}
-	//env.FlagSet().Usage()
-}
-
-// --- registry.go ---
-
-// TODO: add application.Context. It implements context.Context and provides access to application-specific data and functionality.
-
-// --- descriptor.go ---
 
 // A Descriptor describes a long-running applicative service function and its
 // deployment.
@@ -115,8 +72,6 @@ func (a *Descriptor) Flags() *flag.FlagSet {
 	}
 	return a.Make().Flags()
 }
-
-// --- end ---
 
 type Runner interface {
 	Run(ctx context.Context) error
@@ -194,6 +149,8 @@ type HealthChecker interface {
 type Shutdowner interface {
 	Shutdown(ctx context.Context) error
 }
+
+// TODO(@danielorbach): add application.Context. It implements context.Context and provides access to application-specific data and functionality.
 
 // TODO(@danielorbach): a Shutdowner/Terminator mixin that's easy to embed in structs and use.
 

@@ -125,14 +125,22 @@ func scan(pkg *packages.Package, warn io.Writer) Package {
 			continue
 		}
 		if isDescriptor(t) {
-			fmt.Fprintf(warn, "sdl: package %q: var %s is an application.Descriptor value; declare it as a pointer (var %s = &application.Descriptor{...}) to register it\n",
+			printf(warn, "sdl: package %q: var %s is an application.Descriptor value; declare it as a pointer (var %s = &application.Descriptor{...}) to register it\n",
 				pkg.PkgPath, name, name)
 		}
 	}
 	if len(citizens) == 0 {
-		fmt.Fprintf(warn, "sdl: package %q exports no catalogue elements\n", pkg.PkgPath)
+		printf(warn, "sdl: package %q exports no catalogue elements\n", pkg.PkgPath)
 	}
 	return Package{Path: pkg.PkgPath, Name: pkg.Types.Name(), Citizens: citizens}
+}
+
+// printf writes one warning line. The write is best effort: a warning
+// writer that fails has nowhere better to hear about it, and warnings
+// never change the discovery result, so the write error is deliberately
+// discarded — here, once, rather than at every call site.
+func printf(w io.Writer, format string, args ...any) {
+	_, _ = fmt.Fprintf(w, format, args...)
 }
 
 // isDescriptor reports whether t is the named type application.Descriptor.

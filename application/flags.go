@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"iter"
 	"os"
 	"strings"
 )
@@ -157,17 +156,6 @@ func ParseFromEnvs(next ParamParser) ParseTo {
 			return fmt.Errorf("set flags from envs: %w", errs)
 		}
 		return next.Parse(ctx, flags)
-	}
-}
-
-func iterFlags(fs *flag.FlagSet) iter.Seq[*flag.Flag] {
-	return func(yield func(*flag.Flag) bool) {
-		more := true
-		fs.VisitAll(func(f *flag.Flag) {
-			if more {
-				more = yield(f)
-			}
-		})
 	}
 }
 

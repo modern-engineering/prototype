@@ -53,7 +53,7 @@ func MainCompile(cfg CompileConfig) int {
 
 	ln, err := newLinker(cfg)
 	if err != nil {
-		fmt.Fprintf(stderr, "compile: %v\n", err)
+		printf(stderr, "compile: %v\n", err)
 		return 2
 	}
 
@@ -69,7 +69,7 @@ func MainCompile(cfg CompileConfig) int {
 	if ln.internal != nil {
 		// Print what the solution got told so far, then the abort.
 		ln.report(stderr)
-		fmt.Fprintln(stderr, ln.internal)
+		printf(stderr, "%v\n", ln.internal)
 		return 2
 	}
 	if len(ln.diags) > 0 {
@@ -79,11 +79,11 @@ func MainCompile(cfg CompileConfig) int {
 
 	img, ierr := ln.emit()
 	if ierr != nil {
-		fmt.Fprintln(stderr, ierr)
+		printf(stderr, "%v\n", ierr)
 		return 2
 	}
 	if err := img.Encode(output); err != nil {
-		fmt.Fprintf(stderr, "compile: %v\n", err)
+		printf(stderr, "compile: %v\n", err)
 		return 2
 	}
 	return 0
@@ -232,7 +232,7 @@ func (ln *linker) errorf(pos token.Position, format string, args ...any) {
 func (ln *linker) report(w io.Writer) {
 	ln.diags.Sort()
 	for _, e := range ln.diags {
-		fmt.Fprintln(w, e)
+		printf(w, "%v\n", e)
 	}
 }
 
@@ -480,7 +480,7 @@ func (ln *linker) bind(elem *catalogueElement, spec *ast.DeploySpec) (bindings [
 				}
 				return nil, false
 			}
-			err, panicked := setFlag(f.Value, text)
+			panicked, err := setFlag(f.Value, text)
 			if panicked != nil {
 				ln.internal = &internalError{
 					pos: it.Value.Pos(),
@@ -608,13 +608,21 @@ func lookupFlag(fs *flag.FlagSet, name string) *flag.Flag {
 
 // setFlag runs one validation Set, guarding against a panicking
 // flag.Value implementation the same way dry instantiation is guarded.
-func setFlag(v flag.Value, text string) (err error, panicked any) {
+func setFlag(v flag.Value, text string) (panicked any, err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			err, panicked = nil, p
+			panicked, err = p, nil
 		}
 	}()
-	return v.Set(text), nil
+	return nil, v.Set(text)
+}
+
+// printf writes one diagnostic line. The write is best effort: a
+// diagnostic writer that fails has nowhere better to hear about it, and
+// the exit code already carries the verdict, so the write error is
+// deliberately discarded — here, once, rather than at every call site.
+func printf(w io.Writer, format string, args ...any) {
+	_, _ = fmt.Fprintf(w, format, args...)
 }
 
 // literalValue converts an SDL literal into its canonical image value

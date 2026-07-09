@@ -105,13 +105,19 @@ func help(args []string) int {
 	return 0
 }
 
-// printUsage renders the top-level command list.
+// printUsage renders the top-level command list. The writes are best
+// effort: usage goes to a standard stream that has nowhere better to
+// hear about its own failure, so the write errors are deliberately
+// discarded.
 func printUsage(w io.Writer) {
-	fmt.Fprintf(w, "Sdl is the solution definition language toolchain.\n\n")
-	fmt.Fprintf(w, "Usage:\n\n\tsdl <command> [arguments]\n\n")
-	fmt.Fprintf(w, "The commands are:\n\n")
-	for _, cmd := range base.Commands {
-		fmt.Fprintf(w, "\t%-11s %s\n", cmd.Name(), cmd.Short)
+	printf := func(format string, args ...any) {
+		_, _ = fmt.Fprintf(w, format, args...)
 	}
-	fmt.Fprintf(w, "\nUse \"sdl help <command>\" for more information about a command.\n")
+	printf("Sdl is the solution definition language toolchain.\n\n")
+	printf("Usage:\n\n\tsdl <command> [arguments]\n\n")
+	printf("The commands are:\n\n")
+	for _, cmd := range base.Commands {
+		printf("\t%-11s %s\n", cmd.Name(), cmd.Short)
+	}
+	printf("\nUse \"sdl help <command>\" for more information about a command.\n")
 }

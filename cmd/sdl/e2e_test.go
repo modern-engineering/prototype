@@ -38,7 +38,9 @@ func TestMain(m *testing.M) {
 	}
 	code := m.Run()
 	if sdlPath != "" {
-		os.RemoveAll(filepath.Dir(sdlPath))
+		if err := os.RemoveAll(filepath.Dir(sdlPath)); err != nil {
+			fmt.Fprintln(os.Stderr, "cleaning up the built CLI:", err)
+		}
 	}
 	os.Exit(code)
 }
@@ -254,7 +256,11 @@ func TestWorkFlag(t *testing.T) {
 	if workdir == "" {
 		t.Fatalf("no WORK= line on stderr:\n%s", res.stderr)
 	}
-	defer os.RemoveAll(workdir)
+	defer func() {
+		if err := os.RemoveAll(workdir); err != nil {
+			t.Logf("cleaning up the kept work directory: %v", err)
+		}
+	}()
 	for _, name := range []string{"solmain.go", "go.mod"} {
 		if _, err := os.Stat(filepath.Join(workdir, name)); err != nil {
 			t.Errorf("work directory is missing %s: %v", name, err)
