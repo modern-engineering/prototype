@@ -10,10 +10,11 @@
 //
 // The temporary module mirrors the solution module's resolution state
 // from one 'go list -m' run: every module of the graph is required at
-// its resolved version, every replacement is mirrored with its directory
-// rebased to an absolute path, the user's main module is required at a
-// synthetic version backed by a directory replacement, and the user's
-// go.sum is copied verbatim. The build then runs with the default
+// its resolved version, every replacement is mirrored — module
+// replacements at their replacement path and version, directory
+// replacements with the directory rebased to an absolute path — the
+// user's main module is required at a synthetic version backed by a
+// directory replacement, and the user's go.sum is copied verbatim. The build then runs with the default
 // -mod=readonly: if it still wants to update go.mod, that is a bug in
 // this synthesis, never something to paper over with -mod=mod.
 //
@@ -106,9 +107,13 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("creating work directory: %v", err)
 	}
 	if cfg.Keep {
-		fmt.Fprintf(stderr, "WORK=%s\n", workdir)
+		printf(stderr, "WORK=%s\n", workdir)
 	} else {
-		defer os.RemoveAll(workdir)
+		defer func() {
+			if err := os.RemoveAll(workdir); err != nil {
+				printf(stderr, "sdl: removing work directory: %v\n", err)
+			}
+		}()
 	}
 
 	if err := os.WriteFile(filepath.Join(workdir, "solmain.go"), cfg.Source, 0o666); err != nil {
@@ -146,12 +151,16 @@ func goEnvGOMOD(ctx context.Context, dir string, env []string) (string, error) {
 }
 
 // A module is one row of the solution's module graph: the module path,
-// its resolved version (empty for the main module), and the absolute
-// replacement directory when the module is replaced.
+// its resolved version (empty for the main module), and its replacement
+// when it has one — replPath and replVersion for a module replacement
+// (replace old => new vX.Y.Z), dir for a directory replacement.
 type module struct {
 	path    string
 	version string
-	dir     string
+
+	replPath    string // module replacement: the replacement module path
+	replVersion string // module replacement: the replacement version
+	dir         string // directory replacement target; the main module's root
 }
 
 // A moduleGraph is the parsed 'go list -m all' state the temporary
@@ -163,9 +172,16 @@ type moduleGraph struct {
 
 // listModuleGraph captures the module graph with one go list run — one
 // consistent snapshot for requirements, replacements, and the skew
-// handshake alike.
+// handshake alike. The template renders each replacement behind an
+// explicit discriminator, "=> mod path version" or "=> dir directory",
+// so the two replacement kinds parse unambiguously even though a
+// directory may contain spaces. A module replacement is identified by
+// its non-empty Replace.Version; its Replace.Dir (filled once the module
+// cache holds the replacement, empty until then) is never asked for,
+// because the module identity is the faithful mirror either way.
 func listModuleGraph(ctx context.Context, dir, mainDir string, env []string) (*moduleGraph, error) {
-	out, err := goOutput(ctx, dir, env, "list", "-m", "-f", "{{.Path}} {{.Version}} {{with .Replace}}{{.Dir}}{{end}}", "all")
+	const format = "{{.Path}} {{.Version}}{{with .Replace}}{{if .Version}} => mod {{.Path}} {{.Version}}{{else}} => dir {{.Dir}}{{end}}{{end}}"
+	out, err := goOutput(ctx, dir, env, "list", "-m", "-f", format, "all")
 	if err != nil {
 		return nil, err
 	}
@@ -173,10 +189,11 @@ func listModuleGraph(ctx context.Context, dir, mainDir string, env []string) (*m
 }
 
 // parseModuleGraph reads the go list template output. Each line carries
-// "path version replacedir" with the trailing fields possibly empty:
-// the main module has no version, unreplaced modules no directory.
-// Relative replacement directories are rebased onto the main module
-// root, where the user's go.mod resolved them.
+// "path version" — the version empty on the main module's line — and a
+// replaced module appends "=> mod rpath rversion" or "=> dir directory".
+// The directory is the final field, so it may contain spaces; relative
+// directories are rebased onto the main module root, where the user's
+// go.mod resolved them.
 func parseModuleGraph(out, mainDir string) (*moduleGraph, error) {
 	g := &moduleGraph{}
 	for line := range strings.Lines(out) {
@@ -184,23 +201,31 @@ func parseModuleGraph(out, mainDir string) (*moduleGraph, error) {
 		if line == "" {
 			continue
 		}
-		// SplitN keeps replacement directories containing spaces
-		// intact; module paths and versions never contain spaces.
-		parts := strings.SplitN(line, " ", 3)
-		switch len(parts) {
-		case 1:
+		// Module paths and versions never contain spaces; SplitN keeps
+		// the directory field intact.
+		parts := strings.SplitN(line, " ", 5)
+		switch {
+		case len(parts) == 1:
 			if g.main.path != "" {
 				return nil, fmt.Errorf("module graph lists two main modules: %s and %s", g.main.path, parts[0])
 			}
 			g.main = module{path: parts[0], dir: mainDir}
-		case 2:
+		case len(parts) == 2:
 			g.deps = append(g.deps, module{path: parts[0], version: parts[1]})
-		default:
-			dir := parts[2]
+		case len(parts) == 5 && parts[2] == "=>" && parts[3] == "mod":
+			rpath, rversion, ok := strings.Cut(parts[4], " ")
+			if !ok {
+				return nil, fmt.Errorf("malformed module graph line %q", line)
+			}
+			g.deps = append(g.deps, module{path: parts[0], version: parts[1], replPath: rpath, replVersion: rversion})
+		case len(parts) == 5 && parts[2] == "=>" && parts[3] == "dir":
+			dir := parts[4]
 			if !filepath.IsAbs(dir) {
 				dir = filepath.Join(mainDir, dir)
 			}
 			g.deps = append(g.deps, module{path: parts[0], version: parts[1], dir: dir})
+		default:
+			return nil, fmt.Errorf("malformed module graph line %q", line)
 		}
 	}
 	if g.main.path == "" {
@@ -211,11 +236,25 @@ func parseModuleGraph(out, mainDir string) (*moduleGraph, error) {
 
 // checkPrototype guards the generated compiler's own dependency: the
 // prototype module must be reachable in the solution's graph, and when
-// it is an ordinary dependency its version is compared against the
-// running CLI's build info — a mismatch warns (never fatal), because
-// the compiled semantics come from the solution's copy, not from the
-// binary the user invoked.
+// it resolves to an ordinary module version that version is compared
+// against the running CLI's build info — a mismatch warns (never
+// fatal), because the compiled semantics come from the solution's copy,
+// not from the binary the user invoked.
 func checkPrototype(g *moduleGraph, gomod string, stderr io.Writer) *base.DiagnosticsError {
+	var cliVersion string
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Path == prototypePath {
+		cliVersion = info.Main.Version
+	}
+	return checkPrototypeVersion(g, gomod, cliVersion, stderr)
+}
+
+// checkPrototypeVersion is checkPrototype behind its build-info read;
+// cliVersion is empty when the running binary does not know its own
+// version. A directory-replaced prototype never warns: the graph then
+// pins no meaningful version to compare — the requirement's version is
+// a placeholder and the replacement has none — and that is the everyday
+// dev-loop shape, where the solution deliberately tracks local source.
+func checkPrototypeVersion(g *moduleGraph, gomod, cliVersion string, stderr io.Writer) *base.DiagnosticsError {
 	if g.main.path == prototypePath {
 		return nil // the examples case: the main-module replace covers everything
 	}
@@ -223,10 +262,16 @@ func checkPrototype(g *moduleGraph, gomod string, stderr io.Writer) *base.Diagno
 		if dep.path != prototypePath {
 			continue
 		}
-		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Path == prototypePath &&
-			info.Main.Version != "" && info.Main.Version != dep.version {
-			fmt.Fprintf(stderr, "sdl: warning: solution resolves %s %s but this sdl binary was built from %s; align them if results surprise\n",
-				prototypePath, dep.version, info.Main.Version)
+		if dep.dir != "" {
+			return nil // directory replace: no version to compare
+		}
+		version := dep.version
+		if dep.replVersion != "" {
+			version = dep.replVersion // the copy the build will actually resolve
+		}
+		if cliVersion != "" && cliVersion != version {
+			printf(stderr, "sdl: warning: solution resolves %s %s but this sdl binary was built from %s; align them if results surprise\n",
+				prototypePath, version, cliVersion)
 		}
 		return nil
 	}
@@ -258,7 +303,8 @@ func modDirectives(ctx context.Context, dir string, env []string) (goVersion, to
 // identity, the copied language directives, one require per graph
 // module at its resolved version — the main module at a synthetic
 // v0.0.0-solution — and one replace per replaced module plus the main
-// module's directory replacement.
+// module's directory replacement, so the temporary module resolves
+// exactly what the solution's module does.
 func synthesizeGoMod(g *moduleGraph, goVersion, toolchain string) []byte {
 	var b bytes.Buffer
 	b.WriteString("module sdl.invalid/solmain\n")
@@ -276,7 +322,15 @@ func synthesizeGoMod(g *moduleGraph, goVersion, toolchain string) []byte {
 	b.WriteString(")\n")
 	fmt.Fprintf(&b, "\nreplace %s => %s\n", g.main.path, quoteDir(g.main.dir))
 	for _, dep := range g.deps {
-		if dep.dir != "" {
+		switch {
+		case dep.replVersion != "":
+			// A module replacement mirrors as itself, never as the
+			// module cache directory backing it: a directory replace
+			// would bypass the go.sum verification the user's own
+			// build performs, and the cache need not hold the
+			// replacement at all yet.
+			fmt.Fprintf(&b, "\nreplace %s => %s %s\n", dep.path, dep.replPath, dep.replVersion)
+		case dep.dir != "":
 			fmt.Fprintf(&b, "\nreplace %s => %s\n", dep.path, quoteDir(dep.dir))
 		}
 	}
@@ -321,8 +375,8 @@ func buildCompiler(ctx context.Context, workdir string, env []string, stderr io.
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintln(stderr, "sdl: catalogue package failed to compile; Go errors follow")
-		stderr.Write(out.Bytes())
+		printf(stderr, "sdl: catalogue package failed to compile; Go errors follow\n")
+		printf(stderr, "%s", out.Bytes())
 		return fmt.Errorf("building the solution compiler: %v", err)
 	}
 	return nil
@@ -331,34 +385,52 @@ func buildCompiler(ctx context.Context, workdir string, env []string, stderr io.
 // runCompiler executes the generated compiler and propagates its
 // verdict: stdout is the image (routed to the -o file when set), stderr
 // relays verbatim, exit 1 stays a diagnostics failure, everything else
-// nonzero stays an internal one. A failed run removes the output file:
-// the compiler emits the image only after all checks pass, so a partial
-// file only misleads.
+// nonzero stays an internal one. A failed run — a failed close of the
+// output file included — removes the output file: the compiler emits
+// the image only after all checks pass, so a partial file only
+// misleads.
 func runCompiler(ctx context.Context, workdir, output string, stderr io.Writer) error {
 	cmd := exec.CommandContext(ctx, filepath.Join(workdir, "sol.bin"))
 	cmd.Dir = workdir
 	cmd.Stderr = stderr
 	cmd.Stdout = os.Stdout
+	var f *os.File
 	if output != "" {
-		f, err := os.Create(output)
+		var err error
+		f, err = os.Create(output)
 		if err != nil {
 			return fmt.Errorf("creating output file: %v", err)
 		}
-		defer f.Close()
 		cmd.Stdout = f
 	}
 	err := cmd.Run()
+	if f != nil {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("writing output file: %v", cerr)
+		}
+	}
 	if err == nil {
 		return nil
 	}
 	if output != "" {
-		os.Remove(output)
+		if rerr := os.Remove(output); rerr != nil {
+			printf(stderr, "sdl: removing incomplete output: %v\n", rerr)
+		}
 	}
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 1 {
 		return &base.DiagnosticsError{} // diagnostics already on stderr
 	}
 	return fmt.Errorf("solution compiler: %v", err)
+}
+
+// printf writes one warning or relay line to the driver's stderr. The
+// write is best effort: a stderr that fails has nowhere better to hear
+// about it, and the returned error already carries the verdict, so the
+// write error is deliberately discarded — here, once, rather than at
+// every call site.
+func printf(w io.Writer, format string, args ...any) {
+	_, _ = fmt.Fprintf(w, format, args...)
 }
 
 // goOutput runs one go command in dir and returns its stdout, folding a
