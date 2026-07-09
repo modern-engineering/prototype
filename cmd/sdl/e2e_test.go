@@ -1,0 +1,263 @@
+// Copyright 2026 The prototype authors. Use of this source code is
+// governed by the license that can be found in the LICENSE file.
+
+// End-to-end proof of the build pipeline: these tests build the sdl CLI
+// once, then drive it as a user would — real solution directories, real
+// module contexts, real toolchain runs. They are the slow path; -short
+// skips them all.
+package main_test
+
+import (
+	"bytes"
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/modern-engineering/prototype/solution/image"
+)
+
+var update = flag.Bool("update", false, "rewrite golden files from the observed output")
+
+var (
+	sdlPath  string // the CLI binary under test
+	repoRoot string // the prototype module root
+)
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if !testing.Short() {
+		if err := buildCLI(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+	code := m.Run()
+	if sdlPath != "" {
+		os.RemoveAll(filepath.Dir(sdlPath))
+	}
+	os.Exit(code)
+}
+
+// buildCLI compiles the sdl command once for the whole suite, from the
+// module root so the test does not care which package directory the
+// harness runs it in.
+func buildCLI() error {
+	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").Output()
+	if err != nil {
+		return fmt.Errorf("locating module root: %v", err)
+	}
+	repoRoot = strings.TrimSpace(string(out))
+
+	dir, err := os.MkdirTemp("", "sdl-e2e-")
+	if err != nil {
+		return err
+	}
+	sdlPath = filepath.Join(dir, "sdl")
+	cmd := exec.Command("go", "build", "-o", sdlPath, "./cmd/sdl")
+	cmd.Dir = repoRoot
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("building sdl: %v\n%s", err, out)
+	}
+	return nil
+}
+
+// A result is one CLI invocation's observable outcome.
+type result struct {
+	code   int
+	stderr string
+}
+
+// runSDL invokes the built CLI in dir.
+func runSDL(t *testing.T, dir string, args ...string) result {
+	t.Helper()
+	cmd := exec.Command(sdlPath, args...)
+	cmd.Dir = dir
+	var errb bytes.Buffer
+	cmd.Stderr = &errb
+	err := cmd.Run()
+	code := 0
+	if err != nil {
+		exit, ok := err.(*exec.ExitError)
+		if !ok {
+			t.Fatalf("sdl %s: %v", strings.Join(args, " "), err)
+		}
+		code = exit.ExitCode()
+	}
+	return result{code: code, stderr: errb.String()}
+}
+
+// TestBuildPingpong is (a): the public example compiles to exactly the
+// golden image, and the bytes decode as a well-formed image.
+func TestBuildPingpong(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	out := filepath.Join(t.TempDir(), "out.json")
+
+	start := time.Now()
+	res := runSDL(t, repoRoot, "build", "-o", out, "examples/pingpong")
+	t.Logf("cold sdl build: %v", time.Since(start))
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+
+	got, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden := filepath.Join("testdata", "pingpong.json")
+	if *update {
+		if err := os.WriteFile(golden, got, 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("image differs from %s\n--- got ---\n%s", golden, got)
+	}
+
+	img, err := image.Decode(bytes.NewReader(got))
+	if err != nil {
+		t.Fatalf("emitted image does not decode: %v", err)
+	}
+	if img.Solution != "pingpong" || len(img.Records) != 3 || len(img.Catalogue) != 1 {
+		t.Errorf("decoded image: solution %q, %d records, %d packages; want pingpong, 3, 1",
+			img.Solution, len(img.Records), len(img.Catalogue))
+	}
+}
+
+// TestBuildDeterminism is (b): two builds of the same solution emit
+// byte-identical images. The timings here are the warm path — the cold
+// one is TestBuildPingpong's log line.
+func TestBuildDeterminism(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	dir := t.TempDir()
+	var images [2][]byte
+	for i := range images {
+		out := filepath.Join(dir, fmt.Sprintf("out%d.json", i))
+		start := time.Now()
+		res := runSDL(t, repoRoot, "build", "-o", out, "examples/pingpong")
+		t.Logf("warm sdl build %d: %v", i+1, time.Since(start))
+		if res.code != 0 {
+			t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+		}
+		data, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		images[i] = data
+	}
+	if !bytes.Equal(images[0], images[1]) {
+		t.Error("two builds of the same solution emitted different bytes")
+	}
+}
+
+// solutionModule lays down a throwaway module holding one solution
+// unit, with the prototype module dir-replaced to this checkout — the
+// shape of a user module consuming the framework.
+func solutionModule(t *testing.T, unitName, unitSource string) string {
+	t.Helper()
+	dir := t.TempDir()
+	gomod := fmt.Sprintf(`module example.test/sol
+
+go 1.25.0
+
+require github.com/modern-engineering/prototype v0.0.0
+
+replace github.com/modern-engineering/prototype => %s
+`, repoRoot)
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	sum, err := os.ReadFile(filepath.Join(repoRoot, "go.sum"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.sum"), sum, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, unitName), []byte(unitSource), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// TestDiagnostics is (c): solution faults exit 1 with diagnostics
+// positioned at the offending source, whether the fault dies before the
+// toolchain (an unresolvable import) or deep inside the generated
+// compiler (an unknown element).
+func TestDiagnostics(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+
+	t.Run("UnresolvableImport", func(t *testing.T) {
+		dir := solutionModule(t, "broken.sdl", `solution broken
+
+import miss "example.test/nonexistent"
+
+deploy miss.Thing as T
+`)
+		res := runSDL(t, dir, "build")
+		if res.code != 1 {
+			t.Fatalf("exit %d, want 1\n%s", res.code, res.stderr)
+		}
+		if !strings.Contains(res.stderr, `broken.sdl:3:8: import "example.test/nonexistent"`) {
+			t.Errorf("diagnostic not positioned at the import spec:\n%s", res.stderr)
+		}
+	})
+
+	t.Run("UnknownElement", func(t *testing.T) {
+		dir := solutionModule(t, "sol.sdl", `solution broken
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Gone as G
+`)
+		res := runSDL(t, dir, "build")
+		if res.code != 1 {
+			t.Fatalf("exit %d, want 1\n%s", res.code, res.stderr)
+		}
+		if !strings.Contains(res.stderr, "sol.sdl:5:8: unknown element Gone") {
+			t.Errorf("diagnostic not positioned at the element reference:\n%s", res.stderr)
+		}
+	})
+}
+
+// TestWorkFlag is (d): -work announces the work directory and leaves
+// the generated compiler behind for inspection.
+func TestWorkFlag(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+	out := filepath.Join(t.TempDir(), "out.json")
+	res := runSDL(t, repoRoot, "build", "-work", "-o", out, "examples/pingpong")
+	if res.code != 0 {
+		t.Fatalf("sdl build exited %d\n%s", res.code, res.stderr)
+	}
+	var workdir string
+	for line := range strings.Lines(res.stderr) {
+		if rest, ok := strings.CutPrefix(line, "WORK="); ok {
+			workdir = strings.TrimSpace(rest)
+		}
+	}
+	if workdir == "" {
+		t.Fatalf("no WORK= line on stderr:\n%s", res.stderr)
+	}
+	defer os.RemoveAll(workdir)
+	for _, name := range []string{"solmain.go", "go.mod"} {
+		if _, err := os.Stat(filepath.Join(workdir, name)); err != nil {
+			t.Errorf("work directory is missing %s: %v", name, err)
+		}
+	}
+}

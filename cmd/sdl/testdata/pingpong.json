@@ -1,0 +1,134 @@
+{
+  "format": "solution-image/1",
+  "solution": "pingpong",
+  "generation": 1,
+  "catalogue": [
+    {
+      "path": "github.com/modern-engineering/prototype/examples/ff",
+      "name": "ff",
+      "elements": [
+        {
+          "name": "Ping",
+          "kind": "component",
+          "doc": "ping emits a payload to a target at a fixed cadence\n\nEach tick, ping sends one payload and logs the delivery. A negative\ncount keeps it pinging until its context is cancelled.",
+          "params": [
+            {
+              "name": "count",
+              "usage": "number of pings; negative means forever",
+              "default": "-1"
+            },
+            {
+              "name": "interval",
+              "usage": "delay between pings",
+              "default": "1s"
+            },
+            {
+              "name": "target",
+              "usage": "destination to ping; must not be empty"
+            }
+          ]
+        },
+        {
+          "name": "Pong",
+          "kind": "component",
+          "doc": "pong answers pings on a subject\n\nPong waits for payloads on its subject and answers each one until\nits context is cancelled.",
+          "params": [
+            {
+              "name": "subject",
+              "usage": "subject to answer on",
+              "default": "ping"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "records": [
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/ff",
+        "name": "Pong"
+      },
+      "name": "Pong",
+      "params": [
+        {
+          "key": "subject",
+          "value": {
+            "kind": "string",
+            "string": "ping"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/ff",
+        "name": "Ping"
+      },
+      "name": "Ping1",
+      "params": [
+        {
+          "key": "count",
+          "value": {
+            "kind": "int",
+            "int": 3
+          },
+          "source": "instance"
+        },
+        {
+          "key": "interval",
+          "value": {
+            "kind": "duration",
+            "duration": "500ms"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "target",
+          "value": {
+            "kind": "string",
+            "string": "pong"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/ff",
+        "name": "Ping"
+      },
+      "name": "Ping2",
+      "params": [
+        {
+          "key": "count",
+          "value": {
+            "kind": "int",
+            "int": -1
+          },
+          "source": "instance"
+        },
+        {
+          "key": "interval",
+          "value": {
+            "kind": "duration",
+            "duration": "2s"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "target",
+          "value": {
+            "kind": "string",
+            "string": "pong"
+          },
+          "source": "instance"
+        }
+      ]
+    }
+  ]
+}

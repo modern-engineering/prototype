@@ -1,0 +1,9 @@
+// A peer unit of the pingpong solution: units are order-free peers, so
+// the pong half lives here to prove multi-file linking.
+solution pingpong
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Pong as Pong {
+	subject: "ping"
+}
