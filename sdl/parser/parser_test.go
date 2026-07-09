@@ -417,38 +417,22 @@ deploy ff.Ping as P {
 	}
 }
 
-// mockup5Units extracts the two units embedded in sample.sdl's mockup 5:
-// the chunk after the file's last "---" separator holds the main unit, a
-// fake peer file behind a "// --- a peer file" marker (a unit has exactly
-// one solution clause, so the smoke test parses them separately, as the
-// linker would), and the Ideas trailer, which is commentary about the
-// language rather than mockup text and is dropped.
-func mockup5Units(t *testing.T) (unit1, unit2 string) {
-	t.Helper()
-	data, err := os.ReadFile(filepath.Join("..", "..", "solution", "sample.sdl"))
+// The testdata fixtures were frozen from solution/sample.sdl's mockup 6
+// corpus (the scratchpad drifts freely per docs/CLAUDE.md, so the smoke
+// test owns its own copy): mockup6_main.sdl is the main unit,
+// mockup6_peer.sdl the fake peer file (a unit has exactly one solution
+// clause, so the test parses them separately, as the linker would).
+func TestParseMockup6(t *testing.T) {
+	unit1, err := os.ReadFile(filepath.Join("testdata", "mockup6_main.sdl"))
 	if err != nil {
-		t.Fatalf("reading sample.sdl: %v", err)
+		t.Fatal(err)
 	}
-	text := string(data)
-	i := strings.LastIndex(text, "\n---\n")
-	if i < 0 {
-		t.Fatal("no --- separator in sample.sdl")
+	unit2, err := os.ReadFile(filepath.Join("testdata", "mockup6_peer.sdl"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	chunk := text[i+len("\n---\n"):]
-	if j := strings.Index(chunk, "// --- Ideas ---"); j >= 0 {
-		chunk = chunk[:j]
-	}
-	j := strings.Index(chunk, "// --- a peer file")
-	if j < 0 {
-		t.Fatal("no peer-file marker in mockup 5")
-	}
-	return chunk[:j], chunk[j:]
-}
 
-func TestParseMockup5(t *testing.T) {
-	unit1, unit2 := mockup5Units(t)
-
-	f, err := parser.ParseFile("sample.sdl", []byte(unit1))
+	f, err := parser.ParseFile("sample.sdl", unit1)
 	if err != nil {
 		t.Fatalf("mockup 5 main unit: %v", err)
 	}
@@ -518,7 +502,7 @@ func TestParseMockup5(t *testing.T) {
 	}
 
 	// The peer unit repeats the solution clause and adds one deployment.
-	pf, err := parser.ParseFile("sample_extra.sdl", []byte(unit2))
+	pf, err := parser.ParseFile("sample_extra.sdl", unit2)
 	if err != nil {
 		t.Fatalf("mockup 5 peer unit: %v", err)
 	}
