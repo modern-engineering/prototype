@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/modern-engineering/prototype/sdl/ast"
 	"github.com/modern-engineering/prototype/sdl/scanner"
@@ -247,6 +248,11 @@ func (p *parser) parseValue() ast.Value {
 		value, err := strconv.Unquote(raw)
 		if err != nil {
 			value = "" // the scanner reported the malformed literal
+		} else if !utf8.ValidString(value) {
+			// The scanner holds the source to valid UTF-8; escapes
+			// (\xff) must not smuggle arbitrary bytes past that rule,
+			// or the value would not survive the image's JSON encoding.
+			p.error(pos, "string literal is not valid UTF-8")
 		}
 		p.next()
 		return &ast.StringLit{ValuePos: pos, Raw: raw, Value: value}
@@ -427,6 +433,8 @@ func (p *parser) parseImportSpec() *ast.ImportSpec {
 	path, err := strconv.Unquote(p.lit)
 	if err != nil {
 		path = "" // the scanner reported the malformed literal
+	} else if !utf8.ValidString(path) {
+		p.error(p.pos, "string literal is not valid UTF-8")
 	}
 	s.Path = &ast.StringLit{ValuePos: p.pos, Raw: p.lit, Value: path}
 	p.next()

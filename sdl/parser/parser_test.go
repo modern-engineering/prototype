@@ -336,6 +336,20 @@ func TestParseErrors(t *testing.T) {
 			"var value must be a literal (string, int, duration, or bool)",
 		},
 		{
+			// The scanner holds source bytes to UTF-8; escapes must not
+			// smuggle invalid bytes into the value.
+			"non-UTF-8 string value",
+			"solution s\n\ndeploy ff.Ping as P {\n\ttarget: \"\\xff\"\n}\n",
+			"4:10",
+			"string literal is not valid UTF-8",
+		},
+		{
+			"non-UTF-8 import path",
+			"solution s\n\nimport ff \"\\xff\"\n",
+			"3:11",
+			"string literal is not valid UTF-8",
+		},
+		{
 			"invalid duration",
 			"solution s\n\ndeploy ff.Ping as P {\n\tinterval: 10x\n}\n",
 			"4:12",

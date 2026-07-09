@@ -45,6 +45,23 @@ func TestEncodeDeterminism(t *testing.T) {
 	}
 }
 
+// TestEncodeRejectsInvalidUTF8 pins the belt-and-braces guard behind
+// the parser's own literal check: encoding/json would silently rewrite
+// invalid bytes as U+FFFD, so a non-UTF-8 string reaching Encode must
+// fail loudly instead of producing an image that decodes differently.
+func TestEncodeRejectsInvalidUTF8(t *testing.T) {
+	img := &image.Image{
+		Format:   image.Format,
+		Solution: "sample",
+		Symbols:  []image.SymbolDef{{Name: "v", Class: image.ClassVar, Value: image.String("\xff")}},
+	}
+	var buf bytes.Buffer
+	err := img.Encode(&buf)
+	if err == nil || !strings.Contains(err.Error(), "not valid UTF-8") {
+		t.Fatalf("Encode = %v, want a UTF-8 error", err)
+	}
+}
+
 func TestDecodeRejectsForeignFormat(t *testing.T) {
 	_, err := image.Decode(strings.NewReader(`{"format":"solution-image/9"}`))
 	if err == nil || !strings.Contains(err.Error(), `format "solution-image/9" is not "solution-image/1"`) {

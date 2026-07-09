@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+	"unicode/utf8"
 )
 
 // The value kinds a binding may carry: the SDL literal kinds, plus the
@@ -68,10 +69,18 @@ func Duration(d time.Duration) *Value { return &Value{Kind: KindDuration, Dur: d
 func Token(tok string) *Value { return &Value{Kind: KindToken, Tok: tok} }
 
 // MarshalJSON implements json.Marshaler, emitting the kind and the one
-// value field it selects. Unknown kinds are marshalling errors.
+// value field it selects. Unknown kinds are marshalling errors, and so
+// is a string value that is not valid UTF-8: encoding/json would
+// silently rewrite its invalid bytes as U+FFFD, so the image would
+// decode to a different value than it was built from. The compiler's
+// front end already rejects such literals; failing loudly here keeps
+// any other producer honest.
 func (v Value) MarshalJSON() ([]byte, error) {
 	switch v.Kind {
 	case KindString:
+		if !utf8.ValidString(v.Str) {
+			return nil, fmt.Errorf("image: string value %q is not valid UTF-8", v.Str)
+		}
 		return json.Marshal(struct {
 			Kind string `json:"kind"`
 			Str  string `json:"string"`
