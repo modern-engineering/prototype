@@ -14,3 +14,4 @@ Decisions are recorded in MADR 4.0.0 format.
 | [D-08](D-08-desired-state-image.md)                | Ship Solutions as a Reconciled Desired-State Image                    |
 | [D-09](D-09-catalogue-citizenship.md)              | Scope the Catalogue to Application-Library Citizens                   |
 | [D-10](D-10-generate-compile-run.md)               | Compile Solutions by Generating a Program Against Imported Catalogues |
+| [D-11](D-11-self-contained-services.md)            | Construct Application Instances as Self-Contained Services            |

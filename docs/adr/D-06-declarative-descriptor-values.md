@@ -1,8 +1,10 @@
 ---
-status: proposed
-since: 2026-06-25
+status: superseded
+since: 2026-07-09
 refines:
   - A-03-parameterization
+superseded-by:
+  - D-11-self-contained-services
 ---
 
 # Define Applications as Declarative Descriptor Values
