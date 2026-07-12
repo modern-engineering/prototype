@@ -140,18 +140,16 @@ comes from compiling, not from syntax.
 
 Open grammar paths, kept live on purpose and revisited as the mockups evolve:
 
-- **Body compartments.** Colon-distinguished sections versus an explicit
-  `params { ... }` keyword block versus a `deployment { ... }` block; whether
-  controller-specific extensions belong inside the deployment compartment when
-  target controllers are known ahead of time ([A-09 Solution Layer] surveys the
-  forces).
-- **Section naming.** `on` is provisional and reads oddly; `deployment` is a
-  candidate.
 - **Symbol declaration.** `var` (Go's noun) versus a verb such as `define`.
 - **Defaults addressing.** `default <verb>` versus `default <kind>` for
   statement-level defaults (`default deploy` versus `default component`).
 - **Declaration order.** `deploy Ping as Ping1` versus Go-style name-first
   `deploy Ping1 Ping`; kind words as optional disambiguators either way.
+
+Two paths this list once held — body compartments and the `on` section's
+provisional name — are closed by [D-12 Statement-Body Anatomy]: one compartment
+per audience, deployment intent at the statement root, and named advisory `with`
+stanzas in `on`'s stead.
 
 The go.mod file syntax (directive lines, parenthesized factoring, comment
 preservation) is the parsing reference; its published implementation shows the
@@ -159,3 +157,4 @@ directive layer is a few hundred lines.
 
 [A-09 Solution Layer]: ../analyses/A-09-solution-layer.md
 [A-10 Value Binding]: ../analyses/A-10-value-binding.md
+[D-12 Statement-Body Anatomy]: D-12-statement-body-anatomy.md

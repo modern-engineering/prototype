@@ -1,6 +1,8 @@
 ---
 status: draft
 since: 2026-07-06
+refined-by:
+  - D-12-statement-body-anatomy
 ---
 
 # Solution Layer: From Definition to Reification
@@ -160,6 +162,10 @@ fixture; how a grammar separates them is surveyed, not settled:
   confinement keeps definitions portable but pushes legitimate knowledge out of
   the artifact.
 
+[D-12 Statement-Body Anatomy] decides the separation: one compartment per
+audience, with controller-specific extensions as named advisory stanzas that
+unrecognizing controllers ignore.
+
 The operator-facing channels those parameters ultimately travel — flags,
 environment, files, signals — are the subject of [A-12 Operator I/O].
 
@@ -212,3 +218,4 @@ This analysis recommends the reconciled image.
 [A-11 Substrate and Slices]: A-11-substrate-slices.md
 [A-12 Operator I/O]: A-12-operator-io.md
 [D-06 Declarative Descriptor Values]: ../adr/D-06-declarative-descriptor-values.md
+[D-12 Statement-Body Anatomy]: ../adr/D-12-statement-body-anatomy.md
