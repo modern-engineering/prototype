@@ -3,7 +3,10 @@
 
 package image
 
-import "slices"
+import (
+	"maps"
+	"slices"
+)
 
 // Equal reports whether two images describe the same desired state. All
 // provenance is masked: Generation and every [Binding]'s Source never
@@ -55,8 +58,21 @@ func recordEqual(a, b Record) bool {
 		a.Element == b.Element &&
 		a.Name == b.Name &&
 		slices.EqualFunc(a.Params, b.Params, bindingEqual) &&
+		slices.EqualFunc(a.Deployment, b.Deployment, bindingEqual) &&
+		extensionsEqual(a.Extensions, b.Extensions) &&
 		slices.EqualFunc(a.On, b.On, bindingEqual) &&
 		slices.EqualFunc(a.Metadata, b.Metadata, bindingEqual)
+}
+
+// extensionsEqual compares the extensions compartment per qualifier:
+// the same qualifiers, each stanza's bindings equal under
+// [bindingEqual]. A nil map equals an empty one and a nil stanza an
+// empty stanza, but a qualifier present on one side only is a real
+// difference: an empty stanza still names its scheme.
+func extensionsEqual(a, b map[string][]Binding) bool {
+	return maps.EqualFunc(a, b, func(x, y []Binding) bool {
+		return slices.EqualFunc(x, y, bindingEqual)
+	})
 }
 
 // bindingEqual compares the key, the payload (literal value or symbol

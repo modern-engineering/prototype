@@ -16,8 +16,9 @@
 // schema prescribes: catalogue packages sorted by path, elements by name,
 // parameter schemas in flag.FlagSet.VisitAll order (lexicographic),
 // symbols sorted by name, records in unit-then-statement order, and
-// bindings by key. The canonical order is what lets [Equal] compare
-// structurally and keeps images diffable.
+// bindings by key (extension stanzas are a map, so encoding/json emits
+// their qualifiers sorted). The canonical order is what lets [Equal]
+// compare structurally and keeps images diffable.
 //
 // # Provenance
 //
@@ -251,11 +252,29 @@ type Record struct {
 	// the application consumes, typed by the pinned schema.
 	Params []Binding `json:"params,omitempty"`
 
-	// On is the statement's deployment-intent compartment for the
-	// environment controller, sorted by Key. Values are literals or
+	// Deployment is the statement's deployment-intent compartment,
+	// sorted by Key: the top-level fields, a closed per-verb scheme
+	// (deploy: location; provision: none yet). Values are literals or
 	// opaque profile tokens ([KindToken]); the compartment is typed by
 	// the platform's profile, outside the solution's namespace and the
-	// binding DAG.
+	// binding DAG. Provision records carry it empty while their scheme
+	// is empty; if provision ever grows top-level fields that are not
+	// deployment intent, renaming the compartment is the door to
+	// reopen.
+	Deployment []Binding `json:"deployment,omitempty"`
+
+	// Extensions are the statement's advisory with-stanzas, keyed by
+	// dotted qualifier, each stanza sorted by Key. A controller that
+	// recognizes a qualifier applies its stanza; one that does not
+	// ignores it, and unknown stanzas ride the image opaquely
+	// (discovered stanza schemes are a later rung). Values are
+	// literals or opaque tokens, outside the solution's namespace and
+	// the binding DAG; an empty stanza still names its scheme.
+	Extensions map[string][]Binding `json:"extensions,omitempty"`
+
+	// On is the retiring predecessor of Deployment and Extensions; it
+	// goes away once the linker routes the statement-body anatomy that
+	// replaced the on section (D-12).
 	On []Binding `json:"on,omitempty"`
 
 	// Metadata is the statement's carried-through compartment nobody

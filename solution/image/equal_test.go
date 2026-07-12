@@ -13,9 +13,10 @@ import (
 // testImage builds a fresh image with one pinned package (a component,
 // a symbol type, and a provision type), a symbol of each class, and
 // two records: a deploy binding literals, a plain reference, a tainted
-// reference, and a tainted output reference, and a provision slice
-// binding a literal; every call returns an independent value so tests
-// may mutate freely.
+// reference, and a tainted output reference, carrying a deployment
+// field and two extension stanzas (one empty, pinning that presence
+// counts), and a provision slice binding a literal; every call returns
+// an independent value so tests may mutate freely.
 func testImage() *image.Image {
 	return &image.Image{
 		Format:     image.Format,
@@ -66,6 +67,16 @@ func testImage() *image.Image {
 					{Key: "target", Ref: &image.SymbolRef{Symbol: "subject"}, Source: image.SourceInstance},
 					{Key: "wire", Ref: &image.SymbolRef{Symbol: "grid1", Output: "config"}, Source: image.SourceInstance, Sensitive: true},
 				},
+				Deployment: []image.Binding{
+					{Key: "location", Value: image.Token("euCentral1"), Source: image.SourceDefaultDeploy},
+				},
+				Extensions: map[string][]image.Binding{
+					"k8s.pod": {
+						{Key: "priorityClass", Value: image.Token("standard"), Source: image.SourceDefaultDeploy},
+						{Key: "replicas", Value: image.Int(3), Source: image.SourceInstance},
+					},
+					"k8s.workload": {},
+				},
 			},
 			{
 				Verb:    image.VerbProvision,
@@ -110,6 +121,13 @@ func TestEqualMasksProvenance(t *testing.T) {
 	compartment.Records[1].On[0].Source = image.SourceInstance
 	if !image.Equal(base, compartment) {
 		t.Error("Equal must mask Source in on bindings too")
+	}
+
+	routed := testImage()
+	routed.Records[0].Deployment[0].Source = image.SourceInstance
+	routed.Records[0].Extensions["k8s.pod"][0].Source = image.SourceInstance
+	if !image.Equal(base, routed) {
+		t.Error("Equal must mask Source in deployment and extension bindings too")
 	}
 
 	both := testImage()
@@ -216,6 +234,23 @@ func TestEqualCatchesRealDifferences(t *testing.T) {
 		{"on binding dropped", func(img *image.Image) {
 			img.Records[1].On = nil
 		}},
+		{"deployment field change", func(img *image.Image) {
+			img.Records[0].Deployment[0].Value = image.Token("usEast1")
+		}},
+		{"deployment binding dropped", func(img *image.Image) {
+			img.Records[0].Deployment = nil
+		}},
+		{"extension binding change", func(img *image.Image) {
+			img.Records[0].Extensions["k8s.pod"][1].Value = image.Int(4)
+		}},
+		{"extension qualifier renamed", func(img *image.Image) {
+			ext := img.Records[0].Extensions
+			ext["k8s.job"] = ext["k8s.pod"]
+			delete(ext, "k8s.pod")
+		}},
+		{"empty extension stanza dropped", func(img *image.Image) {
+			delete(img.Records[0].Extensions, "k8s.workload")
+		}},
 		{"metadata value change", func(img *image.Image) {
 			img.Records[1].Metadata[0].Value = image.String("core")
 		}},
@@ -229,6 +264,24 @@ func TestEqualCatchesRealDifferences(t *testing.T) {
 				t.Error("Equal = true after a real difference, want false")
 			}
 		})
+	}
+}
+
+// TestEqualExtensionsNilEmpty pins the two nil-tolerance levels of the
+// extensions comparison: an absent map equals an empty one, and a nil
+// stanza equals an empty stanza — while stanza presence itself stays a
+// real difference (covered by the mutation cases above).
+func TestEqualExtensionsNilEmpty(t *testing.T) {
+	emptyMap := testImage()
+	emptyMap.Records[1].Extensions = map[string][]image.Binding{}
+	if !image.Equal(testImage(), emptyMap) {
+		t.Error("Equal(nil extensions, empty extensions) = false, want true")
+	}
+
+	nilStanza := testImage()
+	nilStanza.Records[0].Extensions["k8s.workload"] = nil
+	if !image.Equal(testImage(), nilStanza) {
+		t.Error("Equal(empty stanza, nil stanza) = false, want true")
 	}
 }
 
