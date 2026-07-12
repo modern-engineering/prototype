@@ -86,11 +86,8 @@ func testImage() *image.Image {
 				Params: []image.Binding{
 					{Key: "cluster", Value: image.String("us-east"), Source: image.SourceInstance},
 				},
-				On: []image.Binding{
-					{Key: "location", Value: image.Token("euCentral1"), Source: image.SourceDefaultProvision},
-				},
 				Metadata: []image.Binding{
-					{Key: "team", Value: image.String("search"), Source: image.SourceInstance},
+					{Key: "team", Value: image.String("search"), Source: image.SourceDefaultProvision},
 				},
 			},
 		},
@@ -118,9 +115,9 @@ func TestEqualMasksProvenance(t *testing.T) {
 	}
 
 	compartment := testImage()
-	compartment.Records[1].On[0].Source = image.SourceInstance
+	compartment.Records[1].Metadata[0].Source = image.SourceInstance
 	if !image.Equal(base, compartment) {
-		t.Error("Equal must mask Source in on bindings too")
+		t.Error("Equal must mask Source in metadata bindings too")
 	}
 
 	routed := testImage()
@@ -227,12 +224,6 @@ func TestEqualCatchesRealDifferences(t *testing.T) {
 		}},
 		{"catalogue provision kinds change", func(img *image.Image) {
 			img.Catalogue[0].Elements[2].Kinds = []string{image.KindSlice}
-		}},
-		{"on token change", func(img *image.Image) {
-			img.Records[1].On[0].Value = image.Token("usEast1")
-		}},
-		{"on binding dropped", func(img *image.Image) {
-			img.Records[1].On = nil
 		}},
 		{"deployment field change", func(img *image.Image) {
 			img.Records[0].Deployment[0].Value = image.Token("usEast1")

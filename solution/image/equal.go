@@ -60,7 +60,6 @@ func recordEqual(a, b Record) bool {
 		slices.EqualFunc(a.Params, b.Params, bindingEqual) &&
 		slices.EqualFunc(a.Deployment, b.Deployment, bindingEqual) &&
 		extensionsEqual(a.Extensions, b.Extensions) &&
-		slices.EqualFunc(a.On, b.On, bindingEqual) &&
 		slices.EqualFunc(a.Metadata, b.Metadata, bindingEqual)
 }
 

@@ -11,17 +11,18 @@ import (
 )
 
 // The value kinds a binding may carry: the SDL literal kinds, plus the
-// opaque profile tokens of on compartments.
+// opaque tokens of the deployment and extension compartments.
 const (
 	KindString   = "string"
 	KindInt      = "int"
 	KindBool     = "bool"
 	KindDuration = "duration"
 
-	// KindToken marks an opaque profile token: a bare identifier in an
-	// on compartment, typed by the platform's deployment profile and
-	// never resolved against the solution's symbols. Tokens appear in
-	// [Record].On bindings only.
+	// KindToken marks an opaque token: a bare identifier in a
+	// top-level field or a with-stanza, typed by the platform's
+	// deployment profile or the stanza's scheme and never resolved
+	// against the solution's symbols. Tokens appear in
+	// [Record].Deployment and [Record].Extensions bindings only.
 	KindToken = "token"
 )
 

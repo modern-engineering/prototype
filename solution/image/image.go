@@ -43,7 +43,10 @@ import (
 )
 
 // Format identifies the image schema this package reads and writes.
-// [Decode] rejects documents declaring any other format.
+// [Decode] rejects documents declaring any other format. At the
+// prototype stage compartment reshapes ride within the one format —
+// images regenerate with the tool that reads them — and the version
+// bumps once an image consumer outlives its producer.
 const Format = "solution-image/1"
 
 // The element kinds a catalogue schema pins.
@@ -271,11 +274,6 @@ type Record struct {
 	// literals or opaque tokens, outside the solution's namespace and
 	// the binding DAG; an empty stanza still names its scheme.
 	Extensions map[string][]Binding `json:"extensions,omitempty"`
-
-	// On is the retiring predecessor of Deployment and Extensions; it
-	// goes away once the linker routes the statement-body anatomy that
-	// replaced the on section (D-12).
-	On []Binding `json:"on,omitempty"`
 
 	// Metadata is the statement's carried-through compartment nobody
 	// interprets, sorted by Key; values are strings.
