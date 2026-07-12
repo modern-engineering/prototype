@@ -7,4 +7,6 @@ verifying backend applications.
 
 ## Documentation
 
-Architectural decisions and design documents live in [`docs/`](docs/).
+Architectural decisions and design documents live in [`docs/`](docs/). The
+compilation architecture and phase glossary live in the sdl command's package
+documentation, [`cmd/sdl/doc.go`](cmd/sdl/doc.go).
