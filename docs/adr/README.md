@@ -15,3 +15,4 @@ Decisions are recorded in MADR 4.0.0 format.
 | [D-09](D-09-catalogue-citizenship.md)              | Scope the Catalogue to Application-Library Citizens                   |
 | [D-10](D-10-generate-compile-run.md)               | Compile Solutions by Generating a Program Against Imported Catalogues |
 | [D-11](D-11-self-contained-services.md)            | Construct Application Instances as Self-Contained Services            |
+| [D-12](D-12-statement-body-anatomy.md)             | Structure Statement Bodies as One Compartment per Audience            |
