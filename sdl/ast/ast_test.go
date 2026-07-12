@@ -62,6 +62,7 @@ func TestPosAnchors(t *testing.T) {
 		{"StringLit", &ast.StringLit{ValuePos: at(2, 3)}, at(2, 3)},
 		{"Param", &ast.Param{Key: name}, at(1, 11)},
 		{"Section", &ast.Section{Name: name}, at(1, 11)},
+		{"qualified Section", &ast.Section{Name: pkg, Qualifier: name}, at(1, 8)},
 		{"DeploySpec", &ast.DeploySpec{Type: &ast.TypeRef{Pkg: pkg, Name: name}}, at(1, 8)},
 		{"ImportSpec with alias", &ast.ImportSpec{Alias: pkg, Path: &ast.StringLit{ValuePos: at(1, 11)}}, at(1, 8)},
 		{"ImportSpec bare", &ast.ImportSpec{Path: &ast.StringLit{ValuePos: at(1, 11)}}, at(1, 11)},

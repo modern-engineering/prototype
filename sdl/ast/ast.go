@@ -173,11 +173,15 @@ type Param struct {
 func (p *Param) Pos() token.Position { return p.Key.NamePos }
 
 // A Section node represents a colon-less named sub-body such as
-// "on { ... }" or "metadata { ... }".
+// "params { ... }" or "metadata { ... }". A section head may carry a
+// dotted qualifier naming a scheme, as in "with k8s.pod { ... }"; any
+// section admits one syntactically, and which section words allow or
+// require one is semantic.
 type Section struct {
 	Comments
-	Name *Ident // section name
-	Body *Body  // section contents
+	Name      *Ident // section name
+	Qualifier *Ident // optional dotted qualifier, e.g. "k8s.pod"; nil when absent
+	Body      *Body  // section contents
 }
 
 // Pos returns the position of the section name.
