@@ -353,10 +353,150 @@ deploy ff.Ping as Ping3 {
 	nats: natsAccount.config
 }
 
+---
+// Mockup 7: supersedes 6. Restructures the statement body; everything else
+// mockup 6 decided — imports and package qualification, symbol staging,
+// slice/attach, peer-file linking — carries over, and mockups 5-6's longer
+// notes still apply to those parts.
+//
+// A-09's three audiences are now spelled by structure, one compartment per
+// audience, instead of hanging on the colon rule alone:
+//   root               deployment intent: a CLOSED per-verb scheme of bare
+//                      `key: value` fields, like a k8s resource's top-level
+//                      keys. deploy: location. provision: none yet. An
+//                      unknown root key is an error; a root key naming a
+//                      catalogue param gets a "move it into params" error.
+//   params { ... }     the application: the catalogue-typed parameters (the
+//                      "spec", typed by the element). Bare keys at the body
+//                      root are NO LONGER catalogue params.
+//   with <q> { ... }   one controller/community scheme, named by a DOTTED
+//                      qualifier (renames `on`; hyphens do not lex, dots
+//                      namespace naturally). Zero or more per statement,
+//                      ADVISORY: a controller that does not recognize the
+//                      qualifier ignores the stanza, and unknown stanzas
+//                      ride the image opaquely. Values stay opaque tokens
+//                      for now; discovered stanza schemes come later.
+//   metadata { ... }   nobody: carried through, unchanged from mockup 5.
+//
+// Mockup 5 confined controller-specific tuning to site-side config; the
+// with-stanza reverses that: recognized-or-ignored schemes give such
+// knowledge a first-class, still-portable home in the artifact.
+//
+// The anatomy is UNIFORM across deploy, provision, and the default layers:
+// default bodies nest params { } and root fields the same way, and stanzas
+// merge per qualifier. Merge order is unchanged:
+// catalogue < default verb < default type < instance.
+// Section words (params, with, metadata) stay provisional, like every
+// keyword in this file.
+
+solution sample
+
+import (
+	ff "example.com/acme/pingpong" // aliased: this file's short name for the package
+	"example.com/platform/substrate" // default: referenced by its package name
+)
+
+// Dynamic symbols: the deployment environment MUST bind these at reification.
+extern (
+	natsCluster substrate.NATSCluster
+	natsAdmin   substrate.Secret // sensitive: taints every field wired from it
+	pgServer    substrate.PostgresServer // legacy per-customer substrate
+)
+
+// Weak symbols: defaults bound at compile; a site MAY override uniformly.
+var (
+	echoSubject: "com.acme.Echo"
+	pingInterval: 1s
+)
+
+// Type-level defaults nest compartments exactly like an instance body.
+default ff.Ping {
+	params {
+		interval: pingInterval
+		count: -1 // endless
+	}
+}
+
+// Verb-level defaults: root fields default like any other layer, and a
+// stanza folds per qualifier under an instance's own matching stanza.
+default deploy {
+	location: awsUsEast1
+
+	with k8s.pod {
+		priorityClass: standard
+	}
+}
+
+// Provision registers no root fields yet, so provision bodies open
+// straight into compartments.
+provision substrate.NATS slice as natsAccount {
+	params {
+		cluster: natsCluster
+		adminAccount: natsAdmin
+	}
+}
+
+provision substrate.Postgres attach as pgLegacy {
+	params {
+		server: pgServer
+	}
+}
+
+deploy ff.Ping as Ping1 {
+	params {
+		target: echoSubject
+		nats: natsAccount.config // reconcile-time output, as before
+	}
+}
+
+deploy ff.Ping as Ping2 {
+	location: euCentral1 // overrides `default deploy`
+
+	params {
+		count: 10 // overrides the default
+		target: echoSubject
+		nats: natsAccount.config
+	}
+
+	// Folded with the default-deploy stanza above, this instance ships
+	// k8s.pod = {priorityClass: standard, replicas: 3}.
+	with k8s.pod {
+		replicas: 3
+	}
+
+	metadata {
+		team: "search"
+	}
+}
+
+deploy ff.Pong as Pong {
+	params {
+		subject: echoSubject // Pong derives its ".>" subscription internally
+		nats: natsAccount.config
+	}
+}
+
+// --- a peer file, e.g. sample_extra.sdl ---
+
+// Peer files are unchanged from mockup 6: repeat the solution clause, carry
+// your own imports; linking unions the directory, and duplicate instance
+// names are link errors.
+solution sample
+
+import ff "example.com/acme/pingpong"
+
+deploy ff.Ping as Ping3 {
+	params {
+		target: echoSubject
+		nats: natsAccount.config
+	}
+}
+
 // --- Ideas ---
-// The catalogue-discovery thread that grew here — generate the compiler per
-// invocation, import blocks vs an external source of type locations,
-// elements as Go types vs Go values — graduated into the design record:
-// A-14 (staged catalogue compilation) surveys the pathways, D-10 decides
-// generate-compile-run with per-file imports and package-qualified
-// references, and Mockup 6 above renders the result. Next ideas start here.
+// The catalogue-discovery thread graduated earlier: A-14 surveys it, D-10
+// decides generate-compile-run, Mockup 6 renders it. The body-anatomy
+// thread — bare keys vs an explicit params block, `on` vs named advisory
+// `with` stanzas, deployment intent as closed root fields — is rendered by
+// Mockup 7 above; a decision record refining A-09's statement anatomy and
+// resolving D-07's open body-compartments path is queued. Next ideas start
+// here.
