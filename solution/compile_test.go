@@ -182,10 +182,12 @@ func compile(t *testing.T, cfg solution.CompileConfig) (code int, stdout, stderr
 // (values must canonicalize by literal kind, not flag echo — "window"
 // is a flag.Func whose String() is always empty), target and subject
 // bind by reference (subject through a sensitive extern, so the taint
-// must surface), and Hush has no body at all. Ping2 wires provision
-// outputs declared further down the unit (forward references), one of
-// them sensitive; the bus slice binds an extern next to a literal; the
-// legacy attachment omits its kind word, which resolves because Store
+// must surface), and Hush has no body at all. Ping1 carries the whole
+// statement anatomy: a top-level location and a with-stanza and
+// metadata beside its params. Ping2 wires provision outputs declared
+// further down the unit (forward references), one of them sensitive;
+// the bus slice binds an extern next to a literal; the legacy
+// attachment omits its kind word, which resolves because Store
 // registers exactly one kind.
 const mainUnit = `solution sample
 
@@ -200,27 +202,46 @@ extern apiKey sub.Secret
 var echoTarget: "com.acme.Echo"
 
 deploy ff.Ping as Ping1 {
-	window: 2h45m
-	verbose: true
-	target: echoTarget
-	interval: 1500ms
-	count: -1
+	location: awsUsEast1
+
+	params {
+		window: 2h45m
+		verbose: true
+		target: echoTarget
+		interval: 1500ms
+		count: -1
+	}
+
+	with k8s.pod {
+		replicas: 3
+		priorityClass: critical
+	}
+
+	metadata {
+		team: "search"
+	}
 }
 
 deploy ff.Pong as Pong1 {
-	subject: apiKey
+	params {
+		subject: apiKey
+	}
 }
 
 deploy ff.Ping as Ping2 {
-	target: bus.url
-	window: bus.config
+	params {
+		target: bus.url
+		window: bus.config
+	}
 }
 
 deploy quiet.Quiet as Hush
 
 provision sub.Bus slice as bus {
-	cluster: "nats://core"
-	admin: apiKey
+	params {
+		cluster: "nats://core"
+		admin: apiKey
+	}
 }
 
 provision sub.Store as legacy
@@ -233,9 +254,12 @@ provision sub.Store as legacy
 // (1500ms as 1.5s, 2h45m as 2h45m0s), reference bindings carrying
 // refs instead of values, the extern-bound subject and admin tainted
 // by their sensitive symbol type, the output-bound window tainted by
-// its sensitive output, provision records carrying their kind
-// explicitly — the omitted kind word resolved to attach — and the
-// parameterless Store pinned without params.
+// its sensitive output, the top-level location landing in the
+// deployment compartment as an opaque token, the with-stanza riding
+// extensions under its dotted qualifier (bindings key-sorted),
+// provision records carrying their kind explicitly — the omitted kind
+// word resolved to attach — and the parameterless Store pinned
+// without params.
 const goldenImage = `{
   "format": "solution-image/1",
   "solution": "sample",
@@ -425,6 +449,46 @@ const goldenImage = `{
           },
           "source": "instance"
         }
+      ],
+      "deployment": [
+        {
+          "key": "location",
+          "value": {
+            "kind": "token",
+            "token": "awsUsEast1"
+          },
+          "source": "instance"
+        }
+      ],
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "priorityClass",
+            "value": {
+              "kind": "token",
+              "token": "critical"
+            },
+            "source": "instance"
+          },
+          {
+            "key": "replicas",
+            "value": {
+              "kind": "int",
+              "int": 3
+            },
+            "source": "instance"
+          }
+        ]
+      },
+      "metadata": [
+        {
+          "key": "team",
+          "value": {
+            "kind": "string",
+            "string": "search"
+          },
+          "source": "instance"
+        }
       ]
     },
     {
@@ -555,7 +619,7 @@ func TestMainCompileMultiUnit(t *testing.T) {
 	units := []solution.Unit{
 		{Name: "a.sdl", Source: "solution sample\n" +
 			"import ff \"example.com/acme/pingpong\"\n" +
-			"deploy ff.Pong as PongA {\n\tsubject: \"a\"\n}\n"},
+			"deploy ff.Pong as PongA {\n\tparams {\n\t\tsubject: \"a\"\n\t}\n}\n"},
 		{Name: "b.sdl", Source: "solution sample\n" +
 			"import (\n\tff \"example.com/acme/pingpong\"\n\t\"example.com/acme/quiet\"\n)\n" +
 			"deploy quiet.Quiet as HushB\n" +
@@ -611,8 +675,8 @@ func TestMainCompileSymbolReferences(t *testing.T) {
 	units := []solution.Unit{
 		{Name: "a.sdl", Source: "solution sample\n" +
 			"import ff \"example.com/acme/pingpong\"\n" +
-			"deploy ff.Ping as PingA {\n\ttarget: adminKey\n}\n" +
-			"deploy ff.Pong as PongA {\n\tsubject: sharedSubject\n}\n"},
+			"deploy ff.Ping as PingA {\n\tparams {\n\t\ttarget: adminKey\n\t}\n}\n" +
+			"deploy ff.Pong as PongA {\n\tparams {\n\t\tsubject: sharedSubject\n\t}\n}\n"},
 		{Name: "b.sdl", Source: "solution sample\n" +
 			"import sub \"example.com/acme/substrate\"\n" +
 			"extern adminKey sub.Secret\n" +
@@ -734,7 +798,9 @@ func TestMainCompileDottedKeys(t *testing.T) {
 	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 		"import deep \"example.com/acme/deep\"\n" +
 		"deploy deep.Deep as D {\n" +
-		"\tretry.max: 7\n" +
+		"\tparams {\n" +
+		"\t\tretry.max: 7\n" +
+		"\t}\n" +
 		"}\n"}}
 	code, stdout, stderr := compile(t, solution.CompileConfig{
 		Solution: "sample", Units: units, Catalogue: catalogue,
@@ -800,8 +866,8 @@ func TestMainCompileInexpressibleParamWarning(t *testing.T) {
 // ones below, with Source naming the winner.
 func TestMainCompileDefaultMergeOrder(t *testing.T) {
 	const (
-		verbDefault = "default deploy {\n\tcount: 2\n}\n"
-		typeDefault = "default ff.Ping {\n\tcount: 3\n}\n"
+		verbDefault = "default deploy {\n\tparams {\n\t\tcount: 2\n\t}\n}\n"
+		typeDefault = "default ff.Ping {\n\tparams {\n\t\tcount: 3\n\t}\n}\n"
 	)
 	tests := []struct {
 		name       string
@@ -814,7 +880,7 @@ func TestMainCompileDefaultMergeOrder(t *testing.T) {
 		{"catalogue slot only", "", "", 0, "", true},
 		{"verb default", verbDefault, "", 2, image.SourceDefaultDeploy, false},
 		{"type default over verb default", verbDefault + typeDefault, "", 3, image.SourceDefaultType, false},
-		{"instance over both defaults", verbDefault + typeDefault, " {\n\tcount: 4\n}", 4, image.SourceInstance, false},
+		{"instance over both defaults", verbDefault + typeDefault, " {\n\tparams {\n\t\tcount: 4\n\t}\n}", 4, image.SourceInstance, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -870,10 +936,14 @@ func TestMainCompileDefaultRefs(t *testing.T) {
 		"extern apiKey sub.Secret\n" +
 		"var subj: \"com.acme.Echo\"\n" +
 		"default ff.Pong {\n" +
-		"\tsubject: apiKey\n" +
+		"\tparams {\n" +
+		"\t\tsubject: apiKey\n" +
+		"\t}\n" +
 		"}\n" +
 		"default deploy {\n" +
-		"\ttarget: subj\n" +
+		"\tparams {\n" +
+		"\t\ttarget: subj\n" +
+		"\t}\n" +
 		"}\n" +
 		"deploy ff.Pong as PongD\n" +
 		"deploy ff.Ping as PingD\n"}}
@@ -919,7 +989,9 @@ func TestMainCompileDefaultOutputRefs(t *testing.T) {
 		"\tsub \"example.com/acme/substrate\"\n" +
 		")\n" +
 		"default deploy {\n" +
-		"\twindow: bus.config\n" + // config is a sensitive Bus output
+		"\tparams {\n" +
+		"\t\twindow: bus.config\n" + // config is a sensitive Bus output
+		"\t}\n" +
 		"}\n" +
 		"provision sub.Bus slice as bus\n" +
 		"deploy ff.Ping as P\n" +
@@ -967,11 +1039,15 @@ func TestMainCompileProvisionDefaults(t *testing.T) {
 		"\tsub \"example.com/acme/substrate\"\n" +
 		")\n" +
 		"default provision {\n" +
-		"\tcluster: \"nats://default\"\n" +
-		"\tadmin: \"root\"\n" +
+		"\tparams {\n" +
+		"\t\tcluster: \"nats://default\"\n" +
+		"\t\tadmin: \"root\"\n" +
+		"\t}\n" +
 		"}\n" +
 		"default sub.Bus {\n" +
-		"\tcluster: \"nats://bus\"\n" +
+		"\tparams {\n" +
+		"\t\tcluster: \"nats://bus\"\n" +
+		"\t}\n" +
 		"}\n" +
 		"provision sub.Bus slice as bus\n" +
 		"provision sub.Store as legacy\n" +
@@ -1009,13 +1085,16 @@ func TestMainCompileProvisionDefaults(t *testing.T) {
 	}
 }
 
-// TestMainCompileCompartments proves the section compartments end to
-// end: on takes literals and opaque profile tokens — a bare identifier
-// never resolves against the namespace, even when it spells a declared
-// symbol — metadata takes string literals, and each compartment merges
-// per record across the same tiers as params (verb default under type
+// TestMainCompileCompartments proves the element-independent
+// compartments end to end: top-level fields and with-stanza values
+// take literals and opaque tokens — a bare identifier never resolves
+// against the namespace, even when it spells a declared symbol —
+// metadata takes string literals, and each compartment merges per
+// record across the same tiers as params (verb default under type
 // default under instance), each verb reaching only its own records,
-// with Source naming every binding's layer.
+// stanzas merging per qualifier, with Source naming every binding's
+// layer. An empty stanza still rides the record: naming a scheme is
+// itself advisory content.
 func TestMainCompileCompartments(t *testing.T) {
 	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 		"import (\n" +
@@ -1024,22 +1103,28 @@ func TestMainCompileCompartments(t *testing.T) {
 		")\n" +
 		"var awsUsEast1: 1s\n" + // a symbol spelled like the token below; the token must win
 		"default deploy {\n" +
-		"\ton {\n" +
-		"\t\tlocation: awsUsEast1\n" +
-		"\t\ttier: \"bronze\"\n" +
+		"\tlocation: awsUsEast1\n" +
+		"\twith k8s.pod {\n" +
+		"\t\tpriorityClass: standard\n" +
+		"\t\treplicas: 1\n" +
 		"\t}\n" +
 		"\tmetadata {\n" +
 		"\t\towner: \"core\"\n" +
 		"\t}\n" +
 		"}\n" +
 		"default ff.Ping {\n" +
-		"\ton {\n" +
-		"\t\tlocation: euWest1\n" +
+		"\tlocation: euWest1\n" +
+		"\twith dc.rack {\n" +
+		"\t\tzone: cold\n" +
+		"\t}\n" +
+		"}\n" +
+		"default provision {\n" +
+		"\twith nats.account {\n" +
+		"\t\ttier: bronze\n" +
 		"\t}\n" +
 		"}\n" +
 		"deploy ff.Ping as P {\n" +
-		"\ton {\n" +
-		"\t\ttier: \"gold\"\n" +
+		"\twith k8s.pod {\n" +
 		"\t\treplicas: 3\n" +
 		"\t}\n" +
 		"\tmetadata {\n" +
@@ -1048,8 +1133,10 @@ func TestMainCompileCompartments(t *testing.T) {
 		"}\n" +
 		"deploy ff.Pong as Q\n" +
 		"provision sub.Bus slice as bus {\n" +
-		"\ton {\n" +
-		"\t\tlocation: dcLocal\n" +
+		"\twith nats.account {\n" +
+		"\t\ttier: gold\n" +
+		"\t}\n" +
+		"\twith dc.rack {\n" +
 		"\t}\n" +
 		"}\n"}}
 	cfg := solution.CompileConfig{
@@ -1069,27 +1156,52 @@ func TestMainCompileCompartments(t *testing.T) {
 		t.Fatalf("got %d records, want 3", len(img.Records))
 	}
 
-	checkBindings(t, "P.On", img.Records[0].On, []wantBinding{
+	p := img.Records[0]
+	checkBindings(t, "P.Deployment", p.Deployment, []wantBinding{
 		{"location", image.Token("euWest1"), image.SourceDefaultType},
-		{"replicas", image.Int(3), image.SourceInstance},
-		{"tier", image.String("gold"), image.SourceInstance},
 	})
-	checkBindings(t, "P.Metadata", img.Records[0].Metadata, []wantBinding{
+	if len(p.Extensions) != 2 {
+		t.Errorf("P.Extensions carries %d qualifiers, want 2 (k8s.pod, dc.rack)", len(p.Extensions))
+	}
+	checkBindings(t, "P.Extensions[k8s.pod]", p.Extensions["k8s.pod"], []wantBinding{
+		{"priorityClass", image.Token("standard"), image.SourceDefaultDeploy},
+		{"replicas", image.Int(3), image.SourceInstance},
+	})
+	checkBindings(t, "P.Extensions[dc.rack]", p.Extensions["dc.rack"], []wantBinding{
+		{"zone", image.Token("cold"), image.SourceDefaultType},
+	})
+	checkBindings(t, "P.Metadata", p.Metadata, []wantBinding{
 		{"owner", image.String("core"), image.SourceDefaultDeploy},
 		{"team", image.String("search"), image.SourceInstance},
 	})
-	checkBindings(t, "Q.On", img.Records[1].On, []wantBinding{
+
+	q := img.Records[1]
+	checkBindings(t, "Q.Deployment", q.Deployment, []wantBinding{
 		{"location", image.Token("awsUsEast1"), image.SourceDefaultDeploy},
-		{"tier", image.String("bronze"), image.SourceDefaultDeploy},
 	})
-	checkBindings(t, "Q.Metadata", img.Records[1].Metadata, []wantBinding{
+	checkBindings(t, "Q.Extensions[k8s.pod]", q.Extensions["k8s.pod"], []wantBinding{
+		{"priorityClass", image.Token("standard"), image.SourceDefaultDeploy},
+		{"replicas", image.Int(1), image.SourceDefaultDeploy},
+	})
+	checkBindings(t, "Q.Metadata", q.Metadata, []wantBinding{
 		{"owner", image.String("core"), image.SourceDefaultDeploy},
 	})
-	checkBindings(t, "bus.On", img.Records[2].On, []wantBinding{
-		{"location", image.Token("dcLocal"), image.SourceInstance},
+
+	bus := img.Records[2]
+	if bus.Deployment != nil {
+		t.Errorf("bus.Deployment = %+v, want none: default deploy must not reach provisions", bus.Deployment)
+	}
+	if len(bus.Extensions) != 2 {
+		t.Errorf("bus.Extensions carries %d qualifiers, want 2 (nats.account, dc.rack)", len(bus.Extensions))
+	}
+	checkBindings(t, "bus.Extensions[nats.account]", bus.Extensions["nats.account"], []wantBinding{
+		{"tier", image.Token("gold"), image.SourceInstance},
 	})
-	if img.Records[2].Metadata != nil {
-		t.Errorf("bus.Metadata = %+v, want none: default deploy must not reach provisions", img.Records[2].Metadata)
+	if stanza, ok := bus.Extensions["dc.rack"]; !ok || len(stanza) != 0 {
+		t.Errorf("bus.Extensions[dc.rack] = %+v, %t, want a present empty stanza", stanza, ok)
+	}
+	if bus.Metadata != nil {
+		t.Errorf("bus.Metadata = %+v, want none: default deploy must not reach provisions", bus.Metadata)
 	}
 }
 
@@ -1164,23 +1276,27 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"deploy ff.Ping as P {\n" +
-				"\tnope: 1\n" +
+				"\tparams {\n" +
+				"\t\tnope: 1\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:4:2: unknown parameter nope: element ff.Ping has no such parameter"},
+			want:     []string{"u.sdl:5:3: unknown parameter nope: element ff.Ping has no such parameter"},
 		},
 		{
 			name: "bad literals for typed flags",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"deploy ff.Ping as P {\n" +
-				"\tcount: \"many\"\n" +
-				"\twindow: \"soon\"\n" +
+				"\tparams {\n" +
+				"\t\tcount: \"many\"\n" +
+				"\t\twindow: \"soon\"\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
 			want: []string{
-				"u.sdl:4:9: invalid value for parameter count: parse error",
-				`u.sdl:5:10: invalid value for parameter window: time: invalid duration "soon"`,
+				"u.sdl:5:10: invalid value for parameter count: parse error",
+				`u.sdl:6:11: invalid value for parameter window: time: invalid duration "soon"`,
 			},
 		},
 		{
@@ -1285,15 +1401,15 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"provision ff.Ping slice as Q\n" +
 				"deploy ff.Ping as P {\n" +
-				"\ttarget: Q.config\n" +
-				"\ton {\n" +
-				"\t\tlocation: here\n" +
+				"\tlocation: here\n" +
+				"\tparams {\n" +
+				"\t\ttarget: Q.config\n" +
 				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
 			want: []string{
 				"u.sdl:3:11: cannot provision ff.Ping: element is a component, not a provision type",
-				"u.sdl:5:10: instance Q has no outputs: only provision instances emit outputs",
+				"u.sdl:7:11: instance Q has no outputs: only provision instances emit outputs",
 			},
 		},
 		{
@@ -1306,48 +1422,167 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:4:2: unknown section mount: sections are on and metadata"},
+			want:     []string{"u.sdl:4:2: unknown section mount: sections are params, with, and metadata"},
 		},
 		{
-			name: "duplicate section in one body",
+			// The retired section word earns its own migration hint: the
+			// fixture ripple makes it the most-hit error of the anatomy
+			// change.
+			name: "retired on section",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"deploy ff.Ping as P {\n" +
 				"\ton {\n" +
 				"\t\tlocation: here\n" +
 				"\t}\n" +
-				"\ton {\n" +
-				"\t\tlocation: there\n" +
-				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:7:2: duplicate on section (first declared at u.sdl:4:2)"},
+			want:     []string{"u.sdl:4:2: unknown section on: deployment intent moved to top-level fields, controller schemes to with <qualifier> stanzas"},
 		},
 		{
-			name: "nested section inside on",
+			name: "duplicate section in one body",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"deploy ff.Ping as P {\n" +
-				"\ton {\n" +
+				"\tparams {\n" +
+				"\t\tcount: 1\n" +
+				"\t}\n" +
+				"\tparams {\n" +
+				"\t\tcount: 2\n" +
+				"\t}\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:7:2: duplicate params section (first declared at u.sdl:4:2)"},
+		},
+		{
+			// Stanzas for distinct qualifiers coexist; repeating one
+			// qualifier is the fault, anchored at the repeat.
+			name: "duplicate with stanza",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\twith k8s.pod {\n" +
+				"\t\treplicas: 3\n" +
+				"\t}\n" +
+				"\twith k8s.workload {\n" +
+				"\t\tkind: daemon\n" +
+				"\t}\n" +
+				"\twith k8s.pod {\n" +
+				"\t\treplicas: 5\n" +
+				"\t}\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:10:2: duplicate with k8s.pod section (first declared at u.sdl:4:2)"},
+		},
+		{
+			name: "with without a qualifier",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\twith {\n" +
+				"\t\treplicas: 3\n" +
+				"\t}\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:4:2: with requires a qualifier, e.g. with k8s.pod"},
+		},
+		{
+			// Qualifier admissibility is per section word: only with
+			// takes one, and the fault anchors at the qualifier itself.
+			name: "qualifiers forbidden on params and metadata",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\tparams k8s.pod {\n" +
+				"\t\tcount: 1\n" +
+				"\t}\n" +
+				"\tmetadata x.y {\n" +
+				"\t\tteam: \"a\"\n" +
+				"\t}\n" +
+				"}\n"}},
+			wantCode: 1,
+			want: []string{
+				"u.sdl:4:9: params takes no qualifier",
+				"u.sdl:7:11: metadata takes no qualifier",
+			},
+		},
+		{
+			name: "nested section inside params",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\tparams {\n" +
 				"\t\tinner {\n" +
-				"\t\t\tlocation: here\n" +
+				"\t\t\tcount: 1\n" +
 				"\t\t}\n" +
 				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:5:3: on sections take parameters only, not nested sections"},
+			want:     []string{"u.sdl:5:3: params sections take parameters only, not nested sections"},
 		},
 		{
-			name: "output reference inside on",
+			name: "output reference in a top-level field",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"deploy ff.Ping as P {\n" +
-				"\ton {\n" +
-				"\t\tlocation: acct.config\n" +
+				"\tlocation: acct.config\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:4:12: top-level fields take literals or profile tokens, not output references"},
+		},
+		{
+			name: "output reference in a with-stanza",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\twith k8s.pod {\n" +
+				"\t\timage: acct.config\n" +
 				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:5:13: on values are literals or profile tokens, not output references"},
+			want:     []string{"u.sdl:5:10: with-stanza values are literals or opaque tokens, not output references"},
+		},
+		{
+			// A catalogue-parameter-looking key at the body root earns
+			// the migration hint; a key the element does not declare
+			// fails against the closed verb scheme instead.
+			name: "catalogue parameter at statement root",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\tcount: 1\n" +
+				"\ttier: \"gold\"\n" +
+				"}\n"}},
+			wantCode: 1,
+			want: []string{
+				"u.sdl:4:2: catalogue parameter count at statement root: application parameters belong in params { ... }",
+				"u.sdl:5:2: unknown top-level field tier: deploy takes location",
+			},
+		},
+		{
+			name: "top-level field on a provision",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"provision sub.Bus slice as bus {\n" +
+				"\tlocation: here\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:4:2: unknown top-level field location: provision takes no top-level fields"},
+		},
+		{
+			// The root check is element-independent: no bare root key can
+			// be a catalogue parameter, so it fires even when the element
+			// did not resolve — only the migration hint needs one.
+			name: "unknown top-level field without a resolved element",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"deploy zz.Ping as P {\n" +
+				"\tcount: 1\n" +
+				"}\n"}},
+			wantCode: 1,
+			want: []string{
+				"u.sdl:2:8: package zz is not imported",
+				"u.sdl:3:2: unknown top-level field count: deploy takes location",
+			},
 		},
 		{
 			name: "metadata value beyond a string literal",
@@ -1374,10 +1609,12 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				")\n" +
 				"provision sub.Bus slice as bus\n" +
 				"deploy ff.Ping as P {\n" +
-				"\ttarget: bus.nope\n" +
+				"\tparams {\n" +
+				"\t\ttarget: bus.nope\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:8:14: unknown output nope: provision type substrate.Bus declares no such output"},
+			want:     []string{"u.sdl:9:15: unknown output nope: provision type substrate.Bus declares no such output"},
 		},
 		{
 			name: "dotted reference to a value symbol",
@@ -1385,17 +1622,21 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"var subj: \"x\"\n" +
 				"deploy ff.Ping as P {\n" +
-				"\ttarget: subj.out\n" +
+				"\tparams {\n" +
+				"\t\ttarget: subj.out\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:5:10: symbol subj is a var, not a provision instance"},
+			want:     []string{"u.sdl:6:11: symbol subj is a var, not a provision instance"},
 		},
 		{
 			name: "provision referencing its own output",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import sub \"example.com/acme/substrate\"\n" +
 				"provision sub.Bus slice as bus {\n" +
-				"\tadmin: bus.config\n" +
+				"\tparams {\n" +
+				"\t\tadmin: bus.config\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
 			want:     []string{"u.sdl:3:28: provision reference cycle: bus -> bus"},
@@ -1405,10 +1646,14 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import sub \"example.com/acme/substrate\"\n" +
 				"provision sub.Bus slice as b1 {\n" +
-				"\tadmin: b2.config\n" +
+				"\tparams {\n" +
+				"\t\tadmin: b2.config\n" +
+				"\t}\n" +
 				"}\n" +
 				"provision sub.Bus slice as b2 {\n" +
-				"\tadmin: b1.config\n" +
+				"\tparams {\n" +
+				"\t\tadmin: b1.config\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
 			want:     []string{"u.sdl:3:28: provision reference cycle: b1 -> b2 -> b1"},
@@ -1466,10 +1711,44 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import sub \"example.com/acme/substrate\"\n" +
 				"default sub.Bus {\n" +
-				"\tnope: 1\n" +
+				"\tparams {\n" +
+				"\t\tnope: 1\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:4:2: unknown parameter nope: element sub.Bus has no such parameter"},
+			want:     []string{"u.sdl:5:3: unknown parameter nope: element sub.Bus has no such parameter"},
+		},
+		{
+			// The verb table a type default's root fields validate
+			// against is implied by the element's kind: a provision
+			// type's default answers to the provision scheme.
+			name: "top-level field on a provision-type default",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import sub \"example.com/acme/substrate\"\n" +
+				"default sub.Bus {\n" +
+				"\tlocation: here\n" +
+				"}\n"}},
+			wantCode: 1,
+			want:     []string{"u.sdl:4:2: unknown top-level field location: provision takes no top-level fields"},
+		},
+		{
+			// The migration hint reaches default bodies too: a type
+			// default knows its element, a verb default fails against
+			// the closed scheme alone.
+			name: "catalogue parameters at default roots",
+			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"default ff.Ping {\n" +
+				"\tcount: 3\n" +
+				"}\n" +
+				"default deploy {\n" +
+				"\tcount: 2\n" +
+				"}\n"}},
+			wantCode: 1,
+			want: []string{
+				"u.sdl:4:2: catalogue parameter count at statement root: application parameters belong in params { ... }",
+				"u.sdl:7:2: unknown top-level field count: deploy takes location",
+			},
 		},
 		{
 			name: "duplicate default for an element type",
@@ -1477,7 +1756,9 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				{Name: "a.sdl", Source: "solution sample\n" +
 					"import ff \"example.com/acme/pingpong\"\n" +
 					"default ff.Ping {\n" +
-					"\tcount: 5\n" +
+					"\tparams {\n" +
+					"\t\tcount: 5\n" +
+					"\t}\n" +
 					"}\n"},
 				// The second default names the same element through its
 				// own alias; identity is the resolved element, not the
@@ -1485,7 +1766,9 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				{Name: "b.sdl", Source: "solution sample\n" +
 					"import zz \"example.com/acme/pingpong\"\n" +
 					"default zz.Ping {\n" +
-					"\tcount: 7\n" +
+					"\tparams {\n" +
+					"\t\tcount: 7\n" +
+					"\t}\n" +
 					"}\n"},
 			},
 			wantCode: 1,
@@ -1496,20 +1779,26 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"default deploy {\n" +
-				"\tcount: 5\n" +
+				"\tparams {\n" +
+				"\t\tcount: 5\n" +
+				"\t}\n" +
 				"}\n" +
 				"default deploy {\n" +
-				"\tcount: 7\n" +
+				"\tparams {\n" +
+				"\t\tcount: 7\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:6:1: duplicate default for deploy (first declared at u.sdl:3:1)"},
+			want:     []string{"u.sdl:8:1: duplicate default for deploy (first declared at u.sdl:3:1)"},
 		},
 		{
 			name: "default for an unknown element",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"default ff.Nope {\n" +
-				"\tcount: 5\n" +
+				"\tparams {\n" +
+				"\t\tcount: 5\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
 			want:     []string{`u.sdl:3:9: unknown element Nope in package "example.com/acme/pingpong"`},
@@ -1519,7 +1808,9 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import sub \"example.com/acme/substrate\"\n" +
 				"default sub.Secret {\n" +
-				"\tcount: 5\n" +
+				"\tparams {\n" +
+				"\t\tcount: 5\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
 			want:     []string{"u.sdl:3:9: cannot default sub.Secret: a symbol type takes no parameters"},
@@ -1527,25 +1818,29 @@ func TestMainCompileDiagnostics(t *testing.T) {
 		{
 			// Type-scoped defaults validate eagerly: the faults surface
 			// with no record of the element anywhere in the solution.
-			// The on section is valid and simply never folds.
+			// The with-stanza is valid and simply never folds.
 			name: "default body validates without records",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"default ff.Ping {\n" +
-				"\tnope: 1\n" +
-				"\tcount: \"many\"\n" +
-				"\ton {\n" +
-				"\t\tlocation: here\n" +
+				"\tparams {\n" +
+				"\t\tnope: 1\n" +
+				"\t\tcount: \"many\"\n" +
+				"\t}\n" +
+				"\twith k8s.pod {\n" +
+				"\t\tpriorityClass: standard\n" +
 				"\t}\n" +
 				"}\n" +
 				"default deploy {\n" +
-				"\ttarget: missing\n" +
+				"\tparams {\n" +
+				"\t\ttarget: missing\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
 			want: []string{
-				"u.sdl:4:2: unknown parameter nope: element ff.Ping has no such parameter",
-				`u.sdl:5:9: invalid value for parameter count: parse error`,
-				"u.sdl:11:10: undefined symbol missing",
+				"u.sdl:5:3: unknown parameter nope: element ff.Ping has no such parameter",
+				`u.sdl:6:10: invalid value for parameter count: parse error`,
+				"u.sdl:14:11: undefined symbol missing",
 			},
 		},
 		{
@@ -1557,12 +1852,14 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"default deploy {\n" +
-				"\twindow: nope.config\n" +
+				"\tparams {\n" +
+				"\t\twindow: nope.config\n" +
+				"\t}\n" +
 				"}\n" +
 				"deploy ff.Ping as P1\n" +
 				"deploy ff.Ping as P2\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:4:10: undefined symbol nope"},
+			want:     []string{"u.sdl:5:11: undefined symbol nope"},
 		},
 		{
 			// A verb default validates once per element, however many
@@ -1571,22 +1868,26 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"default deploy {\n" +
-				"\tcount: \"many\"\n" +
+				"\tparams {\n" +
+				"\t\tcount: \"many\"\n" +
+				"\t}\n" +
 				"}\n" +
 				"deploy ff.Ping as P1\n" +
 				"deploy ff.Ping as P2\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:4:9: invalid value for parameter count: parse error"},
+			want:     []string{"u.sdl:5:10: invalid value for parameter count: parse error"},
 		},
 		{
 			name: "undefined symbol",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"deploy ff.Ping as P {\n" +
-				"\ttarget: missing\n" +
+				"\tparams {\n" +
+				"\t\ttarget: missing\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:4:10: undefined symbol missing"},
+			want:     []string{"u.sdl:5:11: undefined symbol missing"},
 		},
 		{
 			name: "instance referenced as a value",
@@ -1594,10 +1895,12 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"deploy ff.Pong as Echo\n" +
 				"deploy ff.Ping as P {\n" +
-				"\ttarget: Echo\n" +
+				"\tparams {\n" +
+				"\t\ttarget: Echo\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:5:10: instance Echo has no value"},
+			want:     []string{"u.sdl:6:11: instance Echo has no value"},
 		},
 		{
 			name: "extern with an unknown type",
@@ -1647,13 +1950,15 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				"import ff \"example.com/acme/pingpong\"\n" +
 				"var soon: \"whenever\"\n" +
 				"deploy ff.Ping as P {\n" +
-				"\twindow: soon\n" +
-				"\tinterval: soon\n" +
+				"\tparams {\n" +
+				"\t\twindow: soon\n" +
+				"\t\tinterval: soon\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
 			want: []string{
-				`u.sdl:5:10: invalid value for parameter window: var soon: time: invalid duration "whenever"`,
-				"u.sdl:6:12: invalid value for parameter interval: var soon: parse error",
+				`u.sdl:6:11: invalid value for parameter window: var soon: time: invalid duration "whenever"`,
+				"u.sdl:7:13: invalid value for parameter interval: var soon: parse error",
 			},
 		},
 		{
@@ -1665,10 +1970,12 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				")\n" +
 				"extern apiKey sub.Secret\n" +
 				"deploy ff.Ping as P {\n" +
-				"\tnope: apiKey\n" +
+				"\tparams {\n" +
+				"\t\tnope: apiKey\n" +
+				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:8:2: unknown parameter nope: element ff.Ping has no such parameter"},
+			want:     []string{"u.sdl:9:3: unknown parameter nope: element ff.Ping has no such parameter"},
 		},
 		{
 			name: "parse errors aggregate across units",

@@ -41,17 +41,20 @@
 // resolve its element through the imports into the catalogue, extract
 // the element's parameter schema, resolve a provision's kind word
 // (omitted only while the type registers exactly one kind), and bind
-// its compartments: parameters take literal values through the
-// element's own flag surface, bare references against the namespace,
-// and dotted references against provision output schemes, with
-// sensitivity tainting bindings wired from sensitive symbol types and
-// outputs, while on sections take literals and opaque profile tokens
-// and metadata sections take strings, both outside the namespace;
-// fold the solution's defaults — one per element type, one per
-// statement verb, nearest layer wins, per compartment — under each
-// statement's own bindings, provenance kept in every binding's
-// Source; reject reference cycles among provision outputs (the
-// binding DAG); and emit the desired-state image of package
+// its compartments: top-level fields carry deployment intent against
+// a closed per-verb scheme, parameters in the params section take
+// literal values through the element's own flag surface, bare
+// references against the namespace, and dotted references against
+// provision output schemes, with sensitivity tainting bindings wired
+// from sensitive symbol types and outputs, while with-stanzas carry
+// advisory controller schemes keyed by dotted qualifier and metadata
+// sections take strings — the top-level fields and stanzas holding
+// literals and opaque tokens, all three outside the namespace; fold
+// the solution's defaults — one per element type, one per statement
+// verb, nearest layer wins, per compartment, stanzas per qualifier —
+// under each statement's own bindings, provenance kept in every
+// binding's Source; reject reference cycles among provision outputs
+// (the binding DAG); and emit the desired-state image of package
 // [github.com/modern-engineering/prototype/solution/image] as
 // canonical JSON, pinning the schema of every registered element
 // alongside the symbol table and the records.
