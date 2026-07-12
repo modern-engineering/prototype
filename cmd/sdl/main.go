@@ -1,20 +1,9 @@
 // Copyright 2026 The prototype authors. Use of this source code is
 // governed by the license that can be found in the LICENSE file.
 
-// Sdl is the solution definition language toolchain.
-//
-// Usage:
-//
-//	sdl <command> [arguments]
-//
-// The commands are:
-//
-//	build       compile a solution directory into its desired-state image
-//	echo        render a desired-state image as canonical SDL
-//	fmt         reformat solution units in canonical form
-//	image       amend and query desired-state image files
-//
-// Use "sdl help <command>" for more information about a command.
+// Sdl; see doc.go for the command overview, the compilation
+// architecture, and the phase glossary.
+
 package main
 
 import (
