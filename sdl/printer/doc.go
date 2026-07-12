@@ -16,7 +16,9 @@
 // the lines directly after an opening brace and before a closing one
 // are always snug. Bodies and factored blocks indent one tab per
 // nesting level; a parameter prints as "key: value" with one space
-// after the colon; instance naming prints with one space around "as".
+// after the colon; a qualified section head prints with one space
+// between the section name and its qualifier; instance naming prints
+// with one space around "as".
 // Factored declarations keep their factored form and single-form
 // declarations stay single; the printer never regroups statements.
 //

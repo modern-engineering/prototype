@@ -26,4 +26,11 @@ default deploy {
 
 	metadata { team: "search" }
 }
+deploy ff.Ping as Qualified {
+	location: euCentral1
+	params { count: 1 }
+	with    k8s.pod {
+		replicas: 3
+	}
+}
 provision ff.NATS slice as acct

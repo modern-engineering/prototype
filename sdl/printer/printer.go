@@ -178,7 +178,11 @@ func (p *printer) bodyItems(b *ast.Body) error {
 			if it.Name == nil || it.Body == nil {
 				return fmt.Errorf("printer: section is missing its name or body")
 			}
-			if err := p.stmt(&it.Comments, it.Name.Name, it.Body, it.Name.NamePos.Line, false); err != nil {
+			head := it.Name.Name
+			if it.Qualifier != nil {
+				head += " " + it.Qualifier.Name
+			}
+			if err := p.stmt(&it.Comments, head, it.Body, it.Name.NamePos.Line, false); err != nil {
 				return err
 			}
 		default:

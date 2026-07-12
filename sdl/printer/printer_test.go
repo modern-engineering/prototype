@@ -103,6 +103,9 @@ var adversarialSources = []string{
 	// Dotted parameter keys join into one key and print back verbatim,
 	// in instance bodies and section bodies alike.
 	"solution s\n\nimport ff \"example.com/ff\"\n\ndeploy ff.Ping as A {\n\tretry.max: 3\n\ton {\n\t\tzone.primary: \"eu\"\n\t}\n}\n",
+	// Qualified section heads survive the round trip beside plain ones,
+	// at instance and default level and nested.
+	"solution s\n\nimport ff \"example.com/ff\"\n\ndefault deploy {\n\twith k8s.pod {\n\t\tpriorityClass: standard\n\t}\n}\n\ndeploy ff.Ping as A {\n\tlocation: euCentral1\n\tparams {\n\t\tcount: 1\n\t}\n\twith k8s.pod {\n\t\treplicas: 3\n\t\tgrid c.d {\n\t\t\tzone: \"eu\"\n\t\t}\n\t}\n}\n",
 }
 
 // sources returns every corpus file plus the adversarial cases, keyed
@@ -226,7 +229,8 @@ func varValue(t *testing.T, f *ast.File) string {
 // TestSynthesized pins the layout of position-free trees, the shape sdl
 // echo builds: blank lines between top-level statements, snug block
 // items, factored rendering for multi-spec declarations without a
-// recorded paren, and canonical lexemes for every value kind.
+// recorded paren, canonical lexemes for every value kind, and the
+// one-space qualified section head.
 func TestSynthesized(t *testing.T) {
 	f := &ast.File{
 		Solution: &ast.SolutionClause{Name: &ast.Ident{Name: "synth"}},
@@ -243,6 +247,13 @@ func TestSynthesized(t *testing.T) {
 					&ast.Param{Key: &ast.Ident{Name: "interval"}, Value: &ast.DurationLit{Value: 90 * time.Minute}},
 					&ast.Param{Key: &ast.Ident{Name: "loud"}, Value: &ast.BoolLit{Value: true}},
 					&ast.Param{Key: &ast.Ident{Name: "target"}, Value: &ast.StringLit{Value: `say "hi"`}},
+					&ast.Section{
+						Name:      &ast.Ident{Name: "with"},
+						Qualifier: &ast.Ident{Name: "k8s.pod"},
+						Body: &ast.Body{Items: []ast.BodyItem{
+							&ast.Param{Key: &ast.Ident{Name: "replicas"}, Value: &ast.IntLit{Value: 3}},
+						}},
+					},
 				}},
 			}}},
 			&ast.DeployDecl{Specs: []*ast.DeploySpec{{
@@ -263,6 +274,9 @@ deploy ff.Ping as P1 {
 	interval: 1h30m0s
 	loud: true
 	target: "say \"hi\""
+	with k8s.pod {
+		replicas: 3
+	}
 }
 
 deploy util.Pong as P2
@@ -538,6 +552,9 @@ func cmpBody(at string, a, b *ast.Body) error {
 				return err
 			}
 			if err := cmpIdent(at+" name", ai.Name, bi.Name); err != nil {
+				return err
+			}
+			if err := cmpIdent(at+" qualifier", ai.Qualifier, bi.Qualifier); err != nil {
 				return err
 			}
 			if err := cmpBody(at, ai.Body, bi.Body); err != nil {
