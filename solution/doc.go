@@ -5,11 +5,11 @@
 // part of solution compilation that must run where the catalogue
 // packages are live Go imports rather than source text.
 //
-// # Generate, compile, run
+// # Generate, build, run
 //
 // The sdl build command turns a solution directory into a small
 // generated package main that embeds the solution units verbatim and
-// registers the imported catalogue packages, then compiles that
+// registers the imported catalogue packages, then builds that
 // program in the solution's own module context and runs it. The
 // generated main is this package's intended caller: it fills a
 // [CompileConfig] with the embedded [Unit] sources and the [Package]
@@ -20,10 +20,20 @@
 // parameters are validated by the very flag.Value code that will
 // parse them again at run time.
 //
+// In the phase glossary of the sdl command's doc
+// ([github.com/modern-engineering/prototype/cmd/sdl]), the front half
+// generates, the go toolchain builds, and this package links and
+// emits; "compile" names the whole pipeline. The names here — the
+// "compile back half", [MainCompile] — predate that glossary and
+// stay: renaming them is a recorded door, to reopen when a
+// programmatic image-construction API reworks this package's public
+// surface.
+//
 // # Linking
 //
-// [MainCompile] carries the compilation through its phases: parse
-// every unit, collecting all syntax errors before giving up; link the
+// [MainCompile] carries the compilation through the back half, the
+// glossary's link and emit acts, in steps: parse every unit,
+// collecting all syntax errors before giving up; link the
 // units' headers (the shared solution clause and the union import
 // table); collect every declared name — instances, vars, externs —
 // into the solution's one flat namespace, so references resolve across
