@@ -31,20 +31,26 @@
 //	BodyItem       = Param | Section .
 //	Param          = Key ":" Value .
 //	Key            = ident { "." ident } .
-//	Section        = ident Body .
+//	Section        = ident [ Qualifier ] Body .
+//	Qualifier      = ident { "." ident } .
 //	Value          = Literal | Ref .
 //	Literal        = string | int | duration | bool .
 //	Ref            = ident [ "." ident ] .
 //	TypeRef        = ident "." ident .
 //
 // A dotted Key spells one composite parameter name — the flattened
-// dotted flag names of the A-14/D-10 story — and joins into a single
-// key string; section names stay plain identifiers.
+// dotted flag names of the A-14/D-10 story — and a dotted Qualifier
+// names one section scheme, as in "with k8s.pod"; each joins into a
+// single identifier anchored at its first segment. Section names
+// themselves stay plain, so a dotted name before '{' is an error. Any
+// section may carry a qualifier syntactically; which section words
+// admit or require one is the linker's business.
 //
 // Statements are NEWLINE-terminated; the last statement before a closing
 // ")" or "}" or before EOF needs no line break of its own. Because
 // parameter keys are grammar identifiers, a keyword (solution, deploy,
-// as, true, ...) cannot be used as a key segment or section name.
+// as, true, ...) cannot be used as a key or qualifier segment or as a
+// section name.
 //
 // # What the parser enforces
 //
@@ -63,9 +69,9 @@
 //     unit with no imports defers the failure to the linker, where every
 //     element reference is unresolvable anyway.
 //
-// Everything else the design marks semantic (metadata value classes, "on"
-// token values, kind-word validity, symbol resolution) is deliberately
-// not checked here.
+// Everything else the design marks semantic (metadata value classes,
+// per-section qualifier policy, opaque token values, kind-word validity,
+// symbol resolution) is deliberately not checked here.
 //
 // # Error handling and recovery
 //

@@ -365,16 +365,33 @@ func (p *parser) parseBody(owner *ast.Comments) *ast.Body {
 			seen[name.Name] = true
 			p.finishLine(&param.Comments)
 			b.Items = append(b.Items, param)
-		case token.LBRACE:
+		case token.LBRACE, token.IDENT:
 			if dotted {
 				// Section names are plain identifiers; only parameter
-				// keys dot.
+				// keys and qualifiers dot.
 				p.errorExpected(p.pos, "':'")
 				p.restorePending(before)
 				p.advance()
 				continue
 			}
 			section := &ast.Section{Name: name}
+			if p.tok == token.IDENT {
+				// A second identifier qualifies the section, as in
+				// "with k8s.pod { ... }"; the dotted segments join
+				// like a composite key. Which section words admit a
+				// qualifier is the linker's business.
+				section.Qualifier = p.parseIdent()
+				for p.tok == token.PERIOD {
+					p.next()
+					section.Qualifier.Name += "." + p.parseIdent().Name
+				}
+				if p.tok != token.LBRACE {
+					p.errorExpected(p.pos, "'{'")
+					p.restorePending(before)
+					p.advance()
+					continue
+				}
+			}
 			section.Before = before
 			section.Body = p.parseBody(&section.Comments)
 			p.finishLine(&section.Comments)

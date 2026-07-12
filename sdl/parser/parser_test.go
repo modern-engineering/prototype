@@ -271,6 +271,77 @@ deploy ff.Ping as P {
 	}
 }
 
+// TestParseQualifiedSections drives the optional dotted qualifier on
+// section heads: any section word may carry one, in instance and default
+// bodies alike and at any nesting depth, joined into a single identifier
+// like a dotted key. Which words admit one is the linker's business, so
+// two "with" sections in one body are no parse error.
+func TestParseQualifiedSections(t *testing.T) {
+	f := parse(t, `solution s
+
+default deploy {
+	location: awsUsEast1
+
+	with k8s.pod {
+		priorityClass: standard
+	}
+}
+
+deploy ff.Ping as P {
+	params {
+		count: 1
+	}
+	with k8s.pod {
+		replicas: 3
+		grid c.d {
+			zone.primary: "eu"
+		}
+	}
+	with k8s.workload {
+		kind: batch
+	}
+}
+`)
+	def := f.Decls[0].(*ast.DefaultDecl)
+	if len(def.Body.Items) != 2 {
+		t.Fatalf("default body items: got %d, want 2", len(def.Body.Items))
+	}
+	sec := def.Body.Items[1].(*ast.Section)
+	if sec.Name.Name != "with" || sec.Qualifier == nil || sec.Qualifier.Name != "k8s.pod" {
+		t.Errorf("default section: name %v qualifier %v", sec.Name, sec.Qualifier)
+	}
+	if got := lineCol(sec.Name.NamePos); got != "6:2" {
+		t.Errorf("section position: got %s, want 6:2 (the section name)", got)
+	}
+	if got := lineCol(sec.Qualifier.NamePos); got != "6:7" {
+		t.Errorf("qualifier position: got %s, want 6:7 (the first segment)", got)
+	}
+
+	body := f.Decls[1].(*ast.DeployDecl).Specs[0].Body
+	if len(body.Items) != 3 {
+		t.Fatalf("deploy body items: got %d, want 3", len(body.Items))
+	}
+	params := body.Items[0].(*ast.Section)
+	if params.Name.Name != "params" || params.Qualifier != nil {
+		t.Errorf("params section: name %v qualifier %v", params.Name, params.Qualifier)
+	}
+	pod := body.Items[1].(*ast.Section)
+	if pod.Qualifier == nil || pod.Qualifier.Name != "k8s.pod" {
+		t.Errorf("first with section: qualifier %v", pod.Qualifier)
+	}
+	grid := pod.Body.Items[1].(*ast.Section)
+	if grid.Name.Name != "grid" || grid.Qualifier == nil || grid.Qualifier.Name != "c.d" {
+		t.Errorf("nested section: name %v qualifier %v", grid.Name, grid.Qualifier)
+	}
+	if key := grid.Body.Items[0].(*ast.Param).Key; key.Name != "zone.primary" {
+		t.Errorf("nested dotted key: got %q", key.Name)
+	}
+	workload := body.Items[2].(*ast.Section)
+	if workload.Qualifier == nil || workload.Qualifier.Name != "k8s.workload" {
+		t.Errorf("second with section: qualifier %v", workload.Qualifier)
+	}
+}
+
 func TestParseErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -310,6 +381,27 @@ func TestParseErrors(t *testing.T) {
 			"solution s\n\ndeploy ff.Ping as P {\n\ta.: 1\n}\n",
 			"4:4",
 			"expected identifier, found ':'",
+		},
+		{
+			// A dotted name can only be a parameter key, qualifier or
+			// not; sections stay disambiguated by their plain first
+			// identifier.
+			"dotted section name with qualifier",
+			"solution s\n\ndeploy ff.Ping as P {\n\ta.b q {\n\t}\n}\n",
+			"4:6",
+			"expected ':', found q",
+		},
+		{
+			"qualifier without body",
+			"solution s\n\ndeploy ff.Ping as P {\n\twith k8s.pod\n}\n",
+			"4:14",
+			"expected '{', found newline",
+		},
+		{
+			"qualifier ending in a dot",
+			"solution s\n\ndeploy ff.Ping as P {\n\twith k8s. {\n\t}\n}\n",
+			"4:12",
+			"expected identifier, found '{'",
 		},
 		{
 			"missing as",
