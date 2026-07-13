@@ -18,3 +18,4 @@ Decisions are recorded in MADR 4.0.0 format.
 | [D-12](D-12-statement-body-anatomy.md)             | Structure Statement Bodies as One Compartment per Audience            |
 | [D-13](D-13-two-phase-enactment.md)                | Enact the Image in Two Phases on Any Host                             |
 | [D-14](D-14-driver-on-type.md)                     | Tie Provisioning Drivers to the Declaring Type                        |
+| [D-15](D-15-discovered-stanza-schemes.md)          | Discover Stanza Schemes as Self-Naming Citizens                       |
