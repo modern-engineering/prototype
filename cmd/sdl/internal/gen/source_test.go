@@ -6,6 +6,7 @@ package gen
 import (
 	"bytes"
 	"go/format"
+	"runtime/debug"
 	"strings"
 	"testing"
 
@@ -109,6 +110,63 @@ func TestSource(t *testing.T) {
 	}
 	if !bytes.Equal(formatted, got) {
 		t.Errorf("generated source is not gofmt-canonical\n--- gofmt ---\n%s", formatted)
+	}
+}
+
+// stubBuildInfo swaps the build-info read for one crafted shape and
+// restores it when the test ends.
+func stubBuildInfo(t *testing.T, info *debug.BuildInfo, ok bool) {
+	t.Helper()
+	restore := readBuildInfo
+	readBuildInfo = func() (*debug.BuildInfo, bool) { return info, ok }
+	t.Cleanup(func() { readBuildInfo = restore })
+}
+
+// TestSourceTool pins the Tool emission: an installed CLI's ordinary
+// version lands in the generated CompileConfig (the emitted body still
+// gofmt-canonical), while every locally sourced shape — a VCS-stamped
+// checkout build, a (devel) build, a foreign main module, no build
+// info at all — emits no Tool line, exactly the bytes TestSource's
+// golden pins under the test binary's own build info.
+func TestSourceTool(t *testing.T) {
+	sol := &load.Solution{
+		Name:  "demo",
+		Dir:   "/work/demo",
+		Units: []load.Unit{{Name: "a.sdl", Source: "solution demo\n"}},
+	}
+
+	stubBuildInfo(t, &debug.BuildInfo{Main: debug.Module{Path: prototypePath, Version: "v0.3.1"}}, true)
+	got := Source(sol, nil, 7)
+	if !strings.Contains(string(got), "\t\tGeneration: 7,\n\t\tTool:       \"v0.3.1\",\n") {
+		t.Errorf("Source did not emit the Tool field after Generation:\n%s", got)
+	}
+	formatted, err := format.Source(got)
+	if err != nil {
+		t.Fatalf("generated source does not parse: %v", err)
+	}
+	if !bytes.Equal(formatted, got) {
+		t.Errorf("generated source is not gofmt-canonical\n--- gofmt ---\n%s", formatted)
+	}
+
+	silent := map[string]struct {
+		info *debug.BuildInfo
+		ok   bool
+	}{
+		"vcs-stamped checkout build": {&debug.BuildInfo{
+			Main:     debug.Module{Path: prototypePath, Version: "v0.0.0-20260101000000-0123456789ab+dirty"},
+			Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "0123456789ab"}},
+		}, true},
+		"devel build":         {&debug.BuildInfo{Main: debug.Module{Path: prototypePath, Version: "(devel)"}}, true},
+		"foreign main module": {&debug.BuildInfo{Main: debug.Module{Path: "example.test/tool", Version: "v1.0.0"}}, true},
+		"no build info":       {nil, false},
+	}
+	for name, tt := range silent {
+		t.Run(name, func(t *testing.T) {
+			stubBuildInfo(t, tt.info, tt.ok)
+			if got := Source(sol, nil, 7); strings.Contains(string(got), "Tool:") {
+				t.Errorf("Source emitted a Tool line:\n%s", got)
+			}
+		})
 	}
 }
 

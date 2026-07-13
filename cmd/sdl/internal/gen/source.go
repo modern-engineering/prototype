@@ -6,6 +6,7 @@ package gen
 import (
 	"bytes"
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -20,7 +21,9 @@ import (
 //
 // The emitted CompileConfig leaves Output and Stderr nil: the compiler
 // writes the image to its stdout and diagnostics to its stderr, and the
-// build driver owns both streams.
+// build driver owns both streams. Tool is emitted only when the
+// running CLI knows an ordinary module version of itself, becoming the
+// image's sdl.version build setting.
 func Source(sol *load.Solution, pkgs []Package, generation int64) []byte {
 	aliases := packageAliases(pkgs)
 
@@ -72,8 +75,44 @@ func Source(sol *load.Solution, pkgs []Package, generation int64) []byte {
 		b.WriteString("\t\t},\n")
 	}
 	fmt.Fprintf(&b, "\t\tGeneration: %d,\n", generation)
+	if tool := toolVersion(); tool != "" {
+		fmt.Fprintf(&b, "\t\tTool:       %s,\n", strconv.Quote(tool))
+	}
 	b.WriteString("\t}))\n}\n")
 	return b.Bytes()
+}
+
+// prototypePath is the sdl CLI's own module path (work.checkPrototype
+// keys its skew handshake on the same constant).
+const prototypePath = "github.com/modern-engineering/prototype"
+
+// readBuildInfo is debug.ReadBuildInfo, swappable so tests can feed
+// toolVersion crafted build shapes.
+var readBuildInfo = debug.ReadBuildInfo
+
+// toolVersion is the version the generated compiler will record as
+// the image's sdl.version setting: the running binary's own module
+// version, when it is an ordinary one. An installed CLI (go install
+// ...@version) knows its resolved version; a checkout build stamps a
+// VCS-derived pseudo-version beside vcs.* settings, a test binary or
+// -buildvcs=false build reports (devel), and a binary built from some
+// other main module is not the sdl CLI at all — none of those name a
+// module resolution, so none is recorded (the classification twin of
+// solution's prototypeVersion, keeping images machine-independent).
+func toolVersion() string {
+	info, ok := readBuildInfo()
+	if !ok || info.Main.Path != prototypePath {
+		return ""
+	}
+	for _, s := range info.Settings {
+		if s.Key == "vcs.revision" {
+			return ""
+		}
+	}
+	if v := info.Main.Version; v != "(devel)" {
+		return v
+	}
+	return ""
 }
 
 // constructor names the solution constructor packaging one citizen
