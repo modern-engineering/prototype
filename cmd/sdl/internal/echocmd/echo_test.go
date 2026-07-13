@@ -51,9 +51,12 @@ func binding(key string, v *image.Value) image.Binding {
 // externs come back factored, one var single-form, types qualified by
 // the same reference names the records use), every value kind, a
 // dotted parameter key, a reference binding, an output-reference
-// binding, provision records of both kinds (the kind word always
-// written), and a parameterless record. The rendered unit must also
-// parse cleanly, the other half of the round-trip contract.
+// binding, the full compartment set (a top-level field, a params
+// section, two extension stanzas — one folded from a default, one
+// empty but still naming its scheme — and metadata), provision records
+// of both kinds (the kind word always written), and a parameterless
+// record. The rendered unit must also parse cleanly, the other half
+// of the round-trip contract.
 func TestEchoGolden(t *testing.T) {
 	img := &image.Image{
 		Format:     image.Format,
@@ -71,13 +74,28 @@ func TestEchoGolden(t *testing.T) {
 			{Name: "subject", Class: image.ClassVar, Value: image.String("com.acme.Echo")},
 		},
 		Records: []image.Record{
-			record("example.com/acme/util-go", "Server", "S1",
-				binding("retries", image.Int(-3)),
-				binding("retry.backoff.base", image.Duration(250*time.Millisecond)),
-				binding("timeout", image.Duration(90*time.Minute)),
-				image.Binding{Key: "token", Ref: &image.SymbolRef{Symbol: "apiKey"}, Source: image.SourceInstance, Sensitive: true},
-				image.Binding{Key: "wire", Ref: &image.SymbolRef{Symbol: "grid", Output: "config"}, Source: image.SourceInstance, Sensitive: true},
-			),
+			{
+				Verb:    image.VerbDeploy,
+				Element: image.Ref{Package: "example.com/acme/util-go", Name: "Server"},
+				Name:    "S1",
+				Params: []image.Binding{
+					binding("retries", image.Int(-3)),
+					binding("retry.backoff.base", image.Duration(250*time.Millisecond)),
+					binding("timeout", image.Duration(90*time.Minute)),
+					{Key: "token", Ref: &image.SymbolRef{Symbol: "apiKey"}, Source: image.SourceInstance, Sensitive: true},
+					{Key: "wire", Ref: &image.SymbolRef{Symbol: "grid", Output: "config"}, Source: image.SourceInstance, Sensitive: true},
+				},
+				Deployment: []image.Binding{
+					{Key: "location", Value: image.Token("euCentral1"), Source: image.SourceDefaultDeploy},
+				},
+				Extensions: map[string][]image.Binding{
+					"k8s.pod": {
+						{Key: "priorityClass", Value: image.Token("standard"), Source: image.SourceDefaultDeploy},
+						{Key: "replicas", Value: image.Int(3), Source: image.SourceInstance},
+					},
+					"k8s.workload": {},
+				},
+			},
 			record("example.com/beta/util", "Cache", "C1",
 				binding("enabled", image.Bool(true)),
 				binding("name", image.String(`say "hi"`)),
@@ -90,12 +108,9 @@ func TestEchoGolden(t *testing.T) {
 				Params: []image.Binding{
 					{Key: "admin", Ref: &image.SymbolRef{Symbol: "rootKey"}, Source: image.SourceInstance, Sensitive: true},
 				},
-				On: []image.Binding{
-					{Key: "location", Value: image.Token("euCentral1"), Source: image.SourceDefaultProvision},
-					{Key: "tier", Value: image.String("gold"), Source: image.SourceInstance},
-				},
 				Metadata: []image.Binding{
 					{Key: "team", Value: image.String("search"), Source: image.SourceInstance},
+					{Key: "tier", Value: image.String("gold"), Source: image.SourceInstance},
 				},
 			},
 			{
@@ -123,26 +138,35 @@ extern (
 var subject: "com.acme.Echo"
 
 deploy util.Server as S1 {
-	retries: -3
-	retry.backoff.base: 250ms
-	timeout: 1h30m0s
-	token: apiKey
-	wire: grid.config
+	location: euCentral1
+	params {
+		retries: -3
+		retry.backoff.base: 250ms
+		timeout: 1h30m0s
+		token: apiKey
+		wire: grid.config
+	}
+	with k8s.pod {
+		priorityClass: standard
+		replicas: 3
+	}
+	with k8s.workload {}
 }
 
 deploy util2.Cache as C1 {
-	enabled: true
-	name: "say \"hi\""
+	params {
+		enabled: true
+		name: "say \"hi\""
+	}
 }
 
 provision util2.Grid slice as grid {
-	admin: rootKey
-	on {
-		location: euCentral1
-		tier: "gold"
+	params {
+		admin: rootKey
 	}
 	metadata {
 		team: "search"
+		tier: "gold"
 	}
 }
 
@@ -265,15 +289,35 @@ func TestEchoFaults(t *testing.T) {
 			},
 			want: "metadata values are strings",
 		},
-		"RefInOn": {
+		"RefInMetadata": {
 			mutate: func(img *image.Image) {
-				img.Records[0].On = []image.Binding{{Key: "location", Ref: &image.SymbolRef{Symbol: "subject"}}}
+				img.Records[0].Metadata = []image.Binding{{Key: "team", Ref: &image.SymbolRef{Symbol: "subject"}}}
+			},
+			want: "never resolve symbols",
+		},
+		"RefInDeployment": {
+			mutate: func(img *image.Image) {
+				img.Records[0].Deployment = []image.Binding{{Key: "location", Ref: &image.SymbolRef{Symbol: "subject"}}}
+			},
+			want: "never resolve symbols",
+		},
+		"RefInExtension": {
+			mutate: func(img *image.Image) {
+				img.Records[0].Extensions = map[string][]image.Binding{
+					"k8s.pod": {{Key: "replicas", Ref: &image.SymbolRef{Symbol: "subject"}}},
+				}
 			},
 			want: "never resolve symbols",
 		},
 		"UnrenderableToken": {
 			mutate: func(img *image.Image) {
-				img.Records[0].On = []image.Binding{{Key: "location", Value: image.Token("eu west")}}
+				img.Records[0].Deployment = []image.Binding{{Key: "location", Value: image.Token("eu west")}}
+			},
+			want: "SDL identifier",
+		},
+		"UnrenderableQualifier": {
+			mutate: func(img *image.Image) {
+				img.Records[0].Extensions = map[string][]image.Binding{"eu west": {}}
 			},
 			want: "SDL identifier",
 		},
