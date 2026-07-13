@@ -223,6 +223,50 @@ type symbolElement struct {
 
 func (*symbolElement) element() {}
 
+// A Registration is the read-back of one packaged element: the name it
+// registers under and, in the arm matching its kind, the value the
+// constructor packaged. Exactly one of App, Provision, and Symbol is
+// non-nil for an element built by this package's constructors;
+// consumers switch on the arms rather than on any kind word, so the
+// registration cannot say one kind and carry another.
+//
+// [Unpack] produces it. The view is how consumers of a live catalogue
+// — enactment planning first, programmatic image construction later —
+// read elements back while [Element] itself stays sealed and
+// write-only.
+type Registration struct {
+	// Name is the element's registered name: the Go identifier of the
+	// exported package variable holding the packaged value.
+	Name string
+
+	// App is the descriptor packaged by [App]; nil for other kinds.
+	App *application.Descriptor
+
+	// Provision is the provision type packaged by [Provision]; nil
+	// for other kinds.
+	Provision *ProvisionType
+
+	// Symbol is the symbol type packaged by [Symbol]; nil for other
+	// kinds.
+	Symbol *SymbolType
+}
+
+// Unpack reads one element back, mirroring the constructors exactly:
+// Unpack(App(name, d)) is Registration{Name: name, App: d}, and
+// likewise for [Provision] and [Symbol]. A nil element unpacks to the
+// zero Registration.
+func Unpack(el Element) Registration {
+	switch el := el.(type) {
+	case *appElement:
+		return Registration{Name: el.name, App: el.desc}
+	case *provisionElement:
+		return Registration{Name: el.name, Provision: el.typ}
+	case *symbolElement:
+		return Registration{Name: el.name, Symbol: el.typ}
+	}
+	return Registration{}
+}
+
 // A Package registers the catalogue elements one Go package exports.
 type Package struct {
 	// Path is the package's Go import path; solution import specs
