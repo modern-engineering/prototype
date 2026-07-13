@@ -102,7 +102,7 @@ func TestVocabulary(t *testing.T) {
 	}
 }
 
-func TestPositionString(t *testing.T) {
+func TestPositionRendering(t *testing.T) {
 	tests := []struct {
 		pos  token.Position
 		want string
@@ -128,7 +128,7 @@ func TestPositionString(t *testing.T) {
 	}
 }
 
-func TestFilePosition(t *testing.T) {
+func TestFileOffsetMapping(t *testing.T) {
 	// Source: "ab\ncd\n" — two lines, six bytes.
 	f := token.NewFile("f.sdl", 6)
 	f.AddLine(3) // second line starts at offset 3
