@@ -369,7 +369,10 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 // checkProvisionType validates one provision-type registration and
 // indexes its output scheme. Kinds are the author's explicit
 // declaration (A-11): registering none is a fault here, never a
-// default the compiler supplies.
+// default the compiler supplies. Output types must sit inside the
+// scalar vocabulary — the image pins them verbatim, and every
+// consumer downstream (the linker's reference checks, typed output
+// writes at enactment) holds values to the declaration.
 func checkProvisionType(ce *catalogueElement) error {
 	if ce.prov == nil {
 		return errors.New("has a nil provision type")
@@ -388,6 +391,9 @@ func checkProvisionType(ce *catalogueElement) error {
 		}
 		if _, ok := ce.outputs[out.Name]; ok {
 			return fmt.Errorf("declares output %s twice", out.Name)
+		}
+		if !out.Type.valid() {
+			return fmt.Errorf("output %s declares unknown type %q (string, int, bool, or duration; empty means string)", out.Name, out.Type)
 		}
 		ce.outputs[out.Name] = out
 	}

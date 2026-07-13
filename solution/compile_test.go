@@ -2290,6 +2290,18 @@ func TestMainCompileUsageErrors(t *testing.T) {
 				}))},
 			want: `compile: catalogue: package "example.com/p": element X output name "not name" is not a valid Go identifier`,
 		},
+		{
+			// The image pins output types verbatim, so the vocabulary
+			// gate sits at registration: a type outside it would emit
+			// an image no consumer can hold values to.
+			name: "provision type with an unknown output type",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Provision("X", &solution.ProvisionType{
+					Kinds:   solution.Attach,
+					Outputs: []solution.Output{{Name: "dsn", Type: "float"}},
+				}))},
+			want: `compile: catalogue: package "example.com/p": element X output dsn declares unknown type "float" (string, int, bool, or duration; empty means string)`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
