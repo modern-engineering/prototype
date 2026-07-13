@@ -23,6 +23,7 @@ import (
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/fmtcmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/highlightcmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/imagecmd"
+	"github.com/modern-engineering/prototype/cmd/sdl/internal/lspcmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/runcmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/vetcmd"
 )
@@ -37,6 +38,7 @@ func init() {
 		fmtcmd.CmdFmt,
 		highlightcmd.CmdHighlight,
 		imagecmd.CmdImage,
+		lspcmd.CmdLsp,
 		runcmd.CmdRun,
 		vetcmd.CmdVet,
 	}

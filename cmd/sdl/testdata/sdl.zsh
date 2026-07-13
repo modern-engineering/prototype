@@ -18,6 +18,7 @@ _sdl() {
 			'help:show documentation for a command'
 			'highlight:emit an editor syntax definition for solution units'
 			'image:amend and query desired-state image files'
+			'lsp:serve the language server protocol for solution units'
 			'run:compile and run a solution in a tailored host process'
 			'vet:report likely mistakes in solution units'
 		)
@@ -32,6 +33,7 @@ _sdl() {
 	help) shift words; (( CURRENT-- )); _sdl_help ;;
 	highlight) shift words; (( CURRENT-- )); _sdl_highlight ;;
 	image) shift words; (( CURRENT-- )); _sdl_image ;;
+	lsp) shift words; (( CURRENT-- )); _sdl_lsp ;;
 	run) shift words; (( CURRENT-- )); _sdl_run ;;
 	vet) shift words; (( CURRENT-- )); _sdl_vet ;;
 	esac
@@ -113,6 +115,11 @@ _sdl_image_symbols() {
 	_arguments '*:file:_files'
 }
 
+# sdl lsp
+_sdl_lsp() {
+	_message 'no arguments'
+}
+
 # sdl run
 _sdl_run() {
 	_arguments \
@@ -138,6 +145,7 @@ _sdl_help() {
 			'fmt:reformat solution units in canonical form'
 			'highlight:emit an editor syntax definition for solution units'
 			'image:amend and query desired-state image files'
+			'lsp:serve the language server protocol for solution units'
 			'run:compile and run a solution in a tailored host process'
 			'vet:report likely mistakes in solution units'
 		)

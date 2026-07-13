@@ -29,6 +29,8 @@ func TestInvokeExitCodes(t *testing.T) {
 		{"unknown highlight target", []string{"highlight", "emacs"}},
 		{"missing completion shell", []string{"completion"}},
 		{"unknown completion shell", []string{"completion", "fish"}},
+		{"bad lsp flag", []string{"lsp", "-nope"}},
+		{"surplus lsp arguments", []string{"lsp", "unit.sdl"}},
 		{"bad vet flag", []string{"vet", "-nope"}},
 		{"unknown help topic", []string{"help", "nope"}},
 	}

@@ -15,6 +15,7 @@
 //	fmt         reformat solution units in canonical form
 //	highlight   emit an editor syntax definition for solution units
 //	image       amend and query desired-state image files
+//	lsp         serve the language server protocol for solution units
 //	run         compile and run a solution in a tailored host process
 //	vet         report likely mistakes in solution units
 //

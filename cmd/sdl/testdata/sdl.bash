@@ -17,7 +17,7 @@ _sdl() {
 	local cur=${COMP_WORDS[COMP_CWORD]}
 	COMPREPLY=()
 	if [ "$COMP_CWORD" -eq 1 ]; then
-		_sdl_reply build completion echo fmt help highlight image run vet
+		_sdl_reply build completion echo fmt help highlight image lsp run vet
 		return
 	fi
 	case ${COMP_WORDS[1]} in
@@ -87,7 +87,7 @@ _sdl_run() {
 # sdl help
 _sdl_help() {
 	if [ "$COMP_CWORD" -eq 2 ]; then
-		_sdl_reply build completion echo fmt highlight image run vet
+		_sdl_reply build completion echo fmt highlight image lsp run vet
 		return
 	fi
 	case ${COMP_WORDS[2]} in
