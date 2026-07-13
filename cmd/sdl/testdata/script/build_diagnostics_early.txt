@@ -1,0 +1,15 @@
+# A malformed unit set is diagnosed before the toolchain ever runs —
+# no module context is even consulted, so this transcript needs
+# neither go.mod nor -short skip — with the same shape as any solution
+# fault: exit 1, positioned diagnostic on stderr, silent stdout. The
+# wording is load's pin; this proves the early relay path, the twin of
+# build_diagnostics's generate-compile-run one.
+
+status 1 sdl build
+stderr 'empty\.sdl:1:1: unit declares no solution clause'
+! stdout .
+
+-- sol.sdl --
+solution broken
+-- empty.sdl --
+// a stray comment-only unit
