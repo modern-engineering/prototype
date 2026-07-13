@@ -15,7 +15,7 @@ import (
 // pointer vars, documented, with the intended sensitivity. Symbol
 // types carry no behaviour to harness (application.CheckDescriptor is
 // for components), so the shape is the whole contract.
-func TestSymbolTypes(t *testing.T) {
+func TestSymbolCitizenship(t *testing.T) {
 	for name, st := range map[string]*solution.SymbolType{
 		"Secret":         substrate.Secret,
 		"Endpoint":       substrate.Endpoint,
@@ -42,7 +42,7 @@ func TestSymbolTypes(t *testing.T) {
 // explicit kinds, a vetted output scheme, a dry Make — and carries the
 // documentation this package owes the image, plus the kind and taint
 // choices each type exists to demonstrate.
-func TestProvisionTypes(t *testing.T) {
+func TestProvisionCitizenship(t *testing.T) {
 	for name, pt := range map[string]*solution.ProvisionType{
 		"NATS":     substrate.NATS,
 		"Postgres": substrate.Postgres,
