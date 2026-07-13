@@ -31,9 +31,12 @@
 // [Run] is the core: a plain context-bound call for callers that own
 // their process. It is deliberately host-agnostic — the image never
 // names a host, so any binary that links a catalogue can enact
-// against it; the process skins for the two host modes (a prebuilt
-// platform binary; a generated per-invocation host) are thin wrappers
-// a library must stay separable from.
+// against it; the process skins for the two host modes are thin
+// wrappers over it. [Main] is Mode P: a prebuilt platform binary,
+// built once against a fixed catalogue and serving any image compiled
+// against it, adds signal handling, the graceful-shutdown sequence,
+// and the 0/1/2 exit contract. The Mode-T skin — a generated
+// per-invocation host — wraps the same core.
 //
 // Doors, recorded here where they would reopen: a site-file extern
 // source beside the in-memory map (the fieldcase host's site loader is

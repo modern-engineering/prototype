@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/modern-engineering/prototype/application"
 	"github.com/modern-engineering/prototype/application/loader/loaderflags"
@@ -38,6 +39,12 @@ type Config struct {
 	// package comment.
 	Externs map[string]string
 
+	// Grace is the budget [Main] grants running services between the
+	// first signal and the hard cancel; zero means 10 seconds. [Run]
+	// has no use for it: graceful shutdown belongs to the process
+	// skin.
+	Grace time.Duration
+
 	// Log receives the audit lines; nil means os.Stderr. Stdout stays
 	// the services' own (A-12's stream discipline).
 	Log io.Writer
@@ -51,11 +58,20 @@ func (cfg Config) log() io.Writer {
 	return cfg.Log
 }
 
+// grace resolves the shutdown budget.
+func (cfg Config) grace() time.Duration {
+	if cfg.Grace == 0 {
+		return 10 * time.Second
+	}
+	return cfg.Grace
+}
+
 // A configError marks a fault in the hosting's inputs — image, plan,
 // extern coverage, a binding no flag accepts — as opposed to a wet
 // failure of something that ran. The split is A-12's restartable
-// taxonomy: a config fault reproduces until the inputs change, so a
-// process skin maps it to the do-not-restart exit code.
+// taxonomy: a config fault reproduces until the inputs change, so
+// [Main] maps it to exit 2, the do-not-restart code, and wet failures
+// to exit 1.
 type configError struct{ err error }
 
 func (e *configError) Error() string { return e.err.Error() }
@@ -75,8 +91,8 @@ func configf(format string, args ...any) error {
 // ctx bounds the whole run: drivers attach under it and every
 // service's context derives from it, so cancelling ctx is the caller's
 // hard stop (Run then returns the cancellation the services report).
-// Run installs no signal handling and grants no grace; those belong to
-// the process skins.
+// Run installs no signal handling and grants no grace; that skin is
+// [Main]'s.
 func Run(ctx context.Context, cfg Config) error {
 	rt, err := start(ctx, cfg)
 	if err != nil {
@@ -87,8 +103,8 @@ func Run(ctx context.Context, cfg Config) error {
 
 // start carries the wet half up to serving: it returns once every
 // service is running (or nothing is left to run). The runtime is the
-// caller's to wait on and wind down; Run waits verbatim, and a process
-// skin may wrap the wait in signal handling and a graceful sequence.
+// caller's to wait on and wind down; Run waits verbatim, Main wraps
+// the wait in signals and the grace budget.
 func start(ctx context.Context, cfg Config) (*application.Runtime, error) {
 	plan, err := enact.Load(cfg.Image, cfg.Catalogue)
 	if err != nil {
