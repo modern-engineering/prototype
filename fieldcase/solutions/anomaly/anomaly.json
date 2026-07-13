@@ -2,19 +2,70 @@
   "format": "solution-image/1",
   "solution": "anomaly",
   "generation": 1,
+  "build": {
+    "units": [
+      {
+        "name": "detection.sdl",
+        "sha256": "00717679acfd3a0afa113e1a46df4616fbfc00a1e2cf82cbcd1504eeae959a6b"
+      },
+      {
+        "name": "substrate.sdl",
+        "sha256": "6fd1f4224904974cb20466ff085fb11ee17ae6dc14a3305b1f83c19645456e42"
+      },
+      {
+        "name": "visibility.sdl",
+        "sha256": "c8ea09c4569a0f14634e28b5a04cbea00d9cf0e7a1290557bb26ca3cb1bf0863"
+      }
+    ]
+  },
   "catalogue": [
     {
-      "path": "github.com/modern-engineering/prototype/fieldcase/catalog/detection",
-      "name": "detection",
+      "path": "github.com/modern-engineering/prototype/fieldcase/catalog/controller",
+      "name": "controller",
       "elements": [
         {
-          "name": "Journal",
+          "name": "Collector",
           "kind": "component",
-          "doc": "detectionAlertsJournal upserts alerts into PostgreSQL\n\nIn this scenario, the detection-alerts-journal component\n(the field case). It consumes the alerts bus,\nupserts each alert into the journal tables, and provisions views\nreadable by the role the PostgREST facade queries with.",
+          "doc": "networkObservationCollector polls a network controller for asset, session, link, gateway, and traffic observations. It caches API tokens in Redis and publishes the observations to Kafka.",
           "params": [
             {
-              "name": "consumesAlerts",
-              "usage": "topic of JSON alerts"
+              "name": "apiPassword",
+              "usage": "basic-auth password for controller login"
+            },
+            {
+              "name": "apiUsername",
+              "usage": "API username for controller login"
+            },
+            {
+              "name": "backoff",
+              "usage": "constant backoff between HTTP retries",
+              "default": "0s"
+            },
+            {
+              "name": "baseURL",
+              "usage": "network controller base URL"
+            },
+            {
+              "name": "controllerOrganizationID",
+              "usage": "controller organization identifier"
+            },
+            {
+              "name": "controllerTenantID",
+              "usage": "controller tenant identifier"
+            },
+            {
+              "name": "fileTokensPath",
+              "usage": "directory of bootstrap token files, a mounted Secret volume"
+            },
+            {
+              "name": "fileTokensReadOnly",
+              "usage": "whether the bootstrap token files are read-only",
+              "default": "false",
+              "boolean": true
+            },
+            {
+              "name": "focusedNetworks",
+              "usage": "comma-separated controller networks to poll"
             },
             {
               "name": "kafkaBrokers",
@@ -25,31 +76,80 @@
               "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
             },
             {
-              "name": "postgresAddress",
-              "usage": "postgres server address"
+              "name": "maxWorkers",
+              "usage": "concurrent console fetch workers, at least 1",
+              "default": "0"
             },
             {
-              "name": "postgresDBName",
-              "usage": "postgres db name"
+              "name": "normalizeHardwareAddress",
+              "usage": "canonicalize hardware addresses in asset observations",
+              "default": "false",
+              "boolean": true
             },
             {
-              "name": "postgresPassword",
-              "usage": "postgres server password"
+              "name": "pollingInterval",
+              "usage": "period between controller polls",
+              "default": "0s"
             },
             {
-              "name": "postgresRoleName",
-              "usage": "PostgreSQL role granted access to the journal views"
+              "name": "producesAssetObservation",
+              "usage": "topic for raw asset observations"
             },
             {
-              "name": "postgresUsername",
-              "usage": "postgres server username"
+              "name": "producesGateway",
+              "usage": "topic for raw gateway reports"
+            },
+            {
+              "name": "producesLink",
+              "usage": "topic for raw connectivity reports"
+            },
+            {
+              "name": "producesSession",
+              "usage": "topic for raw session reports"
+            },
+            {
+              "name": "producesTrafficStatus",
+              "usage": "topic for traffic status samples"
+            },
+            {
+              "name": "redisConnDB",
+              "usage": "token-cache Redis logical database",
+              "default": "0"
+            },
+            {
+              "name": "redisConnHost",
+              "usage": "token-cache Redis host"
+            },
+            {
+              "name": "redisConnPort",
+              "usage": "token-cache Redis port",
+              "default": "0"
+            },
+            {
+              "name": "redisPassword",
+              "usage": "token-cache Redis password"
+            },
+            {
+              "name": "redisUser",
+              "usage": "token-cache Redis username"
+            },
+            {
+              "name": "retryMax",
+              "usage": "max retries per controller HTTP request",
+              "default": "0"
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "path": "github.com/modern-engineering/prototype/fieldcase/catalog/detection",
+      "name": "detection",
+      "elements": [
         {
           "name": "IdentityAnomalyDetector",
           "kind": "component",
-          "doc": "identityAnomalyDetector alerts when an identity appears from an unexpected endpoint\n\nIn this scenario, the identity-anomaly-detector component\n(the field case). It consumes gob-encoded graph-change\ndigests, tracks identity-to-endpoint associations in Redis, and publishes a JSON\nalert whenever a known identity appears from a new endpoint.",
+          "doc": "identityAnomalyDetector consumes digital-twin changes, tracks identity-to-endpoint associations in Redis, and publishes an alert when a known identity appears from an unexpected endpoint.",
           "params": [
             {
               "name": "consumesGraphChanged",
@@ -97,9 +197,48 @@
           ]
         },
         {
+          "name": "Journal",
+          "kind": "component",
+          "doc": "detectionAlertsJournal consumes security alerts, upserts them into PostgreSQL, and maintains views for a PostgREST facade.",
+          "params": [
+            {
+              "name": "consumesAlerts",
+              "usage": "topic of JSON alerts"
+            },
+            {
+              "name": "kafkaBrokers",
+              "usage": "comma-separated Kafka bootstrap brokers (shared flag kafka-brokers, required)"
+            },
+            {
+              "name": "kafkaConfig",
+              "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
+            },
+            {
+              "name": "postgresAddress",
+              "usage": "postgres server address"
+            },
+            {
+              "name": "postgresDBName",
+              "usage": "postgres db name"
+            },
+            {
+              "name": "postgresPassword",
+              "usage": "postgres server password"
+            },
+            {
+              "name": "postgresRoleName",
+              "usage": "PostgreSQL role granted access to the journal views"
+            },
+            {
+              "name": "postgresUsername",
+              "usage": "postgres server username"
+            }
+          ]
+        },
+        {
           "name": "SyslogExporter",
           "kind": "component",
-          "doc": "detectionSyslogExporter pushes alerts to a SIEM syslog endpoint\n\nIn this scenario, the detection-syslog-exporter component\n(the field case). It consumes the alerts bus,\nencodes each alert in the configured syslog format, and writes it\nto the customer's SIEM server. The field case declares an explicitly\nempty aspects list: this component only egresses.",
+          "doc": "detectionSyslogExporter consumes security alerts, encodes them as syslog messages, and sends them to a configured SIEM endpoint.",
           "params": [
             {
               "name": "consumesAlerts",
@@ -135,136 +274,13 @@
       ]
     },
     {
-      "path": "github.com/modern-engineering/prototype/fieldcase/catalog/controller",
-      "name": "controller",
-      "elements": [
-        {
-          "name": "Instrument",
-          "kind": "component",
-          "doc": "networkObservationCollector polls the network controller for device visibility\n\nIn this scenario, the network-observation-collector component\n(the network-controller API). Every polling cycle it\nfetches asset, session, link, and gateway\nreports from the network controller over HTTPS, caching API tokens in\nRedis, and publishes raw protobuf records to its five aspects.",
-          "params": [
-            {
-              "name": "backoff",
-              "usage": "constant backoff between HTTP retries",
-              "default": "0s"
-            },
-            {
-              "name": "baseURL",
-              "usage": "network controller base URL"
-            },
-            {
-              "name": "apiUsername",
-              "usage": "API username for controller login"
-            },
-            {
-              "name": "apiPassword",
-              "usage": "basic-auth password for controller login"
-            },
-            {
-              "name": "normalizeHardwareAddress",
-              "usage": "canonicalize hardware addresses in asset observations",
-              "default": "false",
-              "boolean": true
-            },
-            {
-              "name": "fileTokensPath",
-              "usage": "directory of bootstrap token files, a mounted Secret volume"
-            },
-            {
-              "name": "fileTokensReadOnly",
-              "usage": "whether the bootstrap token files are read-only",
-              "default": "false",
-              "boolean": true
-            },
-            {
-              "name": "focusedNetworks",
-              "usage": "comma-separated controller networks to poll"
-            },
-            {
-              "name": "kafkaBrokers",
-              "usage": "comma-separated Kafka bootstrap brokers (shared flag kafka-brokers, required)"
-            },
-            {
-              "name": "kafkaConfig",
-              "usage": "sarama configuration as ;-separated key=value pairs (shared flag kafka-config)"
-            },
-            {
-              "name": "maxWorkers",
-              "usage": "concurrent console fetch workers, at least 1",
-              "default": "0"
-            },
-            {
-              "name": "controllerTenantID",
-              "usage": "controller tenant identifier"
-            },
-            {
-              "name": "controllerOrganizationID",
-              "usage": "controller organization identifier"
-            },
-            {
-              "name": "pollingInterval",
-              "usage": "period between controller polls",
-              "default": "0s"
-            },
-            {
-              "name": "producesAssetObservation",
-              "usage": "topic for raw asset observations"
-            },
-            {
-              "name": "producesLink",
-              "usage": "topic for raw connectivity reports"
-            },
-            {
-              "name": "producesSession",
-              "usage": "topic for raw session reports"
-            },
-            {
-              "name": "producesGateway",
-              "usage": "topic for raw gateway reports"
-            },
-            {
-              "name": "producesTrafficStatus",
-              "usage": "topic for traffic status samples"
-            },
-            {
-              "name": "redisConnDB",
-              "usage": "token-cache Redis logical database",
-              "default": "0"
-            },
-            {
-              "name": "redisConnHost",
-              "usage": "token-cache Redis host"
-            },
-            {
-              "name": "redisConnPort",
-              "usage": "token-cache Redis port",
-              "default": "0"
-            },
-            {
-              "name": "redisPassword",
-              "usage": "token-cache Redis password"
-            },
-            {
-              "name": "redisUser",
-              "usage": "token-cache Redis username"
-            },
-            {
-              "name": "retryMax",
-              "usage": "max retries per controller HTTP request",
-              "default": "0"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "path": "github.com/modern-engineering/prototype/fieldcase/catalog/digitaltwin",
       "name": "digitaltwin",
       "elements": [
         {
           "name": "GraphComponent",
           "kind": "component",
-          "doc": "digitalTwinGraph applies mutation batches to the Neo4j digital twin of a target network\n\nIn this scenario, the digital-twin-graph component (scenario/\nvisibility/digitaltwin/the graph implementation), deployed as the\ndigital-twin chart. It applies graph mutation batches to the twin\ndatabase and publishes a gob-encoded GraphChanged digest every cycle.",
+          "doc": "digitalTwinGraph applies mutation batches to the Neo4j-backed digital twin and publishes a digest of each completed change set.",
           "params": [
             {
               "name": "apocBatchSize",
@@ -356,19 +372,23 @@
         {
           "name": "TranslatorComponent",
           "kind": "component",
-          "doc": "digitaltwin compiles canonical events into graph mutation batches\n\nIn this scenario, the digital-twin-translator deployment (descriptor\n\"digitaltwin\" in the field case). It consumes\neleven canonical event streams and publishes graph mutation batches for\nthe digital-twin graph to apply.",
+          "doc": "digitaltwin consumes canonical network observations and publishes graph mutation batches for the digital-twin graph.",
           "params": [
             {
-              "name": "consumesSessionEstablished",
-              "usage": "topic of canonical network sessions"
+              "name": "assetObservedURL",
+              "usage": "SQS queue URL for asset observations"
             },
             {
-              "name": "consumesLinkChanged",
-              "usage": "topic of canonical connectivity changes"
+              "name": "assetsBehindGatewayStatusURL",
+              "usage": "SQS queue URL for assets behind a gateway status"
             },
             {
               "name": "consumesAssetLocationData",
               "usage": "topic of asset location observations"
+            },
+            {
+              "name": "consumesAssetObserved",
+              "usage": "topic of canonical asset observations"
             },
             {
               "name": "consumesAssetTelemetry",
@@ -379,8 +399,16 @@
               "usage": "topic of assets behind a gateway statuses"
             },
             {
-              "name": "consumesAssetObserved",
-              "usage": "topic of canonical asset observations"
+              "name": "consumesIdentityObserved",
+              "usage": "topic of canonical identity observations"
+            },
+            {
+              "name": "consumesLinkChanged",
+              "usage": "topic of canonical connectivity changes"
+            },
+            {
+              "name": "consumesNetworkDomain",
+              "usage": "topic of network-domain changes"
             },
             {
               "name": "consumesNetworkStates",
@@ -391,24 +419,12 @@
               "usage": "topic of canonical route changes"
             },
             {
+              "name": "consumesSessionEstablished",
+              "usage": "topic of canonical network sessions"
+            },
+            {
               "name": "consumesUnmanagedAssetObserved",
               "usage": "topic of unmanaged asset observations"
-            },
-            {
-              "name": "consumesNetworkDomain",
-              "usage": "topic of network-domain changes"
-            },
-            {
-              "name": "consumesIdentityObserved",
-              "usage": "topic of canonical identity observations"
-            },
-            {
-              "name": "assetObservedURL",
-              "usage": "SQS queue URL for asset observations"
-            },
-            {
-              "name": "assetsBehindGatewayStatusURL",
-              "usage": "SQS queue URL for assets behind a gateway status"
             },
             {
               "name": "fetchLimit",
@@ -604,11 +620,15 @@
         {
           "name": "Component",
           "kind": "component",
-          "doc": "observationTranslator turns raw controller observations into canonical events\n\nIn this scenario, the observation-translator component\n(the field case). Each pipeline consumes\none raw topic, transforms the controller observation, and publishes the\ncanonical event the twin compiler consumes.",
+          "doc": "observationTranslator consumes raw controller observations and publishes canonical asset, identity, session, route, and link events for the digital twin.",
           "params": [
             {
               "name": "consumesAssetObservation",
               "usage": "topic of raw asset observations"
+            },
+            {
+              "name": "consumesGateway",
+              "usage": "topic of raw gateway reports"
             },
             {
               "name": "consumesLink",
@@ -617,10 +637,6 @@
             {
               "name": "consumesSession",
               "usage": "topic of raw session reports"
-            },
-            {
-              "name": "consumesGateway",
-              "usage": "topic of raw gateway reports"
             },
             {
               "name": "fetchLimit",
@@ -640,24 +656,24 @@
               "usage": "gocloud topic batcher options as ;-separated key=value pairs (shared env KAFKA_TOPIC_OPTIONS)"
             },
             {
-              "name": "producesSessionEstablished",
-              "usage": "topic for canonical network sessions"
+              "name": "producesAssetObserved",
+              "usage": "topic for canonical asset observations"
+            },
+            {
+              "name": "producesIdentityObserved",
+              "usage": "topic for canonical identity observations"
             },
             {
               "name": "producesLinkChanged",
               "usage": "topic for canonical connectivity changes"
             },
             {
-              "name": "producesAssetObserved",
-              "usage": "topic for canonical asset observations"
-            },
-            {
               "name": "producesRouteChanged",
               "usage": "topic for canonical route changes"
             },
             {
-              "name": "producesIdentityObserved",
-              "usage": "topic for canonical identity observations"
+              "name": "producesSessionEstablished",
+              "usage": "topic for canonical network sessions"
             }
           ]
         }
@@ -665,14 +681,6 @@
     }
   ],
   "symbols": [
-    {
-      "name": "tenantID",
-      "class": "extern",
-      "type": {
-        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
-        "name": "Secret"
-      }
-    },
     {
       "name": "kafkaCluster",
       "class": "extern",
@@ -690,19 +698,19 @@
       }
     },
     {
-      "name": "networkController",
-      "class": "var",
-      "value": {
-        "kind": "string",
-        "string": "https://controller.example"
-      }
-    },
-    {
       "name": "neo4jServer",
       "class": "extern",
       "type": {
         "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
         "name": "Neo4jServer"
+      }
+    },
+    {
+      "name": "networkController",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "https://controller.example"
       }
     },
     {
@@ -738,6 +746,14 @@
       }
     },
     {
+      "name": "tenantID",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/fieldcase/catalog/substrate",
+        "name": "Secret"
+      }
+    },
+    {
       "name": "topicAlerts",
       "class": "var",
       "value": {
@@ -746,19 +762,11 @@
       }
     },
     {
-      "name": "topicSessionEstablished",
+      "name": "topicAssetLocationData",
       "class": "var",
       "value": {
         "kind": "string",
-        "string": "twin.session-established"
-      }
-    },
-    {
-      "name": "topicLinkChanged",
-      "class": "var",
-      "value": {
-        "kind": "string",
-        "string": "twin.link-changed"
+        "string": "twin.asset-location-observed"
       }
     },
     {
@@ -770,11 +778,11 @@
       }
     },
     {
-      "name": "topicAssetLocationData",
+      "name": "topicAssetObserved",
       "class": "var",
       "value": {
         "kind": "string",
-        "string": "twin.asset-location-observed"
+        "string": "twin.asset-observed"
       }
     },
     {
@@ -794,11 +802,11 @@
       }
     },
     {
-      "name": "topicAssetObserved",
+      "name": "topicGateway",
       "class": "var",
       "value": {
         "kind": "string",
-        "string": "twin.asset-observed"
+        "string": "GatewayObservationsTopic"
       }
     },
     {
@@ -810,6 +818,14 @@
       }
     },
     {
+      "name": "topicIdentityObserved",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.identity-observed"
+      }
+    },
+    {
       "name": "topicLink",
       "class": "var",
       "value": {
@@ -818,43 +834,11 @@
       }
     },
     {
-      "name": "topicNetworkStates",
+      "name": "topicLinkChanged",
       "class": "var",
       "value": {
         "kind": "string",
-        "string": "network-states"
-      }
-    },
-    {
-      "name": "topicRouteChanged",
-      "class": "var",
-      "value": {
-        "kind": "string",
-        "string": "twin.route-changed"
-      }
-    },
-    {
-      "name": "topicUnmanagedAssetObserved",
-      "class": "var",
-      "value": {
-        "kind": "string",
-        "string": "twin.unmanaged-asset-observed"
-      }
-    },
-    {
-      "name": "topicSession",
-      "class": "var",
-      "value": {
-        "kind": "string",
-        "string": "SessionObservationsTopic"
-      }
-    },
-    {
-      "name": "topicRemoteCompilation",
-      "class": "var",
-      "value": {
-        "kind": "string",
-        "string": "twin.digital-twin-graph.remote-compilation"
+        "string": "twin.link-changed"
       }
     },
     {
@@ -866,19 +850,43 @@
       }
     },
     {
-      "name": "topicGateway",
+      "name": "topicNetworkStates",
       "class": "var",
       "value": {
         "kind": "string",
-        "string": "GatewayObservationsTopic"
+        "string": "network-states"
       }
     },
     {
-      "name": "topicIdentityObserved",
+      "name": "topicRemoteCompilation",
       "class": "var",
       "value": {
         "kind": "string",
-        "string": "twin.identity-observed"
+        "string": "twin.digital-twin-graph.remote-compilation"
+      }
+    },
+    {
+      "name": "topicRouteChanged",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.route-changed"
+      }
+    },
+    {
+      "name": "topicSession",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "SessionObservationsTopic"
+      }
+    },
+    {
+      "name": "topicSessionEstablished",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.session-established"
       }
     },
     {
@@ -887,6 +895,14 @@
       "value": {
         "kind": "string",
         "string": "TrafficStatusTopic"
+      }
+    },
+    {
+      "name": "topicUnmanagedAssetObserved",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "twin.unmanaged-asset-observed"
       }
     }
   ],
@@ -979,24 +995,26 @@
           "sensitive": true
         }
       ],
-      "on": [
-        {
-          "key": "cpu",
-          "value": {
-            "kind": "string",
-            "string": "300m"
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "cpu",
+            "value": {
+              "kind": "string",
+              "string": "300m"
+            },
+            "source": "instance"
           },
-          "source": "instance"
-        },
-        {
-          "key": "memory",
-          "value": {
-            "kind": "string",
-            "string": "250Mi"
-          },
-          "source": "instance"
-        }
-      ],
+          {
+            "key": "memory",
+            "value": {
+              "kind": "string",
+              "string": "250Mi"
+            },
+            "source": "instance"
+          }
+        ]
+      },
       "metadata": [
         {
           "key": "chart",
@@ -1089,24 +1107,26 @@
           "sensitive": true
         }
       ],
-      "on": [
-        {
-          "key": "cpu",
-          "value": {
-            "kind": "string",
-            "string": "300m"
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "cpu",
+            "value": {
+              "kind": "string",
+              "string": "300m"
+            },
+            "source": "instance"
           },
-          "source": "instance"
-        },
-        {
-          "key": "memory",
-          "value": {
-            "kind": "string",
-            "string": "250Mi"
-          },
-          "source": "instance"
-        }
-      ],
+          {
+            "key": "memory",
+            "value": {
+              "kind": "string",
+              "string": "250Mi"
+            },
+            "source": "instance"
+          }
+        ]
+      },
       "metadata": [
         {
           "key": "chart",
@@ -1188,24 +1208,26 @@
           "source": "instance"
         }
       ],
-      "on": [
-        {
-          "key": "cpu",
-          "value": {
-            "kind": "string",
-            "string": "300m"
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "cpu",
+            "value": {
+              "kind": "string",
+              "string": "300m"
+            },
+            "source": "instance"
           },
-          "source": "instance"
-        },
-        {
-          "key": "memory",
-          "value": {
-            "kind": "string",
-            "string": "250Mi"
-          },
-          "source": "instance"
-        }
-      ],
+          {
+            "key": "memory",
+            "value": {
+              "kind": "string",
+              "string": "250Mi"
+            },
+            "source": "instance"
+          }
+        ]
+      },
       "metadata": [
         {
           "key": "chart",
@@ -1343,10 +1365,26 @@
       "verb": "deploy",
       "element": {
         "package": "github.com/modern-engineering/prototype/fieldcase/catalog/controller",
-        "name": "Instrument"
+        "name": "Collector"
       },
       "name": "networkObservationCollector",
       "params": [
+        {
+          "key": "apiPassword",
+          "value": {
+            "kind": "string",
+            "string": ""
+          },
+          "source": "instance"
+        },
+        {
+          "key": "apiUsername",
+          "value": {
+            "kind": "string",
+            "string": ""
+          },
+          "source": "instance"
+        },
         {
           "key": "backoff",
           "value": {
@@ -1363,28 +1401,20 @@
           "source": "instance"
         },
         {
-          "key": "apiUsername",
-          "value": {
-            "kind": "string",
-            "string": ""
+          "key": "controllerOrganizationID",
+          "ref": {
+            "symbol": "organizationID"
           },
-          "source": "instance"
+          "source": "instance",
+          "sensitive": true
         },
         {
-          "key": "apiPassword",
-          "value": {
-            "kind": "string",
-            "string": ""
+          "key": "controllerTenantID",
+          "ref": {
+            "symbol": "tenantID"
           },
-          "source": "instance"
-        },
-        {
-          "key": "normalizeHardwareAddress",
-          "value": {
-            "kind": "bool",
-            "bool": false
-          },
-          "source": "instance"
+          "source": "instance",
+          "sensitive": true
         },
         {
           "key": "fileTokensPath",
@@ -1434,20 +1464,12 @@
           "source": "instance"
         },
         {
-          "key": "controllerTenantID",
-          "ref": {
-            "symbol": "tenantID"
+          "key": "normalizeHardwareAddress",
+          "value": {
+            "kind": "bool",
+            "bool": false
           },
-          "source": "instance",
-          "sensitive": true
-        },
-        {
-          "key": "controllerOrganizationID",
-          "ref": {
-            "symbol": "organizationID"
-          },
-          "source": "instance",
-          "sensitive": true
+          "source": "instance"
         },
         {
           "key": "pollingInterval",
@@ -1465,6 +1487,13 @@
           "source": "instance"
         },
         {
+          "key": "producesGateway",
+          "ref": {
+            "symbol": "topicGateway"
+          },
+          "source": "instance"
+        },
+        {
           "key": "producesLink",
           "ref": {
             "symbol": "topicLink"
@@ -1475,13 +1504,6 @@
           "key": "producesSession",
           "ref": {
             "symbol": "topicSession"
-          },
-          "source": "instance"
-        },
-        {
-          "key": "producesGateway",
-          "ref": {
-            "symbol": "topicGateway"
           },
           "source": "instance"
         },
@@ -1543,24 +1565,26 @@
           "source": "instance"
         }
       ],
-      "on": [
-        {
-          "key": "cpu",
-          "value": {
-            "kind": "string",
-            "string": "150m"
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "cpu",
+            "value": {
+              "kind": "string",
+              "string": "150m"
+            },
+            "source": "instance"
           },
-          "source": "instance"
-        },
-        {
-          "key": "memory",
-          "value": {
-            "kind": "string",
-            "string": "100Mi"
-          },
-          "source": "instance"
-        }
-      ],
+          {
+            "key": "memory",
+            "value": {
+              "kind": "string",
+              "string": "100Mi"
+            },
+            "source": "instance"
+          }
+        ]
+      },
       "metadata": [
         {
           "key": "chart",
@@ -1596,6 +1620,13 @@
           "source": "instance"
         },
         {
+          "key": "consumesGateway",
+          "ref": {
+            "symbol": "topicGateway"
+          },
+          "source": "instance"
+        },
+        {
           "key": "consumesLink",
           "ref": {
             "symbol": "topicLink"
@@ -1606,13 +1637,6 @@
           "key": "consumesSession",
           "ref": {
             "symbol": "topicSession"
-          },
-          "source": "instance"
-        },
-        {
-          "key": "consumesGateway",
-          "ref": {
-            "symbol": "topicGateway"
           },
           "source": "instance"
         },
@@ -1648,9 +1672,16 @@
           "source": "instance"
         },
         {
-          "key": "producesSessionEstablished",
+          "key": "producesAssetObserved",
           "ref": {
-            "symbol": "topicSessionEstablished"
+            "symbol": "topicAssetObserved"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "producesIdentityObserved",
+          "ref": {
+            "symbol": "topicIdentityObserved"
           },
           "source": "instance"
         },
@@ -1662,13 +1693,6 @@
           "source": "instance"
         },
         {
-          "key": "producesAssetObserved",
-          "ref": {
-            "symbol": "topicAssetObserved"
-          },
-          "source": "instance"
-        },
-        {
           "key": "producesRouteChanged",
           "ref": {
             "symbol": "topicRouteChanged"
@@ -1676,31 +1700,33 @@
           "source": "instance"
         },
         {
-          "key": "producesIdentityObserved",
+          "key": "producesSessionEstablished",
           "ref": {
-            "symbol": "topicIdentityObserved"
+            "symbol": "topicSessionEstablished"
           },
           "source": "instance"
         }
       ],
-      "on": [
-        {
-          "key": "cpu",
-          "value": {
-            "kind": "string",
-            "string": "300m"
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "cpu",
+            "value": {
+              "kind": "string",
+              "string": "300m"
+            },
+            "source": "instance"
           },
-          "source": "instance"
-        },
-        {
-          "key": "memory",
-          "value": {
-            "kind": "string",
-            "string": "100Mi"
-          },
-          "source": "instance"
-        }
-      ],
+          {
+            "key": "memory",
+            "value": {
+              "kind": "string",
+              "string": "100Mi"
+            },
+            "source": "instance"
+          }
+        ]
+      },
       "metadata": [
         {
           "key": "chart",
@@ -1729,23 +1755,16 @@
       "name": "digitaltwin",
       "params": [
         {
-          "key": "consumesSessionEstablished",
-          "ref": {
-            "symbol": "topicSessionEstablished"
-          },
-          "source": "instance"
-        },
-        {
-          "key": "consumesLinkChanged",
-          "ref": {
-            "symbol": "topicLinkChanged"
-          },
-          "source": "instance"
-        },
-        {
           "key": "consumesAssetLocationData",
           "ref": {
             "symbol": "topicAssetLocationData"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesAssetObserved",
+          "ref": {
+            "symbol": "topicAssetObserved"
           },
           "source": "instance"
         },
@@ -1764,9 +1783,23 @@
           "source": "instance"
         },
         {
-          "key": "consumesAssetObserved",
+          "key": "consumesIdentityObserved",
           "ref": {
-            "symbol": "topicAssetObserved"
+            "symbol": "topicIdentityObserved"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesLinkChanged",
+          "ref": {
+            "symbol": "topicLinkChanged"
+          },
+          "source": "instance"
+        },
+        {
+          "key": "consumesNetworkDomain",
+          "ref": {
+            "symbol": "topicNetworkDomain"
           },
           "source": "instance"
         },
@@ -1785,23 +1818,16 @@
           "source": "instance"
         },
         {
+          "key": "consumesSessionEstablished",
+          "ref": {
+            "symbol": "topicSessionEstablished"
+          },
+          "source": "instance"
+        },
+        {
           "key": "consumesUnmanagedAssetObserved",
           "ref": {
             "symbol": "topicUnmanagedAssetObserved"
-          },
-          "source": "instance"
-        },
-        {
-          "key": "consumesNetworkDomain",
-          "ref": {
-            "symbol": "topicNetworkDomain"
-          },
-          "source": "instance"
-        },
-        {
-          "key": "consumesIdentityObserved",
-          "ref": {
-            "symbol": "topicIdentityObserved"
           },
           "source": "instance"
         },
@@ -1836,24 +1862,26 @@
           "source": "instance"
         }
       ],
-      "on": [
-        {
-          "key": "cpu",
-          "value": {
-            "kind": "string",
-            "string": "1"
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "cpu",
+            "value": {
+              "kind": "string",
+              "string": "1"
+            },
+            "source": "instance"
           },
-          "source": "instance"
-        },
-        {
-          "key": "memory",
-          "value": {
-            "kind": "string",
-            "string": "250Mi"
-          },
-          "source": "instance"
-        }
-      ],
+          {
+            "key": "memory",
+            "value": {
+              "kind": "string",
+              "string": "250Mi"
+            },
+            "source": "instance"
+          }
+        ]
+      },
       "metadata": [
         {
           "key": "chart",
@@ -2017,24 +2045,26 @@
           "source": "instance"
         }
       ],
-      "on": [
-        {
-          "key": "cpu",
-          "value": {
-            "kind": "string",
-            "string": "1"
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "cpu",
+            "value": {
+              "kind": "string",
+              "string": "1"
+            },
+            "source": "instance"
           },
-          "source": "instance"
-        },
-        {
-          "key": "memory",
-          "value": {
-            "kind": "string",
-            "string": "250Mi"
-          },
-          "source": "instance"
-        }
-      ],
+          {
+            "key": "memory",
+            "value": {
+              "kind": "string",
+              "string": "250Mi"
+            },
+            "source": "instance"
+          }
+        ]
+      },
       "metadata": [
         {
           "key": "chart",

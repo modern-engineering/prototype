@@ -135,13 +135,17 @@ func renderInstance(m *model, st *site.Site, inst host.Instance) ([]byte, error)
 	if len(secret) > 0 {
 		data.SecretConf = indent(secret, "    ")
 	}
-	for _, b := range rec.On {
+	// The one extension stanza this generator recognizes; every other
+	// qualifier rides the image ignored, the advisory contract. A
+	// discovered stanza scheme would replace the bare qualifier and
+	// key strings if this corpus were ever revived.
+	for _, b := range rec.Extensions["k8s.pod"] {
 		if b.Value == nil {
 			continue
 		}
 		v, err := canonical(b.Value)
 		if err != nil {
-			return nil, fmt.Errorf("on %s: %v", b.Key, err)
+			return nil, fmt.Errorf("with k8s.pod %s: %v", b.Key, err)
 		}
 		switch b.Key {
 		case "cpu":
@@ -151,7 +155,7 @@ func renderInstance(m *model, st *site.Site, inst host.Instance) ([]byte, error)
 		}
 	}
 	if (data.CPU == "") != (data.Memory == "") {
-		return nil, fmt.Errorf("on compartment binds only one of cpu and memory; the generator emits requests==limits for both or neither")
+		return nil, fmt.Errorf("the k8s.pod stanza binds only one of cpu and memory; the generator emits requests==limits for both or neither")
 	}
 	for _, b := range rec.Metadata {
 		if b.Value != nil {

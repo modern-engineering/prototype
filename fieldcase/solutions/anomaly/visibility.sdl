@@ -12,37 +12,38 @@ import (
 // A site may interpose an observation filter by rebinding the collector's
 // outputs and the translator's inputs without changing either component.
 deploy controller.Collector as networkObservationCollector {
-	// Scenario options (options: node of the solution definition).
-	pollingInterval: 15s
-	retryMax: 5
-	backoff: 1s
-	baseURL: networkController
-	redisConnHost: controllerTokenCache.host
-	redisConnPort: controllerTokenCache.port
-	redisConnDB: controllerTokenCache.db
-	fileTokensPath: "/controller/tokens/" // a Secret volume mount; the mount itself is a host concern
-	fileTokensReadOnly: true
-	focusedNetworks: "Example Campus Network"
-	maxWorkers: 10
-	apiUsername: "" // set per site when token files are absent; an extern cannot be optional
-	apiPassword: ""
-	normalizeHardwareAddress: false
+	params {
+		// Polling and retry policy for this controller connection.
+		pollingInterval: 15s
+		retryMax: 5
+		backoff: 1s
+		baseURL: networkController
+		redisConnHost: controllerTokenCache.host
+		redisConnPort: controllerTokenCache.port
+		redisConnDB: controllerTokenCache.db
+		fileTokensPath: "/controller/tokens/" // a Secret volume mount; the mount itself is a host concern
+		fileTokensReadOnly: true
+		focusedNetworks: "Example Campus Network"
+		maxWorkers: 10
+		apiUsername: "" // set per site when token files are absent; an extern cannot be optional
+		apiPassword: ""
+		normalizeHardwareAddress: false
 
-	// Component flags fed from controller-credentials in the scenario deployment.
-	controllerTenantID: tenantID
-	controllerOrganizationID: organizationID
-	redisUser: controllerTokenCache.username
-	redisPassword: controllerTokenCache.password
+		// Site credentials and the provisioned token-cache account.
+		controllerTenantID: tenantID
+		controllerOrganizationID: organizationID
+		redisUser: controllerTokenCache.username
+		redisPassword: controllerTokenCache.password
 
-	// Aspects (the solution definition also binds FlowHistoryTopic,
-	// which module v0.10.3 does not declare — values/code drift).
-	producesAssetObservation: topicAssetObservation
-	producesSession: topicSession
-	producesLink: topicLink
-	producesGateway: topicGateway
-	producesTrafficStatus: topicTrafficStatus
+		// Publish each controller observation family on its own channel.
+		producesAssetObservation: topicAssetObservation
+		producesSession: topicSession
+		producesLink: topicLink
+		producesGateway: topicGateway
+		producesTrafficStatus: topicTrafficStatus
+	}
 
-	on {
+	with k8s.pod {
 		cpu: "150m" // requests==limits in every bridge chart
 		memory: "100Mi"
 	}
@@ -53,20 +54,22 @@ deploy controller.Collector as networkObservationCollector {
 }
 
 deploy translator.Component as observationTranslator {
-	fetchLimit: 1
-	kafkaTopicOptions: "BatcherOptions.MinBatchSize=1;BatcherOptions.MaxBatchSize=0"
+	params {
+		fetchLimit: 1
+		kafkaTopicOptions: "BatcherOptions.MinBatchSize=1;BatcherOptions.MaxBatchSize=0"
 
-	consumesAssetObservation: topicAssetObservation
-	consumesLink: topicLink
-	consumesSession: topicSession
-	consumesGateway: topicGateway
-	producesAssetObserved: topicAssetObserved
-	producesLinkChanged: topicLinkChanged
-	producesSessionEstablished: topicSessionEstablished
-	producesRouteChanged: topicRouteChanged
-	producesIdentityObserved: topicIdentityObserved
+		consumesAssetObservation: topicAssetObservation
+		consumesLink: topicLink
+		consumesSession: topicSession
+		consumesGateway: topicGateway
+		producesAssetObserved: topicAssetObserved
+		producesLinkChanged: topicLinkChanged
+		producesSessionEstablished: topicSessionEstablished
+		producesRouteChanged: topicRouteChanged
+		producesIdentityObserved: topicIdentityObserved
+	}
 
-	on {
+	with k8s.pod {
 		cpu: "300m"
 		memory: "100Mi"
 	}
@@ -79,22 +82,24 @@ deploy translator.Component as observationTranslator {
 // The stable instance name keeps the Kafka consumer group unchanged across
 // deployments so the translator resumes from its committed offsets.
 deploy digitaltwin.TranslatorComponent as digitaltwin {
-	fetchLimit: 1
+	params {
+		fetchLimit: 1
 
-	producesRemoteCompilation: topicRemoteCompilation
-	consumesAssetObserved: topicAssetObserved
-	consumesLinkChanged: topicLinkChanged
-	consumesSessionEstablished: topicSessionEstablished
-	consumesRouteChanged: topicRouteChanged
-	consumesIdentityObserved: topicIdentityObserved
-	consumesUnmanagedAssetObserved: topicUnmanagedAssetObserved
-	consumesAssetsBehindGateway: topicAssetsBehindGateway
-	consumesAssetLocationData: topicAssetLocationData
-	consumesAssetTelemetry: topicAssetTelemetry
-	consumesNetworkDomain: topicNetworkDomain
-	consumesNetworkStates: topicNetworkStates
+		producesRemoteCompilation: topicRemoteCompilation
+		consumesAssetObserved: topicAssetObserved
+		consumesLinkChanged: topicLinkChanged
+		consumesSessionEstablished: topicSessionEstablished
+		consumesRouteChanged: topicRouteChanged
+		consumesIdentityObserved: topicIdentityObserved
+		consumesUnmanagedAssetObserved: topicUnmanagedAssetObserved
+		consumesAssetsBehindGateway: topicAssetsBehindGateway
+		consumesAssetLocationData: topicAssetLocationData
+		consumesAssetTelemetry: topicAssetTelemetry
+		consumesNetworkDomain: topicNetworkDomain
+		consumesNetworkStates: topicNetworkStates
+	}
 
-	on {
+	with k8s.pod {
 		cpu: "1"
 		memory: "250Mi"
 	}
@@ -107,31 +112,29 @@ deploy digitaltwin.TranslatorComponent as digitaltwin {
 // Pod-level helpers, such as a graph cleanup init container, remain a
 // platform concern outside the solution model.
 deploy digitaltwin.GraphComponent as digitalTwinGraph {
-	// Component flags: the deployment manifest keeps URI, user, and password in
-	// ConfigMap keys network.graph.neo4j{,.user,.pass}; wiring them
-	// from the provision's tainted outputs is the fix the taint exists
-	// for.
-	neo4j: twinDB.uri
-	user: twinDB.username
-	pass: twinDB.password
+	params {
+		// The provision supplies a tainted Neo4j account to the graph writer.
+		neo4j: twinDB.uri
+		user: twinDB.username
+		pass: twinDB.password
 
-	// Scenario options; receiveTimeout stays on the catalogue default
-	// (watchdog disabled), as in reference.
-	cycle: 15s
-	database: "twin-db"
-	fetchLimit: 1000
-	applyLimit: 500 // must stay <= fetchLimit: the component cross-validates at bootstrap
-	batchTTL: 500ms
-	apocBatchSize: 10
-	doAPOCParallel: true
-	readTimeout: 120s
-	writeTimeout: 120s
-	initialSnapshotTimeout: 900s
+		// Batching and timeout policy for graph updates.
+		cycle: 15s
+		database: "twin-db"
+		fetchLimit: 1000
+		applyLimit: 500 // must stay <= fetchLimit: the component cross-validates at bootstrap
+		batchTTL: 500ms
+		apocBatchSize: 10
+		doAPOCParallel: true
+		readTimeout: 120s
+		writeTimeout: 120s
+		initialSnapshotTimeout: 900s
 
-	consumesRemoteCompilation: topicRemoteCompilation
-	producesGraphChanged: topicGraphChanged
+		consumesRemoteCompilation: topicRemoteCompilation
+		producesGraphChanged: topicGraphChanged
+	}
 
-	on {
+	with k8s.pod {
 		cpu: "1"
 		memory: "250Mi"
 	}

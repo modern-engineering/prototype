@@ -282,7 +282,8 @@ func canonical(v *image.Value) (string, error) {
 	case image.KindDuration:
 		return v.Dur.String(), nil
 	case image.KindToken:
-		// Tokens live in on compartments, outside the flag surface.
+		// Tokens live in the opaque compartments, outside the flag
+		// surface.
 		return v.Tok, nil
 	}
 	return "", fmt.Errorf("unknown value kind %q", v.Kind)

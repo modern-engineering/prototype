@@ -59,31 +59,43 @@ var (
 
 // One deployment default carries the shared Kafka connection policy.
 default deploy {
-	kafkaBrokers: kafka.brokers
-	kafkaConfig: kafkaConfig
+	params {
+		kafkaBrokers: kafka.brokers
+		kafkaConfig: kafkaConfig
+	}
 }
 
 // A site may slice a managed Kafka cluster or attach an external broker.
 provision substrate.Kafka slice as kafka {
-	cluster: kafkaCluster
+	params {
+		cluster: kafkaCluster
+	}
 }
 
 // Separate Redis provisions isolate controller tokens from detector state.
 provision substrate.Redis slice as controllerTokenCache {
-	server: redisServer
-	db: 0
+	params {
+		server: redisServer
+		db: 0
+	}
 }
 
 provision substrate.Redis slice as identityState {
-	server: redisServer
-	db: 1
+	params {
+		server: redisServer
+		db: 1
+	}
 }
 
 provision substrate.Neo4j slice as twinDB {
-	server: neo4jServer
+	params {
+		server: neo4jServer
+	}
 }
 
 provision substrate.Postgres slice as alertsDB {
-	server: postgresServer
-	database: "postgres"
+	params {
+		server: postgresServer
+		database: "postgres"
+	}
 }
