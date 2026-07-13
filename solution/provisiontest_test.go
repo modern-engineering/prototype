@@ -24,6 +24,8 @@ func (p *stubProvisioner) Flags() *flag.FlagSet { return p.flags }
 
 func (p *stubProvisioner) Attach(context.Context, *solution.OutputWriter) error { return nil }
 
+// Lawful provision-type citizens check clean — the accept half of the
+// harness's own contract.
 func TestCheckProvisionTypeAcceptsCitizens(t *testing.T) {
 	// The compile-test catalogue's citizens double as the harness's
 	// positive cases: a flagged type, and a Make-less one (nil Make is
@@ -79,6 +81,8 @@ func checkFails(t *testing.T, pt *solution.ProvisionType) string {
 	return f.failed
 }
 
+// Every citizenship violation fails the check with a message naming
+// it — the reject half that makes the harness worth trusting.
 func TestCheckProvisionTypeRejectsViolations(t *testing.T) {
 	sharedFS := flag.NewFlagSet("shared", flag.ContinueOnError)
 	sharedFS.String("cluster", "", "shared across calls")

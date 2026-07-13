@@ -12,6 +12,9 @@ import (
 	"github.com/modern-engineering/prototype/solution"
 )
 
+// The exported vocabulary carries the closed word lists sorted — the
+// generator-facing shape — and hands every caller an independent
+// copy, so corruption cannot reach the linker's own checks.
 func TestVocabulary(t *testing.T) {
 	v := solution.Vocabulary()
 	if want := []string{"metadata", "params", "with"}; !slices.Equal(v.Sections, want) {
@@ -42,12 +45,12 @@ func TestVocabulary(t *testing.T) {
 	}
 }
 
-// TestVocabularyWiresLinker holds the linker to the export's promise:
-// the diagnostics that teach the closed vocabularies enumerate exactly
-// the exported words, so tooling generated from [solution.Vocabulary]
-// cannot drift from the checks. The expected lines are rebuilt from
-// the export, never hard-coded, so growing the vocabulary keeps the
-// wiring pinned rather than the words.
+// The linker holds to the export's promise: the diagnostics that
+// teach the closed vocabularies enumerate exactly the exported words,
+// so tooling generated from [solution.Vocabulary] cannot drift from
+// the checks. The expected lines are rebuilt from the export, never
+// hard-coded, so growing the vocabulary keeps the wiring pinned
+// rather than the words.
 func TestVocabularyWiresLinker(t *testing.T) {
 	v := solution.Vocabulary()
 

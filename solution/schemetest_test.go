@@ -11,6 +11,8 @@ import (
 	"github.com/modern-engineering/prototype/solution"
 )
 
+// Lawful scheme-type citizens check clean — the accept half of the
+// harness's own contract.
 func TestCheckSchemeTypeAcceptsCitizens(t *testing.T) {
 	// The compile-test schemes double as the harness's positive
 	// cases: a keyed scheme, and a keyless one (nil Params claims the
@@ -52,6 +54,9 @@ func checkSchemeFails(t *testing.T, st *solution.SchemeType) string {
 	return f.failed
 }
 
+// Every scheme violation fails the check with a message naming it:
+// malformed qualifiers, panicking or unstable Params declarations —
+// the reject half that makes the harness worth trusting.
 func TestCheckSchemeTypeRejectsViolations(t *testing.T) {
 	calls := 0
 	tests := []struct {

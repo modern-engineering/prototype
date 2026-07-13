@@ -19,12 +19,11 @@ func stubBuildInfo(t *testing.T, info *debug.BuildInfo, ok bool) {
 	t.Cleanup(func() { readBuildInfo = restore })
 }
 
-// TestPrototypeVersion pins the version classification over every
-// build shape the compiling binary shows up in. Only versions the
-// module system resolved get recorded; every locally sourced shape —
-// test binaries, unstamped builds, directory replacements, VCS-stamped
-// checkout builds — records nothing, keeping images machine-
-// independent.
+// The version classification holds over every build shape the
+// compiling binary shows up in: only versions the module system
+// resolved get recorded; every locally sourced shape — test binaries,
+// unstamped builds, directory replacements, VCS-stamped checkout
+// builds — records nothing, keeping images machine-independent.
 func TestPrototypeVersion(t *testing.T) {
 	tests := []struct {
 		name string
@@ -85,8 +84,8 @@ func TestPrototypeVersion(t *testing.T) {
 	}
 }
 
-// TestBuildBlock pins the block assembly: digests in unit order with
-// the documented lowercase-hex SHA-256 rendering, settings sorted by
+// The governance block assembles as documented: digests in unit
+// order with the lowercase-hex SHA-256 rendering, settings sorted by
 // key, present only when their version is.
 func TestBuildBlock(t *testing.T) {
 	stubBuildInfo(t, &debug.BuildInfo{

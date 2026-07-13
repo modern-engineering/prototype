@@ -18,7 +18,7 @@ import (
 )
 
 // ----------------------------------------------------------------------------
-// Test catalogue
+// The test catalogue
 //
 // Real application.Descriptor values, in the shapes catalogue packages
 // use: a MakeFunc constructor declaring typed flags (with a flag.Func
@@ -616,6 +616,9 @@ const goldenImage = `{
 }
 `
 
+// The M1 sample compiles to the golden image byte for byte — the
+// document is the contract deployment environments reconcile, so any
+// intended change to its shape must amend the golden here.
 func TestMainCompileGolden(t *testing.T) {
 	cfg := solution.CompileConfig{
 		Solution:  "sample",
@@ -634,6 +637,7 @@ func TestMainCompileGolden(t *testing.T) {
 	}
 }
 
+// The same config compiles to the same bytes, every time.
 func TestMainCompileDeterminism(t *testing.T) {
 	cfg := solution.CompileConfig{
 		Solution:  "sample",
@@ -647,9 +651,8 @@ func TestMainCompileDeterminism(t *testing.T) {
 	}
 }
 
-// TestCompileReturnsImage proves the in-memory path is MainCompile's
-// path: the image Compile hands back encodes to the exact bytes
-// MainCompile emits.
+// The in-memory path is MainCompile's path: the image Compile hands
+// back encodes to the exact bytes MainCompile emits.
 func TestCompileReturnsImage(t *testing.T) {
 	var stderr bytes.Buffer
 	img, err := solution.Compile(solution.CompileConfig{
@@ -673,10 +676,10 @@ func TestCompileReturnsImage(t *testing.T) {
 	}
 }
 
-// TestCompileClassifiesFailures pins the error split MainCompile
-// numbers: faults in the solution's text wrap ErrDiagnostics and
-// print positioned to the config's Stderr; faults in the
-// machine-supplied inputs do not wrap it.
+// Compile's errors split the way MainCompile numbers them: faults in
+// the solution's text wrap ErrDiagnostics and print positioned to the
+// config's Stderr; faults in the machine-supplied inputs do not wrap
+// it.
 func TestCompileClassifiesFailures(t *testing.T) {
 	t.Run("diagnostics", func(t *testing.T) {
 		var stderr bytes.Buffer
@@ -712,6 +715,9 @@ func TestCompileClassifiesFailures(t *testing.T) {
 	})
 }
 
+// A multi-unit solution keeps unit-then-statement record order, the
+// caller's generation stamps the image, and the same content at
+// another generation stays Equal while the bytes move.
 func TestMainCompileMultiUnit(t *testing.T) {
 	units := []solution.Unit{
 		{Name: "a.sdl", Source: "solution sample\n" +
@@ -763,11 +769,11 @@ func TestMainCompileMultiUnit(t *testing.T) {
 	}
 }
 
-// TestMainCompileSymbolReferences proves the collect-then-bind phase
-// order end to end: unit a's bindings reference a var and an extern
-// that unit b declares, so resolution works across units and forward.
-// The extern's sensitive symbol type must taint the binding that
-// references it; the var-bound one stays plain.
+// The collect-then-bind phase order holds end to end: unit a's bindings
+// reference a var and an extern that unit b declares, so resolution
+// works across units and forward. The extern's sensitive symbol type
+// must taint the binding that references it; the var-bound one stays
+// plain.
 func TestMainCompileSymbolReferences(t *testing.T) {
 	units := []solution.Unit{
 		{Name: "a.sdl", Source: "solution sample\n" +
@@ -830,10 +836,10 @@ func TestMainCompileSymbolReferences(t *testing.T) {
 	}
 }
 
-// TestMainCompilePerFileImports proves import scope is the unit, the
-// Go source-file model: two units bind the same alias to different
-// packages and a third binds a second alias to a path its peer also
-// imports, and every reference resolves through its own unit's table.
+// Import scope is the unit, the Go source-file model: two units bind
+// the same alias to different packages and a third binds a second alias
+// to a path its peer also imports, and every reference resolves through
+// its own unit's table.
 func TestMainCompilePerFileImports(t *testing.T) {
 	units := []solution.Unit{
 		{Name: "a.sdl", Source: "solution sample\n" +
@@ -874,10 +880,9 @@ func TestMainCompilePerFileImports(t *testing.T) {
 	}
 }
 
-// TestMainCompileDottedKeys drives a composite (flattened) parameter
-// name end to end: a catalogue flag named with dots binds from the
-// dotted SDL key like any other slot, and the binding carries the full
-// key.
+// A composite (flattened) parameter name works end to end: a catalogue
+// flag named with dots binds from the dotted SDL key like any other
+// slot, and the binding carries the full key.
 func TestMainCompileDottedKeys(t *testing.T) {
 	catalogue := []solution.Package{{
 		Path: "example.com/acme/deep",
@@ -919,10 +924,10 @@ func TestMainCompileDottedKeys(t *testing.T) {
 	}
 }
 
-// TestMainCompileInexpressibleParamWarning pins the registration-time
-// warning: a catalogue flag whose name no SDL key can spell — a
-// character beyond the ident-and-dot grammar, or a keyword segment —
-// warns on stderr, once per flag, and never fails the compilation.
+// The registration-time warning holds: a catalogue flag whose name no
+// SDL key can spell — a character beyond the ident-and-dot grammar, or
+// a keyword segment — warns on stderr, once per flag, and never fails
+// the compilation.
 func TestMainCompileInexpressibleParamWarning(t *testing.T) {
 	catalogue := []solution.Package{{
 		Path: "example.com/acme/hyphen",
@@ -956,11 +961,11 @@ func TestMainCompileInexpressibleParamWarning(t *testing.T) {
 	}
 }
 
-// TestMainCompileDefaultMergeOrder proves the four value tiers over
-// one parameter: the catalogue slot default (count is 1 in the pinned
-// schema) yields no binding at all, and each SDL layer above it —
-// default deploy, default ff.Ping, the instance body — wins over the
-// ones below, with Source naming the winner.
+// The four value tiers stack over one parameter: the catalogue slot
+// default (count is 1 in the pinned schema) yields no binding at all,
+// and each SDL layer above it — default deploy, default ff.Ping, the
+// instance body — wins over the ones below, with Source naming the
+// winner.
 func TestMainCompileDefaultMergeOrder(t *testing.T) {
 	const (
 		verbDefault = "default deploy {\n\tparams {\n\t\tcount: 2\n\t}\n}\n"
@@ -1020,10 +1025,10 @@ func TestMainCompileDefaultMergeOrder(t *testing.T) {
 	}
 }
 
-// TestMainCompileDefaultRefs sends references through both default
-// layers: the element default wires a sensitive extern (the taint must
-// survive the fold), the verb default wires a var into every element
-// that declares the key — and passes elements that do not declare it.
+// References pass through both default layers: the element default
+// wires a sensitive extern (the taint must survive the fold), the verb
+// default wires a var into every element that declares the key — and
+// passes elements that do not declare it.
 func TestMainCompileDefaultRefs(t *testing.T) {
 	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 		"import (\n" +
@@ -1074,8 +1079,8 @@ func TestMainCompileDefaultRefs(t *testing.T) {
 	}
 }
 
-// TestMainCompileDefaultOutputRefs sends a provision-output reference
-// through the verb-default layer: the folded binding must land as a
+// A provision-output reference passes through the verb-default
+// layer: the folded binding must land as a
 // reference — never an inlined value — with Source default-deploy and
 // the referenced output's sensitivity taint, while elements that do
 // not declare the key and records of the other verb are passed by.
@@ -1143,12 +1148,12 @@ func gateCatalogue() []solution.Package {
 	}}
 }
 
-// TestMainCompileBooleanOutputRefs pins the one static kind check on
-// output references: a boolean parameter is set without a value at
-// wet binding, so only a bool-typed output may reference into it —
-// int and untyped outputs are positioned link errors there — while a
-// non-boolean slot takes an output of any declared type, its own
-// flag.Value.Set validating the rendered value at binding time.
+// Output references get exactly one static kind check: a boolean
+// parameter is set without a value at wet binding, so only a bool-typed
+// output may reference into it — int and untyped outputs are positioned
+// link errors there — while a non-boolean slot takes an output of any
+// declared type, its own flag.Value.Set validating the rendered value
+// at binding time.
 func TestMainCompileBooleanOutputRefs(t *testing.T) {
 	const imports = "import (\n" +
 		"\tff \"example.com/acme/pingpong\"\n" +
@@ -1211,12 +1216,11 @@ func TestMainCompileBooleanOutputRefs(t *testing.T) {
 	})
 }
 
-// TestMainCompileProvisionDefaults proves the verb tier folds by the
-// record's own verb: default provision reaches provision records with
-// its own Source and never touches deploys, the type default overrides
-// it key-wise, elements that do not declare a defaulted key are passed
-// by, and provision-type defaults validate against the dry Make
-// schema like component defaults do.
+// The verb tier folds by the record's own verb: default provision
+// reaches provision records with its own Source and never touches
+// deploys, the type default overrides it key-wise, elements that do not
+// declare a defaulted key are passed by, and provision-type defaults
+// validate against the dry Make schema like component defaults do.
 func TestMainCompileProvisionDefaults(t *testing.T) {
 	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 		"import (\n" +
@@ -1270,16 +1274,15 @@ func TestMainCompileProvisionDefaults(t *testing.T) {
 	}
 }
 
-// TestMainCompileCompartments proves the element-independent
-// compartments end to end: top-level fields and with-stanza values
-// take literals and opaque tokens — a bare identifier never resolves
-// against the namespace, even when it spells a declared symbol —
-// metadata takes string literals, and each compartment merges per
-// record across the same tiers as params (verb default under type
-// default under instance), each verb reaching only its own records,
-// stanzas merging per qualifier, with Source naming every binding's
-// layer. An empty stanza still rides the record: naming a scheme is
-// itself advisory content.
+// The element-independent compartments carry end to end: top-level
+// fields and with-stanza values take literals and opaque tokens — a
+// bare identifier never resolves against the namespace, even when it
+// spells a declared symbol — metadata takes string literals, and each
+// compartment merges per record across the same tiers as params (verb
+// default under type default under instance), each verb reaching only
+// its own records, stanzas merging per qualifier, with Source naming
+// every binding's layer. An empty stanza still rides the record: naming
+// a scheme is itself advisory content.
 func TestMainCompileCompartments(t *testing.T) {
 	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 		"import (\n" +
@@ -1417,6 +1420,10 @@ func checkBindings(t *testing.T, what string, got []image.Binding, want []wantBi
 // ----------------------------------------------------------------------------
 // Diagnostics
 
+// Solution faults exit 1 with exact positioned stderr lines and no
+// image on stdout: the diagnostic wording matrix of the whole front
+// half, unknown names through binding refusals — the vocabulary
+// operators and the e2e plumbing pin against.
 func TestMainCompileDiagnostics(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -2238,6 +2245,9 @@ func TestMainCompileDiagnostics(t *testing.T) {
 // ----------------------------------------------------------------------------
 // Usage errors (exit 2)
 
+// Faults in the machine-supplied inputs — config, catalogue
+// registration, unit names — exit 2 with a compile-prefixed line:
+// the caller misused the compiler, the solution was never judged.
 func TestMainCompileUsageErrors(t *testing.T) {
 	unit := solution.Unit{Name: "u.sdl", Source: "solution sample\n"}
 	pkg := func(elements ...solution.Element) []solution.Package {

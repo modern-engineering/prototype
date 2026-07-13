@@ -43,12 +43,11 @@ func schemeCatalogue() []solution.Package {
 	})
 }
 
-// TestMainCompileSchemePinning proves registration alone pins a
-// scheme into the image's catalogue: kind, doc, the self-declared
-// qualifier, and the key schema extracted from a dry surface — no
-// unit needs to import the package or write a stanza for the pin to
-// exist, since the registration is what the compilation was checked
-// against.
+// Registration alone pins a scheme into the image's catalogue: kind,
+// doc, the self-declared qualifier, and the key schema extracted from a
+// dry surface — no unit needs to import the package or write a stanza
+// for the pin to exist, since the registration is what the compilation
+// was checked against.
 func TestMainCompileSchemePinning(t *testing.T) {
 	code, stdout, stderr := compile(t, solution.CompileConfig{
 		Solution:  "sample",
@@ -94,10 +93,10 @@ func TestMainCompileSchemePinning(t *testing.T) {
 	}
 }
 
-// TestMainCompileSchemeChecking pins the pre-fold stanza checks: keys
-// against the discovered scheme's declared set, literal values
-// through its dry surface, in instance bodies and both default
-// flavors alike, with faults aggregating rather than short-circuiting.
+// The pre-fold stanza checks judge keys against the discovered
+// scheme's declared set and literal values through its dry surface,
+// in instance bodies and both default flavors alike, with faults
+// aggregating rather than short-circuiting.
 func TestMainCompileSchemeChecking(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -194,13 +193,12 @@ func TestMainCompileSchemeChecking(t *testing.T) {
 	}
 }
 
-// TestMainCompileSchemeAdvisoryContract proves the two paths that
-// must coexist in one unit: a stanza whose qualifier resolves is
-// checked yet binds exactly like an opaque one (same compartment
-// shape, token values passing unvalidated — a profile token's
-// eventual value is the controller's business, whatever the declared
-// key type), while a qualifier no package claims rides the image
-// opaquely, verbatim, exactly as before schemes existed.
+// The advisory contract is two paths coexisting in one unit: a stanza
+// whose qualifier resolves is checked yet binds exactly like an opaque
+// one (same compartment shape, token values passing unvalidated — a
+// profile token's eventual value is the controller's business, whatever
+// the declared key type), while a qualifier no package claims rides the
+// image opaquely, verbatim, exactly as before schemes existed.
 func TestMainCompileSchemeAdvisoryContract(t *testing.T) {
 	source := "solution sample\n" +
 		"import ff \"example.com/acme/pingpong\"\n" +
@@ -247,9 +245,8 @@ func TestMainCompileSchemeAdvisoryContract(t *testing.T) {
 	}
 }
 
-// TestMainCompileSchemeTokenPassthrough pins the token rule on its
-// own: a bare identifier passes a typed key unvalidated even where a
-// literal of the wrong kind would fail.
+// The token rule stands on its own: a bare identifier passes a typed
+// key unvalidated even where a literal of the wrong kind would fail.
 func TestMainCompileSchemeTokenPassthrough(t *testing.T) {
 	source := "solution sample\n" +
 		"import ff \"example.com/acme/pingpong\"\n" +
@@ -271,10 +268,10 @@ func TestMainCompileSchemeTokenPassthrough(t *testing.T) {
 	}
 }
 
-// TestMainCompileSchemeParamsPanic drives the recover guards around
-// the one place scheme user code runs: a panicking Params aborts with
-// exit 2, positioned at the referencing stanza when one exists and
-// positionless when only the catalogue pin reaches the element.
+// Recover guards wrap the one place scheme user code runs: a panicking
+// Params aborts with exit 2, positioned at the referencing stanza when
+// one exists and positionless when only the catalogue pin reaches the
+// element.
 func TestMainCompileSchemeParamsPanic(t *testing.T) {
 	catalogue := append(testCatalogue(), solution.Package{
 		Path: "example.com/acme/boom",
@@ -326,9 +323,9 @@ func TestMainCompileSchemeParamsPanic(t *testing.T) {
 	}
 }
 
-// TestMainCompileSchemeMisuse pins the kind diagnostics: a scheme
-// element is neither deployable, provisionable, extern-typable, nor
-// defaultable — stanzas are its one attachment point.
+// The kind diagnostics teach that a scheme element is neither
+// deployable, provisionable, extern-typable, nor defaultable —
+// stanzas are its one attachment point.
 func TestMainCompileSchemeMisuse(t *testing.T) {
 	tests := []struct {
 		name string

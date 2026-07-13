@@ -23,11 +23,11 @@ func schemeOutputs() []solution.Output {
 	}
 }
 
-// TestOutputWriterRoundTrip drives every output through its matching
-// setter and reads each back typed and rendered. The rendered strings
-// must be the spellings flag.Value.Set accepts — base-10, true/false,
-// canonical Go durations — since wet binding feeds them to the very
-// same slots inline literals bind through.
+// Every output goes through its matching setter and reads back typed
+// and rendered. The rendered strings must be the spellings
+// flag.Value.Set accepts — base-10, true/false, canonical Go
+// durations — since wet binding feeds them to the very same slots
+// inline literals bind through.
 func TestOutputWriterRoundTrip(t *testing.T) {
 	w := solution.NewOutputWriter(schemeOutputs())
 
@@ -78,9 +78,9 @@ func TestOutputWriterRoundTrip(t *testing.T) {
 	}
 }
 
-// TestOutputWriterBoundary pins the boundary error vocabulary: faults
-// surface at the call that crosses the contract, with the message
-// naming the output and the declared type.
+// The boundary error vocabulary holds: faults surface at the call
+// that crosses the contract, with the message naming the output and
+// the declared type.
 func TestOutputWriterBoundary(t *testing.T) {
 	tests := []struct {
 		name string
@@ -136,9 +136,9 @@ func TestOutputWriterBoundary(t *testing.T) {
 	}
 }
 
-// TestOutputWriterMissing holds Missing to declaration order and to
-// shrinking as writes land — the host's completeness gate reads it
-// verbatim into its per-output faults.
+// Missing lists in declaration order and shrinks as writes land — the
+// host's completeness gate reads it verbatim into its per-output
+// faults.
 func TestOutputWriterMissing(t *testing.T) {
 	w := solution.NewOutputWriter(schemeOutputs())
 	want := []string{"config", "url", "port", "ready", "ttl"}
