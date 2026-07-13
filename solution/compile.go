@@ -1689,13 +1689,14 @@ func (ln *linker) checkCycles() {
 	}
 }
 
-// emit pins the catalogue and assembles the canonical image: every
-// registered package — referenced or not, since the registration is
-// what this compilation was checked against — sorted by path, elements
-// by name, symbols by name, records in unit-then-statement order.
-// Pinning a component or provision type not yet dried instantiates it
-// here; without a referencing statement a panic is reported
-// positionless.
+// emit pins the catalogue and assembles the canonical image: the
+// governance block digested from the config and the binary's own
+// build info, then every registered package — referenced or not,
+// since the registration is what this compilation was checked against
+// — sorted by path, elements by name, symbols by name, records in
+// unit-then-statement order. Pinning a component or provision type
+// not yet dried instantiates it here; without a referencing statement
+// a panic is reported positionless.
 func (ln *linker) emit() (*image.Image, *internalError) {
 	catalogue := make([]image.Package, 0, len(ln.packages))
 	for _, path := range slices.Sorted(maps.Keys(ln.packages)) {
@@ -1761,6 +1762,7 @@ func (ln *linker) emit() (*image.Image, *internalError) {
 		Format:     image.Format,
 		Solution:   ln.cfg.Solution,
 		Generation: generation,
+		Build:      buildBlock(ln.cfg),
 		Catalogue:  catalogue,
 		Symbols:    symbols,
 		Records:    records,

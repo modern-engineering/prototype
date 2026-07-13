@@ -434,9 +434,10 @@ deploy ff.Pong as Pong1 {
 // TestRoundTripEcho is (e): the image survives being made visible.
 // Building the public example, echoing its image into a fresh solution
 // module, and building the echoed unit yields the same desired state —
-// image.Equal and, since generation and catalogue coincide here, the
-// same bytes. The echoed unit itself is canonical, so sdl fmt has
-// nothing to say about it.
+// image.Equal — while the bytes must differ: the governance block
+// digests the echoed unit, which is not the original source, and Equal
+// masks exactly that provenance. The echoed unit itself is canonical,
+// so sdl fmt has nothing to say about it.
 func TestRoundTripEcho(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -487,8 +488,8 @@ func TestRoundTripEcho(t *testing.T) {
 	if !image.Equal(imgA, imgB) {
 		t.Errorf("round-tripped image is not Equal to the original\n--- rebuilt ---\n%s", bytesB)
 	}
-	if !bytes.Equal(bytesA, bytesB) {
-		t.Errorf("round-tripped image differs byte-wise\n--- original ---\n%s--- rebuilt ---\n%s", bytesA, bytesB)
+	if bytes.Equal(bytesA, bytesB) {
+		t.Error("images are byte-identical; the governance block should have digested the echoed unit differently")
 	}
 }
 
@@ -524,7 +525,8 @@ deploy ff.Pong as Pong1 {
 // solution's extern and var survive into the image (with the extern's
 // sensitivity tainting the binding that references it), echo renders
 // them back as declarations and bare-identifier references, and the
-// echoed unit rebuilds to an Equal image.
+// echoed unit rebuilds to an Equal image — different bytes, since the
+// governance block digests the echoed unit.
 func TestSymbolsRoundTrip(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -589,8 +591,8 @@ func TestSymbolsRoundTrip(t *testing.T) {
 	if !image.Equal(imgA, imgB) {
 		t.Errorf("round-tripped image is not Equal to the original\n--- rebuilt ---\n%s", bytesB)
 	}
-	if !bytes.Equal(bytesA, bytesB) {
-		t.Errorf("round-tripped image differs byte-wise\n--- original ---\n%s--- rebuilt ---\n%s", bytesA, bytesB)
+	if bytes.Equal(bytesA, bytesB) {
+		t.Error("images are byte-identical; the governance block should have digested the echoed unit differently")
 	}
 }
 
@@ -679,8 +681,8 @@ deploy ff.Ping as Ping1 {
 // explicit, the output reference lands as a symbol-plus-output ref
 // tainted by the output's sensitivity, echo renders the provision
 // statements and the dotted reference back, and the echoed unit
-// rebuilds to an Equal — and, with no defaults in play, byte-identical
-// — image.
+// rebuilds to an Equal image whose bytes differ only in the
+// governance block's digest of the echoed unit.
 func TestProvisionsRoundTrip(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -750,8 +752,8 @@ func TestProvisionsRoundTrip(t *testing.T) {
 	if !image.Equal(imgA, imgB) {
 		t.Errorf("round-tripped image is not Equal to the original\n--- rebuilt ---\n%s", bytesB)
 	}
-	if !bytes.Equal(bytesA, bytesB) {
-		t.Errorf("round-tripped image differs byte-wise\n--- original ---\n%s--- rebuilt ---\n%s", bytesA, bytesB)
+	if bytes.Equal(bytesA, bytesB) {
+		t.Error("images are byte-identical; the governance block should have digested the echoed unit differently")
 	}
 }
 
@@ -1046,7 +1048,9 @@ func TestCompartmentsRoundTrip(t *testing.T) {
 
 // TestFactoredForms proves factored spec blocks are pure notation: a
 // unit written with factored deploy and provision blocks compiles to
-// the byte-identical image of its single-form twin.
+// the same desired state as its single-form twin. The comparison is
+// image.Equal, not bytes: the governance block digests each spelling,
+// and the spelling is exactly what the two variants vary.
 func TestFactoredForms(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -1110,7 +1114,7 @@ deploy ff.Pong as Pong1 {
 	}
 }
 `
-	var images [2][]byte
+	var images [2]*image.Image
 	for i, source := range []string{factored, single} {
 		dir := solutionModule(t, "factored.sdl", source)
 		out := filepath.Join(dir, "out.json")
@@ -1122,10 +1126,14 @@ deploy ff.Pong as Pong1 {
 		if err != nil {
 			t.Fatal(err)
 		}
-		images[i] = data
+		img, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("image of variant %d does not decode: %v", i, err)
+		}
+		images[i] = img
 	}
-	if !bytes.Equal(images[0], images[1]) {
-		t.Errorf("factored and single-form units compiled to different images\n--- factored ---\n%s--- single ---\n%s",
+	if !image.Equal(images[0], images[1]) {
+		t.Errorf("factored and single-form units compiled to different desired states\n--- factored ---\n%+v\n--- single ---\n%+v",
 			images[0], images[1])
 	}
 }
@@ -1622,6 +1630,13 @@ deploy ff.Ping as Ping1 {
 		}
 		if len(img.Records) != 1 || img.Records[0].Name != "Ping1" {
 			t.Errorf("records = %+v, want the one Ping1 deploy", img.Records)
+		}
+		// The proxy serves a real (if fictional) module version — the
+		// one shape in this suite where the governance block records
+		// the resolved prototype pin.
+		want := image.Setting{Key: "prototype.version", Value: "v0.1.0"}
+		if img.Build == nil || len(img.Build.Settings) != 1 || img.Build.Settings[0] != want {
+			t.Errorf("build settings = %+v, want the one %v", img.Build, want)
 		}
 	})
 

@@ -46,6 +46,14 @@ func ExampleMainCompile() {
 	//   "format": "solution-image/1",
 	//   "solution": "hi",
 	//   "generation": 1,
+	//   "build": {
+	//     "units": [
+	//       {
+	//         "name": "hi.sdl",
+	//         "sha256": "bde072d6dd1bdb052257fb4d7dc8c8c19d2549d8cf40c99bc3c569222b989e05"
+	//       }
+	//     ]
+	//   },
 	//   "catalogue": [
 	//     {
 	//       "path": "example.com/greet",

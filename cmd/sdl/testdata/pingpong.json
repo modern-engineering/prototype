@@ -2,6 +2,18 @@
   "format": "solution-image/1",
   "solution": "pingpong",
   "generation": 1,
+  "build": {
+    "units": [
+      {
+        "name": "extra.sdl",
+        "sha256": "e8688bd74b9f4e79cc7afc6ff408e368ec375c5969d118934b0b5b003bbd1c87"
+      },
+      {
+        "name": "pingpong.sdl",
+        "sha256": "8d7c749307abada2258908eda865e1956aac9e2ec8b6a9b2744a388a29c98060"
+      }
+    ]
+  },
   "catalogue": [
     {
       "path": "github.com/modern-engineering/prototype/examples/ff",

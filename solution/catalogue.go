@@ -235,6 +235,12 @@ type CompileConfig struct {
 	// 1.
 	Generation int64
 
+	// Tool is the producing tool's own version, recorded verbatim as
+	// the image's sdl.version build setting; empty records nothing.
+	// The sdl CLI fills it when its binary knows an ordinary module
+	// version, and a programmatic producer states here what it is.
+	Tool string
+
 	// Output receives the image JSON; nil means os.Stdout.
 	Output io.Writer
 

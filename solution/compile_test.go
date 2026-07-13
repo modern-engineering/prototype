@@ -261,11 +261,21 @@ provision sub.Store as legacy
 // extensions under its dotted qualifier (bindings key-sorted),
 // provision records carrying their kind explicitly — the omitted kind
 // word resolved to attach — and the parameterless Store pinned
-// without params.
+// without params. The governance block digests the one unit and, run
+// from a test binary (no resolved versions anywhere), records no
+// settings.
 const goldenImage = `{
   "format": "solution-image/1",
   "solution": "sample",
   "generation": 1,
+  "build": {
+    "units": [
+      {
+        "name": "main.sdl",
+        "sha256": "68fc52e5854446db5143be706ab90167d2e0a5c4f6ccd3d21880c976790c3868"
+      }
+    ]
+  },
   "catalogue": [
     {
       "path": "example.com/acme/pingpong",

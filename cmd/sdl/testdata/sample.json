@@ -2,6 +2,18 @@
   "format": "solution-image/1",
   "solution": "sample",
   "generation": 1,
+  "build": {
+    "units": [
+      {
+        "name": "sample.sdl",
+        "sha256": "016cbc3db37455bdf4080b23bb453612d907c5dd6c0d6c351fc977ec73ab7f87"
+      },
+      {
+        "name": "sample_extra.sdl",
+        "sha256": "a6daed43b5f6bb5395decc1df3f6d832bda02d440eb4c09a00df4f2c4a314c2b"
+      }
+    ]
+  },
   "catalogue": [
     {
       "path": "github.com/modern-engineering/prototype/examples/ff",
