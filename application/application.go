@@ -119,16 +119,6 @@ type Service interface {
 	Flags() *flag.FlagSet
 }
 
-type ParamParser interface {
-	Parse(ctx context.Context, flags *flag.FlagSet) error
-}
-
-type ParseTo func(ctx context.Context, flags *flag.FlagSet) error
-
-func (f ParseTo) Parse(ctx context.Context, flags *flag.FlagSet) error {
-	return f(ctx, flags)
-}
-
 func MakeFor[T any, PT interface {
 	*T
 	Runner
