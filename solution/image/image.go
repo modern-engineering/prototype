@@ -29,6 +29,21 @@
 // spelled sources, or with values arriving through different default
 // layers.
 //
+// # Programmatic composition
+//
+// The schema is a public composition surface, not just an encoding:
+// building an [Image] by struct literal is a frontend in its own
+// right, a peer of the SDL text notation. In the layering analogy the
+// notation is the C-like low-level language, the sdl CLI's plumbing
+// verbs are its assembler, and the encoded image is the bytecode —
+// which a code-first builder (or a visual one, later) writes
+// directly. A composer owes by hand what the compiler produces by
+// construction: [Image.Canonicalize] establishes the canonical
+// orders, and [Image.Validate] judges the document's
+// self-consistency, dry. What only a live catalogue can judge stays
+// with the solution/enact package at enactment — the same gate every
+// compiled image passes, which is what makes the frontends peers.
+//
 // The type set is deliberately minimal: this rung emits components,
 // provision types, symbol types, stanza scheme types, deploy and
 // provision records, and the symbol table their bindings reference;
