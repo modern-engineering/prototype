@@ -131,6 +131,17 @@ When a value like `natsAdmin` binds — at compile time, at the deployment site,
 or only once the provisioned account exists — is the subject of
 [A-10 Value Binding].
 
+The code-first path has since been exercised, and peerhood held at the record
+level: a program composes a solution's records as plain struct values and hands
+them to the same canonicalization, validation, and encoding the compiled path
+runs, so a composed image is indistinguishable downstream from a compiled one.
+Read as a stack, the layering is a compiler's: the text notation plays the
+C-like low-level language, the artifact plumbing
+([A-14 Staged Catalogue Compilation]'s porcelain-and-plumbing split) plays the
+assembler, and the encoded image is the bytecode every surface ultimately emits
+— which is what lets builders and designers enter as peers beside the text
+notation, never as translators of it.
+
 ## Statement Anatomy: Three Audiences
 
 A single `deploy` statement speaks to three audiences at once:
@@ -219,5 +230,6 @@ This analysis recommends the reconciled image.
 [A-10 Value Binding]: A-10-value-binding.md
 [A-11 Substrate and Slices]: A-11-substrate-slices.md
 [A-12 Operator I/O]: A-12-operator-io.md
+[A-14 Staged Catalogue Compilation]: A-14-staged-catalogue-compilation.md
 [D-06 Declarative Descriptor Values]: ../adr/D-06-declarative-descriptor-values.md
 [D-12 Statement-Body Anatomy]: ../adr/D-12-statement-body-anatomy.md
