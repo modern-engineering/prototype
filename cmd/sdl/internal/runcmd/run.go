@@ -16,7 +16,6 @@ package runcmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -90,7 +89,7 @@ func init() {
 // runRun runs the pipeline front to back: buildcmd's shape with the
 // tailored host generated in the compiler's place and the built
 // program handed the terminal instead of the emitter contract.
-func runRun(ctx context.Context, cmd *base.Command, args []string) error {
+func runRun(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
 	dir := "."
 	switch len(args) {
 	case 0:
@@ -109,9 +108,9 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	if mc.Mode() == work.ModeNone {
-		return runModuleless(ctx, sol, mc)
+		return runModuleless(ctx, s, sol, mc)
 	}
-	pkgs, err := gen.Discover(sol.Dir, sol.Imports, mc.Env(), os.Stderr)
+	pkgs, err := gen.Discover(sol.Dir, sol.Imports, mc.Env(), s.Stderr)
 	if err != nil {
 		return err
 	}
@@ -120,7 +119,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) error {
 		Context: mc,
 		Source:  gen.HostSource(sol, pkgs),
 		Keep:    flagWork,
-		Stderr:  os.Stderr,
+		Stderr:  s.Stderr,
 		Exec:    hostExec(),
 	})
 }
@@ -128,7 +127,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) error {
 // runModuleless wires the run for a solution outside any module
 // context, buildcmd's inverted order: resolve the imports into the
 // work module first, then discover there, then build and hand off.
-func runModuleless(ctx context.Context, sol *load.Solution, mc *work.Context) error {
+func runModuleless(ctx context.Context, s base.Streams, sol *load.Solution, mc *work.Context) error {
 	paths := make([]string, len(sol.Imports))
 	for i, imp := range sol.Imports {
 		paths[i] = imp.Path
@@ -137,13 +136,13 @@ func runModuleless(ctx context.Context, sol *load.Solution, mc *work.Context) er
 		Context: mc,
 		Imports: paths,
 		Keep:    flagWork,
-		Stderr:  os.Stderr,
+		Stderr:  s.Stderr,
 	})
 	if err != nil {
 		return err
 	}
 	defer m.Close()
-	pkgs, err := gen.Discover(m.Dir, sol.Imports, m.Env(), os.Stderr)
+	pkgs, err := gen.Discover(m.Dir, sol.Imports, m.Env(), s.Stderr)
 	if err != nil {
 		return err
 	}

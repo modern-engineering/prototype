@@ -11,7 +11,6 @@ package buildcmd
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/gen"
@@ -63,7 +62,7 @@ func init() {
 
 // runBuild runs the pipeline front to back. Every stage returns errors
 // already classified for main's exit-code translation.
-func runBuild(ctx context.Context, cmd *base.Command, args []string) error {
+func runBuild(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
 	dir := "."
 	switch len(args) {
 	case 0:
@@ -87,9 +86,9 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	if mc.Mode() == work.ModeNone {
-		return buildModuleless(ctx, sol, mc)
+		return buildModuleless(ctx, s, sol, mc)
 	}
-	pkgs, err := gen.Discover(sol.Dir, sol.Imports, mc.Env(), os.Stderr)
+	pkgs, err := gen.Discover(sol.Dir, sol.Imports, mc.Env(), s.Stderr)
 	if err != nil {
 		return err
 	}
@@ -100,7 +99,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) error {
 		Source:  source,
 		Output:  flagOutput,
 		Keep:    flagWork,
-		Stderr:  os.Stderr,
+		Stderr:  s.Stderr,
 	})
 }
 
@@ -109,7 +108,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) error {
 // resolves the imports into the work module before discovery has
 // anywhere to root, and its second half compiles the program discovery
 // made generable.
-func buildModuleless(ctx context.Context, sol *load.Solution, mc *work.Context) error {
+func buildModuleless(ctx context.Context, s base.Streams, sol *load.Solution, mc *work.Context) error {
 	paths := make([]string, len(sol.Imports))
 	for i, imp := range sol.Imports {
 		paths[i] = imp.Path
@@ -118,13 +117,13 @@ func buildModuleless(ctx context.Context, sol *load.Solution, mc *work.Context) 
 		Context: mc,
 		Imports: paths,
 		Keep:    flagWork,
-		Stderr:  os.Stderr,
+		Stderr:  s.Stderr,
 	})
 	if err != nil {
 		return err
 	}
 	defer m.Close()
-	pkgs, err := gen.Discover(m.Dir, sol.Imports, m.Env(), os.Stderr)
+	pkgs, err := gen.Discover(m.Dir, sol.Imports, m.Env(), s.Stderr)
 	if err != nil {
 		return err
 	}

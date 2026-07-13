@@ -68,8 +68,8 @@ func init() {
 	CmdEcho.Run = runEcho
 }
 
-func runEcho(ctx context.Context, cmd *base.Command, args []string) error {
-	var in io.Reader = os.Stdin
+func runEcho(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
+	var in io.Reader = s.Stdin
 	switch len(args) {
 	case 0:
 	case 1:
@@ -84,7 +84,7 @@ func runEcho(ctx context.Context, cmd *base.Command, args []string) error {
 	default:
 		return &base.UsageError{Msg: fmt.Sprintf("echo takes at most one image argument, got %d", len(args))}
 	}
-	return echo(in, os.Stdout)
+	return echo(in, s.Stdout)
 }
 
 // echo decodes one image and prints its canonical unit. Every error is

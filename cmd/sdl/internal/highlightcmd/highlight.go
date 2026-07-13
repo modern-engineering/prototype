@@ -15,7 +15,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 )
@@ -92,7 +91,7 @@ var targets = map[string]func(io.Writer, grammar) error{
 	"vscode": emitVSCode,
 }
 
-func runHighlight(ctx context.Context, cmd *base.Command, args []string) error {
+func runHighlight(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
 	if len(args) != 1 {
 		return &base.UsageError{Msg: fmt.Sprintf("highlight takes exactly one target argument, got %d", len(args))}
 	}
@@ -100,5 +99,5 @@ func runHighlight(ctx context.Context, cmd *base.Command, args []string) error {
 	if !ok {
 		return &base.UsageError{Msg: fmt.Sprintf("unknown highlight target %q (targets are vim and vscode)", args[0])}
 	}
-	return emit(os.Stdout, collect())
+	return emit(s.Stdout, collect())
 }

@@ -6,9 +6,8 @@ package main
 import (
 	"context"
 	"flag"
-	"io"
-	"os"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
@@ -52,27 +51,14 @@ func TestCompletionCoversCommandTree(t *testing.T) {
 }
 
 // completionScript renders one shell's script through the real
-// dispatch route, capturing the verb's stdout.
+// dispatch route, reading the verb's payload off the invocation
+// streams.
 func completionScript(t *testing.T, shell string) string {
 	t.Helper()
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
+	var stdout, stderr strings.Builder
+	s := base.Streams{Stdout: &stdout, Stderr: &stderr}
+	if code := invoke(context.Background(), s, []string{"completion", shell}); code != 0 {
+		t.Fatalf("invoke(completion %s) = %d, want 0\n%s", shell, code, stderr.String())
 	}
-	orig := os.Stdout
-	os.Stdout = w
-	defer func() { os.Stdout = orig }()
-	done := make(chan string)
-	go func() {
-		data, _ := io.ReadAll(r)
-		done <- string(data)
-	}()
-	code := invoke(context.Background(), []string{"completion", shell})
-	w.Close()
-	os.Stdout = orig
-	out := <-done
-	if code != 0 {
-		t.Fatalf("invoke(completion %s) = %d, want 0", shell, code)
-	}
-	return out
+	return stdout.String()
 }

@@ -39,7 +39,9 @@ func init() {
 	cmdEdit.Flag.Int64Var(&flagGeneration, "generation", 0, "stamp the image with generation `N`")
 }
 
-func runEdit(ctx context.Context, cmd *base.Command, args []string) error {
+// runEdit amends the file in place and prints nothing, so the streams
+// go unused; faults report through main's error translation.
+func runEdit(ctx context.Context, _ base.Streams, cmd *base.Command, args []string) error {
 	if len(args) != 1 {
 		return &base.UsageError{Msg: fmt.Sprintf("image edit takes exactly one image argument, got %d", len(args))}
 	}

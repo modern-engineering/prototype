@@ -109,12 +109,12 @@ func TestVSCodeOutputIsJSON(t *testing.T) {
 	}
 }
 
-// TestRunHighlightUsage pins the usage contract: anything but exactly
-// one known target is a usage fault, decided before a byte of output
-// is written.
+// Anything but exactly one known target is a usage fault, decided
+// before a byte of output is written: the zero streams would panic on
+// the first write.
 func TestRunHighlightUsage(t *testing.T) {
 	for _, args := range [][]string{nil, {"vim", "vscode"}, {"emacs"}} {
-		err := runHighlight(context.Background(), CmdHighlight, args)
+		err := runHighlight(context.Background(), base.Streams{}, CmdHighlight, args)
 		var usage *base.UsageError
 		if !errors.As(err, &usage) {
 			t.Errorf("runHighlight(%q) = %v, want a UsageError", args, err)

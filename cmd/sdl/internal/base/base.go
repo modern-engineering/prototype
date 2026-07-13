@@ -31,22 +31,52 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
 )
+
+// A Streams carries one invocation's standard streams, threaded from
+// package main through dispatch into every command's Run (the
+// solution.CompileConfig Output/Stderr precedent): commands address
+// the invocation rather than the process, so an in-process test hands
+// dispatch buffers and reads a whole invocation back. Dispatch fills
+// every field before Run sees the value — commands never check for
+// nil — and in production the fields are the process's own streams.
+//
+// The seam covers what this process writes. A verb that lends the
+// terminal to a child process (build's emitter, run's host) still
+// wires the child to the inherited process streams; the day an
+// in-process test wants a child's payload, the work package's exec
+// configs grow the matching writer.
+type Streams struct {
+	// Stdin is the invocation's input. The verbs that read it at all
+	// (echo, the image queries) do so only when no file argument
+	// names their input.
+	Stdin io.Reader
+
+	// Stdout is the payload stream: emitted images, rendered units,
+	// completion and highlight scripts, tables, help text.
+	Stdout io.Writer
+
+	// Stderr is the reporting stream: diagnostics, usage faults, and
+	// progress lines like build's WORK=<dir>.
+	Stderr io.Writer
+}
 
 // A Command is an implementation of an sdl command like sdl build, or
 // a command group like sdl image that only dispatches to the
 // subcommands it carries (cmd/go's precedent: go mod, go tool).
 type Command struct {
 	// Run runs the command. The args are the arguments after the
-	// command name, with the command's flags already parsed out.
+	// command name, with the command's flags already parsed out; the
+	// streams are the invocation's, every field populated.
 	//
 	// The returned error selects the exit code (see the package
 	// documentation); nil means success. Run is nil on a command
 	// group.
-	Run func(ctx context.Context, cmd *Command, args []string) error
+	Run func(ctx context.Context, s Streams, cmd *Command, args []string) error
 
 	// UsageLine is the one-line usage message, opening with the full
 	// command path ("sdl image edit"); [Command.LongName] and

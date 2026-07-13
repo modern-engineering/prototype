@@ -58,11 +58,11 @@ func init() {
 }
 
 // queryRunner adapts one read-only image query into a command Run:
-// decode the image argument (or standard input) and render onto
-// standard output.
-func queryRunner(query func(img *image.Image, w io.Writer) error) func(context.Context, *base.Command, []string) error {
-	return func(ctx context.Context, cmd *base.Command, args []string) error {
-		var in io.Reader = os.Stdin
+// decode the image argument (or the invocation's input) and render
+// onto the invocation's output.
+func queryRunner(query func(img *image.Image, w io.Writer) error) func(context.Context, base.Streams, *base.Command, []string) error {
+	return func(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
+		var in io.Reader = s.Stdin
 		switch len(args) {
 		case 0:
 		case 1:
@@ -81,7 +81,7 @@ func queryRunner(query func(img *image.Image, w io.Writer) error) func(context.C
 		if err != nil {
 			return err
 		}
-		return query(img, os.Stdout)
+		return query(img, s.Stdout)
 	}
 }
 

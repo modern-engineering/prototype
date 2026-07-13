@@ -101,8 +101,8 @@ func init() {
 	CmdVet.Run = runVet
 }
 
-func runVet(ctx context.Context, cmd *base.Command, args []string) error {
-	v := &vetter{stderr: os.Stderr}
+func runVet(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
+	v := &vetter{stderr: s.Stderr}
 	return v.run(args)
 }
 

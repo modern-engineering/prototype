@@ -5,15 +5,18 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
+
+	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 )
 
-// TestInvokeExitCodes pins the exit-2 contract of the dispatch layer:
-// malformed invocations — an unknown command, a bare command group, a
-// bad flag, surplus arguments — classify as usage faults, never as
-// diagnostics (1) or success (0). Every case fails before its command
-// would touch the file system or the toolchain.
-func TestInvokeExitCodes(t *testing.T) {
+// Malformed invocations — an unknown command, a bare command group, a
+// bad flag, surplus arguments — classify as usage faults: exit 2, a
+// report on the error stream, and a silent payload stream. Every case
+// fails before its command would touch the file system or the
+// toolchain.
+func TestUsageFaults(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -36,8 +39,16 @@ func TestInvokeExitCodes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := invoke(context.Background(), tt.args); got != 2 {
+			var stdout, stderr strings.Builder
+			s := base.Streams{Stdout: &stdout, Stderr: &stderr}
+			if got := invoke(context.Background(), s, tt.args); got != 2 {
 				t.Errorf("invoke(%q) = %d, want 2", tt.args, got)
+			}
+			if stderr.Len() == 0 {
+				t.Errorf("invoke(%q) reported nothing on stderr", tt.args)
+			}
+			if stdout.Len() != 0 {
+				t.Errorf("invoke(%q) wrote on stdout:\n%s", tt.args, stdout.String())
 			}
 		})
 	}

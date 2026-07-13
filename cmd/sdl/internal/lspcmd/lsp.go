@@ -27,7 +27,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 )
@@ -119,14 +118,14 @@ func init() {
 	CmdLsp.Run = runLsp
 }
 
-func runLsp(ctx context.Context, cmd *base.Command, args []string) error {
+func runLsp(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
 	if len(args) != 0 {
 		return &base.UsageError{Msg: "lsp takes no arguments"}
 	}
 	// The client owns the session's end, but an interrupt must still
 	// unblock the pending read (main has folded the signal into ctx).
-	// Closing os.Stdin is no lever: the standard streams are
-	// blocking-mode descriptors outside the runtime's poller, so a
+	// Closing the invocation's stdin is no lever: the standard streams
+	// are blocking-mode descriptors outside the runtime's poller, so a
 	// close does not interrupt a read already parked on them. Serving
 	// from an in-process pipe restores the lever — pipe reads do
 	// unblock when either end closes — at the price of one pump
@@ -134,12 +133,12 @@ func runLsp(ctx context.Context, cmd *base.Command, args []string) error {
 	// instant left before the process exits.
 	pr, pw := io.Pipe()
 	go func() {
-		_, err := io.Copy(pw, os.Stdin)
+		_, err := io.Copy(pw, s.Stdin)
 		pw.CloseWithError(err) // nil folds to EOF: stdin's end is the pipe's end
 	}()
 	unblock := context.AfterFunc(ctx, func() { pr.CloseWithError(errors.New("session interrupted")) })
 	defer unblock()
-	err := serve(pr, os.Stdout)
+	err := serve(pr, s.Stdout)
 	if err != nil && ctx.Err() != nil {
 		return errors.New("session interrupted")
 	}

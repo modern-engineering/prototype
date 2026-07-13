@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 )
@@ -83,7 +82,7 @@ var shells = map[string]func(io.Writer, []spec) error{
 	"zsh":  emitZsh,
 }
 
-func runCompletion(ctx context.Context, cmd *base.Command, args []string) error {
+func runCompletion(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
 	if len(args) != 1 {
 		return &base.UsageError{Msg: fmt.Sprintf("completion takes exactly one shell argument, got %d", len(args))}
 	}
@@ -91,5 +90,5 @@ func runCompletion(ctx context.Context, cmd *base.Command, args []string) error 
 	if !ok {
 		return &base.UsageError{Msg: fmt.Sprintf("unknown completion shell %q (shells are bash and zsh)", args[0])}
 	}
-	return emit(os.Stdout, collect(base.Commands))
+	return emit(s.Stdout, collect(base.Commands))
 }

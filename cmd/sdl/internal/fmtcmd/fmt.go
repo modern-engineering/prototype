@@ -66,13 +66,13 @@ func init() {
 	CmdFmt.Flag.BoolVar(&flagDiff, "d", false, "display diffs instead of rewriting files")
 }
 
-func runFmt(ctx context.Context, cmd *base.Command, args []string) error {
+func runFmt(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
 	f := &formatter{
 		list:   flagList,
 		write:  flagWrite,
 		diff:   flagDiff,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
+		stdout: s.Stdout,
+		stderr: s.Stderr,
 	}
 	return f.run(args)
 }

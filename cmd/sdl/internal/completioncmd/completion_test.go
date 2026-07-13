@@ -186,12 +186,12 @@ func TestPositionals(t *testing.T) {
 	}
 }
 
-// TestRunCompletionUsage pins the usage contract: anything but
-// exactly one known shell is a usage fault, decided before a byte of
-// output is written.
+// Anything but exactly one known shell is a usage fault, decided
+// before a byte of output is written: the zero streams would panic on
+// the first write.
 func TestRunCompletionUsage(t *testing.T) {
 	for _, args := range [][]string{nil, {"bash", "zsh"}, {"fish"}} {
-		err := runCompletion(context.Background(), CmdCompletion, args)
+		err := runCompletion(context.Background(), base.Streams{}, CmdCompletion, args)
 		var usage *base.UsageError
 		if !errors.As(err, &usage) {
 			t.Errorf("runCompletion(%q) = %v, want a UsageError", args, err)

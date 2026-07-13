@@ -51,53 +51,67 @@ func main() {
 	// its defers, and base.Exit drains whatever cleanups — work
 	// directories, notably — the run registered along the way.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	code := invoke(ctx, os.Args[1:])
+	code := invoke(ctx, base.Streams{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}, os.Args[1:])
 	stop()
 	base.Exit(code)
 }
 
-// invoke dispatches one sdl invocation and returns the process exit
-// code, translating the dispatched command's error per the base package
-// contract: nil is 0, a DiagnosticsError prints its lines and is 1, a
-// RelayedExit is a child's code passed through verbatim, everything
-// else — usage faults and internal failures alike — is 2. Command
-// groups dispatch one name at a time, cmd/go's BigCmdLoop.
-func invoke(ctx context.Context, args []string) int {
+// invoke dispatches one sdl invocation over the given streams and
+// returns the process exit code, translating the dispatched command's
+// error per the base package contract: nil is 0, a DiagnosticsError
+// prints its lines and is 1, a RelayedExit is a child's code passed
+// through verbatim, everything else — usage faults and internal
+// failures alike — is 2. Command groups dispatch one name at a time,
+// cmd/go's BigCmdLoop. Nil stream fields resolve to the process's own,
+// so tests spell out only the streams they mean to observe.
+func invoke(ctx context.Context, s base.Streams, args []string) int {
+	if s.Stdin == nil {
+		s.Stdin = os.Stdin
+	}
+	if s.Stdout == nil {
+		s.Stdout = os.Stdout
+	}
+	if s.Stderr == nil {
+		s.Stderr = os.Stderr
+	}
 	if len(args) < 1 {
-		printUsage(os.Stderr)
+		printUsage(s.Stderr)
 		return 2
 	}
 	if args[0] == "help" {
-		return help(args[1:])
+		return help(s, args[1:])
 	}
 	cmds, path := base.Commands, "sdl"
 	for {
 		cmd := base.Lookup(cmds, args[0])
 		if cmd == nil {
-			fmt.Fprintf(os.Stderr, "%s %s: unknown command\nRun 'sdl help' for usage.\n", path, args[0])
+			fmt.Fprintf(s.Stderr, "%s %s: unknown command\nRun 'sdl help' for usage.\n", path, args[0])
 			return 2
 		}
 		if len(cmd.Commands) > 0 {
 			path += " " + args[0]
 			args = args[1:]
 			if len(args) == 0 {
-				fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
-				fmt.Fprintf(os.Stderr, "Run 'sdl help %s' for details.\n", cmd.LongName())
+				fmt.Fprintf(s.Stderr, "usage: %s\n", cmd.UsageLine)
+				fmt.Fprintf(s.Stderr, "Run 'sdl help %s' for details.\n", cmd.LongName())
 				return 2
 			}
 			cmds = cmd.Commands
 			continue
 		}
-		return run(ctx, cmd, args[1:])
+		return run(ctx, s, cmd, args[1:])
 	}
 }
 
 // run parses one runnable command's flags and translates its error
 // into the exit code.
-func run(ctx context.Context, cmd *base.Command, args []string) int {
+func run(ctx context.Context, s base.Streams, cmd *base.Command, args []string) int {
+	// The flag package reports parse faults on its own output, so it
+	// follows the invocation's error stream.
+	cmd.Flag.SetOutput(s.Stderr)
 	cmd.Flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
-		fmt.Fprintf(os.Stderr, "Run 'sdl help %s' for details.\n", cmd.LongName())
+		fmt.Fprintf(s.Stderr, "usage: %s\n", cmd.UsageLine)
+		fmt.Fprintf(s.Stderr, "Run 'sdl help %s' for details.\n", cmd.LongName())
 	}
 	if err := cmd.Flag.Parse(args); err != nil {
 		// The flag package already printed the fault and the usage
@@ -105,7 +119,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) int {
 		return 2
 	}
 
-	err := cmd.Run(ctx, cmd, cmd.Flag.Args())
+	err := cmd.Run(ctx, s, cmd, cmd.Flag.Args())
 	if err == nil {
 		return 0
 	}
@@ -118,25 +132,25 @@ func run(ctx context.Context, cmd *base.Command, args []string) int {
 	var diags *base.DiagnosticsError
 	if errors.As(err, &diags) {
 		for _, line := range diags.Lines {
-			fmt.Fprintln(os.Stderr, line)
+			fmt.Fprintln(s.Stderr, line)
 		}
 		return 1
 	}
 	var usage *base.UsageError
 	if errors.As(err, &usage) {
-		fmt.Fprintf(os.Stderr, "sdl: %s\n", usage.Msg)
-		fmt.Fprintf(os.Stderr, "Run 'sdl help %s' for usage.\n", cmd.LongName())
+		fmt.Fprintf(s.Stderr, "sdl: %s\n", usage.Msg)
+		fmt.Fprintf(s.Stderr, "Run 'sdl help %s' for usage.\n", cmd.LongName())
 		return 2
 	}
-	fmt.Fprintf(os.Stderr, "sdl: %v\n", err)
+	fmt.Fprintf(s.Stderr, "sdl: %v\n", err)
 	return 2
 }
 
 // help implements 'sdl help [command...]', walking command groups the
 // same way dispatch does.
-func help(args []string) int {
+func help(s base.Streams, args []string) int {
 	if len(args) == 0 {
-		printUsage(os.Stdout)
+		printUsage(s.Stdout)
 		return 0
 	}
 	cmds := base.Commands
@@ -144,18 +158,18 @@ func help(args []string) int {
 	for i, name := range args {
 		cmd = base.Lookup(cmds, name)
 		if cmd == nil {
-			fmt.Fprintf(os.Stderr, "sdl help %s: unknown help topic\nRun 'sdl help' for usage.\n", strings.Join(args[:i+1], " "))
+			fmt.Fprintf(s.Stderr, "sdl help %s: unknown help topic\nRun 'sdl help' for usage.\n", strings.Join(args[:i+1], " "))
 			return 2
 		}
 		cmds = cmd.Commands
 	}
-	fmt.Printf("usage: %s\n\n%s\n", cmd.UsageLine, cmd.Long)
+	fmt.Fprintf(s.Stdout, "usage: %s\n\n%s\n", cmd.UsageLine, cmd.Long)
 	if len(cmd.Commands) > 0 {
-		fmt.Printf("\nThe commands are:\n\n")
+		fmt.Fprintf(s.Stdout, "\nThe commands are:\n\n")
 		for _, sub := range cmd.Commands {
-			fmt.Printf("\t%-11s %s\n", sub.Name(), sub.Short)
+			fmt.Fprintf(s.Stdout, "\t%-11s %s\n", sub.Name(), sub.Short)
 		}
-		fmt.Printf("\nUse \"sdl help %s <command>\" for more information about a command.\n", cmd.LongName())
+		fmt.Fprintf(s.Stdout, "\nUse \"sdl help %s <command>\" for more information about a command.\n", cmd.LongName())
 	}
 	return 0
 }
