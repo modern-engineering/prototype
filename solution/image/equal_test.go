@@ -189,6 +189,9 @@ func TestEqualCatchesRealDifferences(t *testing.T) {
 		{"catalogue sensitivity change", func(img *image.Image) {
 			img.Catalogue[0].Elements[1].Sensitive = false
 		}},
+		{"catalogue qualifier change", func(img *image.Image) {
+			img.Catalogue[0].Elements[0].Qualifier = "k8s.pod"
+		}},
 		{"solution rename", func(img *image.Image) {
 			img.Solution = "other"
 		}},

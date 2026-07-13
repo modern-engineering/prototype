@@ -41,6 +41,7 @@ func elementEqual(a, b ElementSchema) bool {
 	return a.Name == b.Name &&
 		a.Kind == b.Kind &&
 		a.Doc == b.Doc &&
+		a.Qualifier == b.Qualifier &&
 		a.Sensitive == b.Sensitive &&
 		slices.Equal(a.Params, b.Params) &&
 		slices.Equal(a.Outputs, b.Outputs) &&

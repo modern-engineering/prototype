@@ -30,10 +30,10 @@
 // layers.
 //
 // The type set is deliberately minimal: this rung emits components,
-// provision types, symbol types, deploy and provision records, and the
-// symbol table their bindings reference; later rungs extend the schema
-// by adding fields (JSON forward compatibility by addition), never by
-// reshaping the ones below.
+// provision types, symbol types, stanza scheme types, deploy and
+// provision records, and the symbol table their bindings reference;
+// later rungs extend the schema by adding fields (JSON forward
+// compatibility by addition), never by reshaping the ones below.
 package image
 
 import (
@@ -63,6 +63,12 @@ const (
 	// KindSymbol marks an element schema pinned from a symbol type:
 	// the class of late-bound values an extern symbol declares.
 	KindSymbol = "symbol"
+
+	// KindScheme marks an element schema pinned from a stanza scheme
+	// type: a discovered with-stanza vocabulary, looked up by the
+	// self-declared qualifier the schema pins rather than by element
+	// reference.
+	KindScheme = "scheme"
 )
 
 // The record verbs, one per statement class.
@@ -210,6 +216,12 @@ type ElementSchema struct {
 
 	// Doc is the element's documentation, copied from its descriptor.
 	Doc string `json:"doc,omitempty"`
+
+	// Qualifier is a scheme element's self-declared dotted stanza
+	// name, e.g. "k8s.pod" — the key with-stanzas attach by, a
+	// namespace parallel to (never through) element references.
+	// Empty for the other kinds.
+	Qualifier string `json:"qualifier,omitempty"`
 
 	// Params describe the element's declared parameters in
 	// flag.FlagSet.VisitAll order (lexicographic). Empty for flagless
