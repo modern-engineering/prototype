@@ -98,7 +98,10 @@ func runSDL(t *testing.T, dir string, args ...string) result {
 }
 
 // TestBuildPingpong is (a): the public example compiles to exactly the
-// golden image, and the bytes decode as a well-formed image.
+// golden image, and the bytes decode as a well-formed image carrying
+// the M1 deployable shape — a stand-in provision record whose typed,
+// non-sensitive output feeds the deploys, the extern/var symbol pair,
+// and the governance block digesting both units.
 func TestBuildPingpong(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -134,9 +137,53 @@ func TestBuildPingpong(t *testing.T) {
 	if err != nil {
 		t.Fatalf("emitted image does not decode: %v", err)
 	}
-	if img.Solution != "pingpong" || len(img.Records) != 3 || len(img.Catalogue) != 1 {
-		t.Errorf("decoded image: solution %q, %d records, %d packages; want pingpong, 3, 1",
-			img.Solution, len(img.Records), len(img.Catalogue))
+	if img.Solution != "pingpong" || len(img.Records) != 4 || len(img.Catalogue) != 2 || len(img.Symbols) != 2 {
+		t.Errorf("decoded image: solution %q, %d records, %d packages, %d symbols; want pingpong, 4, 2, 2",
+			img.Solution, len(img.Records), len(img.Catalogue), len(img.Symbols))
+	}
+
+	// The provision record: an attach of the substrate stand-in,
+	// second in image order (extra.sdl's Pong sorts first).
+	prov := img.Records[1]
+	if prov.Verb != image.VerbProvision || prov.Kind != image.KindAttach || prov.Name != "natsStandIn" {
+		t.Errorf("records[1] = %s %s %s, want provision attach natsStandIn", prov.Verb, prov.Kind, prov.Name)
+	}
+
+	// The typed output: StandIn's catalogue pin declares config as an
+	// explicit, non-sensitive string — the demo shows the value flow.
+	var standIn *image.ElementSchema
+	for _, pkg := range img.Catalogue {
+		for i, el := range pkg.Elements {
+			if el.Name == "StandIn" {
+				standIn = &pkg.Elements[i]
+			}
+		}
+	}
+	if standIn == nil {
+		t.Fatalf("catalogue pins no StandIn element: %+v", img.Catalogue)
+	}
+	if len(standIn.Outputs) != 1 || standIn.Outputs[0].Name != "config" ||
+		standIn.Outputs[0].Type != "string" || standIn.Outputs[0].Sensitive {
+		t.Errorf("StandIn outputs = %+v, want one non-sensitive string config", standIn.Outputs)
+	}
+
+	// The wiring: Ping1's nats param references the stand-in's output,
+	// untainted.
+	var nats *image.Binding
+	for i, b := range img.Records[2].Params {
+		if b.Key == "nats" {
+			nats = &img.Records[2].Params[i]
+		}
+	}
+	if nats == nil || nats.Ref == nil || nats.Ref.Symbol != "natsStandIn" || nats.Ref.Output != "config" || nats.Sensitive {
+		t.Errorf("Ping1 nats = %+v, want an untainted ref to natsStandIn.config", nats)
+	}
+
+	// The governance block digests both units; a dir-replaced checkout
+	// build records no version settings.
+	if img.Build == nil || len(img.Build.Units) != 2 ||
+		img.Build.Units[0].Name != "extra.sdl" || img.Build.Units[1].Name != "pingpong.sdl" {
+		t.Errorf("governance block = %+v, want extra.sdl and pingpong.sdl digests", img.Build)
 	}
 }
 

@@ -6,11 +6,11 @@
     "units": [
       {
         "name": "extra.sdl",
-        "sha256": "e8688bd74b9f4e79cc7afc6ff408e368ec375c5969d118934b0b5b003bbd1c87"
+        "sha256": "b22e7d3104ceec35ee12b74b7534a42709908f0aae284cbebec3069e8e13e72d"
       },
       {
         "name": "pingpong.sdl",
-        "sha256": "8d7c749307abada2258908eda865e1956aac9e2ec8b6a9b2744a388a29c98060"
+        "sha256": "5fe97a3e0ace8bb4ad8b7fdd4b57d713a6c04d9e072e1a5a63c61c7cc279f3e0"
       }
     ]
   },
@@ -61,9 +61,118 @@
           ]
         }
       ]
+    },
+    {
+      "path": "github.com/modern-engineering/prototype/examples/substrate",
+      "name": "substrate",
+      "elements": [
+        {
+          "name": "Endpoint",
+          "kind": "symbol",
+          "doc": "a site-bound network coordinate such as an address or subject"
+        },
+        {
+          "name": "NATS",
+          "kind": "provision",
+          "doc": "an account carved out of a substrate NATS cluster, or a verified attachment to one",
+          "params": [
+            {
+              "name": "adminAccount",
+              "usage": "administrative credential the driver provisions with"
+            },
+            {
+              "name": "cluster",
+              "usage": "substrate cluster to hold the account on"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "config",
+              "sensitive": true
+            }
+          ],
+          "kinds": [
+            "slice",
+            "attach"
+          ]
+        },
+        {
+          "name": "NATSCluster",
+          "kind": "symbol",
+          "doc": "a substrate NATS cluster, guaranteed by the platform and named by the site"
+        },
+        {
+          "name": "Postgres",
+          "kind": "provision",
+          "doc": "a verified attachment to a site-provided PostgreSQL server",
+          "params": [
+            {
+              "name": "server",
+              "usage": "server instance to verify and attach to"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "dsn",
+              "sensitive": true
+            }
+          ],
+          "kinds": [
+            "attach"
+          ]
+        },
+        {
+          "name": "PostgresServer",
+          "kind": "symbol",
+          "doc": "a PostgreSQL server instance provided by the site, typically legacy per-customer substrate"
+        },
+        {
+          "name": "Secret",
+          "kind": "symbol",
+          "doc": "an operator-supplied credential, bound by the site and redacted wherever it surfaces",
+          "sensitive": true
+        },
+        {
+          "name": "StandIn",
+          "kind": "provision",
+          "doc": "a local stand-in attachment emitting a fixed demo output in place of real substrate access",
+          "params": [
+            {
+              "name": "endpoint",
+              "usage": "substrate endpoint the stand-in pretends to attach to; ignored"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "config",
+              "type": "string"
+            }
+          ],
+          "kinds": [
+            "attach"
+          ]
+        }
+      ]
     }
   ],
-  "symbols": [],
+  "symbols": [
+    {
+      "name": "echoSubject",
+      "class": "var",
+      "value": {
+        "kind": "string",
+        "string": "ping"
+      }
+    },
+    {
+      "name": "natsEndpoint",
+      "class": "extern",
+      "type": {
+        "package": "github.com/modern-engineering/prototype/examples/substrate",
+        "name": "Endpoint"
+      }
+    }
+  ],
   "records": [
     {
       "verb": "deploy",
@@ -74,10 +183,35 @@
       "name": "Pong",
       "params": [
         {
+          "key": "nats",
+          "ref": {
+            "symbol": "natsStandIn",
+            "output": "config"
+          },
+          "source": "instance"
+        },
+        {
           "key": "subject",
-          "value": {
-            "kind": "string",
-            "string": "ping"
+          "ref": {
+            "symbol": "echoSubject"
+          },
+          "source": "instance"
+        }
+      ]
+    },
+    {
+      "verb": "provision",
+      "kind": "attach",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/substrate",
+        "name": "StandIn"
+      },
+      "name": "natsStandIn",
+      "params": [
+        {
+          "key": "endpoint",
+          "ref": {
+            "symbol": "natsEndpoint"
           },
           "source": "instance"
         }
@@ -108,10 +242,17 @@
           "source": "instance"
         },
         {
+          "key": "nats",
+          "ref": {
+            "symbol": "natsStandIn",
+            "output": "config"
+          },
+          "source": "instance"
+        },
+        {
           "key": "target",
-          "value": {
-            "kind": "string",
-            "string": "pong"
+          "ref": {
+            "symbol": "echoSubject"
           },
           "source": "instance"
         }

@@ -1,17 +1,44 @@
-// The pingpong solution deploys two ping services against one pong,
-// exercising the I1 language subset: imports, deploys, literal params.
+// The pingpong solution deploys two ping services against one pong in
+// the smallest deployable shape: a var wiring one subject through both
+// halves, an extern the site binds at run time, and a stand-in
+// provision whose output feeds the services' nats parameters. It is
+// the target of the one-command dev loop — `sdl run examples/pingpong
+// -extern natsEndpoint=<value>` hosts the whole solution in one
+// process, no infrastructure within reach.
 solution pingpong
 
-import ff "github.com/modern-engineering/prototype/examples/ff"
+import (
+	ff "github.com/modern-engineering/prototype/examples/ff"
+	"github.com/modern-engineering/prototype/examples/substrate"
+)
+
+// The site names the substrate endpoint. The stand-in ignores it; a
+// real messaging provision would attach through it.
+extern natsEndpoint substrate.Endpoint
+
+// One subject wires Ping1's target to Pong's subscription (Pong lives
+// in the peer unit extra.sdl).
+var echoSubject: "ping"
+
+// The local stand-in attaches to nothing and emits a fixed config
+// output, so the run needs no substrate at all.
+provision substrate.StandIn attach as natsStandIn {
+	params {
+		endpoint: natsEndpoint
+	}
+}
 
 deploy ff.Ping as Ping1 {
 	params {
 		count: 3
 		interval: 500ms
-		target: "pong"
+		nats: natsStandIn.config
+		target: echoSubject
 	}
 }
 
+// All-literal on purpose: the contrast partner proving values need not
+// route through symbols or provisions.
 deploy ff.Ping as Ping2 {
 	params {
 		count: -1

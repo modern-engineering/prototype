@@ -1,11 +1,15 @@
 // A peer unit of the pingpong solution: units are order-free peers, so
-// the pong half lives here to prove multi-file linking.
+// the pong half lives here to prove multi-file linking. echoSubject
+// and natsStandIn are solution-local names declared by the sibling
+// unit — referencing them needs no import; only package-qualified
+// element names do.
 solution pingpong
 
 import ff "github.com/modern-engineering/prototype/examples/ff"
 
 deploy ff.Pong as Pong {
 	params {
-		subject: "ping"
+		nats: natsStandIn.config
+		subject: echoSubject
 	}
 }
