@@ -10,9 +10,9 @@ import (
 	"github.com/modern-engineering/prototype/examples/ff"
 )
 
-// TestCitizenship holds every exported descriptor to the catalogue
-// citizenship contract; a package that fails here has no business being
-// imported by a solution.
+// Every exported descriptor is a well-formed catalogue citizen under
+// the library's own harness; a package that fails here has no business
+// being imported by a solution.
 func TestCitizenship(t *testing.T) {
 	for name, d := range map[string]*application.Descriptor{
 		"Ping": ff.Ping,
