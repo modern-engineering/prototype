@@ -6,16 +6,50 @@ package lspcmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	"github.com/modern-engineering/prototype/sdl/token"
 	"github.com/modern-engineering/prototype/solution"
 )
+
+// An interrupt — the invocation context ending — unblocks a read
+// already parked on the session's input and turns the verdict into
+// the session-interrupted error: the lever behind ^C on an sdl lsp
+// whose editor went quiet, wired through main's signal context. The
+// bubble proves both halves — the read holds while the context lives,
+// and only the cancellation moves it.
+func TestInterruptUnblocksPendingRead(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		in, clientEnd := io.Pipe() // a client that never says anything
+		verdict := make(chan error, 1)
+		go func() { verdict <- run(ctx, in, io.Discard) }()
+
+		synctest.Wait() // let the session park on its pending read
+		select {
+		case err := <-verdict:
+			t.Fatalf("run returned %v before the interrupt", err)
+		default:
+		}
+
+		cancel()
+		if err := <-verdict; err == nil || err.Error() != "session interrupted" {
+			t.Errorf("run() = %v, want the session-interrupted verdict", err)
+		}
+		// Release the pump goroutine the interrupt stranded on its
+		// read: production exits the process here; the bubble insists
+		// every goroutine gets to leave.
+		clientEnd.Close()
+	})
+}
 
 // req builds one client request.
 func req(id int, method string, params any) map[string]any {
