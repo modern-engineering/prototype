@@ -31,33 +31,22 @@ var (
 	repoRoot string // the prototype module root
 )
 
-func TestMain(m *testing.M) {
-	flag.Parse()
-	if !testing.Short() {
-		if err := buildCLI(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
+// locateRepo resolves the prototype module root: the anchor the built
+// artifact compiles from and the scripts' consumer modules dir-replace
+// against. TestMain lives in script_test.go and resolves it for every
+// run.
+func locateRepo() (string, error) {
+	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").Output()
+	if err != nil {
+		return "", fmt.Errorf("locating module root: %v", err)
 	}
-	code := m.Run()
-	if sdlPath != "" {
-		if err := os.RemoveAll(filepath.Dir(sdlPath)); err != nil {
-			fmt.Fprintln(os.Stderr, "cleaning up the built CLI:", err)
-		}
-	}
-	os.Exit(code)
+	return strings.TrimSpace(string(out)), nil
 }
 
 // buildCLI compiles the sdl command once for the whole suite, from the
 // module root so the test does not care which package directory the
 // harness runs it in.
 func buildCLI() error {
-	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").Output()
-	if err != nil {
-		return fmt.Errorf("locating module root: %v", err)
-	}
-	repoRoot = strings.TrimSpace(string(out))
-
 	dir, err := os.MkdirTemp("", "sdl-e2e-")
 	if err != nil {
 		return err

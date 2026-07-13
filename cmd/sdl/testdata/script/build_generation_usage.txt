@@ -1,0 +1,12 @@
+# A non-positive -generation refuses the invocation before any
+# toolchain work starts: exit 2, the usage fault with its help pointer
+# on stderr, nothing on stdout — there is not even a solution here to
+# read.
+
+! sdl build -generation 0
+! stdout .
+cmp stderr want-stderr
+
+-- want-stderr --
+sdl: build: generation must be positive
+Run 'sdl help build' for usage.
