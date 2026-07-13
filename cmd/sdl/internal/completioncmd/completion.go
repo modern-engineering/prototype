@@ -7,8 +7,9 @@
 // dispatch walks them (base.Commands, then each verb's flag set) — so
 // the shell's view of the CLI tracks the dispatcher instead of a
 // hand-maintained copy that would drift. The emitted script is
-// static: it names the commands of the binary that wrote it and runs
-// nothing at completion time. Completing solution material itself —
+// static: it names the commands of the binary that wrote it and never
+// calls back into sdl at completion time. Completing solution
+// material itself —
 // instance names, catalogue elements, .sdl file contents — would need
 // the shell to call back into sdl and stays a recorded door until
 // static words stop being enough.
@@ -32,8 +33,8 @@ standard output. The script is generated from the live command tree
 of this very binary — every registered command, subcommand group, and
 flag surface, walked the same way dispatch walks them — so completion
 always matches the sdl that wrote it. The script itself is static:
-it runs nothing at completion time, and regenerating it after a
-toolchain upgrade is what keeps new verbs known to the shell.
+it never calls back into sdl, and regenerating it after a toolchain
+upgrade is what keeps new verbs known to the shell.
 
 The shells are:
 

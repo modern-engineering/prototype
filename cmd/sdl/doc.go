@@ -169,7 +169,7 @@
 // registered command tree — base.Commands and each verb's flag set,
 // the material dispatch itself reads — so a script names exactly the
 // verbs, subcommands, and flags of the binary that wrote it. The
-// emitted script is static and runs nothing at completion time;
+// emitted script is static and never calls back into sdl;
 // regenerating after an upgrade is the user's affair, and 'sdl help
 // completion' carries the wiring.
 package main
