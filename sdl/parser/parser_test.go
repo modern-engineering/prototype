@@ -1,6 +1,17 @@
 // Copyright 2026 The prototype authors. Use of this source code is
 // governed by the license that can be found in the LICENSE file.
 
+// Open door, recorded but not built: an in-fixture error corpus in the
+// go/parser (/* ERROR "rx" */) and analysistest (// want) tradition —
+// testdata fixtures carrying each expected diagnostic beside the
+// offending line, so positions are checked by eye where today
+// TestParseErrors hand-counts line:col into a table of backtick
+// strings. SDL has line comments only, so the marker would anchor a
+// line and the column needs its own convention (say, a quoted lexeme
+// the harness locates on that line). Reopening trigger: a grammar
+// change that forces re-counting positions across many table rows, or
+// the error table outgrowing at-a-glance review (~17 rows today).
+
 package parser_test
 
 import (
