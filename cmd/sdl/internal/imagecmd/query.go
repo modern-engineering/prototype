@@ -4,11 +4,15 @@
 package imagecmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
@@ -23,7 +27,11 @@ var cmdRecords = &base.Command{
 read from the file, or from standard input when no file is given — as
 an aligned table of the record's verb, its provision kind (blank for
 deploys), its element as the import-path-qualified name it pins in the
-catalogue, and its instance name, in image (statement) order.
+catalogue, its instance name, its deployment compartment as the
+top-level field pairs in canonical spelling, and the qualifiers of its
+extension stanzas (the compartment columns blank when a record carries
+none), in image (statement) order. Stanza contents stay opaque here;
+sdl echo renders them in full.
 
 Exit status 0 means the table was printed; 2 reports an unreadable or
 undecodable image.`,
@@ -86,14 +94,55 @@ func table(w io.Writer, columns string) *tabwriter.Writer {
 	return tw
 }
 
-// records renders the records table: VERB KIND ELEMENT NAME, one row
-// per record in image order.
+// records renders the records table: VERB KIND ELEMENT NAME DEPLOYMENT
+// EXTENSIONS, one row per record in image order. Every row carries
+// every cell — a line missing a cell would end the column's alignment
+// block mid-table — and the flush trims the padding tabwriter leaves
+// after empty trailing cells, so sparse rows still end at their last
+// value.
 func records(img *image.Image, w io.Writer) error {
-	tw := table(w, "VERB\tKIND\tELEMENT\tNAME")
+	var buf bytes.Buffer
+	tw := table(&buf, "VERB\tKIND\tELEMENT\tNAME\tDEPLOYMENT\tEXTENSIONS")
 	for _, rec := range img.Records {
-		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s.%s\t%s\n", rec.Verb, rec.Kind, rec.Element.Package, rec.Element.Name, rec.Name)
+		fields := make([]string, 0, len(rec.Deployment))
+		for _, b := range rec.Deployment {
+			text, err := fieldText(b)
+			if err != nil {
+				return fmt.Errorf("record %s: %w", rec.Name, err)
+			}
+			fields = append(fields, text)
+		}
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s.%s\t%s\t%s\t%s\n",
+			rec.Verb, rec.Kind, rec.Element.Package, rec.Element.Name, rec.Name,
+			strings.Join(fields, ", "),
+			strings.Join(slices.Sorted(maps.Keys(rec.Extensions)), ", "))
 	}
-	return tw.Flush()
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	for line := range bytes.Lines(buf.Bytes()) {
+		if _, err := fmt.Fprintf(w, "%s\n", bytes.TrimRight(line, " \n")); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// fieldText renders one deployment binding as its canonical SDL pair.
+// The compartment holds literals and opaque profile tokens (spelled
+// bare); a reference there is a malformed image.
+func fieldText(b image.Binding) (string, error) {
+	if b.Ref != nil {
+		return "", fmt.Errorf("deployment field %s carries a symbol reference", b.Key)
+	}
+	if b.Value != nil && b.Value.Kind == image.KindToken {
+		return b.Key + ": " + b.Value.Tok, nil
+	}
+	text, err := valueText(b.Value)
+	if err != nil {
+		return "", fmt.Errorf("deployment field %s: %w", b.Key, err)
+	}
+	return b.Key + ": " + text, nil
 }
 
 // symbols renders the symbol table: NAME CLASS TYPE/VALUE, one row per

@@ -42,6 +42,13 @@ func testImage() *image.Image {
 				Verb:    image.VerbDeploy,
 				Element: image.Ref{Package: "example.com/acme/pingpong", Name: "Ping"},
 				Name:    "Ping1",
+				Deployment: []image.Binding{
+					{Key: "location", Value: image.Token("euCentral1"), Source: image.SourceInstance},
+				},
+				Extensions: map[string][]image.Binding{
+					"k8s.pod":      {{Key: "replicas", Value: image.Int(3), Source: image.SourceInstance}},
+					"k8s.workload": {},
+				},
 			},
 		},
 	}
@@ -53,11 +60,42 @@ func TestRecordsTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "" +
-		"VERB       KIND   ELEMENT                          NAME\n" +
+		"VERB       KIND   ELEMENT                          NAME         DEPLOYMENT            EXTENSIONS\n" +
 		"provision  slice  example.com/acme/substrate.NATS  natsAccount\n" +
-		"deploy            example.com/acme/pingpong.Ping   Ping1\n"
+		"deploy            example.com/acme/pingpong.Ping   Ping1        location: euCentral1  k8s.pod, k8s.workload\n"
 	if out.String() != want {
 		t.Errorf("records table:\n%s--- want ---\n%s", out.String(), want)
+	}
+}
+
+func TestRecordsTableFaults(t *testing.T) {
+	tests := map[string]struct {
+		mutate func(img *image.Image)
+		want   string
+	}{
+		"RefInDeployment": {
+			mutate: func(img *image.Image) {
+				img.Records[1].Deployment = []image.Binding{{Key: "location", Ref: &image.SymbolRef{Symbol: "subject"}}}
+			},
+			want: "carries a symbol reference",
+		},
+		"FieldWithoutValue": {
+			mutate: func(img *image.Image) {
+				img.Records[1].Deployment = []image.Binding{{Key: "location"}}
+			},
+			want: "has no value",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			img := testImage()
+			tt.mutate(img)
+			var out bytes.Buffer
+			err := records(img, &out)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("err = %v, want mention of %q", err, tt.want)
+			}
+		})
 	}
 }
 

@@ -1243,6 +1243,10 @@ func TestBuildSample(t *testing.T) {
 		"provision  slice   github.com/modern-engineering/prototype/examples/substrate.NATS",
 		"provision  attach  github.com/modern-engineering/prototype/examples/substrate.Postgres",
 		"natsAccount", "pgLegacy", "Ping1", "Ping2", "Pong", "Ping3",
+		// The compartment columns surface deployment intent and the
+		// extension qualifiers per record.
+		"DEPLOYMENT", "EXTENSIONS",
+		"location: euCentral1", "k8s.pod",
 	} {
 		if !strings.Contains(res.stdout, want) {
 			t.Errorf("records table is missing %q:\n%s", want, res.stdout)
