@@ -98,9 +98,22 @@
 // then compiler. Everywhere else discovery runs first, in a module
 // context that exists independently of the build.
 //
+// sdl run reuses the whole pipeline with a different back half:
+// gen.HostSource generates a tailored host in the compiler's place — a
+// program that compiles the same embedded units in memory and then
+// enacts the resulting image in-process, on the runtime of
+// [github.com/modern-engineering/prototype/solution/host] — and the
+// driver hands it the terminal and relays its exit code instead of
+// routing an emitted image. One command takes edited sources to a
+// running solution, the go test mechanics: a per-invocation binary
+// built around the material under the verb.
+//
 // The image is the phase boundary. Compilation ends when the image is
 // emitted; enactment — everything that makes the image true — starts
 // from the image alone and never sees the solution's source text.
+// sdl run keeps the boundary in memory: the tailored host enacts the
+// image its embedded compile produced, never the source text around
+// it.
 //
 // # Phase glossary
 //
@@ -119,8 +132,11 @@
 // point MainCompile; that naming is a recorded door in its doc, not a
 // third sense of "compile".)
 //
-// Enactment decomposes into two acts, named now and deliberately
-// unimplemented:
+// Enactment decomposes into two acts, implemented by the
+// single-process runtime of
+// [github.com/modern-engineering/prototype/solution/host] — sdl run
+// drives it tailored per invocation; prebuilt platform binaries
+// (examples/host) embed it against a fixed catalogue:
 //
 //	PROVISION  backing-service access is provisioned against substrate
 //	DEPLOY     applications are deployed and begin serving
