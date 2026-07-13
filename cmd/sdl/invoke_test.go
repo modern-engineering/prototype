@@ -5,11 +5,62 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 )
+
+// A command's returned error selects the exit code and the stderr
+// rendering, the base package's whole taxonomy held in process for
+// every verb at once: solution diagnostics print their positioned
+// lines and exit 1 — or print nothing when a child already reported
+// them — a relayed child exit passes through verbatim and silent, a
+// usage fault points at help and exits 2, and anything else reports
+// as an sdl fault at 2. Classification survives wrapping, so verbs
+// may annotate on the way up. The payload stream stays untouched
+// throughout: errors never corrupt an emitted image.
+func TestExitTaxonomy(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantCode   int
+		wantStderr string
+	}{
+		{"success", nil, 0, ""},
+		{"diagnostics print their lines", &base.DiagnosticsError{Lines: []string{"a.sdl:1:2: boom", "b.sdl:3:4: bang"}}, 1,
+			"a.sdl:1:2: boom\nb.sdl:3:4: bang\n"},
+		{"relayed diagnostics stay silent", &base.DiagnosticsError{}, 1, ""},
+		{"wrapped diagnostics still classify", fmt.Errorf("link: %w", &base.DiagnosticsError{}), 1, ""},
+		{"relayed exit passes verbatim", &base.RelayedExit{Code: 7}, 7, ""},
+		{"usage fault points at help", &base.UsageError{Msg: "scratch takes no arguments"}, 2,
+			"sdl: scratch takes no arguments\nRun 'sdl help scratch' for usage.\n"},
+		{"internal fault", errors.New("toolchain exploded"), 2, "sdl: toolchain exploded\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &base.Command{
+				UsageLine: "sdl scratch",
+				Run: func(ctx context.Context, s base.Streams, cmd *base.Command, args []string) error {
+					return tt.err
+				},
+			}
+			var stdout, stderr strings.Builder
+			s := base.Streams{Stdout: &stdout, Stderr: &stderr}
+			if got := run(context.Background(), s, cmd, nil); got != tt.wantCode {
+				t.Errorf("run() = %d, want %d", got, tt.wantCode)
+			}
+			if stderr.String() != tt.wantStderr {
+				t.Errorf("stderr = %q, want %q", stderr.String(), tt.wantStderr)
+			}
+			if stdout.Len() != 0 {
+				t.Errorf("stdout = %q, want it untouched", stdout.String())
+			}
+		})
+	}
+}
 
 // Malformed invocations — an unknown command, a bare command group, a
 // bad flag, surplus arguments — classify as usage faults: exit 2, a
