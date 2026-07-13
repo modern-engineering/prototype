@@ -122,23 +122,29 @@ func runLsp(ctx context.Context, s base.Streams, cmd *base.Command, args []strin
 	if len(args) != 0 {
 		return &base.UsageError{Msg: "lsp takes no arguments"}
 	}
-	// The client owns the session's end, but an interrupt must still
-	// unblock the pending read (main has folded the signal into ctx).
-	// Closing the invocation's stdin is no lever: the standard streams
-	// are blocking-mode descriptors outside the runtime's poller, so a
-	// close does not interrupt a read already parked on them. Serving
-	// from an in-process pipe restores the lever — pipe reads do
-	// unblock when either end closes — at the price of one pump
-	// goroutine, which an interrupt strands on its stdin read for the
-	// instant left before the process exits.
+	return run(ctx, s.Stdin, s.Stdout)
+}
+
+// run speaks one session over the caller's streams and folds an
+// interrupt into the verdict. The client owns the session's end, but
+// a done ctx must still unblock the pending read (main folds the
+// interrupt signal into ctx). Closing the input is no lever when it
+// is a standard stream: blocking-mode descriptors sit outside the
+// runtime's poller, so a close does not interrupt a read already
+// parked on them. Serving from an in-process pipe restores the lever
+// — pipe reads do unblock when either end closes — at the price of
+// one pump goroutine, which an interrupt strands on its blocked read
+// until the input ends: an instant later in production, where the
+// process exits, and at the test's own hand under a bubble.
+func run(ctx context.Context, in io.Reader, out io.Writer) error {
 	pr, pw := io.Pipe()
 	go func() {
-		_, err := io.Copy(pw, s.Stdin)
-		pw.CloseWithError(err) // nil folds to EOF: stdin's end is the pipe's end
+		_, err := io.Copy(pw, in)
+		pw.CloseWithError(err) // nil folds to EOF: the input's end is the pipe's end
 	}()
 	unblock := context.AfterFunc(ctx, func() { pr.CloseWithError(errors.New("session interrupted")) })
 	defer unblock()
-	err := serve(pr, s.Stdout)
+	err := serve(pr, out)
 	if err != nil && ctx.Err() != nil {
 		return errors.New("session interrupted")
 	}
