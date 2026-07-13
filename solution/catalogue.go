@@ -12,9 +12,10 @@ import (
 )
 
 // An Element is one catalogue entry a solution unit can reference. The
-// interface is sealed over the three element kinds: the application
+// interface is sealed over the element kinds: the application
 // component packaged by [App], the provision type packaged by
-// [Provision], and the symbol type packaged by [Symbol].
+// [Provision], the symbol type packaged by [Symbol], and the stanza
+// scheme packaged by [Scheme].
 type Element interface{ element() }
 
 // App packages an application descriptor as a catalogue element
@@ -223,12 +224,66 @@ type symbolElement struct {
 
 func (*symbolElement) element() {}
 
+// A SchemeType describes one discovered with-stanza scheme: a named
+// vocabulary of advisory keys that community and platform packages
+// share as building blocks (D-12). A statement attaches a stanza by
+// the type's self-declared Qualifier — stanza text never spells a
+// pkg.Elem reference — and the linker checks the stanza against the
+// scheme whenever the declaring package sits in the compile
+// catalogue. A qualifier no registered package claims keeps the
+// advisory contract: the stanza rides the image opaquely, unchecked.
+type SchemeType struct {
+	// Doc documents what the scheme's stanzas configure.
+	Doc string
+
+	// Qualifier is the self-declared dotted name stanzas attach by,
+	// e.g. "k8s.pod": identifier segments joined by dots, unique
+	// among the catalogue's schemes. It is the lookup key; the
+	// exported identifier the element registers under serves the
+	// pinned catalogue and its diagnostics, nothing else.
+	Qualifier string
+
+	// Params declares the scheme's keys as flags on a dry surface
+	// the caller supplies. The linker hands it a fresh throwaway
+	// surface per checked stanza — the same flag.Value discipline
+	// components and provision types validate with (A-14): literal
+	// stanza values run through Set, bare tokens pass opaque. Like a
+	// Make factory it must declare and do nothing else — no I/O, no
+	// side effects, no failure — and declare the same keys on every
+	// call. Nil declares a scheme with no keys, so every stanza key
+	// is unknown.
+	Params func(fs *flag.FlagSet)
+}
+
+// Scheme packages a stanza scheme type as a catalogue element
+// registered under name.
+//
+// As with [App], the name is the Go identifier of the exported
+// package variable holding t: a Go value cannot know the name of the
+// variable that holds it, and generated code is the one place that
+// sees the identifier and the value side by side. Unlike the other
+// kinds, the registered name is not how solutions reference the
+// element — stanzas look schemes up by t.Qualifier — so the name
+// serves the pinned catalogue and diagnostics only.
+func Scheme(name string, t *SchemeType) Element {
+	return &schemeElement{name: name, typ: t}
+}
+
+// A schemeElement is a stanza scheme type under the exported
+// identifier its defining package gives it.
+type schemeElement struct {
+	name string
+	typ  *SchemeType
+}
+
+func (*schemeElement) element() {}
+
 // A Registration is the read-back of one packaged element: the name it
 // registers under and, in the arm matching its kind, the value the
-// constructor packaged. Exactly one of App, Provision, and Symbol is
-// non-nil for an element built by this package's constructors;
-// consumers switch on the arms rather than on any kind word, so the
-// registration cannot say one kind and carry another.
+// constructor packaged. Exactly one of App, Provision, Symbol, and
+// Scheme is non-nil for an element built by this package's
+// constructors; consumers switch on the arms rather than on any kind
+// word, so the registration cannot say one kind and carry another.
 //
 // [Unpack] produces it. The view is how consumers of a live catalogue
 // — enactment planning first, programmatic image construction later —
@@ -249,12 +304,16 @@ type Registration struct {
 	// Symbol is the symbol type packaged by [Symbol]; nil for other
 	// kinds.
 	Symbol *SymbolType
+
+	// Scheme is the stanza scheme type packaged by [Scheme]; nil for
+	// other kinds.
+	Scheme *SchemeType
 }
 
 // Unpack reads one element back, mirroring the constructors exactly:
 // Unpack(App(name, d)) is Registration{Name: name, App: d}, and
-// likewise for [Provision] and [Symbol]. A nil element unpacks to the
-// zero Registration.
+// likewise for [Provision], [Symbol], and [Scheme]. A nil element
+// unpacks to the zero Registration.
 func Unpack(el Element) Registration {
 	switch el := el.(type) {
 	case *appElement:
@@ -263,6 +322,8 @@ func Unpack(el Element) Registration {
 		return Registration{Name: el.name, Provision: el.typ}
 	case *symbolElement:
 		return Registration{Name: el.name, Symbol: el.typ}
+	case *schemeElement:
+		return Registration{Name: el.name, Scheme: el.typ}
 	}
 	return Registration{}
 }

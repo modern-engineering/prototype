@@ -16,6 +16,7 @@ func TestUnpack(t *testing.T) {
 	desc := pingDescriptor()
 	prov := busProvisionType()
 	sym := &solution.SymbolType{Doc: "an endpoint", Sensitive: true}
+	sch := &solution.SchemeType{Doc: "pod conventions", Qualifier: "k8s.pod"}
 
 	tests := []struct {
 		name string
@@ -25,6 +26,7 @@ func TestUnpack(t *testing.T) {
 		{"app", solution.App("Ping", desc), solution.Registration{Name: "Ping", App: desc}},
 		{"provision", solution.Provision("Bus", prov), solution.Registration{Name: "Bus", Provision: prov}},
 		{"symbol", solution.Symbol("Endpoint", sym), solution.Registration{Name: "Endpoint", Symbol: sym}},
+		{"scheme", solution.Scheme("Pod", sch), solution.Registration{Name: "Pod", Scheme: sch}},
 		{"nil", nil, solution.Registration{}},
 	}
 	for _, tt := range tests {
