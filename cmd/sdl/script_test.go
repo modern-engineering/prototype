@@ -17,7 +17,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
@@ -67,6 +70,43 @@ func (w e2eM) Run() int {
 func TestScript(t *testing.T) {
 	testscript.Run(t, testscript.Params{
 		Dir:           filepath.Join("testdata", "script"),
+		Setup:         scriptEnv,
 		UpdateScripts: *update,
 	})
 }
+
+// scriptEnv hands each script the host's effective toolchain
+// environment: scripts run hermetic (HOME=/no-home), which would
+// otherwise send the go toolchain deriving caches under a home that
+// does not exist and re-resolving every dependency per script.
+// SDLREPO carries the repo root for the consumer-module shape the
+// toolchain scripts lay down — a go.mod dir-replacing the prototype
+// to this checkout, e2e's solutionModule as script lines.
+func scriptEnv(env *testscript.Env) error {
+	env.Setenv("SDLREPO", repoRoot)
+	vars, err := hostGoEnv()
+	if err != nil {
+		return err
+	}
+	env.Vars = append(env.Vars, vars...)
+	return nil
+}
+
+// hostGoEnv resolves the go env values worth carrying into a script,
+// once per test run.
+var hostGoEnv = sync.OnceValues(func() ([]string, error) {
+	keys := []string{"GOPATH", "GOCACHE", "GOMODCACHE", "GOPROXY", "GOSUMDB", "GOFLAGS", "GOTOOLCHAIN"}
+	out, err := exec.Command("go", append([]string{"env"}, keys...)...).Output()
+	if err != nil {
+		return nil, fmt.Errorf("resolving go env: %v", err)
+	}
+	values := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	if len(values) != len(keys) {
+		return nil, fmt.Errorf("go env answered %d values for %d keys", len(values), len(keys))
+	}
+	vars := make([]string, len(keys))
+	for i, key := range keys {
+		vars[i] = key + "=" + values[i]
+	}
+	return vars, nil
+})

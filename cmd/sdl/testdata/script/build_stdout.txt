@@ -1,0 +1,123 @@
+# Without -o the emitted image is the payload on standard output —
+# canonical JSON, byte-identical to what -o writes — and stderr stays
+# silent. The golden section is the emitted image itself, locked in;
+# -update rewrites it when the format deliberately moves.
+[short] skip 'drives the go toolchain'
+
+exec go mod edit -replace=github.com/modern-engineering/prototype=$SDLREPO
+cp $SDLREPO/go.sum go.sum
+sdl build
+! stderr .
+cmp stdout want-image.json
+sdl build -o out.json
+cmp out.json want-image.json
+
+-- go.mod --
+module example.test/sol
+
+go 1.25.0
+
+require github.com/modern-engineering/prototype v0.0.0
+-- greet.sdl --
+solution greet
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1 {
+	params {
+		count: 1
+		target: "pong"
+	}
+}
+-- want-image.json --
+{
+  "format": "solution-image/1",
+  "solution": "greet",
+  "generation": 1,
+  "build": {
+    "units": [
+      {
+        "name": "greet.sdl",
+        "sha256": "6add6d251ca2b1e42688193877ea48719f772091efc25c56afacc46b8262d94a"
+      }
+    ]
+  },
+  "catalogue": [
+    {
+      "path": "github.com/modern-engineering/prototype/examples/ff",
+      "name": "ff",
+      "elements": [
+        {
+          "name": "Ping",
+          "kind": "component",
+          "doc": "ping emits a payload to a target at a fixed cadence\n\nEach tick, ping sends one payload and logs the delivery. A negative\ncount keeps it pinging until its context is cancelled.",
+          "params": [
+            {
+              "name": "count",
+              "usage": "number of pings; negative means forever",
+              "default": "-1"
+            },
+            {
+              "name": "interval",
+              "usage": "delay between pings",
+              "default": "1s"
+            },
+            {
+              "name": "nats",
+              "usage": "path to the messaging account config; empty runs unconnected"
+            },
+            {
+              "name": "target",
+              "usage": "destination to ping; must not be empty"
+            }
+          ]
+        },
+        {
+          "name": "Pong",
+          "kind": "component",
+          "doc": "pong answers pings on a subject\n\nPong waits for payloads on its subject and answers each one until\nits context is cancelled.",
+          "params": [
+            {
+              "name": "nats",
+              "usage": "path to the messaging account config; empty runs unconnected"
+            },
+            {
+              "name": "subject",
+              "usage": "subject to answer on",
+              "default": "ping"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "symbols": [],
+  "records": [
+    {
+      "verb": "deploy",
+      "element": {
+        "package": "github.com/modern-engineering/prototype/examples/ff",
+        "name": "Ping"
+      },
+      "name": "Ping1",
+      "params": [
+        {
+          "key": "count",
+          "value": {
+            "kind": "int",
+            "int": 1
+          },
+          "source": "instance"
+        },
+        {
+          "key": "target",
+          "value": {
+            "kind": "string",
+            "string": "pong"
+          },
+          "source": "instance"
+        }
+      ]
+    }
+  ]
+}
