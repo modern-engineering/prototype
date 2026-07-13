@@ -35,8 +35,10 @@
 // wrappers over it. [Main] is Mode P: a prebuilt platform binary,
 // built once against a fixed catalogue and serving any image compiled
 // against it, adds signal handling, the graceful-shutdown sequence,
-// and the 0/1/2 exit contract. The Mode-T skin — a generated
-// per-invocation host — wraps the same core.
+// and the 0/1/2 exit contract. [MainTailored] is Mode T: the whole
+// main body of a per-invocation host generated go-test-style around
+// an embedded solution, compiling it in memory and delegating to
+// Main.
 //
 // Doors, recorded here where they would reopen: a site-file extern
 // source beside the in-memory map (the fieldcase host's site loader is
