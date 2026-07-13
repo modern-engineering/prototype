@@ -11,10 +11,9 @@ import (
 	"github.com/modern-engineering/prototype/solution"
 )
 
-// TestCitizenship holds every exported scheme type to the catalogue
-// citizenship contract through the library's own harness — a
-// spellable qualifier and a repeatable, panic-free dry surface — plus
-// the documentation this package owes the image.
+// Every exported scheme type passes the library's citizenship harness
+// — a spellable qualifier and a repeatable, panic-free dry surface —
+// and carries the documentation this package owes the image.
 func TestCitizenship(t *testing.T) {
 	for name, st := range map[string]*solution.SchemeType{
 		"Pod":      k8s.Pod,
