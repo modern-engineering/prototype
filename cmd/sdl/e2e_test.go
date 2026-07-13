@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1251,8 +1252,9 @@ func TestImagePlumbing(t *testing.T) {
 // TestBuildSample is the CP-C proof: the mockup-7 sample lives in
 // examples/sample and compiles to exactly the golden image — extern
 // and var symbols, both provision kinds, folded type and verb
-// defaults, output references, compartments, and a peer unit — and
-// the image plumbing reads the result back.
+// defaults, output references, compartments checked against the
+// imported scheme package, and a peer unit — and the image plumbing
+// reads the result back.
 func TestBuildSample(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -1284,9 +1286,47 @@ func TestBuildSample(t *testing.T) {
 	if err != nil {
 		t.Fatalf("emitted image does not decode: %v", err)
 	}
-	if img.Solution != "sample" || len(img.Records) != 6 || len(img.Catalogue) != 2 || len(img.Symbols) != 5 {
-		t.Errorf("decoded image: solution %q, %d records, %d packages, %d symbols; want sample, 6, 2, 5",
+	if img.Solution != "sample" || len(img.Records) != 6 || len(img.Catalogue) != 3 || len(img.Symbols) != 5 {
+		t.Errorf("decoded image: solution %q, %d records, %d packages, %d symbols; want sample, 6, 3, 5",
 			img.Solution, len(img.Records), len(img.Catalogue), len(img.Symbols))
+	}
+
+	// The scheme pins: importing examples/k8s puts the package in the
+	// catalogue with its self-declared qualifiers and key schemas — the
+	// record every with k8s.* stanza in the solution was checked
+	// against, discovered and emitted by the real generate stage.
+	var k8sPkg *image.Package
+	for i := range img.Catalogue {
+		if img.Catalogue[i].Path == "github.com/modern-engineering/prototype/examples/k8s" {
+			k8sPkg = &img.Catalogue[i]
+		}
+	}
+	if k8sPkg == nil {
+		t.Fatalf("catalogue pins no k8s package: %+v", img.Catalogue)
+	}
+	wantSchemes := []image.ElementSchema{
+		{
+			Name:      "Pod",
+			Kind:      image.KindScheme,
+			Doc:       "pod-level scheduling conventions",
+			Qualifier: "k8s.pod",
+			Params: []image.ParamSchema{
+				{Name: "priorityClass", Usage: "scheduling priority class"},
+				{Name: "replicas", Usage: "desired pod replicas", Default: "1"},
+			},
+		},
+		{
+			Name:      "Workload",
+			Kind:      image.KindScheme,
+			Doc:       "workload grouping conventions",
+			Qualifier: "k8s.workload",
+			Params: []image.ParamSchema{
+				{Name: "partOf", Usage: "umbrella workload this instance joins"},
+			},
+		},
+	}
+	if !reflect.DeepEqual(k8sPkg.Elements, wantSchemes) {
+		t.Errorf("k8s pins = %+v, want %+v", k8sPkg.Elements, wantSchemes)
 	}
 
 	res = runSDL(t, repoRoot, "image", "records", out)
@@ -1323,6 +1363,7 @@ func TestBuildSample(t *testing.T) {
 		"unit\tsample.sdl\t",
 		"unit\tsample_extra.sdl\t",
 		"catalogue\tgithub.com/modern-engineering/prototype/examples/ff\tff\t2 elements\n",
+		"catalogue\tgithub.com/modern-engineering/prototype/examples/k8s\tk8s\t2 elements\n",
 		"catalogue\tgithub.com/modern-engineering/prototype/examples/substrate\tsubstrate\t",
 	} {
 		if !strings.Contains(res.stdout, want) {

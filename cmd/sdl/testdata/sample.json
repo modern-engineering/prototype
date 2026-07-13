@@ -6,7 +6,7 @@
     "units": [
       {
         "name": "sample.sdl",
-        "sha256": "016cbc3db37455bdf4080b23bb453612d907c5dd6c0d6c351fc977ec73ab7f87"
+        "sha256": "5495c6d342b37bfdd1be3b3da6843812eb51b046c1031bce76c4fde34e1335ee"
       },
       {
         "name": "sample_extra.sdl",
@@ -57,6 +57,41 @@
               "name": "subject",
               "usage": "subject to answer on",
               "default": "ping"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "github.com/modern-engineering/prototype/examples/k8s",
+      "name": "k8s",
+      "elements": [
+        {
+          "name": "Pod",
+          "kind": "scheme",
+          "doc": "pod-level scheduling conventions",
+          "qualifier": "k8s.pod",
+          "params": [
+            {
+              "name": "priorityClass",
+              "usage": "scheduling priority class"
+            },
+            {
+              "name": "replicas",
+              "usage": "desired pod replicas",
+              "default": "1"
+            }
+          ]
+        },
+        {
+          "name": "Workload",
+          "kind": "scheme",
+          "doc": "workload grouping conventions",
+          "qualifier": "k8s.workload",
+          "params": [
+            {
+              "name": "partOf",
+              "usage": "umbrella workload this instance joins"
             }
           ]
         }

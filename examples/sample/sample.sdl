@@ -8,6 +8,10 @@ solution sample
 
 import (
 	"github.com/modern-engineering/prototype/examples/ff"
+	// The k8s import carries no element references: it exists to put
+	// the scheme package in the compile catalogue, which flips every
+	// with k8s.* stanza in the solution from opaque to checked.
+	"github.com/modern-engineering/prototype/examples/k8s"
 	"github.com/modern-engineering/prototype/examples/substrate"
 )
 
