@@ -9,6 +9,7 @@ import (
 	"flag"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modern-engineering/prototype/application"
 	"github.com/modern-engineering/prototype/solution"
@@ -26,16 +27,14 @@ const parkPath = "example.com/acme/park"
 // A parker parks until its Shutdown is called: the graceful path.
 // Flagless on purpose — a nil parameter surface must host fine.
 type parker struct {
-	started     chan<- struct{}
-	sawDeadline chan<- bool
-	stop        chan struct{} // closed by Shutdown to release Run
-	done        chan struct{} // closed by Run on its way out
+	budget chan<- time.Duration
+	stop   chan struct{} // closed by Shutdown to release Run
+	done   chan struct{} // closed by Run on its way out
 }
 
 func (p *parker) Flags() *flag.FlagSet { return nil }
 
 func (p *parker) Run(ctx context.Context) error {
-	p.started <- struct{}{}
 	defer close(p.done)
 	select {
 	case <-p.stop:
@@ -45,12 +44,16 @@ func (p *parker) Run(ctx context.Context) error {
 	}
 }
 
-// Shutdown records whether the grace context arrived with a deadline —
-// the budget Main promises to pass verbatim — then stops the runner
-// and waits for it to leave, bounded by the grace window.
+// Shutdown reports the budget the grace context carries — the distance
+// to its deadline, which Main promises equals cfg.Grace verbatim; zero
+// stands for no deadline at all — then stops the runner and waits for
+// it to leave, bounded by the grace window.
 func (p *parker) Shutdown(ctx context.Context) error {
-	_, ok := ctx.Deadline()
-	p.sawDeadline <- ok
+	var budget time.Duration
+	if deadline, ok := ctx.Deadline(); ok {
+		budget = time.Until(deadline)
+	}
+	p.budget <- budget
 	close(p.stop)
 	select {
 	case <-p.done:
@@ -60,7 +63,30 @@ func (p *parker) Shutdown(ctx context.Context) error {
 	}
 }
 
-func parkCatalogue(started chan<- struct{}, sawDeadline chan<- bool) []solution.Package {
+// A stubborn service ignores the polite ask: its Shutdown returns only
+// once the hard cancel has released Run — or the grace runs out first.
+type stubborn struct {
+	done chan struct{} // closed by Run on its way out
+}
+
+func (s *stubborn) Flags() *flag.FlagSet { return nil }
+
+func (s *stubborn) Run(ctx context.Context) error {
+	defer close(s.done)
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (s *stubborn) Shutdown(ctx context.Context) error {
+	select {
+	case <-s.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func parkCatalogue(budget chan<- time.Duration) []solution.Package {
 	return []solution.Package{{
 		Path: parkPath,
 		Name: "park",
@@ -70,11 +96,17 @@ func parkCatalogue(started chan<- struct{}, sawDeadline chan<- bool) []solution.
 				Doc:  "park until asked to stop",
 				Make: func() application.Service {
 					return &parker{
-						started:     started,
-						sawDeadline: sawDeadline,
-						stop:        make(chan struct{}),
-						done:        make(chan struct{}),
+						budget: budget,
+						stop:   make(chan struct{}),
+						done:   make(chan struct{}),
 					}
+				},
+			}),
+			solution.App("Stubborn", &application.Descriptor{
+				Name: "stubborn",
+				Doc:  "run until the hard cancel; ignore the polite ask",
+				Make: func() application.Service {
+					return &stubborn{done: make(chan struct{})}
 				},
 			}),
 			solution.App("Faulty", &application.Descriptor{
@@ -90,17 +122,22 @@ func parkCatalogue(started chan<- struct{}, sawDeadline chan<- bool) []solution.
 	}}
 }
 
+// parkRec crafts a deploy record for the named park element; every
+// park instance answers to "one".
+func parkRec(elem string) image.Record {
+	return image.Record{
+		Verb:    image.VerbDeploy,
+		Element: image.Ref{Package: parkPath, Name: elem},
+		Name:    "one",
+	}
+}
+
 // parkImage crafts a one-record image deploying the named park
 // element. The park package is deliberately not pinned in the image's
 // catalogue section: records resolve against the live catalogue, so
 // the plan stands all the same.
 func parkImage(elem string) *image.Image {
-	img := millImage(nil, image.Record{
-		Verb:    image.VerbDeploy,
-		Element: image.Ref{Package: parkPath, Name: elem},
-		Name:    "one",
-	})
-	return img
+	return millImage(nil, parkRec(elem))
 }
 
 // ----------------------------------------------------------------------------
@@ -131,7 +168,7 @@ func TestMainExitCodes(t *testing.T) {
 		var log strings.Builder
 		code := host.Main(host.Config{
 			Image:     parkImage("Faulty"),
-			Catalogue: append(millCatalogue(newStandControl(), nil), parkCatalogue(nil, nil)...),
+			Catalogue: append(millCatalogue(newStandControl(), nil), parkCatalogue(nil)...),
 			Log:       &log,
 		})
 		if code != 1 {
