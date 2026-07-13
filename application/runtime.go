@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"slices"
 	"sync"
-	"sync/atomic"
 )
 
 type Runtime struct {
@@ -158,10 +157,6 @@ func (r *Runtime) Cancel() {
 // canceled explicitly by [Runtime.Cancel].
 var ErrCanceled = errors.New("context canceled by app runtime")
 
-//func Terminate(ctx context.Context) error {
-//
-//}
-
 // Shutdown asks every running Shutdowner to stop, concurrently, and
 // waits for them all; the per-runner errors come back joined.
 //
@@ -200,32 +195,6 @@ func (r *Runtime) Shutdown(ctx context.Context) error {
 	//  Either because the called Shutdowner returned while goroutines are still running,
 	//  or because some of the Runners don't implement Shutdowner.
 	return errs
-}
-
-func Terminate(ctx context.Context, r *Runtime) (completed bool) {
-	var (
-		wg sync.WaitGroup
-		n  atomic.Int32
-	)
-	ps := r.Running()
-	n.Store(int32(len(ps)))
-	for _, p := range r.Running() {
-		terminator, ok := p.Runner().(interface{ Terminate() })
-		if !ok {
-			n.Add(-1)
-			continue
-		}
-		wg.Go(func() {
-			terminator.Terminate()
-			select {
-			case <-p.Done():
-				n.Add(-1)
-			case <-ctx.Done():
-			}
-		})
-	}
-	wg.Wait()
-	return n.Load() == 0
 }
 
 // A group is a collection of goroutines working on subtasks that are part of

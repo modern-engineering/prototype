@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"iter"
 	"reflect"
 	"runtime"
 )
@@ -131,11 +130,6 @@ func MakeFor[T any, PT interface {
 	}
 }
 
-type HealthChecker interface {
-	Ready(ctx context.Context) error
-	Live(ctx context.Context) error
-}
-
 type Shutdowner interface {
 	Shutdown(ctx context.Context) error
 }
@@ -145,26 +139,3 @@ type Shutdowner interface {
 // TODO(@danielorbach): a Shutdowner/Terminator mixin that's easy to embed in structs and use.
 
 // TODO(@danielorbach): a Loop that takes context, and optionally a counter, and loops it.
-func Loop(ctx context.Context) iter.Seq[int] {
-	return func(yield func(int) bool) {
-		var i int
-		for ctx.Err() == nil {
-			if !yield(i) {
-				return
-			}
-			i++
-		}
-	}
-}
-
-func LoopCount(ctx context.Context, count int) iter.Seq[int] {
-	return func(yield func(int) bool) {
-		var i int
-		for ctx.Err() == nil && i < count {
-			if !yield(i) {
-				return
-			}
-			i++
-		}
-	}
-}
