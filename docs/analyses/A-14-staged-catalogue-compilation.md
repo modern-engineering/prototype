@@ -3,6 +3,7 @@ status: draft
 since: 2026-07-09
 refined-by:
   - D-10-generate-compile-run
+  - D-13-two-phase-enactment
 ---
 
 # Staged Catalogue Compilation: How the Compiler Knows User-Defined Elements
@@ -196,6 +197,10 @@ needs no catalogue — formatting stays editor-local — while _checking_ does n
 the catalogue and therefore the toolchain; the seconds budget of
 [A-13 Mission Analysis]'s authoring loop is spent exactly there.
 
+Both visible timelines have since been decided: [D-10 Generate-Compile-Run]
+fixes the IR build's machinery, and [D-13 Two-Phase Enactment] the reconcile-run
+half — hosts the image never names run a PROVISION phase, then a DEPLOY phase.
+
 ## Narrowing the Record Model
 
 [A-09 Solution Layer] states the isomorphism plainly — "each definition
@@ -278,3 +283,5 @@ open home for site configuration.
 [D-07 Verb-First Directives]: ../adr/D-07-verb-directive-syntax.md
 [D-08 Desired-State Image]: ../adr/D-08-desired-state-image.md
 [D-09 Catalogue Citizenship]: ../adr/D-09-catalogue-citizenship.md
+[D-10 Generate-Compile-Run]: ../adr/D-10-generate-compile-run.md
+[D-13 Two-Phase Enactment]: ../adr/D-13-two-phase-enactment.md

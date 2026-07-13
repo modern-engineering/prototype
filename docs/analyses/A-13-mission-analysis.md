@@ -1,6 +1,8 @@
 ---
 status: draft
 since: 2026-07-09
+refined-by:
+  - D-13-two-phase-enactment
 ---
 
 # Mission Analysis: Stakeholders, Operations, and Measures of Effectiveness
@@ -154,7 +156,10 @@ substrate bindings point at local stand-ins, and every component hosts in a
 single binary. A demo engineer walks a customer through the product on a laptop;
 a CI job proves solution-level behavior in an end-to-end harness the same way.
 This is the litmus of [A-09 Solution Layer] exercised as a daily operation, not
-a compliance test.
+a compliance test. [D-13 Two-Phase Enactment] commits the mechanism this
+scenario and the dev-loop measure constrain: one command generates and runs a
+tailored host, and the same wet core serves the prebuilt hosts production
+operates.
 
 **The 3am incident.** An operator is paged on a misbehaving process. From the
 process they reach, mechanically: which solution and instance it is, which
@@ -214,3 +219,4 @@ requirement locks the survivors and sets their thresholds.
 [A-10 Value Binding]: A-10-value-binding.md
 [A-11 Substrate and Slices]: A-11-substrate-slices.md
 [A-12 Operator I/O]: A-12-operator-io.md
+[D-13 Two-Phase Enactment]: ../adr/D-13-two-phase-enactment.md

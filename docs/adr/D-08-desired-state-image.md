@@ -3,6 +3,8 @@ status: proposed
 since: 2026-07-06
 refines:
   - A-09-solution-layer
+refined-by:
+  - D-13-two-phase-enactment
 ---
 
 # Ship Solutions as a Reconciled Desired-State Image
@@ -94,6 +96,9 @@ Chosen option: **the complete desired-state image**. Its shape:
 
 - The controller-facing SDK is built around the pure core: parse image, resolve
   symbols, diff against observed state, hand actions to drivers.
+  [D-13 Two-Phase Enactment] fixes that core's first cut — a pure plan over
+  image plus catalogue, enacted as a PROVISION phase then a DEPLOY phase — and
+  reserves "reconcile" for the convergence discipline above, never a phase name.
 - Renaming stateful instances destroys and recreates them; a move-declaration
   analogue is named as future work in [A-11 Substrate and Slices]'s open
   questions.
@@ -103,3 +108,4 @@ Chosen option: **the complete desired-state image**. Its shape:
 [A-09 Solution Layer]: ../analyses/A-09-solution-layer.md
 [A-10 Value Binding]: ../analyses/A-10-value-binding.md
 [A-11 Substrate and Slices]: ../analyses/A-11-substrate-slices.md
+[D-13 Two-Phase Enactment]: D-13-two-phase-enactment.md
