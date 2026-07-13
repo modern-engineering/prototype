@@ -277,11 +277,11 @@ func drain(t *testing.T, reports <-chan report, n int) []report {
 // ----------------------------------------------------------------------------
 // Run
 
-// TestRunEnactsSolution walks the whole wet half on the M1 shape:
-// PROVISION feeds the extern into the driver and stores its outputs,
-// DEPLOY binds literals, var and extern references, and provision
-// outputs into three concurrent services that run to completion, and
-// the audit shows every resolved value with the tainted ones redacted.
+// The whole wet half walks the M1 shape: PROVISION feeds the extern
+// into the driver and stores its outputs, DEPLOY binds literals, var
+// and extern references, and provision outputs into three concurrent
+// services that run to completion, and the audit shows every resolved
+// value with the tainted ones redacted.
 func TestRunEnactsSolution(t *testing.T) {
 	ctl := newStandControl()
 	reports := make(chan report, 8)
@@ -350,8 +350,7 @@ func TestRunEnactsSolution(t *testing.T) {
 	}
 }
 
-// TestRunEmptyImage: an empty image is a valid solution with nothing
-// to do.
+// An empty image is a valid solution with nothing to do.
 func TestRunEmptyImage(t *testing.T) {
 	var log strings.Builder
 	err := host.Run(t.Context(), host.Config{
@@ -365,9 +364,9 @@ func TestRunEmptyImage(t *testing.T) {
 	wantLine(t, log.String(), `running 0 instance(s)`)
 }
 
-// TestRunChainsProvisionOutputs wires one provision's output into the
-// next one's parameter: the store must feed provision steps in plan
-// order, not just deploys, and plan order must win over record order.
+// One provision's output wires into the next one's parameter: the
+// store must feed provision steps in plan order, not just deploys,
+// and plan order must win over record order.
 func TestRunChainsProvisionOutputs(t *testing.T) {
 	ctl := newStandControl()
 	img := millImage(nil,
@@ -387,8 +386,8 @@ func TestRunChainsProvisionOutputs(t *testing.T) {
 	}
 }
 
-// TestRunGatesUnboundExterns: the gate lists every miss at once, in
-// the exact teaching vocabulary, and nothing wet runs.
+// The extern gate lists every miss at once, in the exact teaching
+// vocabulary, and nothing wet runs.
 func TestRunGatesUnboundExterns(t *testing.T) {
 	ctl := newStandControl()
 	reports := make(chan report, 8)
@@ -408,8 +407,7 @@ func TestRunGatesUnboundExterns(t *testing.T) {
 	}
 }
 
-// TestRunReportsDriverRefusal: a refusing driver is a wet failure
-// named after its step.
+// A refusing driver is a wet failure named after its step.
 func TestRunReportsDriverRefusal(t *testing.T) {
 	ctl := newStandControl()
 	ctl.attachErr = errors.New("substrate said no")
@@ -426,9 +424,8 @@ func TestRunReportsDriverRefusal(t *testing.T) {
 	}
 }
 
-// TestRunRequiresDeclaredOutputs: a driver that returns without
-// writing its whole declared scheme fails its step, one line per
-// missing output.
+// A driver that returns without writing its whole declared scheme
+// fails its step, one line per missing output.
 func TestRunRequiresDeclaredOutputs(t *testing.T) {
 	ctl := newStandControl()
 	ctl.withhold = map[string]bool{"token": true}
@@ -440,9 +437,9 @@ func TestRunRequiresDeclaredOutputs(t *testing.T) {
 	wantErrLine(t, err, `provisioner for standIn did not write output token`)
 }
 
-// TestRunRefusesOpaqueTokens: a params token is the deployment
-// compartments' vocabulary leaking into the binding namespace — a
-// hand-built image's fault, refused at the boundary.
+// A params token is the deployment compartments' vocabulary leaking
+// into the binding namespace — a hand-built image's fault, refused at
+// the boundary.
 func TestRunRefusesOpaqueTokens(t *testing.T) {
 	img := millImage(nil, deployRec("Ping1",
 		image.Binding{Key: "nats", Value: image.Token("euCentral1"), Source: image.SourceInstance},
@@ -455,9 +452,9 @@ func TestRunRefusesOpaqueTokens(t *testing.T) {
 	wantErrLine(t, err, `Ping1: opaque token "euCentral1" reached wet binding for nats`)
 }
 
-// TestRunValidatesWetValues: the slot's own flag.Value.Set judges the
-// rendered value at wet time (A-14), so a value no compiler vetted —
-// here a string where an int flag lives — fails as configuration.
+// The slot's own flag.Value.Set judges the rendered value at wet time
+// (A-14), so a value no compiler vetted — here a string where an int
+// flag lives — fails as configuration.
 func TestRunValidatesWetValues(t *testing.T) {
 	img := millImage(nil, deployRec("Ping1", literal("count", image.String("many"))))
 	err := host.Run(t.Context(), host.Config{

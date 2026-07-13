@@ -114,11 +114,11 @@ func composedImage() *image.Image {
 	}
 }
 
-// TestRunComposedImage is the peer-frontend proof end to end: the
-// composed image passes the composer's own gates (Canonicalize,
-// Validate), plans through enact.Load against the live catalogue, and
-// the wet path provisions the real StandIn driver, wires its output
-// into the services, and runs the solution to completion.
+// The peer-frontend proof runs end to end: the composed image passes
+// the composer's own gates (Canonicalize, Validate), plans through
+// enact.Load against the live catalogue, and the wet path provisions
+// the real StandIn driver, wires its output into the services, and
+// runs the solution to completion.
 func TestRunComposedImage(t *testing.T) {
 	img := composedImage()
 	img.Canonicalize()

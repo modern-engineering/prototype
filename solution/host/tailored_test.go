@@ -44,10 +44,10 @@ func tailoredConfig(ctl *standControl, reports chan report, stderr *bytes.Buffer
 	}
 }
 
-// TestMainTailoredRunsSolution drives the whole Mode-T bridge:
-// sources compile in memory, the extern flag binds the site value,
-// and the image enacts to completion — sources to a ran solution in
-// one call, the dev loop's inner shape.
+// The whole Mode-T bridge holds: sources compile in memory, the
+// extern flag binds the site value, and the image enacts to
+// completion — sources to a ran solution in one call, the dev loop's
+// inner shape.
 func TestMainTailoredRunsSolution(t *testing.T) {
 	ctl := newStandControl()
 	reports := make(chan report, 8)
@@ -70,9 +70,9 @@ func TestMainTailoredRunsSolution(t *testing.T) {
 	}
 }
 
-// TestMainTailoredCompileFailure: a solution that does not compile is
-// a configuration fault under run semantics — exit 2, diagnostics
-// printed positioned exactly as sdl build prints them.
+// A solution that does not compile is a configuration fault under run
+// semantics — exit 2, diagnostics printed positioned exactly as sdl
+// build prints them.
 func TestMainTailoredCompileFailure(t *testing.T) {
 	var stderr bytes.Buffer
 	broken := "solution millrun\n\ndeploy mill.Echo as E1\n" // mill is never imported
@@ -85,8 +85,8 @@ func TestMainTailoredCompileFailure(t *testing.T) {
 	}
 }
 
-// TestMainTailoredBadArgs: the flag surface refuses malformed input
-// as configuration, before compiling anything.
+// The flag surface refuses malformed input as configuration, before
+// compiling anything.
 func TestMainTailoredBadArgs(t *testing.T) {
 	tests := []struct {
 		name string
@@ -111,9 +111,8 @@ func TestMainTailoredBadArgs(t *testing.T) {
 	}
 }
 
-// TestMainTailoredGatesExterns closes the loop on the teaching error:
-// the -extern hint the gate prints names the very flag this surface
-// parses.
+// The teaching error closes its loop: the -extern hint the gate
+// prints names the very flag this surface parses.
 func TestMainTailoredGatesExterns(t *testing.T) {
 	var stderr bytes.Buffer
 	code := host.MainTailored(tailoredConfig(newStandControl(), nil, &stderr, tailoredUnit), nil)

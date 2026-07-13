@@ -143,10 +143,10 @@ func parkImage(elem string) *image.Image {
 // ----------------------------------------------------------------------------
 // The exit contract
 
-// TestMainExitCodes pins the 0/1/2 verdicts: clean completion is 0,
-// wet failures — a refusing driver, a failing instance — are 1, and
-// input faults — unbound externs, a broken plan, no image at all —
-// are 2, printed before anything wet runs.
+// The exit contract is A-12's restartable split: clean completion is
+// 0, wet failures — a refusing driver, a failing instance — are 1,
+// and input faults — unbound externs, a broken plan, no image at all
+// — are 2, printed before anything wet runs.
 func TestMainExitCodes(t *testing.T) {
 	t.Run("clean completion", func(t *testing.T) {
 		ctl := newStandControl()
