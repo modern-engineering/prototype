@@ -4,6 +4,7 @@
 package image_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -106,6 +107,15 @@ func TestEqualMasksProvenance(t *testing.T) {
 	generation.Generation = 99
 	if !image.Equal(base, generation) {
 		t.Error("Equal must mask Generation: differing generations compared unequal")
+	}
+
+	build := testImage()
+	build.Build = &image.Build{
+		Units:    []image.UnitDigest{{Name: "main.sdl", SHA256: strings.Repeat("ab", 32)}},
+		Settings: []image.Setting{{Key: "sdl.version", Value: "v0.9.9"}},
+	}
+	if !image.Equal(base, build) {
+		t.Error("Equal must mask the Build block entirely: a governance-only difference compared unequal")
 	}
 
 	source := testImage()

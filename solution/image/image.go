@@ -22,11 +22,12 @@
 //
 // # Provenance
 //
-// Generation and every [Binding]'s Source describe how the image came to
-// be, not what state it desires. [Equal] therefore masks both: two
-// compilations of the same solution are equal even when produced at
-// different generations or, later, with values arriving through
-// different default layers.
+// Generation, the [Build] block, and every [Binding]'s Source describe
+// how the image came to be, not what state it desires. [Equal]
+// therefore masks all three: two compilations of the same solution are
+// equal even when produced at different generations, from differently
+// spelled sources, or with values arriving through different default
+// layers.
 //
 // The type set is deliberately minimal: this rung emits components,
 // provision types, symbol types, deploy and provision records, and the
@@ -122,6 +123,10 @@ type Image struct {
 	// provenance: [Equal] masks it.
 	Generation int64 `json:"generation"`
 
+	// Build is the image's governance block, absent from images that
+	// predate it. It is provenance in whole: [Equal] masks it.
+	Build *Build `json:"build,omitempty"`
+
 	// Catalogue pins every registered package, sorted by Path.
 	Catalogue []Package `json:"catalogue"`
 
@@ -133,6 +138,49 @@ type Image struct {
 	// Records hold the deployment statements in unit-then-statement
 	// order.
 	Records []Record `json:"records"`
+}
+
+// A Build is the image's governance block: the provenance of the
+// compilation that produced it, in the mold of debug.BuildInfo. Its
+// contents serve skew detection, audit, and blast-radius tracing —
+// never reconciliation: nothing here is desired state, so [Equal]
+// masks the block in whole. Semantic linkage facts (extern must-bind,
+// var overridability, sensitivity) belong to the symbol table, not
+// here.
+//
+// The block deliberately carries no wall-clock stamp: two
+// compilations of the same inputs stay byte-identical. A vcs-style
+// stamp and guardrail fields (delete protection) reopen here when
+// enactment needs them.
+type Build struct {
+	// Units digest every compiled unit, in unit order — the order
+	// records keep.
+	Units []UnitDigest `json:"units"`
+
+	// Settings record tool-chain facts of the producing build, sorted
+	// by key. Current keys: "sdl.version", the producing CLI's module
+	// version, and "prototype.version", the framework library the
+	// compiler linked against. A setting appears only when a real
+	// module version resolved; locally sourced builds record nothing,
+	// keeping images machine-independent.
+	Settings []Setting `json:"settings,omitempty"`
+}
+
+// A UnitDigest is one compiled unit's content digest.
+type UnitDigest struct {
+	// Name is the unit's filename, as diagnostics position it.
+	Name string `json:"name"`
+
+	// SHA256 is the lowercase-hex SHA-256 of the unit's exact source
+	// text, so `shasum -a 256 <unit>` verifies a source file against
+	// the image it produced.
+	SHA256 string `json:"sha256"`
+}
+
+// A Setting is one key-value fact of the governance block.
+type Setting struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // A Package pins the compiled-against schema of one catalogue package.

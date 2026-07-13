@@ -9,10 +9,12 @@ import (
 )
 
 // Equal reports whether two images describe the same desired state. All
-// provenance is masked: Generation and every [Binding]'s Source never
-// enter the comparison, so a round trip through re-rendering and
-// re-compilation compares equal even when values arrive through
-// different layers or the producer stamped a different generation.
+// provenance is masked: Generation, the [Build] block, and every
+// [Binding]'s Source never enter the comparison, so a round trip
+// through re-rendering and re-compilation compares equal even when the
+// rebuilt sources spell the state differently (new unit digests), the
+// values arrive through different layers, or the producer stamped a
+// different generation.
 //
 // The comparison is structural over the canonical order producers emit
 // (packages by path, elements by name, symbols by name, records in

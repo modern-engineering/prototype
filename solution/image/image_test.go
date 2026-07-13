@@ -5,6 +5,7 @@ package image_test
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 
@@ -29,6 +30,55 @@ func TestEncodeDecodeRoundTrip(t *testing.T) {
 	}
 	if got.Generation != img.Generation {
 		t.Errorf("Decode Generation = %d, want %d (carried even though Equal masks it)", got.Generation, img.Generation)
+	}
+}
+
+// TestBuildRoundTrip pins the governance block's carriage: encoding
+// keeps it (in header position, between generation and catalogue) and
+// decoding restores it verbatim — Equal masks the block, so the
+// comparison here is direct — while a document without one decodes to
+// a nil Build, the shape of every image predating the block.
+func TestBuildRoundTrip(t *testing.T) {
+	img := testImage()
+	img.Build = &image.Build{
+		Units: []image.UnitDigest{
+			{Name: "main.sdl", SHA256: strings.Repeat("12", 32)},
+			{Name: "peer.sdl", SHA256: strings.Repeat("34", 32)},
+		},
+		Settings: []image.Setting{
+			{Key: "prototype.version", Value: "v0.1.0"},
+			{Key: "sdl.version", Value: "v0.1.2"},
+		},
+	}
+	var buf bytes.Buffer
+	if err := img.Encode(&buf); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	head, _, _ := strings.Cut(buf.String(), `"catalogue"`)
+	if !strings.Contains(head, `"build"`) || !strings.Contains(head, `"generation"`) {
+		t.Errorf("build must encode between generation and catalogue; header:\n%s", head)
+	}
+	got, err := image.Decode(&buf)
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if got.Build == nil || !slices.Equal(got.Build.Units, img.Build.Units) || !slices.Equal(got.Build.Settings, img.Build.Settings) {
+		t.Errorf("decoded Build = %+v, want %+v", got.Build, img.Build)
+	}
+
+	var plain bytes.Buffer
+	if err := testImage().Encode(&plain); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	if strings.Contains(plain.String(), `"build"`) {
+		t.Error("an image without a Build block must omit the build key")
+	}
+	old, err := image.Decode(&plain)
+	if err != nil {
+		t.Fatalf("Decode of a build-less document: %v", err)
+	}
+	if old.Build != nil {
+		t.Errorf("decoded Build = %+v, want nil for a document without one", old.Build)
 	}
 }
 
