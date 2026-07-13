@@ -27,7 +27,7 @@ laptops — from those definitions. The analysis proceeds in the INCOSE order:
 stakeholders, a concept of operations (ConOps — how the organization intends to
 run its business around the layer), operational scenarios (OpsCon — how the
 system is operated day to day), and measures of effectiveness. Nothing here
-decides a mechanism; the field cases constrain whatever mechanism a later decision
+decides a mechanism; the scenarios constrain whatever mechanism a later decision
 record picks.
 
 ## Stakeholders
@@ -96,8 +96,13 @@ per-customer variants are distinct solutions, authored, or generated, above the
 layer. Platform teams guarantee substrate and operate an archetype portfolio:
 the same solution is proven as a single process on a developer laptop, shipped
 to Kubernetes for the cloud offering, and delivered to systemd hosts
-on-premises. Handovers between roles happen on artifacts, not on meetings: a
-catalogue release, a compiled solution, a site binding.
+on-premises. Deployment conventions travel the chain as published material too:
+platform teams and a wider community package stanza schemes
+([D-15 Discovered Stanza Schemes]) as reusable building blocks — versioned,
+documented vocabularies a solution imports to tune for the controllers that read
+them, checked at authoring time exactly where they are adopted. Handovers
+between roles happen on artifacts, not on meetings: a catalogue release, a
+scheme release, a compiled solution, a site binding.
 
 A multi-tenant production system we studied shows the before picture. One Go
 binary statically links roughly sixty components behind a hand-maintained list;
@@ -220,3 +225,4 @@ requirement locks the survivors and sets their thresholds.
 [A-11 Substrate and Slices]: A-11-substrate-slices.md
 [A-12 Operator I/O]: A-12-operator-io.md
 [D-13 Two-Phase Enactment]: ../adr/D-13-two-phase-enactment.md
+[D-15 Discovered Stanza Schemes]: ../adr/D-15-discovered-stanza-schemes.md
