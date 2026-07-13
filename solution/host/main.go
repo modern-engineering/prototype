@@ -18,7 +18,7 @@ import (
 // must not own — signal handling, the graceful-shutdown sequence, and
 // the exit code — and returns that code for main to hand os.Exit. One
 // prebuilt binary calling Main serves any image compiled against its
-// catalogue.
+// catalogue; examples/host is the committed demonstration.
 //
 // The first SIGINT/SIGTERM starts the wind-down: every running service
 // with a Shutdown capability is asked to stop within cfg.Grace
