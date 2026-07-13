@@ -20,6 +20,7 @@ import (
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/buildcmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/echocmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/fmtcmd"
+	"github.com/modern-engineering/prototype/cmd/sdl/internal/highlightcmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/imagecmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/runcmd"
 )
@@ -31,6 +32,7 @@ func init() {
 		buildcmd.CmdBuild,
 		echocmd.CmdEcho,
 		fmtcmd.CmdFmt,
+		highlightcmd.CmdHighlight,
 		imagecmd.CmdImage,
 		runcmd.CmdRun,
 	}

@@ -25,6 +25,8 @@ func TestInvokeExitCodes(t *testing.T) {
 		{"bad flag", []string{"echo", "-nope"}},
 		{"surplus arguments", []string{"echo", "a.json", "b.json"}},
 		{"missing image edit argument", []string{"image", "edit"}},
+		{"missing highlight target", []string{"highlight"}},
+		{"unknown highlight target", []string{"highlight", "emacs"}},
 		{"unknown help topic", []string{"help", "nope"}},
 	}
 	for _, tt := range tests {

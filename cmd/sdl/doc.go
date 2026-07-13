@@ -12,6 +12,7 @@
 //	build       compile a solution directory into its desired-state image
 //	echo        render a desired-state image as canonical SDL
 //	fmt         reformat solution units in canonical form
+//	highlight   emit an editor syntax definition for solution units
 //	image       amend and query desired-state image files
 //	run         compile and run a solution in a tailored host process
 //
