@@ -173,4 +173,13 @@
 // emitted script is static and never calls back into sdl;
 // regenerating after an upgrade is the user's affair, and 'sdl help
 // completion' carries the wiring.
+//
+// sdl vet bends the rule from description to judgement: the
+// catalogue-free source checks judge section words and top-level
+// fields against solution.Vocabulary, the same value the linker
+// enforces, so vet cannot disagree with the compiler about what the
+// language admits. Its remaining checks shadow the linker by hand —
+// package vetcmd records that drift risk and the shared-checker door
+// — and a corpus sweep holds vet to accepting whatever the build
+// accepts.
 package main
