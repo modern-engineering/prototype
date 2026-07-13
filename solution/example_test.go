@@ -12,7 +12,46 @@ import (
 	"github.com/modern-engineering/prototype/solution"
 )
 
-// ExampleMainCompile compiles a tiny solution through the Go API — the
+// A live catalogue reads back through Unpack: a consumer switches on
+// the one non-nil arm of the registration — the mirror of the
+// constructor that packaged the element — and a nil element unpacks
+// to the zero registration.
+func ExampleUnpack() {
+	elements := []solution.Element{
+		solution.App("Ping", &application.Descriptor{
+			Name: "ping",
+			Doc:  "echo a subject",
+			Make: func() application.Service {
+				return application.Main(func(context.Context) error { return nil })
+			},
+		}),
+		solution.Provision("Bus", &solution.ProvisionType{Doc: "a message bus"}),
+		solution.Symbol("Endpoint", &solution.SymbolType{Doc: "a site-bound coordinate"}),
+		solution.Scheme("Pod", &solution.SchemeType{Doc: "pod conventions", Qualifier: "k8s.pod"}),
+	}
+	for _, el := range elements {
+		switch r := solution.Unpack(el); {
+		case r.App != nil:
+			fmt.Println(r.Name, "is a component:", r.App.Doc)
+		case r.Provision != nil:
+			fmt.Println(r.Name, "is a provision type:", r.Provision.Doc)
+		case r.Symbol != nil:
+			fmt.Println(r.Name, "is a symbol type:", r.Symbol.Doc)
+		case r.Scheme != nil:
+			fmt.Println(r.Name, "is a scheme type:", r.Scheme.Doc)
+		}
+	}
+	fmt.Println("nil unpacks empty:", solution.Unpack(nil) == solution.Registration{})
+
+	// Output:
+	// Ping is a component: echo a subject
+	// Bus is a provision type: a message bus
+	// Endpoint is a symbol type: a site-bound coordinate
+	// Pod is a scheme type: pod conventions
+	// nil unpacks empty: true
+}
+
+// This example compiles a tiny solution through the Go API — the
 // call a generated main makes with its embedded units and imported
 // catalogue packages — and lets the image land on stdout.
 func ExampleMainCompile() {
