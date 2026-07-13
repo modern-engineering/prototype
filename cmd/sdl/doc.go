@@ -10,6 +10,7 @@
 // The commands are:
 //
 //	build       compile a solution directory into its desired-state image
+//	completion  emit a shell completion script for the sdl command
 //	echo        render a desired-state image as canonical SDL
 //	fmt         reformat solution units in canonical form
 //	highlight   emit an editor syntax definition for solution units

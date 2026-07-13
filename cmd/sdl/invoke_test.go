@@ -27,6 +27,8 @@ func TestInvokeExitCodes(t *testing.T) {
 		{"missing image edit argument", []string{"image", "edit"}},
 		{"missing highlight target", []string{"highlight"}},
 		{"unknown highlight target", []string{"highlight", "emacs"}},
+		{"missing completion shell", []string{"completion"}},
+		{"unknown completion shell", []string{"completion", "fish"}},
 		{"unknown help topic", []string{"help", "nope"}},
 	}
 	for _, tt := range tests {
