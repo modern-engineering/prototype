@@ -235,9 +235,9 @@ provision pg.Postgres as legacy
 	}
 }
 
-// TestParseDottedKeys drives the composite-key production: dotted
-// segments join into one key string anchored at the first segment,
-// inside instance bodies and section bodies alike.
+// Dotted segments join into one parameter-key string anchored at the
+// first segment, inside instance bodies and section bodies alike: the
+// composite-key production.
 func TestParseDottedKeys(t *testing.T) {
 	f := parse(t, `solution s
 
@@ -271,11 +271,11 @@ deploy ff.Ping as P {
 	}
 }
 
-// TestParseQualifiedSections drives the optional dotted qualifier on
-// section heads: any section word may carry one, in instance and default
-// bodies alike and at any nesting depth, joined into a single identifier
-// like a dotted key. Which words admit one is the linker's business, so
-// two "with" sections in one body are no parse error.
+// Any section head may carry an optional dotted qualifier, in instance
+// and default bodies alike and at any nesting depth, joined into a
+// single identifier like a dotted key. Which words admit one is the
+// linker's business, so two "with" sections in one body are no parse
+// error.
 func TestParseQualifiedSections(t *testing.T) {
 	f := parse(t, `solution s
 
@@ -483,9 +483,9 @@ func TestParseErrors(t *testing.T) {
 	}
 }
 
-// TestParseDepthLimit feeds adversarially nested bodies through both
-// body-bearing productions: the parser must stop at a positioned
-// depth error instead of overflowing the goroutine stack.
+// Adversarially nested bodies stop at a positioned depth error instead
+// of overflowing the goroutine stack, through both body-bearing
+// productions.
 func TestParseDepthLimit(t *testing.T) {
 	deep := strings.Repeat("a {\n", 12000) // beyond maxNestLev, never closed
 	tests := map[string]string{
