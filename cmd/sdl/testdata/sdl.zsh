@@ -19,6 +19,7 @@ _sdl() {
 			'highlight:emit an editor syntax definition for solution units'
 			'image:amend and query desired-state image files'
 			'run:compile and run a solution in a tailored host process'
+			'vet:report likely mistakes in solution units'
 		)
 		_describe -t commands 'sdl command' commands
 		return
@@ -32,6 +33,7 @@ _sdl() {
 	highlight) shift words; (( CURRENT-- )); _sdl_highlight ;;
 	image) shift words; (( CURRENT-- )); _sdl_image ;;
 	run) shift words; (( CURRENT-- )); _sdl_run ;;
+	vet) shift words; (( CURRENT-- )); _sdl_vet ;;
 	esac
 }
 
@@ -120,6 +122,11 @@ _sdl_run() {
 		'*:file:_files'
 }
 
+# sdl vet
+_sdl_vet() {
+	_arguments '*:file:_files'
+}
+
 # sdl help
 _sdl_help() {
 	if (( CURRENT == 2 )); then
@@ -132,6 +139,7 @@ _sdl_help() {
 			'highlight:emit an editor syntax definition for solution units'
 			'image:amend and query desired-state image files'
 			'run:compile and run a solution in a tailored host process'
+			'vet:report likely mistakes in solution units'
 		)
 		_describe -t commands 'sdl help topic' commands
 		return

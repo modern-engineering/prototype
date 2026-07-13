@@ -16,6 +16,7 @@
 //	highlight   emit an editor syntax definition for solution units
 //	image       amend and query desired-state image files
 //	run         compile and run a solution in a tailored host process
+//	vet         report likely mistakes in solution units
 //
 // Use "sdl help <command>" for more information about a command.
 //

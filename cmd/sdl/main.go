@@ -24,6 +24,7 @@ import (
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/highlightcmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/imagecmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/runcmd"
+	"github.com/modern-engineering/prototype/cmd/sdl/internal/vetcmd"
 )
 
 func init() {
@@ -37,6 +38,7 @@ func init() {
 		highlightcmd.CmdHighlight,
 		imagecmd.CmdImage,
 		runcmd.CmdRun,
+		vetcmd.CmdVet,
 	}
 }
 

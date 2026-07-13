@@ -91,7 +91,7 @@ printf '%s\n' "${COMPREPLY[@]}"
 		words []string
 		want  []string
 	}{
-		{[]string{"sdl", ""}, []string{"build", "completion", "echo", "fmt", "help", "highlight", "image", "run"}},
+		{[]string{"sdl", ""}, []string{"build", "completion", "echo", "fmt", "help", "highlight", "image", "run", "vet"}},
 		{[]string{"sdl", "image", ""}, []string{"edit", "info", "records", "symbols"}},
 		{[]string{"sdl", "image", "edit", "-"}, []string{"-generation"}},
 		{[]string{"sdl", "run", "-"}, []string{"-extern", "-grace", "-work"}},
