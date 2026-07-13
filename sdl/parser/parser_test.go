@@ -4,8 +4,8 @@
 // Open door, recorded but not built: an in-fixture error corpus in the
 // go/parser (/* ERROR "rx" */) and analysistest (// want) tradition —
 // testdata fixtures carrying each expected diagnostic beside the
-// offending line, so positions are checked by eye where today
-// TestParseErrors hand-counts line:col into a table of backtick
+// offending line, so positions are checked by eye instead of
+// hand-counted as line:col in the TestParseErrors table's backtick
 // strings. SDL has line comments only, so the marker would anchor a
 // line and the column needs its own convention (say, a quoted lexeme
 // the harness locates on that line). Reopening trigger: a grammar
