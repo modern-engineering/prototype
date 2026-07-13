@@ -10,7 +10,7 @@
       },
       {
         "name": "sample_extra.sdl",
-        "sha256": "a6daed43b5f6bb5395decc1df3f6d832bda02d440eb4c09a00df4f2c4a314c2b"
+        "sha256": "94285d4aa2a07e0bf0665cff3a8413d44f7dfb6dbe73747ce4cbd4e3abb846a3"
       }
     ]
   },
@@ -520,6 +520,24 @@
         }
       ],
       "extensions": {
+        "acme.rollout": [
+          {
+            "key": "maxSurge",
+            "value": {
+              "kind": "int",
+              "int": 1
+            },
+            "source": "instance"
+          },
+          {
+            "key": "strategy",
+            "value": {
+              "kind": "token",
+              "token": "canary"
+            },
+            "source": "instance"
+          }
+        ],
         "k8s.pod": [
           {
             "key": "priorityClass",

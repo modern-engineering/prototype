@@ -1329,6 +1329,21 @@ func TestBuildSample(t *testing.T) {
 		t.Errorf("k8s pins = %+v, want %+v", k8sPkg.Elements, wantSchemes)
 	}
 
+	// The opaque ride-along: no imported package claims acme.rollout,
+	// so Ping3's stanza lands verbatim — beside the checked k8s.pod
+	// one folded from the verb default, both halves of the advisory
+	// contract on a single record.
+	ping3 := img.Records[5]
+	if ping3.Name != "Ping3" {
+		t.Fatalf("records[5] = %s, want Ping3", ping3.Name)
+	}
+	rollout := ping3.Extensions["acme.rollout"]
+	if len(ping3.Extensions) != 2 || len(rollout) != 2 ||
+		rollout[0].Key != "maxSurge" || rollout[0].Value == nil || rollout[0].Value.Int != 1 ||
+		rollout[1].Key != "strategy" || rollout[1].Value == nil || rollout[1].Value.Tok != "canary" {
+		t.Errorf("Ping3 extensions = %+v, want the opaque acme.rollout stanza beside the checked k8s.pod one", ping3.Extensions)
+	}
+
 	res = runSDL(t, repoRoot, "image", "records", out)
 	if res.code != 0 {
 		t.Fatalf("sdl image records exited %d\n%s", res.code, res.stderr)
@@ -1339,9 +1354,10 @@ func TestBuildSample(t *testing.T) {
 		"provision  attach  github.com/modern-engineering/prototype/examples/substrate.Postgres",
 		"natsAccount", "pgLegacy", "Ping1", "Ping2", "Pong", "Ping3",
 		// The compartment columns surface deployment intent and the
-		// extension qualifiers per record.
+		// extension qualifiers per record — the unclaimed qualifier
+		// listed beside the checked one.
 		"DEPLOYMENT", "EXTENSIONS",
-		"location: euCentral1", "k8s.pod",
+		"location: euCentral1", "acme.rollout, k8s.pod",
 	} {
 		if !strings.Contains(res.stdout, want) {
 			t.Errorf("records table is missing %q:\n%s", want, res.stdout)

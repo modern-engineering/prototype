@@ -13,4 +13,13 @@ deploy ff.Ping as Ping3 {
 		target: echoSubject
 		nats: natsAccount.config
 	}
+
+	// No imported package claims acme.rollout, so this stanza rides
+	// the image opaquely, values unchecked — the advisory half of the
+	// scheme contract, kept beside the checked k8s stanzas on purpose
+	// for whichever controller recognizes the qualifier at enactment.
+	with acme.rollout {
+		maxSurge: 1
+		strategy: canary
+	}
 }
