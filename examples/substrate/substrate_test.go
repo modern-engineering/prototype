@@ -11,10 +11,10 @@ import (
 	"github.com/modern-engineering/prototype/solution"
 )
 
-// TestSymbolTypes pins the discovery-visible shape: exported pointer
-// vars, documented, with the intended sensitivity. Symbol types carry
-// no behaviour to harness (application.CheckDescriptor is for
-// components), so the shape is the whole citizenship contract.
+// Symbol citizenship is discovery-visible shape alone: exported
+// pointer vars, documented, with the intended sensitivity. Symbol
+// types carry no behaviour to harness (application.CheckDescriptor is
+// for components), so the shape is the whole contract.
 func TestSymbolTypes(t *testing.T) {
 	for name, st := range map[string]*solution.SymbolType{
 		"Secret":         substrate.Secret,
@@ -38,10 +38,10 @@ func TestSymbolTypes(t *testing.T) {
 	}
 }
 
-// TestProvisionTypes holds the provision citizens to the citizenship
-// contract through the library's own harness — explicit kinds, a
-// vetted output scheme, a dry Make — plus the documentation this
-// package owes the image.
+// Every provision citizen passes the library's citizenship harness —
+// explicit kinds, a vetted output scheme, a dry Make — and carries the
+// documentation this package owes the image, plus the kind and taint
+// choices each type exists to demonstrate.
 func TestProvisionTypes(t *testing.T) {
 	for name, pt := range map[string]*solution.ProvisionType{
 		"NATS":     substrate.NATS,
@@ -81,11 +81,11 @@ func TestProvisionTypes(t *testing.T) {
 	}
 }
 
-// TestStandInAttach drives the one runnable driver end to end the way
-// a host will: make a provisioner, bind its parameter, Attach with a
-// writer over the declared scheme, then read the output back typed
-// and rendered. The parameter must not matter — the stand-in emits
-// its fixed value no matter what endpoint it was pointed at.
+// The one runnable driver enacts end to end the way a host drives it:
+// make a provisioner, bind its parameter, Attach with a writer over
+// the declared scheme, then read the output back typed and rendered.
+// The parameter must not matter — the stand-in emits its fixed value
+// no matter what endpoint it was pointed at.
 func TestStandInAttach(t *testing.T) {
 	p := substrate.StandIn.Make()
 	if err := p.Flags().Set("endpoint", "nats.example:4222"); err != nil {
@@ -106,10 +106,9 @@ func TestStandInAttach(t *testing.T) {
 	}
 }
 
-// TestCompileOnlyDriversRefuse pins the teaching error of the types
-// without a real driver: Attach fails with the exact wording
-// enactment will surface, and writes nothing — a refused type must
-// not leave half a scheme behind.
+// Types without a real driver refuse with a teaching error: Attach
+// fails with the exact wording enactment will surface, and writes
+// nothing — a refused type must not leave half a scheme behind.
 func TestCompileOnlyDriversRefuse(t *testing.T) {
 	for name, pt := range map[string]*solution.ProvisionType{
 		"NATS":     substrate.NATS,
