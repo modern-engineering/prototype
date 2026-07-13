@@ -1607,7 +1607,7 @@ func TestMainCompileDiagnostics(t *testing.T) {
 				"\t}\n" +
 				"}\n"}},
 			wantCode: 1,
-			want:     []string{"u.sdl:4:2: unknown section mount: sections are params, with, and metadata"},
+			want:     []string{"u.sdl:4:2: unknown section mount: sections are metadata, params, and with"},
 		},
 		{
 			// The retired section word earns its own migration hint: the

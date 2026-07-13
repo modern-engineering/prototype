@@ -1216,23 +1216,45 @@ func (ln *linker) bind(elem *catalogueElement, verb string, at *ast.TypeRef, bod
 	return parts.compartments, ok
 }
 
-// rootFields is the closed per-verb scheme of top-level fields: the
-// deployment-intent keys a statement may set at its body root,
-// element-independent by design (D-12). Growing a verb's scheme is a
-// deliberate vocabulary decision here, never a catalogue side effect.
-var rootFields = map[string]map[string]bool{
-	image.VerbDeploy:    {"location": true},
-	image.VerbProvision: {},
-}
+// rootFields is the closed per-verb scheme of top-level fields as the
+// linker checks it: the deployment-intent keys a statement may set at
+// its body root, element-independent by design (D-12). The membership
+// sets derive from the one vocabulary value (vocab.go), so the checks
+// here and the exported [Vocabulary] cannot drift.
+var rootFields = func() map[string]map[string]bool {
+	fields := make(map[string]map[string]bool, len(vocabulary.RootFields))
+	for verb, list := range vocabulary.RootFields {
+		set := make(map[string]bool, len(list))
+		for _, f := range list {
+			set[f] = true
+		}
+		fields[verb] = set
+	}
+	return fields
+}()
 
 // rootScheme renders a verb's top-level scheme the way diagnostics
-// teach it.
+// teach it, straight from the vocabulary's sorted field lists.
 func rootScheme(verb string) string {
-	keys := slices.Sorted(maps.Keys(rootFields[verb]))
+	keys := vocabulary.RootFields[verb]
 	if len(keys) == 0 {
 		return verb + " takes no top-level fields"
 	}
 	return verb + " takes " + strings.Join(keys, ", ")
+}
+
+// wordList renders a word enumeration the way diagnostics teach a
+// closed vocabulary: "a", "a and b", "a, b, and c".
+func wordList(words []string) string {
+	switch len(words) {
+	case 0:
+		return ""
+	case 1:
+		return words[0]
+	case 2:
+		return words[0] + " and " + words[1]
+	}
+	return strings.Join(words[:len(words)-1], ", ") + ", and " + words[len(words)-1]
 }
 
 // route walks one statement body and sends every item to its D-12
@@ -1299,11 +1321,23 @@ func (ln *linker) rootField(it *ast.Param, verb string, elem *catalogueElement, 
 
 // routeSection routes one section by its word: params items are
 // narrowed and handed back raw, with-stanza and metadata items bind
-// here. params and metadata dedup per body under their own names; a
-// with-stanza dedups per (with, qualifier) pair, so stanzas for
-// distinct qualifiers coexist in one body.
+// here. Membership in the section vocabulary is decided against the
+// one exported value (vocab.go); the per-word policies live in the
+// switch below it. params and metadata dedup per body under their own
+// names; a with-stanza dedups per (with, qualifier) pair, so stanzas
+// for distinct qualifiers coexist in one body.
 func (ln *linker) routeSection(parts *routedBody, sec *ast.Section, seen map[string]token.Position, source string) bool {
 	name := sec.Name.Name
+	switch {
+	case name == "on":
+		// The retired mockup-5 word, special-cased while sources
+		// migrate: its two halves have distinct new homes.
+		ln.errorf(sec.Name.NamePos, "unknown section on: deployment intent moved to top-level fields, controller schemes to with <qualifier> stanzas")
+		return false
+	case !slices.Contains(vocabulary.Sections, name):
+		ln.errorf(sec.Name.NamePos, "unknown section %s: sections are %s", name, wordList(vocabulary.Sections))
+		return false
+	}
 	switch name {
 	case "params", "metadata":
 		if sec.Qualifier != nil {
@@ -1316,14 +1350,6 @@ func (ln *linker) routeSection(parts *routedBody, sec *ast.Section, seen map[str
 			return false
 		}
 		name += " " + sec.Qualifier.Name
-	case "on":
-		// The retired mockup-5 word, special-cased while sources
-		// migrate: its two halves have distinct new homes.
-		ln.errorf(sec.Name.NamePos, "unknown section on: deployment intent moved to top-level fields, controller schemes to with <qualifier> stanzas")
-		return false
-	default:
-		ln.errorf(sec.Name.NamePos, "unknown section %s: sections are params, with, and metadata", name)
-		return false
 	}
 	if first, dup := seen[name]; dup {
 		ln.errorf(sec.Name.NamePos, "duplicate %s section (first declared at %s)", name, first)
