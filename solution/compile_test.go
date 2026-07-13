@@ -2368,6 +2368,59 @@ func TestMainCompileUsageErrors(t *testing.T) {
 				}))},
 			want: `compile: catalogue: package "example.com/p": element X output dsn declares unknown type "float" (string, int, bool, or duration; empty means string)`,
 		},
+		{
+			name: "nil scheme type",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Scheme("X", nil))},
+			want: `compile: catalogue: package "example.com/p": element X has a nil scheme type`,
+		},
+		{
+			// The qualifier is the scheme's whole identity to stanza
+			// text, so a qualifier no stanza can spell is a dead
+			// registration, refused up front.
+			name: "scheme with an unspellable qualifier",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Scheme("X", &solution.SchemeType{Qualifier: "k8s-pod"}))},
+			want: `compile: catalogue: package "example.com/p": element X declares qualifier "k8s-pod": a qualifier is identifier segments joined by dots (e.g. k8s.pod)`,
+		},
+		{
+			name: "scheme with an empty qualifier",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Scheme("X", &solution.SchemeType{}))},
+			want: `compile: catalogue: package "example.com/p": element X declares qualifier "": a qualifier is identifier segments joined by dots (e.g. k8s.pod)`,
+		},
+		{
+			// A keyword segment cannot pass the parser's qualifier
+			// production, so it cannot claim a stanza either.
+			name: "scheme with a keyword qualifier segment",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(solution.Scheme("X", &solution.SchemeType{Qualifier: "deploy.pod"}))},
+			want: `compile: catalogue: package "example.com/p": element X declares qualifier "deploy.pod": a qualifier is identifier segments joined by dots (e.g. k8s.pod)`,
+		},
+		{
+			// Qualifiers are one solution-wide namespace: the second
+			// claim is refused wherever it lives, its own package
+			// included.
+			name: "duplicate scheme qualifier within one package",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: pkg(
+					solution.Scheme("Pod", &solution.SchemeType{Qualifier: "k8s.pod"}),
+					solution.Scheme("PodAgain", &solution.SchemeType{Qualifier: "k8s.pod"}))},
+			want: `compile: catalogue: package "example.com/p": element PodAgain: scheme qualifier "k8s.pod" already provided by "example.com/p"`,
+		},
+		{
+			name: "duplicate scheme qualifier across packages",
+			cfg: solution.CompileConfig{Solution: "sample", Units: []solution.Unit{unit},
+				Catalogue: []solution.Package{
+					{Path: "example.com/p", Name: "p", Elements: []solution.Element{
+						solution.Scheme("Pod", &solution.SchemeType{Qualifier: "k8s.pod"}),
+					}},
+					{Path: "example.com/q", Name: "q", Elements: []solution.Element{
+						solution.Scheme("Pod", &solution.SchemeType{Qualifier: "k8s.pod"}),
+					}},
+				}},
+			want: `compile: catalogue: package "example.com/q": element Pod: scheme qualifier "k8s.pod" already provided by "example.com/p"`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

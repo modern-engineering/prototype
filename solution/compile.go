@@ -154,6 +154,13 @@ type linker struct {
 	imports  []map[string]importBinding // per-unit import tables, parallel to files
 	symbols  map[string]*symbol         // flat namespace: name -> first declaration
 
+	// schemes indexes the registered scheme elements by their
+	// self-declared qualifier. The scope is the whole catalogue — the
+	// union of every unit's imports — never one unit's table: stanza
+	// checking is advisory, and per-unit scoping would leave one
+	// unit's stanza opaque while checking a peer's identical text.
+	schemes map[string]*catalogueElement
+
 	verbDefaults map[string]*defaultBody            // statement verb -> its one default
 	typeDefaults map[*catalogueElement]*defaultBody // element -> its one default
 
@@ -262,6 +269,9 @@ type catalogueElement struct {
 
 	// Symbol types:
 	symbol *SymbolType
+
+	// Scheme types:
+	scheme *SchemeType
 }
 
 // String renders the element's registered identity, package name
@@ -276,8 +286,20 @@ func (ce *catalogueElement) noun() string {
 		return "provision type"
 	case image.KindSymbol:
 		return "symbol type"
+	case image.KindScheme:
+		return "scheme type"
 	}
 	return ce.kind
+}
+
+// factory names the element's dry-instantiation entry point the way
+// diagnostics attribute its panics: Make for components and provision
+// types, Params for scheme types.
+func (ce *catalogueElement) factory() string {
+	if ce.kind == image.KindScheme {
+		return "Params"
+	}
+	return "Make"
 }
 
 // booleanParam reports whether the element's pinned schema marks the
@@ -345,6 +367,7 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 		stderr:       stderr,
 		packages:     make(map[string]*regPackage, len(cfg.Catalogue)),
 		symbols:      make(map[string]*symbol),
+		schemes:      make(map[string]*catalogueElement),
 		verbDefaults: make(map[string]*defaultBody),
 		typeDefaults: make(map[*catalogueElement]*defaultBody),
 	}
@@ -372,6 +395,8 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 				ce.kind, ce.name, ce.prov = image.KindProvision, el.name, el.typ
 			case *symbolElement:
 				ce.kind, ce.name, ce.symbol = image.KindSymbol, el.name, el.typ
+			case *schemeElement:
+				ce.kind, ce.name, ce.scheme = image.KindScheme, el.name, el.typ
 			default:
 				return nil, fmt.Errorf("catalogue: package %q: element %d is nil", pkg.Path, j)
 			}
@@ -397,6 +422,15 @@ func newLinker(cfg CompileConfig) (*linker, error) {
 				if ce.symbol == nil {
 					return nil, fmt.Errorf("catalogue: package %q: element %s has a nil symbol type", pkg.Path, ce.name)
 				}
+			case image.KindScheme:
+				if err := checkSchemeType(ce); err != nil {
+					return nil, fmt.Errorf("catalogue: package %q: element %s %v", pkg.Path, ce.name, err)
+				}
+				if prev, claimed := ln.schemes[ce.scheme.Qualifier]; claimed {
+					return nil, fmt.Errorf("catalogue: package %q: element %s: scheme qualifier %q already provided by %q",
+						pkg.Path, ce.name, ce.scheme.Qualifier, prev.pkgPath)
+				}
+				ln.schemes[ce.scheme.Qualifier] = ce
 			}
 			rp.elements[ce.name] = ce
 		}
@@ -438,6 +472,29 @@ func checkProvisionType(ce *catalogueElement) error {
 	}
 	return nil
 }
+
+// checkSchemeType validates one scheme-type registration. The
+// qualifier is the element's whole identity to stanza text — stanzas
+// attach by it, never by pkg.Elem — so it must be spellable where
+// stanzas spell it. Uniqueness across the catalogue is the caller's
+// check, where the prior claimant is in reach.
+func checkSchemeType(ce *catalogueElement) error {
+	if ce.scheme == nil {
+		return errors.New("has a nil scheme type")
+	}
+	if !validQualifier(ce.scheme.Qualifier) {
+		return fmt.Errorf("declares qualifier %q: a qualifier is identifier segments joined by dots (e.g. k8s.pod)", ce.scheme.Qualifier)
+	}
+	return nil
+}
+
+// validQualifier reports whether q can name a with-stanza: identifier
+// segments joined by dots, the parser's qualifier production —
+// exactly the shapes expressibleKey admits for parameter keys.
+// Registration validation and the [CheckSchemeType] harness share
+// this one decider, so a catalogue can never claim a qualifier no
+// stanza can spell.
+func validQualifier(q string) bool { return expressibleKey(q) }
 
 // errorf records one positioned diagnostic.
 func (ln *linker) errorf(pos token.Position, format string, args ...any) {
@@ -652,6 +709,16 @@ func (ln *linker) collectDefault(d *ast.DefaultDecl) {
 		elem := ln.resolve(t)
 		if elem != nil && elem.kind == image.KindSymbol {
 			ln.errorf(t.Pos(), "cannot default %s: a symbol type takes no parameters", refString(t))
+			elem = nil
+		}
+		if elem != nil && elem.kind == image.KindScheme {
+			// No record ever carries a scheme element, so a scheme-typed
+			// default would fold into nothing and rot silently. The
+			// working spelling defaults the stanza on a verb instead;
+			// scheme-scoped stanza defaults are a door, reopened if
+			// per-scheme defaulting earns a use case.
+			ln.errorf(t.Pos(), "cannot default %s: stanza defaults ride the statement verbs, e.g. default deploy { with %s { ... } }",
+				refString(t), elem.scheme.Qualifier)
 			elem = nil
 		}
 		if elem == nil {
@@ -1122,14 +1189,23 @@ func (ln *linker) resolve(t *ast.TypeRef) *catalogueElement {
 // once; a panicking factory becomes an internal fault attributed to the
 // referencing statement. It reports whether the schema is usable.
 func (ln *linker) dry(elem *catalogueElement, at *ast.TypeRef) bool {
+	return ln.dryAt(elem, at.Pos(), refString(at))
+}
+
+// dryAt is dry for callers whose reference is no type reference — a
+// stanza names its scheme by dotted qualifier, and emit pins
+// unreferenced elements with no reference at all — taking the
+// anchoring position (invalid for positionless reports) and the
+// element spelling the panic report names.
+func (ln *linker) dryAt(elem *catalogueElement, pos token.Position, name string) bool {
 	if elem.dried {
 		return true
 	}
 	fs, panicked := elemFlags(elem)
 	if panicked != nil {
 		ln.internal = &internalError{
-			pos: at.Pos(),
-			msg: fmt.Sprintf("element %s: Make panicked: %v", refString(at), panicked),
+			pos: pos,
+			msg: fmt.Sprintf("element %s: %s panicked: %v", name, elem.factory(), panicked),
 		}
 		return false
 	}
@@ -1756,9 +1832,9 @@ func (ln *linker) checkCycles() {
 // build info, then every registered package — referenced or not,
 // since the registration is what this compilation was checked against
 // — sorted by path, elements by name, symbols by name, records in
-// unit-then-statement order. Pinning a component or provision type
-// not yet dried instantiates it here; without a referencing statement
-// a panic is reported positionless.
+// unit-then-statement order. Pinning a component, provision type, or
+// scheme type not yet dried instantiates it here; without a
+// referencing statement a panic is reported positionless.
 func (ln *linker) emit() (*image.Image, *internalError) {
 	catalogue := make([]image.Package, 0, len(ln.packages))
 	for _, path := range slices.Sorted(maps.Keys(ln.packages)) {
@@ -1768,25 +1844,21 @@ func (ln *linker) emit() (*image.Image, *internalError) {
 			elem := pkg.elements[name]
 			es := image.ElementSchema{Name: elem.name, Kind: elem.kind}
 			switch elem.kind {
-			case image.KindComponent, image.KindProvision:
-				if !elem.dried {
-					fs, panicked := elemFlags(elem)
-					if panicked != nil {
-						return nil, &internalError{
-							msg: fmt.Sprintf("element %s: Make panicked: %v", elem, panicked),
-						}
-					}
-					elem.schema = paramSchemas(fs)
-					elem.dried = true
-					ln.warnInexpressible(elem)
+			case image.KindComponent, image.KindProvision, image.KindScheme:
+				if !ln.dryAt(elem, token.Position{}, elem.String()) {
+					return nil, ln.internal
 				}
 				es.Params = elem.schema
-				if elem.kind == image.KindComponent {
+				switch elem.kind {
+				case image.KindComponent:
 					es.Doc = elem.desc.Doc
-				} else {
+				case image.KindProvision:
 					es.Doc = elem.prov.Doc
 					es.Outputs = outputSchemas(elem.prov.Outputs)
 					es.Kinds = kindStrings(elem.prov.Kinds)
+				case image.KindScheme:
+					es.Doc = elem.scheme.Doc
+					es.Qualifier = elem.scheme.Qualifier
 				}
 			case image.KindSymbol:
 				es.Doc, es.Sensitive = elem.symbol.Doc, elem.symbol.Sensitive
@@ -1835,9 +1907,11 @@ func (ln *linker) emit() (*image.Image, *internalError) {
 // element's parameter surface. A component Makes a fresh service and
 // takes its flag surface, discarding the runner; a provision type
 // Makes a fresh provisioner and takes its flag surface, never
-// touching the driver — one Make contract across both kinds. A nil
-// flag set is a parameterless element, and a provision type without
-// Make at all is parameterless (and driverless) the same way.
+// touching the driver — one Make contract across both kinds; a
+// scheme type declares its keys onto a fresh surface made here, the
+// same contract with the surface's ownership inverted. A nil flag
+// set is a parameterless element, and a provision type without Make
+// or a scheme type without Params is parameterless the same way.
 // panicked carries any panic out of the user code involved — the
 // factory itself, or a Make that returned nothing to take flags from.
 func elemFlags(elem *catalogueElement) (fs *flag.FlagSet, panicked any) {
@@ -1846,11 +1920,19 @@ func elemFlags(elem *catalogueElement) (fs *flag.FlagSet, panicked any) {
 			fs, panicked = nil, p
 		}
 	}()
-	if elem.kind == image.KindProvision {
+	switch elem.kind {
+	case image.KindProvision:
 		if elem.prov.Make == nil {
 			return nil, nil
 		}
 		return elem.prov.Make().Flags(), nil
+	case image.KindScheme:
+		if elem.scheme.Params == nil {
+			return nil, nil
+		}
+		fresh := flag.NewFlagSet(elem.name, flag.ContinueOnError)
+		elem.scheme.Params(fresh)
+		return fresh, nil
 	}
 	return elem.desc.Make().Flags(), nil
 }

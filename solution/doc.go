@@ -13,9 +13,9 @@
 // program in the solution's own module context and runs it. The
 // generated main is this package's intended caller: it fills a
 // [CompileConfig] with the embedded [Unit] sources and the [Package]
-// registrations — each element packaged by [App], [Provision], or
-// [Symbol] under the exported identifier its defining package gives
-// it — and hands control to [MainCompile]. Running the compiler
+// registrations — each element packaged by [App], [Provision],
+// [Symbol], or [Scheme] under the exported identifier its defining
+// package gives it — and hands control to [MainCompile]. Running the compiler
 // inside a program that imports the catalogue is the point:
 // parameters are validated by the very flag.Value code that will
 // parse them again at run time.
