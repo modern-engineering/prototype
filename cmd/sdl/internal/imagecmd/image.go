@@ -17,11 +17,13 @@ var CmdImage = &base.Command{
 	UsageLine: "sdl image <command> [arguments]",
 	Short:     "amend and query desired-state image files",
 	Long: `Image groups the plumbing verbs that operate on desired-state image
-files: edit amends an image in place, records and symbols print its
-sections as aligned tables. The group serves pipelines and tooling;
-the human-facing rendering of a whole image is sdl echo.`,
+files: edit amends an image in place, info prints its identity and
+provenance, and records and symbols print its sections as aligned
+tables. The group serves pipelines and tooling; the human-facing
+rendering of a whole image is sdl echo.`,
 	Commands: []*base.Command{
 		cmdEdit,
+		cmdInfo,
 		cmdRecords,
 		cmdSymbols,
 	},

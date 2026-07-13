@@ -54,6 +54,67 @@ func testImage() *image.Image {
 	}
 }
 
+// TestInfoReport pins the info rendering over a governance-bearing
+// image: header facts first, settings as key=value, units with their
+// digests, and the catalogue pin summary with pluralized element
+// counts — every field literally tab-separated, the go version -m
+// shape.
+func TestInfoReport(t *testing.T) {
+	img := testImage()
+	img.Generation = 4
+	img.Catalogue = append(img.Catalogue, image.Package{
+		Path: "example.com/acme/substrate",
+		Name: "substrate",
+		Elements: []image.ElementSchema{
+			{Name: "NATS", Kind: image.KindProvision},
+			{Name: "Secret", Kind: image.KindSymbol},
+		},
+	})
+	img.Build = &image.Build{
+		Units: []image.UnitDigest{
+			{Name: "main.sdl", SHA256: strings.Repeat("ab", 32)},
+			{Name: "peer.sdl", SHA256: strings.Repeat("cd", 32)},
+		},
+		Settings: []image.Setting{
+			{Key: "prototype.version", Value: "v0.1.0"},
+			{Key: "sdl.version", Value: "v0.1.2"},
+		},
+	}
+	var out bytes.Buffer
+	if err := info(img, &out); err != nil {
+		t.Fatal(err)
+	}
+	want := "" +
+		"solution\tsample\n" +
+		"generation\t4\n" +
+		"format\tsolution-image/1\n" +
+		"setting\tprototype.version=v0.1.0\n" +
+		"setting\tsdl.version=v0.1.2\n" +
+		"unit\tmain.sdl\t" + strings.Repeat("ab", 32) + "\n" +
+		"unit\tpeer.sdl\t" + strings.Repeat("cd", 32) + "\n" +
+		"catalogue\texample.com/acme/pingpong\tpingpong\t1 element\n" +
+		"catalogue\texample.com/acme/substrate\tsubstrate\t2 elements\n"
+	if out.String() != want {
+		t.Errorf("info report:\n%s--- want ---\n%s", out.String(), want)
+	}
+}
+
+// TestInfoWithoutBuild pins the pre-governance shape: an image without
+// the block reports its header and catalogue, no setting or unit lines.
+func TestInfoWithoutBuild(t *testing.T) {
+	var out bytes.Buffer
+	if err := info(testImage(), &out); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if strings.Contains(got, "setting\t") || strings.Contains(got, "unit\t") {
+		t.Errorf("info of a build-less image printed governance lines:\n%s", got)
+	}
+	if !strings.Contains(got, "solution\tsample\n") || !strings.Contains(got, "catalogue\texample.com/acme/pingpong\tpingpong\t1 element\n") {
+		t.Errorf("info report is missing header or catalogue lines:\n%s", got)
+	}
+}
+
 func TestRecordsTable(t *testing.T) {
 	var out bytes.Buffer
 	if err := records(testImage(), &out); err != nil {

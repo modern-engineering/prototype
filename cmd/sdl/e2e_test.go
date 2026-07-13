@@ -1260,6 +1260,31 @@ func TestBuildSample(t *testing.T) {
 			t.Errorf("records table is missing %q:\n%s", want, res.stdout)
 		}
 	}
+
+	// info reports the identity and the governance block: both unit
+	// digests, no settings (nothing resolves to a real version in this
+	// checkout), both catalogue pins.
+	res = runSDL(t, repoRoot, "image", "info", out)
+	if res.code != 0 {
+		t.Fatalf("sdl image info exited %d\n%s", res.code, res.stderr)
+	}
+	t.Logf("sample info report:\n%s", res.stdout)
+	for _, want := range []string{
+		"solution\tsample\n",
+		"generation\t1\n",
+		"format\tsolution-image/1\n",
+		"unit\tsample.sdl\t",
+		"unit\tsample_extra.sdl\t",
+		"catalogue\tgithub.com/modern-engineering/prototype/examples/ff\tff\t2 elements\n",
+		"catalogue\tgithub.com/modern-engineering/prototype/examples/substrate\tsubstrate\t",
+	} {
+		if !strings.Contains(res.stdout, want) {
+			t.Errorf("info report is missing %q:\n%s", want, res.stdout)
+		}
+	}
+	if strings.Contains(res.stdout, "setting\t") {
+		t.Errorf("info reported a version setting; dir-replaced and checkout builds must record none:\n%s", res.stdout)
+	}
 }
 
 // TestSampleRoundTrip closes the loop over the living sample: echoing
