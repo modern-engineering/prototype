@@ -628,13 +628,13 @@ func TestParseMockup6(t *testing.T) {
 
 	f, err := parser.ParseFile("sample.sdl", unit1)
 	if err != nil {
-		t.Fatalf("mockup 5 main unit: %v", err)
+		t.Fatalf("mockup 6 main unit: %v", err)
 	}
 	if f.Solution == nil || f.Solution.Name.Name != "sample" {
 		t.Fatalf("solution clause: got %+v", f.Solution)
 	}
 	if len(f.Solution.Before) == 0 {
-		t.Error("mockup 5 header comments not attached to the solution clause")
+		t.Error("mockup 6 header comments not attached to the solution clause")
 	}
 	wantDecls := []string{
 		"*ast.ExternDecl", "*ast.VarDecl", "*ast.DefaultDecl", "*ast.DefaultDecl",
@@ -698,7 +698,7 @@ func TestParseMockup6(t *testing.T) {
 	// The peer unit repeats the solution clause and adds one deployment.
 	pf, err := parser.ParseFile("sample_extra.sdl", unit2)
 	if err != nil {
-		t.Fatalf("mockup 5 peer unit: %v", err)
+		t.Fatalf("mockup 6 peer unit: %v", err)
 	}
 	if pf.Solution == nil || pf.Solution.Name.Name != "sample" {
 		t.Fatalf("peer solution clause: got %+v", pf.Solution)
