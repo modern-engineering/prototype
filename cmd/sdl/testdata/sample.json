@@ -250,7 +250,7 @@
           "source": "instance"
         }
       ],
-      "on": [
+      "deployment": [
         {
           "key": "location",
           "value": {
@@ -259,7 +259,19 @@
           },
           "source": "default-deploy"
         }
-      ]
+      ],
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "priorityClass",
+            "value": {
+              "kind": "token",
+              "token": "standard"
+            },
+            "source": "default-deploy"
+          }
+        ]
+      }
     },
     {
       "verb": "deploy",
@@ -301,7 +313,7 @@
           "source": "instance"
         }
       ],
-      "on": [
+      "deployment": [
         {
           "key": "location",
           "value": {
@@ -311,6 +323,26 @@
           "source": "instance"
         }
       ],
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "priorityClass",
+            "value": {
+              "kind": "token",
+              "token": "standard"
+            },
+            "source": "default-deploy"
+          },
+          {
+            "key": "replicas",
+            "value": {
+              "kind": "int",
+              "int": 3
+            },
+            "source": "instance"
+          }
+        ]
+      },
       "metadata": [
         {
           "key": "team",
@@ -347,7 +379,7 @@
           "source": "instance"
         }
       ],
-      "on": [
+      "deployment": [
         {
           "key": "location",
           "value": {
@@ -356,7 +388,19 @@
           },
           "source": "default-deploy"
         }
-      ]
+      ],
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "priorityClass",
+            "value": {
+              "kind": "token",
+              "token": "standard"
+            },
+            "source": "default-deploy"
+          }
+        ]
+      }
     },
     {
       "verb": "deploy",
@@ -398,7 +442,7 @@
           "source": "instance"
         }
       ],
-      "on": [
+      "deployment": [
         {
           "key": "location",
           "value": {
@@ -407,7 +451,19 @@
           },
           "source": "default-deploy"
         }
-      ]
+      ],
+      "extensions": {
+        "k8s.pod": [
+          {
+            "key": "priorityClass",
+            "value": {
+              "kind": "token",
+              "token": "standard"
+            },
+            "source": "default-deploy"
+          }
+        ]
+      }
     }
   ]
 }

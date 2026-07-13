@@ -1,4 +1,4 @@
-// The sample solution is the design scratchpad's mockup 6 brought to
+// The sample solution is the design scratchpad's mockup 7 brought to
 // life: the same statements, linked by sdl build against the real ff
 // and substrate catalogues. Every element reference is
 // package-qualified through the unit's own import block; solution-local
@@ -27,46 +27,68 @@ var (
 	pingInterval: 1s
 )
 
-// Type-level defaults address the element by its qualified name.
+// Type-level defaults address the element by its qualified name and
+// nest compartments exactly like an instance body.
 default ff.Ping {
-	interval: pingInterval
-	count: -1 // endless
+	params {
+		interval: pingInterval
+		count: -1 // endless
+	}
 }
 
 // Verb-level defaults; merge order:
 // catalogue < default verb < default type < instance.
+// Top-level fields default like any other layer, and a with-stanza
+// folds per qualifier under an instance's own matching stanza.
 default deploy {
-	on {
-		location: awsUsEast1
+	location: awsUsEast1
+
+	with k8s.pod {
+		priorityClass: standard
 	}
 }
 
 // `slice` OWNS a partition carved from guaranteed substrate; `attach`
 // plugs in verify-only and emits the same output scheme (registered on
 // the provision TYPE), so downstream wiring cannot tell them apart and
-// migrating off the legacy substrate is a one-word change.
+// migrating off the legacy substrate is a one-word change. Provision
+// registers no top-level fields yet, so provision bodies open straight
+// into compartments.
 provision substrate.NATS slice as natsAccount {
-	cluster: natsCluster
-	adminAccount: natsAdmin
+	params {
+		cluster: natsCluster
+		adminAccount: natsAdmin
+	}
 }
 
 provision substrate.Postgres attach as pgLegacy {
-	server: pgServer
+	params {
+		server: pgServer
+	}
 }
 
 deploy ff.Ping as Ping1 {
-	target: echoSubject
-	nats: natsAccount.config // reconcile-time output: instance.output, unqualified
+	params {
+		target: echoSubject
+		nats: natsAccount.config // reconcile-time output: instance.output, unqualified
+	}
 }
 
 deploy ff.Ping as Ping2 {
-	count: 10 // overrides the default
-	target: echoSubject
-	nats: natsAccount.config
+	location: euCentral1 // overrides `default deploy`
 
-	on {
-		location: euCentral1 // overrides `default deploy`
+	params {
+		count: 10 // overrides the default
+		target: echoSubject
+		nats: natsAccount.config
 	}
+
+	// Folded with the default-deploy stanza above, this instance ships
+	// k8s.pod = {priorityClass: standard, replicas: 3}.
+	with k8s.pod {
+		replicas: 3
+	}
+
 	metadata {
 		team: "search"
 	}
@@ -75,6 +97,8 @@ deploy ff.Ping as Ping2 {
 // An instance may reuse an element's short name: `Pong` names the
 // instance; the element is always `ff.Pong`.
 deploy ff.Pong as Pong {
-	subject: echoSubject // Pong derives its ".>" subscription internally
-	nats: natsAccount.config
+	params {
+		subject: echoSubject // Pong derives its ".>" subscription internally
+		nats: natsAccount.config
+	}
 }

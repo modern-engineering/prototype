@@ -9,6 +9,8 @@ solution sample
 import "github.com/modern-engineering/prototype/examples/ff"
 
 deploy ff.Ping as Ping3 {
-	target: echoSubject
-	nats: natsAccount.config
+	params {
+		target: echoSubject
+		nats: natsAccount.config
+	}
 }
