@@ -114,20 +114,21 @@ func TestRuntimeWithContext(t *testing.T) {
 				t.Logf("after %T.Go(func() error { return err }) for err in %+v", r, tc.errs)
 				t.Errorf("context.Cause(Runtime.Context()) = %v; want %v", cause, tc.want)
 			}
+
+			// Every tracked proc has completed by the time Wait returns:
+			// its Done channel is closed before the group accounting lets
+			// Wait through.
+			for _, p := range r.Running() {
+				select {
+				case <-p.Done():
+				default:
+					t.Errorf("proc %v still pending after Wait returned", p)
+				}
+			}
 		}
 	})
 }
 
-func BenchmarkGo(b *testing.B) {
-	fn := func() {}
-	r := new(application.Runtime)
-	b.ResetTimer()
-	b.ReportAllocs()
-	for b.Loop() {
-		r.Go(func(context.Context) error { fn(); return nil })
-	}
-	_ = r.Wait()
-}
 func ExampleRuntime_Running() {
 	var r application.Runtime
 	r.Go(func(context.Context) error { return nil })
