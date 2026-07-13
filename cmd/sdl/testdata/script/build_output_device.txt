@@ -1,0 +1,35 @@
+# A non-regular -o target is streamed into directly: rename cannot
+# replace a device and it holds no previous image to protect — and a
+# failed build neither warns about nor attempts its removal. The
+# broken variant waits outside the solution directory so only the
+# current spelling is ever loaded.
+[short] skip 'drives the go toolchain'
+
+cd sol
+exec go mod edit -replace=github.com/modern-engineering/prototype=$SDLREPO
+cp $SDLREPO/go.sum go.sum
+sdl build -o $devnull
+! stderr .
+
+cp $WORK/variants/broken-link.sdl sol.sdl
+status 1 sdl build -o $devnull
+! stderr 'removing'
+
+-- sol/go.mod --
+module example.test/sol
+
+go 1.25.0
+
+require github.com/modern-engineering/prototype v0.0.0
+-- sol/sol.sdl --
+solution device
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1
+-- variants/broken-link.sdl --
+solution device
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Gone as G

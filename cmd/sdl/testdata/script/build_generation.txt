@@ -1,0 +1,22 @@
+# A positive -generation stamps the emitted image; the linker's own
+# stamping semantics are solution's pins, the flag's relay into them
+# is this one. (The non-positive usage fault is build_generation_usage.)
+[short] skip 'drives the go toolchain'
+
+exec go mod edit -replace=github.com/modern-engineering/prototype=$SDLREPO
+cp $SDLREPO/go.sum go.sum
+sdl build -generation 7 -o out.json
+grep '"generation": 7' out.json
+
+-- go.mod --
+module example.test/sol
+
+go 1.25.0
+
+require github.com/modern-engineering/prototype v0.0.0
+-- sol.sdl --
+solution stamped
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1

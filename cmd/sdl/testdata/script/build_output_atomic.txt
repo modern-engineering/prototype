@@ -1,0 +1,72 @@
+# -o replacement is atomic: a failed rebuild leaves the previous
+# image byte-identical — whether the fault dies early, at parse
+# before the toolchain runs, or late, inside the generated compiler —
+# and leaves no temporary litter beside it, while a successful rebuild
+# replaces it with an image the CLI itself can read back. The unit
+# variants wait outside the solution directory so only the current
+# spelling is ever loaded.
+[short] skip 'drives the go toolchain'
+
+cd sol
+exec go mod edit -replace=github.com/modern-engineering/prototype=$SDLREPO
+cp $SDLREPO/go.sum go.sum
+sdl build -o out.json
+cp out.json prior.json
+
+# Early: the unit no longer parses, so the fault dies before the
+# toolchain ever runs.
+cp $WORK/variants/broken-parse.sdl sol.sdl
+status 1 sdl build -o out.json
+cmp out.json prior.json
+
+# Late: the unit parses and the generated compiler rejects it.
+cp $WORK/variants/broken-link.sdl sol.sdl
+status 1 sdl build -o out.json
+cmp out.json prior.json
+exec ls
+! stdout 'tmp-'
+
+# A successful rebuild replaces the previous image.
+cp $WORK/variants/changed.sdl sol.sdl
+sdl build -o out.json
+! cmp out.json prior.json
+sdl image info out.json
+
+-- sol/go.mod --
+module example.test/sol
+
+go 1.25.0
+
+require github.com/modern-engineering/prototype v0.0.0
+-- sol/sol.sdl --
+solution atomic
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1 {
+	params {
+		count: 1
+		target: "pong"
+	}
+}
+-- variants/broken-parse.sdl --
+solution atomic
+
+deploy 7
+-- variants/broken-link.sdl --
+solution atomic
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Gone as G
+-- variants/changed.sdl --
+solution atomic
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1 {
+	params {
+		count: 2
+		target: "pong"
+	}
+}

@@ -1,0 +1,7 @@
+# The checked-in examples are canonical: the repository holds exactly
+# the form the toolchain prints, so fmt -l lists nothing and says
+# nothing.
+
+sdl fmt -l $SDLREPO/examples
+! stdout .
+! stderr .

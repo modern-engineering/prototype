@@ -1,0 +1,36 @@
+# A vendored solution module builds: the driver queries the module
+# graph and loads catalogue packages with an explicit -mod=readonly —
+# vendor mode cannot answer module queries — and the synthesized build
+# resolves from the module cache and the mirrored replaces, never from
+# the solution's vendor/ tree. The vendor tree here is deliberately
+# minimal (modules.txt alone flips the go tool into vendor mode): if
+# any stage consulted it, the build would fail loudly. The replace
+# points at a relative symlink so the fixture stays static.
+[short] skip 'drives the go toolchain'
+
+symlink repo -> $SDLREPO
+exec go mod edit -replace=github.com/modern-engineering/prototype=./repo
+cp $SDLREPO/go.sum go.sum
+sdl build -o out.json
+grep '"name": "Ping1"' out.json
+
+-- go.mod --
+module example.test/sol
+
+go 1.25.0
+
+require github.com/modern-engineering/prototype v0.0.0
+-- sol.sdl --
+solution vendored
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1 {
+	params {
+		count: 1
+		target: "pong"
+	}
+}
+-- vendor/modules.txt --
+# github.com/modern-engineering/prototype v0.0.0 => ./repo
+## explicit; go 1.25.0

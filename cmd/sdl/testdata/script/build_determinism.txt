@@ -1,0 +1,9 @@
+# Two builds of the same solution emit byte-identical images: nothing
+# in the pipeline — discovery, generation, the toolchain run, the
+# emitter — may leak timestamps, map order, or temp paths into the
+# artifact.
+[short] skip 'drives the go toolchain'
+
+sdl build -o out1.json $SDLREPO/examples/pingpong
+sdl build -o out2.json $SDLREPO/examples/pingpong
+cmp out1.json out2.json
