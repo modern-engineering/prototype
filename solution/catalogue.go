@@ -140,8 +140,9 @@ const (
 
 // valid reports whether t is inside the declared vocabulary: one of
 // the [OutputType] constants or the empty permissive default.
-// Registration validation holds declarations to it, so an image can
-// never pin a type no consumer knows how to hold a value to.
+// Registration validation and the [CheckProvisionType] harness share
+// this one decider, so an image can never pin a type no consumer
+// knows how to hold a value to.
 func (t OutputType) valid() bool {
 	switch t {
 	case "", OutputString, OutputInt, OutputBool, OutputDuration:
