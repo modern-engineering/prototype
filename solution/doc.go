@@ -63,9 +63,9 @@
 // package application: Make constructs a fresh service whose complete
 // flag surface exists before Run — the property
 // [application.CheckDescriptor] verifies for catalogue authors — and
-// a provision type's Params hook declares slots under the same
+// a provision type's Make builds a fresh [Provisioner] under the same
 // discipline, so the compiler can instantiate elements freely
-// (recover-guarded) and never runs anything.
+// (recover-guarded) and never runs anything, drivers included.
 //
 // # Exit codes
 //

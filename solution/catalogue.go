@@ -4,6 +4,7 @@
 package solution
 
 import (
+	"context"
 	"flag"
 	"io"
 
@@ -51,11 +52,19 @@ type ProvisionType struct {
 	// Doc documents what provisioning this type performs.
 	Doc string
 
-	// Params declares the type's parameter slots on fs, mirroring the
-	// dry-instantiation contract of a component's Make: pure flag
-	// declarations, no side effects, the same schema on every call.
-	// Nil declares a parameterless type.
-	Params func(fs *flag.FlagSet)
+	// Make is the pure factory, the mirror of a component
+	// descriptor's Make: it returns a fresh Provisioner on every
+	// call, declares the instance's parameter flags, and does nothing
+	// else — no I/O, no side effects, no failure. The provisioner
+	// value is the instance: the linker dry-instantiates one for its
+	// throwaway validation surface, and at enactment the host
+	// wet-binds the same flags before running the driver, so the
+	// surface the compiler checked is the surface the driver reads
+	// (A-14). Nil declares a type that is parameterless and
+	// driverless: its statements still compile — the registration
+	// stays a complete dry citizen — and enactment refuses to run
+	// them.
+	Make func() Provisioner
 
 	// Outputs is the scheme of reconcile-time values instances emit.
 	// The scheme belongs to the type, not the kind: a slice and an
@@ -68,6 +77,30 @@ type ProvisionType struct {
 	// and a solution statement may omit its kind word only while the
 	// type registers exactly one.
 	Kinds Kinds
+}
+
+// A Provisioner is one instance of a provision type: the parameter
+// surface its Make declared, plus the driver that runs wet at the
+// PROVISION phase of enactment. The seam is attach-only for now —
+// drivers verify and plug into resources that already exist; the
+// slice lifecycle (create, mutate, destroy, prune under delete
+// protection) joins the interface when a type first registers a real
+// slice driver.
+type Provisioner interface {
+	// Flags exposes the instance's parameter surface, declared when
+	// Make built the value; nil means a flagless instance. The linker
+	// validates statement bodies against a throwaway instance's
+	// flags, and the host parses the record's resolved bindings into
+	// the same flags before the driver runs, so the driver reads its
+	// parameters the way a component service reads its own.
+	Flags() *flag.FlagSet
+
+	// Attach verifies the substrate resource the instance's
+	// parameters describe and plugs into it without taking ownership
+	// (A-11), writing every declared output through w. It runs wet —
+	// I/O and failure are its business — and only at enactment;
+	// nothing on the compile path ever calls it.
+	Attach(ctx context.Context, w *OutputWriter) error
 }
 
 // An Output is one reconcile-time value of a provision type's scheme.

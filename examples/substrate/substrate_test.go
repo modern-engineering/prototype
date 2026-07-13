@@ -41,8 +41,9 @@ func TestSymbolTypes(t *testing.T) {
 
 // TestProvisionTypes holds the provision citizens to their contract:
 // explicit kinds (zero is a compile-catalogue fault), documented
-// outputs, and a Params hook honouring the dry-instantiation
-// invariant — the same slot schema on every fresh flag set.
+// outputs, and a Make factory honouring the dry-instantiation
+// invariant — a fresh provisioner with the same slot schema on every
+// call.
 func TestProvisionTypes(t *testing.T) {
 	for name, pt := range map[string]*solution.ProvisionType{
 		"NATS":     substrate.NATS,
@@ -63,11 +64,11 @@ func TestProvisionTypes(t *testing.T) {
 					t.Errorf("output %s has no Doc", out.Name)
 				}
 			}
-			if pt.Params == nil {
+			if pt.Make == nil {
 				return
 			}
 			if got, want := dryNames(pt), dryNames(pt); !reflect.DeepEqual(got, want) {
-				t.Errorf("Params is not dry: two fresh sets declare %v and %v", got, want)
+				t.Errorf("Make is not dry: two fresh provisioners declare %v and %v", got, want)
 			}
 		})
 	}
@@ -82,12 +83,12 @@ func TestProvisionTypes(t *testing.T) {
 	}
 }
 
-// dryNames declares one throwaway flag set and reads back the slot
-// names it carries.
+// dryNames makes one throwaway provisioner and reads back the slot
+// names its flag surface carries.
 func dryNames(pt *solution.ProvisionType) []string {
-	fs := flag.NewFlagSet("dry", flag.ContinueOnError)
-	pt.Params(fs)
 	var names []string
-	fs.VisitAll(func(f *flag.Flag) { names = append(names, f.Name) })
+	if fs := pt.Make().Flags(); fs != nil {
+		fs.VisitAll(func(f *flag.Flag) { names = append(names, f.Name) })
+	}
 	return names
 }

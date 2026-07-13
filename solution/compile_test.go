@@ -83,11 +83,8 @@ func boomDescriptor() *application.Descriptor {
 // leaves it to the string default, which the image must omit.
 func busProvisionType() *solution.ProvisionType {
 	return &solution.ProvisionType{
-		Doc: "an account carved from the shared message bus",
-		Params: func(fs *flag.FlagSet) {
-			fs.String("admin", "", "admin credential to provision with")
-			fs.String("cluster", "", "cluster to hold the account")
-		},
+		Doc:  "an account carved from the shared message bus",
+		Make: makeBus,
 		Outputs: []solution.Output{
 			{Name: "url", Doc: "endpoint of the account", Type: solution.OutputString},
 			{Name: "config", Doc: "account configuration", Sensitive: true},
@@ -96,9 +93,30 @@ func busProvisionType() *solution.ProvisionType {
 	}
 }
 
-// storeProvisionType registers a single kind and no parameters at all:
-// the nil-Params dry path and the kind-word omission both prove out on
-// it.
+// A busProvisioner is the test provisioner: a real two-slot flag
+// surface for the linker's throwaway validation, and an Attach the
+// compile path must never reach.
+type busProvisioner struct {
+	flags          *flag.FlagSet
+	admin, cluster string
+}
+
+func makeBus() solution.Provisioner {
+	p := &busProvisioner{flags: flag.NewFlagSet("bus", flag.ContinueOnError)}
+	p.flags.StringVar(&p.admin, "admin", "", "admin credential to provision with")
+	p.flags.StringVar(&p.cluster, "cluster", "", "cluster to hold the account")
+	return p
+}
+
+func (p *busProvisioner) Flags() *flag.FlagSet { return p.flags }
+
+func (p *busProvisioner) Attach(context.Context, *solution.OutputWriter) error {
+	panic("compile must never run a driver")
+}
+
+// storeProvisionType registers a single kind and no Make at all: the
+// nil-Make dry path (parameterless, driverless, still compilable) and
+// the kind-word omission both prove out on it.
 func storeProvisionType() *solution.ProvisionType {
 	return &solution.ProvisionType{
 		Doc:     "a verified attachment to the legacy store",
@@ -150,16 +168,16 @@ func brokenCatalogue() []solution.Package {
 	}}
 }
 
-// panickyProvisionCatalogue registers a provision type whose Params
-// hook panics — the provision twin of brokenCatalogue.
+// panickyProvisionCatalogue registers a provision type whose Make
+// factory panics — the provision twin of brokenCatalogue.
 func panickyProvisionCatalogue() []solution.Package {
 	return []solution.Package{{
 		Path: "example.com/acme/panicky",
 		Name: "panicky",
 		Elements: []solution.Element{solution.Provision("Grid", &solution.ProvisionType{
-			Doc:    "panic on dry instantiation",
-			Params: func(fs *flag.FlagSet) { panic("zap") },
-			Kinds:  solution.Slice,
+			Doc:   "panic on dry instantiation",
+			Make:  func() solution.Provisioner { panic("zap") },
+			Kinds: solution.Slice,
 		})},
 	}}
 }
@@ -1131,7 +1149,7 @@ func TestMainCompileBooleanOutputRefs(t *testing.T) {
 // record's own verb: default provision reaches provision records with
 // its own Source and never touches deploys, the type default overrides
 // it key-wise, elements that do not declare a defaulted key are passed
-// by, and provision-type defaults validate against the dry Params
+// by, and provision-type defaults validate against the dry Make
 // schema like component defaults do.
 func TestMainCompileProvisionDefaults(t *testing.T) {
 	units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
@@ -2109,20 +2127,20 @@ func TestMainCompileDiagnostics(t *testing.T) {
 			want:      []string{"compile: element broken.Boom: Make panicked: kaboom"},
 		},
 		{
-			name: "panicking Params attributed to the referencing statement",
+			name: "panicking provision Make attributed to the referencing statement",
 			units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
 				"import \"example.com/acme/panicky\"\n" +
 				"provision panicky.Grid slice as g\n"}},
 			catalogue: panickyProvisionCatalogue(),
 			wantCode:  2,
-			want:      []string{"u.sdl:3:11: element panicky.Grid: Params panicked: zap"},
+			want:      []string{"u.sdl:3:11: element panicky.Grid: Make panicked: zap"},
 		},
 		{
-			name:      "panicking Params of an unreferenced element",
+			name:      "panicking provision Make of an unreferenced element",
 			units:     []solution.Unit{{Name: "u.sdl", Source: "solution sample\n"}},
 			catalogue: panickyProvisionCatalogue(),
 			wantCode:  2,
-			want:      []string{"compile: element panicky.Grid: Params panicked: zap"},
+			want:      []string{"compile: element panicky.Grid: Make panicked: zap"},
 		},
 	}
 	for _, tt := range tests {

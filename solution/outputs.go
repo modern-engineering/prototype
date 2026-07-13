@@ -11,10 +11,11 @@ import (
 
 // An OutputWriter carries one provision instance's outputs across the
 // driver/host boundary. The host constructs it over the provision
-// type's declared output scheme, the driver writes each output through
-// the typed setter matching its declared [OutputType], and the host
-// reads the results back — typed for programmatic consumers, rendered
-// to the flag-ready string for wet parameter binding.
+// type's declared output scheme and hands it to the driver's
+// [Provisioner.Attach], which writes each output through the typed
+// setter matching its declared [OutputType]; the host then reads the
+// results back — typed for programmatic consumers, rendered to the
+// flag-ready string for wet parameter binding.
 //
 // The writer validates at the boundary, the way flag.FlagSet.Set does:
 // writing an undeclared name, writing through the wrong type's setter,

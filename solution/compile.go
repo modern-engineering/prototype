@@ -241,15 +241,6 @@ func (ce *catalogueElement) noun() string {
 	return ce.kind
 }
 
-// factory names the element's dry-instantiation entry point for panic
-// attribution: a component's Make, a provision type's Params.
-func (ce *catalogueElement) factory() string {
-	if ce.kind == image.KindProvision {
-		return "Params"
-	}
-	return "Make"
-}
-
 // booleanParam reports whether the element's pinned schema marks the
 // named parameter boolean (settable without a value). It reads the
 // schema, so it answers only for dried elements — which every caller
@@ -1093,7 +1084,7 @@ func (ln *linker) dry(elem *catalogueElement, at *ast.TypeRef) bool {
 	if panicked != nil {
 		ln.internal = &internalError{
 			pos: at.Pos(),
-			msg: fmt.Sprintf("element %s: %s panicked: %v", refString(at), elem.factory(), panicked),
+			msg: fmt.Sprintf("element %s: Make panicked: %v", refString(at), panicked),
 		}
 		return false
 	}
@@ -1607,7 +1598,7 @@ func (s *surface) slot(key *ast.Ident) *flag.Flag {
 		if panicked != nil {
 			s.ln.internal = &internalError{
 				pos: s.at.Pos(),
-				msg: fmt.Sprintf("element %s: %s panicked: %v", refString(s.at), s.elem.factory(), panicked),
+				msg: fmt.Sprintf("element %s: Make panicked: %v", refString(s.at), panicked),
 			}
 			return nil
 		}
@@ -1619,7 +1610,7 @@ func (s *surface) slot(key *ast.Ident) *flag.Flag {
 		// factory broke the dry-instantiation invariant.
 		s.ln.internal = &internalError{
 			pos: s.at.Pos(),
-			msg: fmt.Sprintf("element %s: %s broke the dry-instantiation invariant: fresh instance lacks parameter %s", refString(s.at), s.elem.factory(), key.Name),
+			msg: fmt.Sprintf("element %s: Make broke the dry-instantiation invariant: fresh instance lacks parameter %s", refString(s.at), key.Name),
 		}
 		return nil
 	}
@@ -1711,7 +1702,7 @@ func (ln *linker) emit() (*image.Image, *internalError) {
 					fs, panicked := elemFlags(elem)
 					if panicked != nil {
 						return nil, &internalError{
-							msg: fmt.Sprintf("element %s: %s panicked: %v", elem, elem.factory(), panicked),
+							msg: fmt.Sprintf("element %s: Make panicked: %v", elem, panicked),
 						}
 					}
 					elem.schema = paramSchemas(fs)
@@ -1772,10 +1763,12 @@ func (ln *linker) emit() (*image.Image, *internalError) {
 // elemFlags performs one recover-guarded dry instantiation of an
 // element's parameter surface. A component Makes a fresh service and
 // takes its flag surface, discarding the runner; a provision type
-// declares its Params on a fresh set, uniform with the descriptor
-// path. A nil flag set is a parameterless element. panicked carries
-// any panic out of the user code involved — the factory itself, or a
-// Make that returned no service.
+// Makes a fresh provisioner and takes its flag surface, never
+// touching the driver — one Make contract across both kinds. A nil
+// flag set is a parameterless element, and a provision type without
+// Make at all is parameterless (and driverless) the same way.
+// panicked carries any panic out of the user code involved — the
+// factory itself, or a Make that returned nothing to take flags from.
 func elemFlags(elem *catalogueElement) (fs *flag.FlagSet, panicked any) {
 	defer func() {
 		if p := recover(); p != nil {
@@ -1783,12 +1776,10 @@ func elemFlags(elem *catalogueElement) (fs *flag.FlagSet, panicked any) {
 		}
 	}()
 	if elem.kind == image.KindProvision {
-		if elem.prov.Params == nil {
+		if elem.prov.Make == nil {
 			return nil, nil
 		}
-		fs = flag.NewFlagSet(elem.name, flag.ContinueOnError)
-		elem.prov.Params(fs)
-		return fs, nil
+		return elem.prov.Make().Flags(), nil
 	}
 	return elem.desc.Make().Flags(), nil
 }
