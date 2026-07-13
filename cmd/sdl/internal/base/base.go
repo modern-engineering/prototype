@@ -19,6 +19,10 @@
 //	2  everything else: usage errors (a [UsageError] or a flag parsing
 //	   failure) and internal or environmental failures
 //
+// A [RelayedExit] steps outside this taxonomy: a verb that ran a child
+// process on the user's behalf exits with the child's own code, under
+// the child's own contract.
+//
 // Only package main maps errors to codes; commands return errors and
 // never call os.Exit.
 package base
@@ -26,6 +30,7 @@ package base
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -176,3 +181,17 @@ type UsageError struct {
 
 // Error returns the usage message.
 func (e *UsageError) Error() string { return e.Msg }
+
+// A RelayedExit relays a child process's outcome: the child inherited
+// the invocation's streams and has already said everything there was
+// to say, so package main exits with Code verbatim and prints nothing.
+// The run verb returns it — a hosted solution's 0, 1, and 2 carry the
+// host's exit contract (clean, wet failure, configuration fault), not
+// the sdl taxonomy of the package documentation.
+type RelayedExit struct {
+	Code int
+}
+
+// Error names the relayed outcome; the child's own output is the
+// story.
+func (e *RelayedExit) Error() string { return fmt.Sprintf("child process exited %d", e.Code) }

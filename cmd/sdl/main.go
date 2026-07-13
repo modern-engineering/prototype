@@ -48,9 +48,10 @@ func main() {
 
 // invoke dispatches one sdl invocation and returns the process exit
 // code, translating the dispatched command's error per the base package
-// contract: nil is 0, a DiagnosticsError prints its lines and is 1,
-// everything else — usage faults and internal failures alike — is 2.
-// Command groups dispatch one name at a time, cmd/go's BigCmdLoop.
+// contract: nil is 0, a DiagnosticsError prints its lines and is 1, a
+// RelayedExit is a child's code passed through verbatim, everything
+// else — usage faults and internal failures alike — is 2. Command
+// groups dispatch one name at a time, cmd/go's BigCmdLoop.
 func invoke(ctx context.Context, args []string) int {
 	if len(args) < 1 {
 		printUsage(os.Stderr)
@@ -97,6 +98,12 @@ func run(ctx context.Context, cmd *base.Command, args []string) int {
 	err := cmd.Run(ctx, cmd, cmd.Flag.Args())
 	if err == nil {
 		return 0
+	}
+	var relay *base.RelayedExit
+	if errors.As(err, &relay) {
+		// The child owned the streams and has already reported; its
+		// code carries its own contract through unchanged.
+		return relay.Code
 	}
 	var diags *base.DiagnosticsError
 	if errors.As(err, &diags) {
