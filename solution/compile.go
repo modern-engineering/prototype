@@ -27,7 +27,9 @@ import (
 
 // MainCompile is the compiler's back half: the generated main hands it
 // the embedded units and the live catalogue, and it links them into the
-// desired-state image, written to cfg.Output as canonical JSON.
+// desired-state image, written to cfg.Output as canonical JSON. The
+// linking itself is [Compile]; MainCompile is its process skin —
+// encoding on success, an exit code either way.
 //
 // The return value is the process exit code:
 //
@@ -58,17 +60,58 @@ func MainCompile(cfg CompileConfig) int {
 		output = os.Stdout
 	}
 
+	img, err := Compile(cfg)
+	if err != nil {
+		if errors.Is(err, ErrDiagnostics) {
+			return 1
+		}
+		return 2
+	}
+	if err := img.Encode(output); err != nil {
+		printf(stderr, "compile: %v\n", err)
+		return 2
+	}
+	return 0
+}
+
+// ErrDiagnostics classifies a failed [Compile] whose faults live in
+// the solution's own text: the positioned diagnostics of MainCompile's
+// exit 1. Compile failures that do not wrap it are faults in the
+// machine-supplied inputs or in user Go code — MainCompile's exit 2 —
+// so an unclassified error is treated as the caller's fault, never
+// the solution author's.
+var ErrDiagnostics = errors.New("solution diagnostics")
+
+// Compile is MainCompile without the process skin: it links cfg's
+// units against the catalogue and returns the desired-state image
+// instead of encoding it, for callers that consume the image in
+// memory — a tailored host compiling the solution it is about to run,
+// a programmatic producer feeding another tool.
+//
+// Reporting stays MainCompile's: diagnostics and warnings print to
+// cfg.Stderr (positioned "file:line:col: message" lines, one per
+// line, sorted), which is what the config's Stderr field is for. The
+// returned error classifies the failure the way MainCompile numbers
+// it — [ErrDiagnostics] for faults in the solution's text, anything
+// else for malformed configs, bad registrations, and panicking
+// element factories. cfg.Output is not touched.
+func Compile(cfg CompileConfig) (*image.Image, error) {
+	stderr := cfg.Stderr
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+
 	ln, err := newLinker(cfg)
 	if err != nil {
 		printf(stderr, "compile: %v\n", err)
-		return 2
+		return nil, fmt.Errorf("compile: %w", err)
 	}
 
 	// Syntax gates linking: past this point every surviving AST is
 	// structurally sound.
 	if !ln.parse() {
 		ln.report(stderr)
-		return 1
+		return nil, fmt.Errorf("%w: %w", ErrDiagnostics, ln.diags.Err())
 	}
 
 	ln.link()
@@ -77,23 +120,19 @@ func MainCompile(cfg CompileConfig) int {
 		// Print what the solution got told so far, then the abort.
 		ln.report(stderr)
 		printf(stderr, "%v\n", ln.internal)
-		return 2
+		return nil, errors.New(ln.internal.String())
 	}
 	if len(ln.diags) > 0 {
 		ln.report(stderr)
-		return 1
+		return nil, fmt.Errorf("%w: %w", ErrDiagnostics, ln.diags.Err())
 	}
 
 	img, ierr := ln.emit()
 	if ierr != nil {
 		printf(stderr, "%v\n", ierr)
-		return 2
+		return nil, errors.New(ierr.String())
 	}
-	if err := img.Encode(output); err != nil {
-		printf(stderr, "compile: %v\n", err)
-		return 2
-	}
-	return 0
+	return img, nil
 }
 
 // A linker carries one compilation through its phases: parse the units,

@@ -6,6 +6,7 @@ package solution_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"strings"
 	"testing"
@@ -644,6 +645,71 @@ func TestMainCompileDeterminism(t *testing.T) {
 	if first != second {
 		t.Error("two compilations of the same config produced different bytes")
 	}
+}
+
+// TestCompileReturnsImage proves the in-memory path is MainCompile's
+// path: the image Compile hands back encodes to the exact bytes
+// MainCompile emits.
+func TestCompileReturnsImage(t *testing.T) {
+	var stderr bytes.Buffer
+	img, err := solution.Compile(solution.CompileConfig{
+		Solution:  "sample",
+		Units:     []solution.Unit{{Name: "main.sdl", Source: mainUnit}},
+		Catalogue: testCatalogue(),
+		Stderr:    &stderr,
+	})
+	if err != nil {
+		t.Fatalf("Compile() = %v; stderr:\n%s", err, stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Errorf("stderr = %q, want empty", stderr.String())
+	}
+	var out bytes.Buffer
+	if err := img.Encode(&out); err != nil {
+		t.Fatalf("Encode() = %v", err)
+	}
+	if out.String() != goldenImage {
+		t.Errorf("image mismatch:\n--- got ---\n%s\n--- want ---\n%s", out.String(), goldenImage)
+	}
+}
+
+// TestCompileClassifiesFailures pins the error split MainCompile
+// numbers: faults in the solution's text wrap ErrDiagnostics and
+// print positioned to the config's Stderr; faults in the
+// machine-supplied inputs do not wrap it.
+func TestCompileClassifiesFailures(t *testing.T) {
+	t.Run("diagnostics", func(t *testing.T) {
+		var stderr bytes.Buffer
+		img, err := solution.Compile(solution.CompileConfig{
+			Solution: "sample",
+			Units: []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" +
+				"deploy zz.Ping as Broken\n"}},
+			Catalogue: testCatalogue(),
+			Stderr:    &stderr,
+		})
+		if img != nil {
+			t.Errorf("Compile() returned an image alongside %v", err)
+		}
+		if !errors.Is(err, solution.ErrDiagnostics) {
+			t.Errorf("Compile() = %v, want an ErrDiagnostics wrap", err)
+		}
+		if want := "u.sdl:2:8: package zz is not imported\n"; stderr.String() != want {
+			t.Errorf("stderr = %q, want %q", stderr.String(), want)
+		}
+	})
+	t.Run("usage", func(t *testing.T) {
+		var stderr bytes.Buffer
+		img, err := solution.Compile(solution.CompileConfig{Stderr: &stderr})
+		if img != nil {
+			t.Errorf("Compile() returned an image alongside %v", err)
+		}
+		if err == nil || errors.Is(err, solution.ErrDiagnostics) {
+			t.Errorf("Compile() = %v, want an unclassified usage error", err)
+		}
+		if want := "compile: config: empty solution name\n"; stderr.String() != want {
+			t.Errorf("stderr = %q, want %q", stderr.String(), want)
+		}
+	})
 }
 
 func TestMainCompileMultiUnit(t *testing.T) {
