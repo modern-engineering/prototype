@@ -339,8 +339,10 @@ func TestPerFileImportScope(t *testing.T) {
 import ff "github.com/modern-engineering/prototype/examples/ff"
 
 deploy ff.Ping as Ping1 {
-	count: 1
-	target: "pong"
+	params {
+		count: 1
+		target: "pong"
+	}
 }
 `,
 			// The same alias names another package here, and pp names
@@ -355,7 +357,9 @@ import (
 provision ff.Postgres attach as legacy
 
 deploy pp.Pong as Pong1 {
-	subject: "ping"
+	params {
+		subject: "ping"
+	}
 }
 `,
 		})
@@ -411,7 +415,9 @@ import ff "github.com/modern-engineering/prototype/examples/ff"
 extern key sub.Secret
 
 deploy ff.Pong as Pong1 {
-	subject: key
+	params {
+		subject: key
+	}
 }
 `,
 		})
@@ -501,12 +507,16 @@ extern apiToken substrate.Secret
 var pongSubject: "ping"
 
 deploy ff.Ping as Ping1 {
-	count: 3
-	target: apiToken
+	params {
+		count: 3
+		target: apiToken
+	}
 }
 
 deploy ff.Pong as Pong1 {
-	subject: pongSubject
+	params {
+		subject: pongSubject
+	}
 }
 `
 
@@ -604,8 +614,10 @@ extern wrongType sub.Gone
 var Ping1: "taken"
 
 deploy ff.Ping as Ping1 {
-	target: missing
-	count: acct.config
+	params {
+		target: missing
+		count: acct.config
+	}
 }
 `)
 	res := runSDL(t, dir, "build")
@@ -615,8 +627,8 @@ deploy ff.Ping as Ping1 {
 	for _, want := range []string{
 		"broken.sdl:8:18: unknown element Gone",
 		"broken.sdl:12:19: duplicate symbol Ping1 (first declared at broken.sdl:10:5)",
-		"broken.sdl:13:10: undefined symbol missing",
-		"broken.sdl:14:9: undefined symbol acct",
+		"broken.sdl:14:11: undefined symbol missing",
+		"broken.sdl:15:10: undefined symbol acct",
 	} {
 		if !strings.Contains(res.stderr, want) {
 			t.Errorf("stderr is missing %q:\n%s", want, res.stderr)
@@ -642,17 +654,23 @@ extern (
 )
 
 provision sub.NATS slice as natsAccount {
-	cluster: natsCluster
-	adminAccount: natsAdmin
+	params {
+		cluster: natsCluster
+		adminAccount: natsAdmin
+	}
 }
 
 provision sub.Postgres attach as pgLegacy {
-	server: pgServer
+	params {
+		server: pgServer
+	}
 }
 
 deploy ff.Ping as Ping1 {
-	count: 1
-	target: natsAccount.config
+	params {
+		count: 1
+		target: natsAccount.config
+	}
 }
 `
 
@@ -756,19 +774,27 @@ import (
 provision sub.NATS as amb
 provision sub.Postgres slice as wrongKind
 provision sub.NATS slice as selfRef {
-	adminAccount: selfRef.config
+	params {
+		adminAccount: selfRef.config
+	}
 }
 provision sub.NATS slice as loopA {
-	adminAccount: loopB.config
+	params {
+		adminAccount: loopB.config
+	}
 }
 provision sub.NATS slice as loopB {
-	adminAccount: loopA.config
+	params {
+		adminAccount: loopA.config
+	}
 }
 deploy ff.Pong as Echo
 deploy ff.Ping as P {
-	target: natsMissing.config
-	count: selfRef.nope
-	interval: Echo.config
+	params {
+		target: natsMissing.config
+		count: selfRef.nope
+		interval: Echo.config
+	}
 }
 `)
 	res := runSDL(t, dir, "build")
@@ -779,10 +805,10 @@ deploy ff.Ping as P {
 		"broken.sdl:8:11: missing provision kind: type sub.NATS registers both slice and attach",
 		"broken.sdl:9:24: type sub.Postgres does not register slice",
 		"broken.sdl:10:29: provision reference cycle: selfRef -> selfRef",
-		"broken.sdl:13:29: provision reference cycle: loopA -> loopB -> loopA",
-		"broken.sdl:21:10: undefined symbol natsMissing",
-		"broken.sdl:22:17: unknown output nope: provision type substrate.NATS declares no such output",
-		"broken.sdl:23:12: instance Echo has no outputs: only provision instances emit outputs",
+		"broken.sdl:15:29: provision reference cycle: loopA -> loopB -> loopA",
+		"broken.sdl:28:11: undefined symbol natsMissing",
+		"broken.sdl:29:18: unknown output nope: provision type substrate.NATS declares no such output",
+		"broken.sdl:30:13: instance Echo has no outputs: only provision instances emit outputs",
 	} {
 		if !strings.Contains(res.stderr, want) {
 			t.Errorf("stderr is missing %q:\n%s", want, res.stderr)
@@ -805,11 +831,15 @@ func TestDefaultsRoundTrip(t *testing.T) {
 import ff "github.com/modern-engineering/prototype/examples/ff"
 
 default ff.Ping {
-	count: -1
+	params {
+		count: -1
+	}
 }
 
 deploy ff.Ping as Ping1 {
-	target: "pong"
+	params {
+		target: "pong"
+	}
 }
 `)
 	outA := filepath.Join(dir, "a.json")
@@ -872,43 +902,55 @@ deploy ff.Ping as Ping1 {
 }
 
 // compartmentsUnit is the mockup's compartment material: a verb
-// default carrying deployment intent, an instance overriding it, and
-// opaque metadata riding along.
+// default carrying deployment intent and an advisory stanza, an
+// instance overriding the top-level field and extending the stanza,
+// and opaque metadata riding along.
 const compartmentsUnit = `solution compartments
 
 import ff "github.com/modern-engineering/prototype/examples/ff"
 
 default deploy {
-	on {
-		location: awsUsEast1
+	location: awsUsEast1
+
+	with k8s.pod {
+		priorityClass: standard
 	}
 }
 
 deploy ff.Ping as Ping1 {
-	count: 1
-	target: "pong"
+	params {
+		count: 1
+		target: "pong"
+	}
 }
 
 deploy ff.Ping as Ping2 {
-	count: 2
-	target: "pong"
+	location: euCentral1
 
-	on {
-		location: euCentral1
+	params {
+		count: 2
+		target: "pong"
 	}
+
+	with k8s.pod {
+		replicas: 3
+	}
+
 	metadata {
 		team: "search"
 	}
 }
 `
 
-// TestCompartmentsRoundTrip drives on and metadata end to end: the
-// verb default's on folds into every deploy record (tokens staying
-// opaque), the instance's own on wins its key, metadata rides along,
-// echo renders the compartments back after the params, and the echoed
-// unit rebuilds to an Equal image — with different bytes, since echo
-// folds the verb default into instance text and Equal masks exactly
-// that provenance.
+// TestCompartmentsRoundTrip drives the opaque compartments end to end:
+// the verb default's top-level field folds into every deploy record
+// (tokens staying opaque) with the instance's own field winning its
+// key, the default's with-stanza merges per qualifier under the
+// instance's matching stanza, metadata rides along, echo renders the
+// compartments back around the params section, and the echoed unit
+// rebuilds to an Equal image — with different bytes, since echo folds
+// the verb default into instance text and Equal masks exactly that
+// provenance.
 func TestCompartmentsRoundTrip(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -931,14 +973,26 @@ func TestCompartmentsRoundTrip(t *testing.T) {
 		t.Fatalf("records = %+v, want Ping1 and Ping2", imgA.Records)
 	}
 	one, two := imgA.Records[0], imgA.Records[1]
-	if len(one.On) != 1 || one.On[0].Key != "location" ||
-		one.On[0].Value == nil || one.On[0].Value.Kind != image.KindToken ||
-		one.On[0].Value.Tok != "awsUsEast1" || one.On[0].Source != image.SourceDefaultDeploy {
-		t.Errorf("Ping1 on = %+v, want the folded default-deploy token awsUsEast1", one.On)
+	if len(one.Deployment) != 1 || one.Deployment[0].Key != "location" ||
+		one.Deployment[0].Value == nil || one.Deployment[0].Value.Kind != image.KindToken ||
+		one.Deployment[0].Value.Tok != "awsUsEast1" || one.Deployment[0].Source != image.SourceDefaultDeploy {
+		t.Errorf("Ping1 deployment = %+v, want the folded default-deploy token awsUsEast1", one.Deployment)
 	}
-	if len(two.On) != 1 || two.On[0].Value == nil || two.On[0].Value.Tok != "euCentral1" ||
-		two.On[0].Source != image.SourceInstance {
-		t.Errorf("Ping2 on = %+v, want the instance token euCentral1", two.On)
+	if len(two.Deployment) != 1 || two.Deployment[0].Value == nil || two.Deployment[0].Value.Tok != "euCentral1" ||
+		two.Deployment[0].Source != image.SourceInstance {
+		t.Errorf("Ping2 deployment = %+v, want the instance token euCentral1", two.Deployment)
+	}
+	pod := one.Extensions["k8s.pod"]
+	if len(one.Extensions) != 1 || len(pod) != 1 || pod[0].Key != "priorityClass" ||
+		pod[0].Value == nil || pod[0].Value.Tok != "standard" || pod[0].Source != image.SourceDefaultDeploy {
+		t.Errorf("Ping1 extensions = %+v, want the folded default-deploy k8s.pod stanza", one.Extensions)
+	}
+	pod = two.Extensions["k8s.pod"]
+	if len(two.Extensions) != 1 || len(pod) != 2 ||
+		pod[0].Key != "priorityClass" || pod[0].Source != image.SourceDefaultDeploy ||
+		pod[1].Key != "replicas" || pod[1].Value == nil || pod[1].Value.Int != 3 ||
+		pod[1].Source != image.SourceInstance {
+		t.Errorf("Ping2 extensions = %+v, want k8s.pod = {priorityClass: standard, replicas: 3}", two.Extensions)
 	}
 	if len(two.Metadata) != 1 || two.Metadata[0].Key != "team" ||
 		two.Metadata[0].Value == nil || two.Metadata[0].Value.Str != "search" {
@@ -954,6 +1008,9 @@ func TestCompartmentsRoundTrip(t *testing.T) {
 	for _, want := range []string{
 		"location: awsUsEast1",
 		"location: euCentral1",
+		"with k8s.pod {",
+		"priorityClass: standard",
+		"replicas: 3",
 		"team: \"search\"",
 	} {
 		if !strings.Contains(echoed, want) {
@@ -983,7 +1040,7 @@ func TestCompartmentsRoundTrip(t *testing.T) {
 		t.Errorf("round trip is not Equal despite the provenance mask\n--- rebuilt ---\n%s", bytesB)
 	}
 	if bytes.Equal(bytesA, bytesB) {
-		t.Error("images are byte-identical; the on fold should have changed a Source and this test its meaning")
+		t.Error("images are byte-identical; the compartment folds should have changed a Source and this test its meaning")
 	}
 }
 
@@ -1008,37 +1065,49 @@ extern (
 	factored := "solution factored\n" + imports + `
 provision (
 	sub.NATS slice as natsAccount {
-		cluster: natsCluster
-		adminAccount: natsAdmin
+		params {
+			cluster: natsCluster
+			adminAccount: natsAdmin
+		}
 	}
 	sub.Postgres attach as pgLegacy
 )
 
 deploy (
 	ff.Ping as Ping1 {
-		count: 1
-		target: natsAccount.config
+		params {
+			count: 1
+			target: natsAccount.config
+		}
 	}
 	ff.Pong as Pong1 {
-		subject: "ping"
+		params {
+			subject: "ping"
+		}
 	}
 )
 `
 	single := "solution factored\n" + imports + `
 provision sub.NATS slice as natsAccount {
-	cluster: natsCluster
-	adminAccount: natsAdmin
+	params {
+		cluster: natsCluster
+		adminAccount: natsAdmin
+	}
 }
 
 provision sub.Postgres attach as pgLegacy
 
 deploy ff.Ping as Ping1 {
-	count: 1
-	target: natsAccount.config
+	params {
+		count: 1
+		target: natsAccount.config
+	}
 }
 
 deploy ff.Pong as Pong1 {
-	subject: "ping"
+	params {
+		subject: "ping"
+	}
 }
 `
 	var images [2][]byte
@@ -1124,7 +1193,7 @@ func TestImagePlumbing(t *testing.T) {
 	}
 }
 
-// TestBuildSample is the CP-C proof: the mockup-6 sample lives in
+// TestBuildSample is the CP-C proof: the mockup-7 sample lives in
 // examples/sample and compiles to exactly the golden image — extern
 // and var symbols, both provision kinds, folded type and verb
 // defaults, output references, compartments, and a peer unit — and
@@ -1314,7 +1383,9 @@ func TestBuildWorkspace(t *testing.T) {
 import cat "example.test/catalogue"
 
 deploy cat.Hello as Hello1 {
-	greeting: "hi"
+	params {
+		greeting: "hi"
+	}
 }
 `)
 	writeFile(t, filepath.Join(modB, "go.mod"), "module example.test/catalogue\n\ngo 1.25.0\n")
@@ -1518,8 +1589,10 @@ func TestBuildNoModule(t *testing.T) {
 import ff "github.com/modern-engineering/prototype/examples/ff"
 
 deploy ff.Ping as Ping1 {
-	count: 1
-	target: "pong"
+	params {
+		count: 1
+		target: "pong"
+	}
 }
 `)
 		out := filepath.Join(dir, "out.json")
@@ -1583,8 +1656,10 @@ func TestBuildVendored(t *testing.T) {
 import ff "github.com/modern-engineering/prototype/examples/ff"
 
 deploy ff.Ping as Ping1 {
-	count: 1
-	target: "pong"
+	params {
+		count: 1
+		target: "pong"
+	}
 }
 `)
 	if err := os.Mkdir(filepath.Join(dir, "vendor"), 0o777); err != nil {
@@ -1625,8 +1700,10 @@ func TestBuildOutputAtomic(t *testing.T) {
 import ff "github.com/modern-engineering/prototype/examples/ff"
 
 deploy ff.Ping as Ping1 {
-	count: 1
-	target: "pong"
+	params {
+		count: 1
+		target: "pong"
+	}
 }
 `
 	dir := solutionModule(t, "sol.sdl", good)
