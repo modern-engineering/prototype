@@ -4,8 +4,7 @@
 package substrate_test
 
 import (
-	"flag"
-	"reflect"
+	"fmt"
 	"testing"
 
 	"github.com/modern-engineering/prototype/examples/substrate"
@@ -39,11 +38,10 @@ func TestSymbolTypes(t *testing.T) {
 	}
 }
 
-// TestProvisionTypes holds the provision citizens to their contract:
-// explicit kinds (zero is a compile-catalogue fault), documented
-// outputs, and a Make factory honouring the dry-instantiation
-// invariant — a fresh provisioner with the same slot schema on every
-// call.
+// TestProvisionTypes holds the provision citizens to the citizenship
+// contract through the library's own harness — explicit kinds, a
+// vetted output scheme, a dry Make — plus the documentation this
+// package owes the image.
 func TestProvisionTypes(t *testing.T) {
 	for name, pt := range map[string]*solution.ProvisionType{
 		"NATS":     substrate.NATS,
@@ -53,22 +51,14 @@ func TestProvisionTypes(t *testing.T) {
 			if pt == nil {
 				t.Fatalf("%s is nil; discovery needs a live *solution.ProvisionType", name)
 			}
+			solution.CheckProvisionType(t, pt)
 			if pt.Doc == "" {
 				t.Error("no Doc; the image pins element documentation")
-			}
-			if pt.Kinds == 0 {
-				t.Error("no Kinds; registration is explicit and zero kinds is a catalogue error")
 			}
 			for _, out := range pt.Outputs {
 				if out.Doc == "" {
 					t.Errorf("output %s has no Doc", out.Name)
 				}
-			}
-			if pt.Make == nil {
-				return
-			}
-			if got, want := dryNames(pt), dryNames(pt); !reflect.DeepEqual(got, want) {
-				t.Errorf("Make is not dry: two fresh provisioners declare %v and %v", got, want)
 			}
 		})
 	}
@@ -83,12 +73,25 @@ func TestProvisionTypes(t *testing.T) {
 	}
 }
 
-// dryNames makes one throwaway provisioner and reads back the slot
-// names its flag surface carries.
-func dryNames(pt *solution.ProvisionType) []string {
-	var names []string
-	if fs := pt.Make().Flags(); fs != nil {
-		fs.VisitAll(func(f *flag.Flag) { names = append(names, f.Name) })
+// TestCompileOnlyDriversRefuse pins the teaching error of the types
+// without a real driver: Attach fails with the exact wording
+// enactment will surface, and writes nothing — a refused type must
+// not leave half a scheme behind.
+func TestCompileOnlyDriversRefuse(t *testing.T) {
+	for name, pt := range map[string]*solution.ProvisionType{
+		"NATS":     substrate.NATS,
+		"Postgres": substrate.Postgres,
+	} {
+		t.Run(name, func(t *testing.T) {
+			w := solution.NewOutputWriter(pt.Outputs)
+			err := pt.Make().Attach(t.Context(), w)
+			want := fmt.Sprintf("real %s provisioning is not implemented; the type compiles solutions but cannot enact them", name)
+			if err == nil || err.Error() != want {
+				t.Errorf("Attach error = %v, want %q", err, want)
+			}
+			if missing := w.Missing(); len(missing) != len(pt.Outputs) {
+				t.Errorf("refusing driver wrote outputs; missing = %v, want all %d declared", missing, len(pt.Outputs))
+			}
+		})
 	}
-	return names
 }
