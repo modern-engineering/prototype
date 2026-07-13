@@ -147,7 +147,7 @@ func diagnostics(t *testing.T, r reply, wantURI string) []any {
 	return diags
 }
 
-// TestSessionLifecycle drives the whole v0 surface in one scripted
+// The whole v0 surface holds in one scripted
 // session: the initialize handshake, a didOpen of a unit sdl build
 // would reject publishing exactly vet's single-file findings at
 // zero-based positions, a context-free completion exchange, a
@@ -295,7 +295,7 @@ deploy p.T as a {
 	}
 }
 
-// TestSyntaxDiagnostics pins the broken-parse route: a unit that does
+// The broken-parse route: a unit that does
 // not parse publishes the parser's own positioned errors. The script
 // also skips initialize entirely — the server answers any client that
 // talks to it, the recorded permissive default.
@@ -328,7 +328,7 @@ func TestSyntaxDiagnostics(t *testing.T) {
 	}
 }
 
-// TestSessionEndVerdicts pins serve's exit contract: only a session
+// Serve's exit contract: only a session
 // the client ends through the shutdown handshake — exit or a hangup
 // after shutdown — comes back clean.
 func TestSessionEndVerdicts(t *testing.T) {
@@ -354,7 +354,7 @@ func TestSessionEndVerdicts(t *testing.T) {
 	}
 }
 
-// TestRequestFaults pins the coded refusals: an unserved method, any
+// The coded refusals: an unserved method, any
 // request after shutdown, and a body that is not JSON (refused under
 // the null id, with the session carrying on to a clean end).
 func TestRequestFaults(t *testing.T) {
@@ -395,7 +395,7 @@ func TestRequestFaults(t *testing.T) {
 	}
 }
 
-// TestMalformedNotificationDrops pins the drop rule: a notification
+// The drop rule: a notification
 // whose params do not decode has no response channel, so it vanishes
 // without derailing the session.
 func TestMalformedNotificationDrops(t *testing.T) {
@@ -412,7 +412,7 @@ func TestMalformedNotificationDrops(t *testing.T) {
 	}
 }
 
-// TestReadMessageFraming pins the transport corners: header case,
+// The transport corners: header case,
 // skipped extra headers, tolerated bare-LF terminators, and the
 // refusals — absent or malformed or hostile Content-Length, truncated
 // streams — that keep a corrupt stream from wedging the read.
@@ -453,7 +453,7 @@ func TestReadMessageFraming(t *testing.T) {
 	}
 }
 
-// TestCleanEndOfStream pins the io.EOF contract serve's hangup
+// The io.EOF contract serve's hangup
 // handling stands on: a stream ending between messages is a clean
 // EOF, distinct from every truncation.
 func TestCleanEndOfStream(t *testing.T) {
@@ -466,7 +466,7 @@ func TestCleanEndOfStream(t *testing.T) {
 	}
 }
 
-// TestCompletionCoversVocabulary is the anti-drift gate the tooling
+// The anti-drift gate the tooling
 // layer runs on: every keyword of the grammar and every word of the
 // linker's body vocabulary must appear in the generated completion
 // list, so the editor's completions cannot fall behind the compiler.

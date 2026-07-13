@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// TestSynthesizeGoMod drives the pure half of the module synthesis: one
+// The pure half of the module synthesis: one
 // go list snapshot in, one temporary go.mod out. The graph lines use the
 // listModuleGraph template format: "path version", the main module's
 // version empty, replacements behind "=> mod rpath rversion" or
@@ -107,8 +107,8 @@ replace github.com/modern-engineering/prototype => /home/u/prototype
 	}
 }
 
-// TestParseModuleGraphReplacements pins the parsed shape of the two
-// replacement kinds.
+// Both replacement kinds parse to their
+// documented shapes.
 func TestParseModuleGraphReplacements(t *testing.T) {
 	out := "m \n" +
 		"example.com/old v1.0.0 => mod example.com/new v2.0.0\n" +
@@ -147,7 +147,7 @@ func TestParseModuleGraphFaults(t *testing.T) {
 	}
 }
 
-// TestSynthesizeGoWork drives the pure half of the workspace synthesis:
+// The pure half of the workspace synthesis:
 // one parsed go.work state in, one temporary go.work out — the user's
 // directories and replaces mirrored, the work directory joining as a
 // member.
@@ -210,7 +210,7 @@ func TestScaffoldGoMod(t *testing.T) {
 	}
 }
 
-// TestProbeSource pins the resolution probe: a placeholder main whose
+// The resolution probe: a placeholder main whose
 // blank imports carry the solution package and the solution's imports,
 // already in gofmt form.
 func TestProbeSource(t *testing.T) {
@@ -252,7 +252,7 @@ func TestScaffoldGoVersion(t *testing.T) {
 	}
 }
 
-// TestComparePrototype pins the workspace-facing row shapes of the skew
+// The workspace-facing row shapes of the skew
 // handshake: a version-less row is a main or workspace module — local
 // source, never compared — while ordinary and replaced versions warn
 // exactly as they do in module mode.
@@ -279,7 +279,7 @@ func TestComparePrototype(t *testing.T) {
 	}
 }
 
-// TestCheckPrototypeVersion drives the skew handshake over every graph
+// The skew handshake holds over every graph
 // shape the prototype module can resolve through. Only a version the
 // build will genuinely use is compared: a directory replace pins no
 // meaningful version (the everyday dev-loop shape), so it never warns.

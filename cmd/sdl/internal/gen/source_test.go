@@ -124,8 +124,9 @@ func stubBuildInfo(t *testing.T, info *debug.BuildInfo, ok bool) {
 	t.Cleanup(func() { readBuildInfo = restore })
 }
 
-// TestSourceTool pins the Tool emission: an installed CLI's ordinary
-// version lands in the generated CompileConfig (the emitted body still
+// The Tool emission tells installs from checkouts: an installed CLI's
+// ordinary version lands in the generated CompileConfig (the emitted
+// body still
 // gofmt-canonical), while every locally sourced shape — a VCS-stamped
 // checkout build, a (devel) build, a foreign main module, no build
 // info at all — emits no Tool line, exactly the bytes TestSource's

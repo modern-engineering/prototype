@@ -24,7 +24,7 @@ func exitError(t *testing.T, script string) error {
 	return err
 }
 
-// TestRelayVerdict pins the child-outcome translation of the Exec
+// The child-outcome translation of the Exec
 // contract: clean exits — the plain one and the post-cancellation one
 // os/exec reports as the context's error — are the run's success; an
 // exit code comes back verbatim as a RelayedExit; and a child that

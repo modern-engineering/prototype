@@ -95,7 +95,7 @@ func TestStdoutMode(t *testing.T) {
 	}
 }
 
-// TestStdoutModeCanonical prints even units that are already canonical,
+// Stdout mode prints even units that are already canonical,
 // the gofmt filter contract.
 func TestStdoutModeCanonical(t *testing.T) {
 	dir := tree(t)
@@ -195,7 +195,7 @@ func TestDiff(t *testing.T) {
 	}
 }
 
-// TestSyntaxErrors pins the exit-2 path: positioned reports on stderr,
+// Syntax errors take the exit-2 path: positioned reports on stderr,
 // the remaining files still processed, and errors trumping differences.
 func TestSyntaxErrors(t *testing.T) {
 	dir := tree(t)
@@ -227,7 +227,7 @@ func TestMissingPath(t *testing.T) {
 	}
 }
 
-// TestExplicitFile formats explicitly named files regardless of their
+// Explicitly named files format regardless of their
 // extension, the gofmt contract for file arguments.
 func TestExplicitFile(t *testing.T) {
 	dir := t.TempDir()

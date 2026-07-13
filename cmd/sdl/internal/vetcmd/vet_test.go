@@ -40,7 +40,7 @@ func vet(t *testing.T, paths ...string) ([]string, error) {
 	return strings.Split(out, "\n"), err
 }
 
-// TestVetFindings pins every v0 check: the wording (the linker's,
+// Every v0 check holds its whole finding: the wording (the linker's,
 // verbatim, where the check shadows one; the flag-style unused wording
 // where it does not), the anchoring position, and the clean cases that
 // must stay quiet. ${DIR} in a want line stands for the unit set's
@@ -331,7 +331,7 @@ deploy p.T as a {
 	}
 }
 
-// TestSyntaxGatesSetChecks holds the set-scope gate: a unit set with a
+// Syntax gates the set checks: a unit set with a
 // broken member reports the syntax findings and the clean members'
 // unit findings, but never judges duplicates or unusedness over half a
 // namespace.
@@ -368,7 +368,7 @@ deploy p.T as {
 	}
 }
 
-// TestVetGroupsByDirectory pins the unit-set boundary: sibling
+// The unit set's boundary is the directory: sibling
 // solution directories under one walked root never share a namespace,
 // so a name reused across solutions is not a duplicate.
 func TestVetGroupsByDirectory(t *testing.T) {
@@ -388,7 +388,7 @@ func TestVetGroupsByDirectory(t *testing.T) {
 	}
 }
 
-// TestVetOverlappingArguments holds the dedup rule: a file named both
+// Overlapping arguments dedup: a file named both
 // directly and through its directory is checked once, so its findings
 // do not double.
 func TestVetOverlappingArguments(t *testing.T) {
@@ -403,8 +403,8 @@ var lonely: 1
 	}
 }
 
-// TestVetPathFaults classifies unreadable paths: faults print, win the
-// exit code (2, a plain error), and still do not silence the findings
+// Unreadable paths are plain errors, not findings: faults print, win
+// the exit code (2), and still do not silence the findings
 // of the paths that were readable.
 func TestVetPathFaults(t *testing.T) {
 	dir := writeUnits(t, map[string]string{"a.sdl": `solution s
@@ -428,7 +428,7 @@ var lonely: 1
 	}
 }
 
-// TestCheckSource pins the exported single-file contract the language
+// CheckSource is the single-file contract the language
 // server builds on: syntax and unit-scope findings come back sorted,
 // within-file duplicates included, and the unused check — whole-set
 // knowledge — never runs.

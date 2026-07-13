@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-// TestRunPingpong is the A-13 dev-loop MoE end to end: one command
-// takes the example sources to a running solution — provision audited,
+// The A-13 dev-loop MoE end to end: one command takes the example
+// sources to a running solution — provision audited,
 // output value visibly wired into the deploys, all instances serving —
 // and a SIGTERM at the driver reaches the hosted child for a graceful
 // wind-down, exit 0. Stdout stays untouched throughout; the audit and

@@ -43,7 +43,7 @@ func generate(t *testing.T, target string) string {
 	return buf.String()
 }
 
-// TestGolden pins every target's output byte for byte. The goldens
+// Every target's output is pinned byte for byte. The goldens
 // regenerate with -update; a diff there is a change to the language
 // surface and reviews as one.
 func TestGolden(t *testing.T) {
@@ -71,7 +71,7 @@ func TestGolden(t *testing.T) {
 	}
 }
 
-// TestOutputsCarryGrammar is the anti-drift gate of the generated
+// The anti-drift gate of the generated
 // tooling: every keyword the scanner recognizes and every word of the
 // linker's body vocabulary must appear, word-bounded, in every
 // target's output. An emitter that misses a grammar addition fails
@@ -101,7 +101,7 @@ func TestOutputsCarryGrammar(t *testing.T) {
 	}
 }
 
-// TestVSCodeOutputIsJSON holds the TextMate emission to well-formed
+// The TextMate emission stays well-formed
 // JSON, the one property of that format checkable without an editor.
 func TestVSCodeOutputIsJSON(t *testing.T) {
 	if out := generate(t, "vscode"); !json.Valid([]byte(out)) {

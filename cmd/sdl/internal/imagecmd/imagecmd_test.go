@@ -54,7 +54,7 @@ func testImage() *image.Image {
 	}
 }
 
-// TestInfoReport pins the info rendering over a governance-bearing
+// The info rendering over a governance-bearing
 // image: header facts first, settings as key=value, units with their
 // digests, and the catalogue pin summary with pluralized element
 // counts — every field literally tab-separated, the go version -m
@@ -99,7 +99,7 @@ func TestInfoReport(t *testing.T) {
 	}
 }
 
-// TestInfoWithoutBuild pins the pre-governance shape: an image without
+// The pre-governance shape: an image without
 // the block reports its header and catalogue, no setting or unit lines.
 func TestInfoWithoutBuild(t *testing.T) {
 	var out bytes.Buffer
@@ -262,7 +262,7 @@ func TestEditGeneration(t *testing.T) {
 	}
 }
 
-// TestEditAtomicity corrupts the input and expects the fault to leave
+// A fault mid-edit leaves
 // the original bytes untouched and no temporary litter behind.
 func TestEditAtomicity(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "image.json")

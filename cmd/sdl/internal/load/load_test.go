@@ -25,7 +25,7 @@ func writeUnits(t *testing.T, files map[string]string) string {
 	return dir
 }
 
-// TestDirDiagnostics drives the fault paths of Dir: every case must come
+// Every fault path of Dir comes
 // back as one *base.DiagnosticsError carrying exactly the expected
 // positioned lines — never a panic, never a partial success.
 func TestDirDiagnostics(t *testing.T) {
@@ -88,7 +88,7 @@ func TestDirDiagnostics(t *testing.T) {
 	}
 }
 
-// TestDirAliasScope pins that reference names are none of load's
+// Reference names are none of load's
 // business: one alias naming two different paths in two units is legal
 // (import scope is the unit, the linker's per-file tables resolve it),
 // and load's union is only the deduplicated path set for discovery.
@@ -123,7 +123,7 @@ func equal(a, b []string) bool {
 	return true
 }
 
-// TestCheckImportPath drives the load-pattern gate: strings that cannot
+// The load-pattern gate: strings that cannot
 // name a single package must be rejected before they reach the Go
 // toolchain as package patterns or the shell as arguments.
 func TestCheckImportPath(t *testing.T) {
@@ -163,7 +163,7 @@ func TestCheckImportPath(t *testing.T) {
 	}
 }
 
-// TestDirOrdering pins the deterministic load order: units sorted by
+// The load order is deterministic: units sorted by
 // filename (which also selects the solution name and the first import
 // spec of a duplicated path) and imports sorted by path.
 func TestDirOrdering(t *testing.T) {

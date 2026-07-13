@@ -45,7 +45,7 @@ func binding(key string, v *image.Value) image.Binding {
 	return image.Binding{Key: key, Value: v, Source: image.SourceInstance}
 }
 
-// TestEchoGolden pins the whole canonical unit for an image exercising
+// The whole canonical unit is pinned for an image exercising
 // the aliasing rules — a package named unlike its path tail, an alias
 // collision resolved by numeric suffix — plus the symbol table (two
 // externs come back factored, one var single-form, types qualified by
@@ -186,7 +186,7 @@ deploy ff.Pong as Pong
 	}
 }
 
-// TestEchoSinglePackage keeps a lone import in single form.
+// A lone import stays in single form.
 func TestEchoSinglePackage(t *testing.T) {
 	img := &image.Image{
 		Format:    image.Format,
@@ -209,8 +209,8 @@ deploy ff.Ping as P
 	}
 }
 
-// TestEchoKeywordPackageName routes a package whose registered Go name
-// is an SDL keyword through the alias machinery: the reference name
+// A package whose registered Go name is an SDL keyword routes
+// through the alias machinery: the reference name
 // takes the numeric suffix, exactly as a name collision would, since
 // the bare keyword could never appear in a reference — and the unit
 // renders instead of failing.
@@ -239,7 +239,7 @@ deploy extern2.Ping as P
 	}
 }
 
-// TestEchoFaults exercises the exit-2 material: images echo cannot or
+// The exit-2 material: images echo cannot or
 // must not render.
 func TestEchoFaults(t *testing.T) {
 	valid := func() *image.Image {
@@ -398,7 +398,7 @@ func TestEchoFaults(t *testing.T) {
 	}
 }
 
-// TestEchoFormatGate rejects other formats before rendering anything.
+// Other formats are rejected before anything renders.
 func TestEchoFormatGate(t *testing.T) {
 	var out bytes.Buffer
 	err := echo(strings.NewReader(`{"format":"solution-image/999"}`), &out)
@@ -410,7 +410,7 @@ func TestEchoFormatGate(t *testing.T) {
 	}
 }
 
-// TestEchoComposedImage closes the loop for the programmatic frontend:
+// The loop closes for the programmatic frontend:
 // an image composed by struct literal — no source text anywhere in its
 // life — walks the composer's whole chain (Canonicalize, Validate,
 // Encode) and echoes as the same canonical unit a compiled pingpong

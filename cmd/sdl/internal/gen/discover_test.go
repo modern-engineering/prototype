@@ -15,7 +15,7 @@ import (
 	"github.com/modern-engineering/prototype/sdl/token"
 )
 
-// TestDiscoverRejectsInternal pins the boundary diagnostic: an
+// The boundary diagnostic comes first: an
 // internal catalogue package is rejected up front, positioned at its
 // import spec, before the toolchain is ever asked to load anything —
 // the generated compiler builds as its own module and could not
@@ -44,7 +44,7 @@ func namedType(path, pkgName, name string) types.Type {
 	return types.NewNamed(obj, types.NewStruct(nil, nil), nil)
 }
 
-// TestCitizenKind pins the classification table: the four marker
+// The classification table holds: the four marker
 // types map to their kinds, and a same-named type from the wrong
 // package marks nothing.
 func TestCitizenKind(t *testing.T) {
@@ -69,8 +69,8 @@ func TestCitizenKind(t *testing.T) {
 	}
 }
 
-// TestInternalPath drives the element rule: only a whole path element
-// named internal marks the boundary.
+// Only a whole path element
+// named internal marks the boundary — the element rule.
 func TestInternalPath(t *testing.T) {
 	tests := []struct {
 		path string

@@ -89,11 +89,11 @@ func runSDL(t *testing.T, dir string, args ...string) result {
 	return result{code: code, stdout: outb.String(), stderr: errb.String()}
 }
 
-// TestBuildPingpong is (a): the public example compiles to exactly the
-// golden image, and the bytes decode as a well-formed image carrying
-// the M1 deployable shape — a stand-in provision record whose typed,
-// non-sensitive output feeds the deploys, the extern/var symbol pair,
-// and the governance block digesting both units.
+// The public example compiles to exactly the golden image, and the
+// bytes decode as a well-formed image carrying the M1 deployable
+// shape — a stand-in provision record whose typed, non-sensitive
+// output feeds the deploys, the extern/var symbol pair, and the
+// governance block digesting both units.
 func TestBuildPingpong(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -246,11 +246,11 @@ deploy ff.Pong as Pong1 {
 }
 `
 
-// TestFactoredForms proves factored spec blocks are pure notation: a
-// unit written with factored deploy and provision blocks compiles to
-// the same desired state as its single-form twin. The comparison is
-// image.Equal, not bytes: the governance block digests each spelling,
-// and the spelling is exactly what the two variants vary.
+// Factored spec blocks are pure notation: a unit written with
+// factored deploy and provision blocks compiles to the same desired
+// state as its single-form twin. The comparison is image.Equal, not
+// bytes: the governance block digests each spelling, and the spelling
+// is exactly what the two variants vary.
 func TestFactoredForms(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -338,10 +338,9 @@ deploy ff.Pong as Pong1 {
 	}
 }
 
-// TestImagePlumbing smokes the sdl image command group over a freshly
-// built image: edit amends the generation in place (atomically, the
-// content otherwise untouched), and records and symbols print their
-// aligned tables.
+// The sdl image command group holds over a freshly built image: edit
+// amends the generation in place (atomically, the content otherwise
+// untouched), and records and symbols print their aligned tables.
 func TestImagePlumbing(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
@@ -401,8 +400,8 @@ func TestImagePlumbing(t *testing.T) {
 	}
 }
 
-// TestBuildSample is the CP-C proof: the mockup-7 sample lives in
-// examples/sample and compiles to exactly the golden image — extern
+// The CP-C proof: the mockup-7 sample lives in examples/sample and
+// compiles to exactly the golden image — extern
 // and var symbols, both provision kinds, folded type and verb
 // defaults, output references, compartments checked against the
 // imported scheme package, and a peer unit — and the image plumbing
@@ -577,8 +576,8 @@ var Hello = &application.Descriptor{
 `, greeting)
 }
 
-// TestBuildWorkspace is the workspace-mode proof: a solution inside one
-// module of an active go.work resolves its catalogue imports through
+// The workspace-mode proof: a solution inside one module of an active
+// go.work resolves its catalogue imports through
 // the workspace's union of modules, exactly as the go CLI would — no
 // replace or require directives anywhere, because a workspace resolves
 // member imports without them (a member requiring another member still
@@ -854,8 +853,8 @@ func hermeticProxyEnv(t *testing.T) []string {
 	}
 }
 
-// TestBuildNoModule is the module-less proof: a solution directory
-// outside any go.mod or go.work builds by resolving its imports at
+// The module-less proof: a solution directory outside any go.mod or
+// go.work builds by resolving its imports at
 // their latest versions through the ambient proxy configuration, the
 // generated program's own go.mod carrying the requirements. The fixture
 // proxy serves the prototype at the fictional v0.1.0, so the built CLI
@@ -932,8 +931,8 @@ deploy bad.Thing as T
 	})
 }
 
-// TestWorkFlag is (d): -work announces the work directory and leaves
-// the generated compiler behind for inspection.
+// -work announces the work directory and leaves the generated
+// compiler behind for inspection.
 func TestWorkFlag(t *testing.T) {
 	if testing.Short() {
 		t.Skip("e2e drives the Go toolchain; skipped in -short mode")

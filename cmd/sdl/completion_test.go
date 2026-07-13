@@ -13,12 +13,12 @@ import (
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/base"
 )
 
-// TestCompletionCoversCommandTree is the anti-drift gate of the
-// generated completion: every command path and every flag of the
-// registered tree, plus the dispatcher's help verb, must appear in
-// every shell's script. The gate walks base.Commands itself, so a
-// verb registered here is demanded of the emitters automatically;
-// the e2e goldens pin the exact bytes, this test the coverage.
+// Every command path and every flag of the registered tree, plus the
+// dispatcher's help verb, appears in every shell's script — the
+// anti-drift gate of the generated completion. The gate walks
+// base.Commands itself, so a verb registered here is demanded of the
+// emitters automatically; the corpus's completion transcript pins the
+// exact bytes, this test the coverage.
 func TestCompletionCoversCommandTree(t *testing.T) {
 	type want struct {
 		word string

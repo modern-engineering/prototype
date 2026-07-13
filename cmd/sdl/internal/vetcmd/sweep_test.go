@@ -10,9 +10,9 @@ import (
 	"testing"
 )
 
-// TestVetAcceptsCommittedCorpus sweeps the committed solution corpora
-// — every example solution and the migrated fieldcase solutions, the
-// unit sets the build and e2e suites keep green — and requires vet to
+// Vet accepts the committed solution corpora — every example solution
+// and the migrated fieldcase solutions, the unit sets the build and
+// e2e suites keep green — and the sweep requires it to
 // come back clean: vet must accept whatever sdl build accepts, since
 // its findings claim to predict build errors and author mistakes. A
 // failure here means either a check drifted stricter than the linker

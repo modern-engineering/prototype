@@ -92,7 +92,7 @@ func generate(t *testing.T, shell string) string {
 	return buf.String()
 }
 
-// TestGolden pins every shell's rendering of the test tree byte for
+// Every shell's rendering of the test tree is pinned byte for
 // byte. The goldens regenerate with -update; a diff here is a change
 // to how the emitters render a tree shape and reviews as one.
 func TestGolden(t *testing.T) {
@@ -120,9 +120,9 @@ func TestGolden(t *testing.T) {
 	}
 }
 
-// TestCollect pins the walk itself: flag kinds and placeholders from
-// the flag set, enumerations and file arguments from the usage lines,
-// subcommands from the group.
+// The walk itself gathers every completion source: flag kinds and
+// placeholders from the flag set, enumerations and file arguments
+// from the usage lines, subcommands from the group.
 func TestCollect(t *testing.T) {
 	specs := collect(testTree())
 	want := []spec{
@@ -159,7 +159,7 @@ func TestCollect(t *testing.T) {
 	}
 }
 
-// TestPositionals covers the usage-line trailer parser over the
+// The usage-line trailer parser handles the
 // shapes the registered commands actually write.
 func TestPositionals(t *testing.T) {
 	tests := []struct {
@@ -199,7 +199,7 @@ func TestRunCompletionUsage(t *testing.T) {
 	}
 }
 
-// TestScriptSyntax holds each golden to its shell's own parser via
+// Each golden answers to its shell's own parser via
 // the shells' -n mode, where the shell is installed.
 func TestScriptSyntax(t *testing.T) {
 	for shell := range shells {
@@ -219,9 +219,9 @@ func TestScriptSyntax(t *testing.T) {
 	}
 }
 
-// TestBashCompleter drives the generated bash functions the way
-// readline would — COMP_WORDS set, _sdl called, COMPREPLY read — and
-// asserts the words the tree promises at each position.
+// The generated bash functions answer the way
+// readline would ask — COMP_WORDS set, _sdl called, COMPREPLY read —
+// with the words the tree promises at each position.
 func TestBashCompleter(t *testing.T) {
 	bash, err := exec.LookPath("bash")
 	if err != nil {
