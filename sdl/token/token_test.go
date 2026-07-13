@@ -4,94 +4,78 @@
 package token_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/modern-engineering/prototype/sdl/token"
 )
 
-func TestTokenString(t *testing.T) {
-	tests := []struct {
-		tok  token.Token
-		want string
+// One scenario holds the lexical vocabulary together: every token
+// renders through String and answers exactly its class's predicates,
+// each keyword's rendering is the identifier Lookup maps back to the
+// token, Keywords yields precisely those lexemes in token order, and
+// any other identifier stays IDENT.
+func TestVocabulary(t *testing.T) {
+	const (
+		special = iota // answers none of the class predicates
+		literal
+		operator
+		keyword
+	)
+	vocabulary := []struct {
+		tok   token.Token
+		str   string
+		class int
 	}{
-		{token.ILLEGAL, "ILLEGAL"},
-		{token.EOF, "EOF"},
-		{token.NEWLINE, "newline"},
-		{token.COMMENT, "comment"},
-		{token.IDENT, "IDENT"},
-		{token.STRING, "STRING"},
-		{token.INT, "INT"},
-		{token.DURATION, "DURATION"},
-		{token.LBRACE, "{"},
-		{token.RBRACE, "}"},
-		{token.LPAREN, "("},
-		{token.RPAREN, ")"},
-		{token.COLON, ":"},
-		{token.PERIOD, "."},
-		{token.SOLUTION, "solution"},
-		{token.IMPORT, "import"},
-		{token.EXTERN, "extern"},
-		{token.VAR, "var"},
-		{token.DEFAULT, "default"},
-		{token.DEPLOY, "deploy"},
-		{token.PROVISION, "provision"},
-		{token.AS, "as"},
-		{token.TRUE, "true"},
-		{token.FALSE, "false"},
-		{token.Token(999), "token(999)"},
+		{token.ILLEGAL, "ILLEGAL", special},
+		{token.EOF, "EOF", special},
+		{token.NEWLINE, "newline", special},
+		{token.COMMENT, "comment", special},
+		{token.IDENT, "IDENT", literal},
+		{token.STRING, "STRING", literal},
+		{token.INT, "INT", literal},
+		{token.DURATION, "DURATION", literal},
+		{token.LBRACE, "{", operator},
+		{token.RBRACE, "}", operator},
+		{token.LPAREN, "(", operator},
+		{token.RPAREN, ")", operator},
+		{token.COLON, ":", operator},
+		{token.PERIOD, ".", operator},
+		{token.SOLUTION, "solution", keyword},
+		{token.IMPORT, "import", keyword},
+		{token.EXTERN, "extern", keyword},
+		{token.VAR, "var", keyword},
+		{token.DEFAULT, "default", keyword},
+		{token.DEPLOY, "deploy", keyword},
+		{token.PROVISION, "provision", keyword},
+		{token.AS, "as", keyword},
+		{token.TRUE, "true", keyword},
+		{token.FALSE, "false", keyword},
 	}
-	for _, tt := range tests {
-		if got := tt.tok.String(); got != tt.want {
-			t.Errorf("Token(%d).String() = %q, want %q", int(tt.tok), got, tt.want)
+	var keywords []string
+	for _, tt := range vocabulary {
+		if got := tt.tok.String(); got != tt.str {
+			t.Errorf("Token(%d).String() = %q, want %q", int(tt.tok), got, tt.str)
+		}
+		if got := tt.tok.IsLiteral(); got != (tt.class == literal) {
+			t.Errorf("%v.IsLiteral() = %v, want %v", tt.tok, got, tt.class == literal)
+		}
+		if got := tt.tok.IsOperator(); got != (tt.class == operator) {
+			t.Errorf("%v.IsOperator() = %v, want %v", tt.tok, got, tt.class == operator)
+		}
+		if got := tt.tok.IsKeyword(); got != (tt.class == keyword) {
+			t.Errorf("%v.IsKeyword() = %v, want %v", tt.tok, got, tt.class == keyword)
+		}
+		if tt.class == keyword {
+			if got := token.Lookup(tt.str); got != tt.tok {
+				t.Errorf("Lookup(%q) = %v, want %v", tt.str, got, tt.tok)
+			}
+			keywords = append(keywords, tt.str)
 		}
 	}
-}
 
-func TestLookup(t *testing.T) {
-	keywords := map[string]token.Token{
-		"solution":  token.SOLUTION,
-		"import":    token.IMPORT,
-		"extern":    token.EXTERN,
-		"var":       token.VAR,
-		"default":   token.DEFAULT,
-		"deploy":    token.DEPLOY,
-		"provision": token.PROVISION,
-		"as":        token.AS,
-		"true":      token.TRUE,
-		"false":     token.FALSE,
-	}
-	for ident, want := range keywords {
-		if got := token.Lookup(ident); got != want {
-			t.Errorf("Lookup(%q) = %v, want %v", ident, got, want)
-		}
-	}
-	for _, ident := range []string{"Ping", "solutions", "Deploy", "_", "trueish"} {
-		if got := token.Lookup(ident); got != token.IDENT {
-			t.Errorf("Lookup(%q) = %v, want IDENT", ident, got)
-		}
-	}
-}
-
-// TestKeywords pins the iterator against the two exported views of the
-// same vocabulary: every yielded word must Lookup to a keyword token,
-// and together the words must cover the keyword range exactly — one
-// word per keyword token, in token order.
-func TestKeywords(t *testing.T) {
-	want := []string{"solution", "import", "extern", "var", "default", "deploy", "provision", "as", "true", "false"}
-	var got []string
-	for kw := range token.Keywords() {
-		if tok := token.Lookup(kw); !tok.IsKeyword() {
-			t.Errorf("Keywords() yielded %q, but Lookup(%q) = %v, not a keyword", kw, kw, tok)
-		}
-		got = append(got, kw)
-	}
-	if len(got) != len(want) {
-		t.Fatalf("Keywords() yielded %d words %q, want %d", len(got), got, len(want))
-	}
-	for i, kw := range want {
-		if got[i] != kw {
-			t.Errorf("Keywords()[%d] = %q, want %q", i, got[i], kw)
-		}
+	if got := slices.Collect(token.Keywords()); !slices.Equal(got, keywords) {
+		t.Errorf("Keywords() yielded %q, want the vocabulary's keyword rows %q", got, keywords)
 	}
 
 	// An early break must stop the iteration, the iter.Seq contract.
@@ -101,35 +85,20 @@ func TestKeywords(t *testing.T) {
 		break
 	}
 	if n != 1 {
-		t.Errorf("break after the first word iterated %d times, want 1", n)
+		t.Errorf("break after the first keyword iterated %d times, want 1", n)
 	}
-}
 
-func TestPredicates(t *testing.T) {
-	tests := []struct {
-		tok                        token.Token
-		literal, operator, keyword bool
-	}{
-		{token.IDENT, true, false, false},
-		{token.STRING, true, false, false},
-		{token.DURATION, true, false, false},
-		{token.COLON, false, true, false},
-		{token.RPAREN, false, true, false},
-		{token.AS, false, false, true},
-		{token.TRUE, false, false, true},
-		{token.NEWLINE, false, false, false},
-		{token.EOF, false, false, false},
+	// Identifiers outside the keyword rows — case variants and
+	// extensions of real keywords included — stay IDENT.
+	for _, ident := range []string{"Ping", "solutions", "Deploy", "_", "trueish"} {
+		if got := token.Lookup(ident); got != token.IDENT {
+			t.Errorf("Lookup(%q) = %v, want IDENT", ident, got)
+		}
 	}
-	for _, tt := range tests {
-		if got := tt.tok.IsLiteral(); got != tt.literal {
-			t.Errorf("%v.IsLiteral() = %v, want %v", tt.tok, got, tt.literal)
-		}
-		if got := tt.tok.IsOperator(); got != tt.operator {
-			t.Errorf("%v.IsOperator() = %v, want %v", tt.tok, got, tt.operator)
-		}
-		if got := tt.tok.IsKeyword(); got != tt.keyword {
-			t.Errorf("%v.IsKeyword() = %v, want %v", tt.tok, got, tt.keyword)
-		}
+
+	// A value outside the vocabulary still renders diagnosably.
+	if got := token.Token(999).String(); got != "token(999)" {
+		t.Errorf(`Token(999).String() = %q, want "token(999)"`, got)
 	}
 }
 
