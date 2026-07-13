@@ -4,9 +4,11 @@
 package image_test
 
 import (
+	"bytes"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modern-engineering/prototype/solution/image"
 )
@@ -208,6 +210,160 @@ func TestCanonicalizeLiftsNilSections(t *testing.T) {
 	if img.Catalogue == nil || img.Symbols == nil || img.Records == nil {
 		t.Errorf("Canonicalize left a nil section: catalogue %v, symbols %v, records %v",
 			img.Catalogue == nil, img.Symbols == nil, img.Records == nil)
+	}
+}
+
+// composedPingpong composes the pingpong solution the way a code-first
+// frontend would: by struct literal, no source text anywhere — the
+// same solution examples/pingpong spells in SDL, pinning the citizens
+// it references from the ff and substrate catalogues. Bindings are
+// written deliberately out of key order; Canonicalize owes the rest.
+func composedPingpong() *image.Image {
+	const (
+		ffPath        = "github.com/modern-engineering/prototype/examples/ff"
+		substratePath = "github.com/modern-engineering/prototype/examples/substrate"
+	)
+	ping := image.Ref{Package: ffPath, Name: "Ping"}
+	pong := image.Ref{Package: ffPath, Name: "Pong"}
+	standIn := image.Ref{Package: substratePath, Name: "StandIn"}
+	endpoint := image.Ref{Package: substratePath, Name: "Endpoint"}
+	instance := func(key string, v *image.Value) image.Binding {
+		return image.Binding{Key: key, Value: v, Source: image.SourceInstance}
+	}
+	symbol := func(key, name string) image.Binding {
+		return image.Binding{Key: key, Ref: &image.SymbolRef{Symbol: name}, Source: image.SourceInstance}
+	}
+	output := func(key, instance, output string) image.Binding {
+		return image.Binding{Key: key, Ref: &image.SymbolRef{Symbol: instance, Output: output}, Source: image.SourceInstance}
+	}
+	return &image.Image{
+		Format:     image.Format,
+		Solution:   "pingpong",
+		Generation: 1,
+		Catalogue: []image.Package{
+			{
+				Path: substratePath,
+				Name: "substrate",
+				Elements: []image.ElementSchema{
+					{
+						Name: "StandIn",
+						Kind: image.KindProvision,
+						Doc:  "a local stand-in attachment emitting a fixed demo output in place of real substrate access",
+						Params: []image.ParamSchema{
+							{Name: "endpoint", Usage: "substrate endpoint the stand-in pretends to attach to; ignored"},
+						},
+						Outputs: []image.OutputSchema{{Name: "config", Type: "string"}},
+						Kinds:   []string{image.KindAttach},
+					},
+					{Name: "Endpoint", Kind: image.KindSymbol, Doc: "a site-bound network coordinate such as an address or subject"},
+				},
+			},
+			{
+				Path: ffPath,
+				Name: "ff",
+				Elements: []image.ElementSchema{
+					{
+						Name: "Ping",
+						Kind: image.KindComponent,
+						Doc:  "ping emits a payload to a target at a fixed cadence",
+						Params: []image.ParamSchema{
+							{Name: "count", Usage: "number of pings; negative means forever", Default: "-1"},
+							{Name: "interval", Usage: "delay between pings", Default: "1s"},
+							{Name: "nats", Usage: "path to the messaging account config; empty runs unconnected"},
+							{Name: "target", Usage: "destination to ping; must not be empty"},
+						},
+					},
+					{
+						Name: "Pong",
+						Kind: image.KindComponent,
+						Doc:  "pong answers pings on a subject",
+						Params: []image.ParamSchema{
+							{Name: "nats", Usage: "path to the messaging account config; empty runs unconnected"},
+							{Name: "subject", Usage: "subject to answer on", Default: "ping"},
+						},
+					},
+				},
+			},
+		},
+		Symbols: []image.SymbolDef{
+			{Name: "natsEndpoint", Class: image.ClassExtern, Type: &endpoint},
+			{Name: "echoSubject", Class: image.ClassVar, Value: image.String("ping")},
+		},
+		Records: []image.Record{
+			{
+				Verb:    image.VerbProvision,
+				Kind:    image.KindAttach,
+				Element: standIn,
+				Name:    "natsStandIn",
+				Params:  []image.Binding{symbol("endpoint", "natsEndpoint")},
+			},
+			{
+				Verb:    image.VerbDeploy,
+				Element: ping,
+				Name:    "Ping1",
+				Params: []image.Binding{
+					symbol("target", "echoSubject"),
+					instance("count", image.Int(3)),
+					output("nats", "natsStandIn", "config"),
+					instance("interval", image.Duration(500*time.Millisecond)),
+				},
+			},
+			{
+				Verb:    image.VerbDeploy,
+				Element: ping,
+				Name:    "Ping2",
+				Params: []image.Binding{
+					instance("target", image.String("pong")),
+					instance("interval", image.Duration(2*time.Second)),
+					instance("count", image.Int(-1)),
+				},
+			},
+			{
+				Verb:    image.VerbDeploy,
+				Element: pong,
+				Name:    "Pong",
+				Params: []image.Binding{
+					symbol("subject", "echoSubject"),
+					output("nats", "natsStandIn", "config"),
+				},
+			},
+		},
+	}
+}
+
+// TestComposeRoundTrip is the round-trip guarantee of programmatic
+// composition: a struct-literal pingpong canonicalizes, validates,
+// encodes, and decodes back Equal — and the decoded image re-encodes
+// byte-identically, so a hand-composed image is as stable a document
+// as a compiled one.
+func TestComposeRoundTrip(t *testing.T) {
+	img := composedPingpong()
+	img.Canonicalize()
+	if err := img.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+
+	var first bytes.Buffer
+	if err := img.Encode(&first); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	got, err := image.Decode(bytes.NewReader(first.Bytes()))
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if !image.Equal(img, got) {
+		t.Error("Decode(Encode(img)) is not Equal to the composed image")
+	}
+	if err := got.Validate(); err != nil {
+		t.Errorf("Validate after the round trip: %v", err)
+	}
+
+	var second bytes.Buffer
+	if err := got.Encode(&second); err != nil {
+		t.Fatalf("Encode after Decode: %v", err)
+	}
+	if !bytes.Equal(first.Bytes(), second.Bytes()) {
+		t.Error("the decoded image re-encodes to different bytes")
 	}
 }
 
