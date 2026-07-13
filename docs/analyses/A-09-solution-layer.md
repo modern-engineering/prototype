@@ -2,6 +2,8 @@
 status: draft
 since: 2026-07-06
 refined-by:
+  - D-07-verb-directive-syntax
+  - D-08-desired-state-image
   - D-12-statement-body-anatomy
 ---
 

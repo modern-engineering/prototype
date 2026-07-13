@@ -2,6 +2,7 @@
 status: draft
 since: 2026-07-06
 refined-by:
+  - D-09-catalogue-citizenship
   - D-14-driver-on-type
 ---
 
