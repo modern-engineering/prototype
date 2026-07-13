@@ -68,7 +68,7 @@ func (r *Runtime) Run(rr Runner) {
 		// See golang/go#53757, golang/go#74275, golang/go#74304, golang/go#74306.
 
 		err := rr.Run(r.Context())
-		slog.DebugContext(r.Context(), "application.Run returned prematurely", "error", err, slog.String("application", fmt.Sprint(rr)))
+		slog.DebugContext(r.Context(), "application.Run returned prematurely", "error", err, slog.String("application", display(rr)))
 		//r.cancel(err) // TODO(@danielorbach): cancel the context if the application returned before the runtime has requested
 		if err != nil {
 			r.cancel(err)
@@ -136,7 +136,19 @@ func (p Proc) Done() <-chan struct{} {
 }
 
 func (p Proc) String() string {
-	return fmt.Sprint(p.rr)
+	return display(p.rr)
+}
+
+// display renders a runner's identity without touching its state: a
+// Stringer answers for itself under its own concurrency rules, and
+// anything else renders as its type. Reflecting over a live runner's
+// fields (as %v on a non-Stringer would) races with the runner's own
+// lifecycle — a Shutdown mutating state while the runtime logs, say.
+func display(rr Runner) string {
+	if s, ok := rr.(fmt.Stringer); ok {
+		return s.String()
+	}
+	return fmt.Sprintf("%T", rr)
 }
 
 // TODO: consider using generic methods with go1.27 release instead of exposing the Runner directly.
