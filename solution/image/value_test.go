@@ -13,26 +13,25 @@ import (
 	"github.com/modern-engineering/prototype/solution/image"
 )
 
+// Every kind's wire form survives a marshal-unmarshal round trip at
+// its edges — empty, quoted, zero, extreme, negative, fractional; the
+// canonical spelling of each kind is ExampleValue's to pin.
 func TestValueJSONRoundTrip(t *testing.T) {
 	tests := []struct {
 		name  string
 		value *image.Value
 		json  string
 	}{
-		{"string", image.String("com.acme.Echo"), `{"kind":"string","string":"com.acme.Echo"}`},
 		{"string empty", image.String(""), `{"kind":"string","string":""}`},
 		{"string quoted", image.String(`say "hi"`), `{"kind":"string","string":"say \"hi\""}`},
-		{"int", image.Int(-42), `{"kind":"int","int":-42}`},
+		{"int negative", image.Int(-42), `{"kind":"int","int":-42}`},
 		{"int zero", image.Int(0), `{"kind":"int","int":0}`},
 		{"int max", image.Int(math.MaxInt64), `{"kind":"int","int":9223372036854775807}`},
-		{"bool true", image.Bool(true), `{"kind":"bool","bool":true}`},
 		{"bool false", image.Bool(false), `{"kind":"bool","bool":false}`},
-		{"duration", image.Duration(1500 * time.Millisecond), `{"kind":"duration","duration":"1.5s"}`},
-		{"duration negative", image.Duration(-90 * time.Second), `{"kind":"duration","duration":"-1m30s"}`},
+		{"duration negative fractional", image.Duration(-90500 * time.Millisecond), `{"kind":"duration","duration":"-1m30.5s"}`},
 		{"duration zero", image.Duration(0), `{"kind":"duration","duration":"0s"}`},
 		{"duration max", image.Duration(math.MaxInt64), `{"kind":"duration","duration":"2562047h47m16.854775807s"}`},
 		{"duration min", image.Duration(math.MinInt64), `{"kind":"duration","duration":"-2562047h47m16.854775808s"}`},
-		{"token", image.Token("euCentral1"), `{"kind":"token","token":"euCentral1"}`},
 		{"token empty", image.Token(""), `{"kind":"token","token":""}`},
 	}
 	for _, tt := range tests {
