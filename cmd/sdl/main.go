@@ -21,6 +21,7 @@ import (
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/echocmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/fmtcmd"
 	"github.com/modern-engineering/prototype/cmd/sdl/internal/imagecmd"
+	"github.com/modern-engineering/prototype/cmd/sdl/internal/runcmd"
 )
 
 func init() {
@@ -31,6 +32,7 @@ func init() {
 		echocmd.CmdEcho,
 		fmtcmd.CmdFmt,
 		imagecmd.CmdImage,
+		runcmd.CmdRun,
 	}
 }
 
