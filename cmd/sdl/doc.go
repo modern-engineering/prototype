@@ -183,4 +183,13 @@
 // package vetcmd records that drift risk and the shared-checker door
 // — and a corpus sweep holds vet to accepting whatever the build
 // accepts.
+//
+// sdl lsp carries the same material into a live editor session: the
+// diagnostics it publishes are vet's single-file checks (package
+// vetcmd's CheckSource, written for exactly this second caller;
+// set-scope judgements stay with sdl vet), and its completion list is
+// generated from the grammar vocabulary under the layer's rule and
+// gate test. The protocol layer is hand-rolled JSON-RPC 2.0 over the
+// standard streams; wiring an editor to the server is the user's
+// affair, and 'sdl help lsp' carries the snippets beside highlight's.
 package main
