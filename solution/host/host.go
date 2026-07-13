@@ -299,11 +299,16 @@ func (s *session) bind(fs *flag.FlagSet, rec image.Record) error {
 	}
 
 	ps.VisitAll(func(f *flag.Flag) {
-		detail, ok := src.applied[f.Name]
-		if !ok {
-			detail = "catalogue default"
+		detail, applied := src.applied[f.Name]
+		// The bound flags audit the string their Set was fed rather
+		// than their own rendering: a validate-only flag.Value (a
+		// flag.Func slot) renders nothing back, and an audit line
+		// proving that a value arrived must show the value (A-10).
+		value := src.values[f.Name]
+		if !applied {
+			detail, value = "catalogue default", f.Value.String()
 		}
-		s.printf("audit: %s.%s = %s (%s)", rec.Name, f.Name, redact(f.Value.String(), sensitive[f.Name]), detail)
+		s.printf("audit: %s.%s = %s (%s)", rec.Name, f.Name, redact(value, sensitive[f.Name]), detail)
 	})
 	return nil
 }

@@ -34,8 +34,10 @@ type report struct {
 
 // echoDescriptor declares the component surface: subject and nats
 // mirror the pingpong parameters, count bounds the work (negative
-// runs until cancelled — the long-running shape), and tone stays
-// unbound everywhere to prove catalogue defaults survive the parse.
+// runs until cancelled — the long-running shape), tone stays unbound
+// everywhere to prove catalogue defaults survive the parse, and mode
+// is a validate-only flag.Func slot that renders nothing back — the
+// audit must still show the value it was fed.
 func echoDescriptor(reports chan<- report) *application.Descriptor {
 	return &application.Descriptor{
 		Name: "echo",
@@ -46,6 +48,12 @@ func echoDescriptor(reports chan<- report) *application.Descriptor {
 			nats := fs.String("nats", "", "account config; empty runs unconnected")
 			count := fs.Int("count", -1, "echoes before stopping; negative means forever")
 			fs.String("tone", "flat", "tone nobody binds")
+			fs.Func("mode", "echo mode; must not be empty", func(s string) error {
+				if s == "" {
+					return errors.New("must not be empty")
+				}
+				return nil
+			})
 			return application.RunnerFunc(func(ctx context.Context) error {
 				reports <- report{subject: *subject, nats: *nats, count: *count}
 				if *count < 0 {
@@ -196,6 +204,7 @@ func pingpongImage() *image.Image {
 			literal("subject", image.String("ping-1")),
 			outputRef("nats", "standIn", "config", false),
 			literal("count", image.Int(1)),
+			literal("mode", image.String("loud")),
 		),
 		deployRec("Ping2",
 			symbolRef("subject", "subject", false),
@@ -322,6 +331,9 @@ func TestRunEnactsSolution(t *testing.T) {
 	wantLine(t, audit, `audit: Ping1.subject = "ping-1" (literal, instance)`)
 	wantLine(t, audit, `audit: Ping1.count = "1" (literal, instance)`)
 	wantLine(t, audit, `audit: Ping1.tone = "flat" (catalogue default)`)
+	// A validate-only slot renders nothing back; the audit shows what
+	// its Set was fed all the same.
+	wantLine(t, audit, `audit: Ping1.mode = "loud" (literal, instance)`)
 	wantLine(t, audit, `audit: Ping2.subject = "wheel" (var subject, instance)`)
 	wantLine(t, audit, `running 3 instance(s)`)
 
