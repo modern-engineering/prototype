@@ -1447,6 +1447,85 @@ func TestSampleRoundTrip(t *testing.T) {
 	}
 }
 
+// schemeStanza is the deploy statement both scheme subtests share: an
+// int key bound to a string literal and a key the scheme never
+// declared. Whether that text is two positioned faults or two plain
+// bindings is decided by one thing only — whether any unit imports
+// the package claiming the qualifier.
+const schemeStanza = `
+deploy ff.Ping as P {
+	with k8s.pod {
+		replicas: "three"
+		unknownKey: 1
+	}
+}
+`
+
+// TestSchemeChecking drives the discovered-scheme contract end to end
+// through the real toolchain: importing examples/k8s turns the shared
+// stanza into compile faults with the linker's exact wordings, and
+// dropping the import lets the identical text ride the image opaquely
+// — same bytes, both advisory halves.
+func TestSchemeChecking(t *testing.T) {
+	if testing.Short() {
+		t.Skip("e2e drives the Go toolchain; skipped in -short mode")
+	}
+
+	t.Run("ImportedSchemeChecks", func(t *testing.T) {
+		dir := solutionModule(t, "bad.sdl", `solution schemes
+
+import (
+	ff "github.com/modern-engineering/prototype/examples/ff"
+	"github.com/modern-engineering/prototype/examples/k8s"
+)
+`+schemeStanza)
+		res := runSDL(t, dir, "build")
+		if res.code != 1 {
+			t.Fatalf("exit %d, want 1\n%s", res.code, res.stderr)
+		}
+		for _, want := range []string{
+			"bad.sdl:10:13: invalid value three for k8s.pod key replicas: parse error",
+			"bad.sdl:11:3: unknown key unknownKey in with k8s.pod (scheme k8s.Pod)",
+		} {
+			if !strings.Contains(res.stderr, want) {
+				t.Errorf("stderr is missing %q:\n%s", want, res.stderr)
+			}
+		}
+	})
+
+	t.Run("UnimportedSchemeRidesOpaque", func(t *testing.T) {
+		dir := solutionModule(t, "good.sdl", `solution schemes
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+`+schemeStanza)
+		out := filepath.Join(dir, "out.json")
+		res := runSDL(t, dir, "build", "-o", out)
+		if res.code != 0 {
+			t.Fatalf("exit %d, want 0\n%s", res.code, res.stderr)
+		}
+		if res.stderr != "" {
+			t.Errorf("stderr = %q, want silence: unresolved qualifiers are tolerated, not warned about", res.stderr)
+		}
+		data, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		img, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("emitted image does not decode: %v", err)
+		}
+		if len(img.Records) != 1 {
+			t.Fatalf("records = %+v, want the one P deploy", img.Records)
+		}
+		pod := img.Records[0].Extensions["k8s.pod"]
+		if len(pod) != 2 ||
+			pod[0].Key != "replicas" || pod[0].Value == nil || pod[0].Value.Str != "three" ||
+			pod[1].Key != "unknownKey" || pod[1].Value == nil || pod[1].Value.Int != 1 {
+			t.Errorf("extensions = %+v, want the stanza riding verbatim", img.Records[0].Extensions)
+		}
+	})
+}
+
 // TestFmtExamples is (f): the checked-in examples are canonical, so the
 // repository holds the form the toolchain prints.
 func TestFmtExamples(t *testing.T) {
