@@ -137,6 +137,8 @@ func constructor(kind string) string {
 		return "Provision"
 	case KindSymbol:
 		return "Symbol"
+	case KindScheme:
+		return "Scheme"
 	}
 	return "App"
 }

@@ -5,6 +5,8 @@ package gen
 
 import (
 	"errors"
+	gotoken "go/token"
+	"go/types"
 	"io"
 	"testing"
 
@@ -31,6 +33,39 @@ func TestDiscoverRejectsInternal(t *testing.T) {
 	want := `a.sdl:3:8: import "example.com/mod/internal/cat": internal package: the generated compiler builds outside the package's internal boundary and cannot import it; export the catalogue package`
 	if len(diags.Lines) != 1 || diags.Lines[0] != want {
 		t.Errorf("diagnostics = %q, want the one line %q", diags.Lines, want)
+	}
+}
+
+// namedType builds the go/types shape of a defined type path.name, the
+// candidate pointee citizenKind classifies.
+func namedType(path, pkgName, name string) types.Type {
+	pkg := types.NewPackage(path, pkgName)
+	obj := types.NewTypeName(gotoken.NoPos, pkg, name, nil)
+	return types.NewNamed(obj, types.NewStruct(nil, nil), nil)
+}
+
+// TestCitizenKind pins the classification table: the four marker
+// types map to their kinds, and a same-named type from the wrong
+// package marks nothing.
+func TestCitizenKind(t *testing.T) {
+	tests := []struct {
+		path, name string
+		wantKind   string
+		wantOK     bool
+	}{
+		{descriptorPath, "Descriptor", KindComponent, true},
+		{solutionPath, "ProvisionType", KindProvision, true},
+		{solutionPath, "SymbolType", KindSymbol, true},
+		{solutionPath, "SchemeType", KindScheme, true},
+		{solutionPath, "Descriptor", "", false},
+		{descriptorPath, "SchemeType", "", false},
+		{"example.com/imposter", "SchemeType", "", false},
+	}
+	for _, tt := range tests {
+		kind, _, ok := citizenKind(namedType(tt.path, "pkg", tt.name))
+		if kind != tt.wantKind || ok != tt.wantOK {
+			t.Errorf("citizenKind(%s.%s) = %q, %v, want %q, %v", tt.path, tt.name, kind, ok, tt.wantKind, tt.wantOK)
+		}
 	}
 }
 

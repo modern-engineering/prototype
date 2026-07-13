@@ -32,6 +32,7 @@ const (
 	KindComponent = "component" // *application.Descriptor, packaged by solution.App
 	KindProvision = "provision" // *solution.ProvisionType, packaged by solution.Provision
 	KindSymbol    = "symbol"    // *solution.SymbolType, packaged by solution.Symbol
+	KindScheme    = "scheme"    // *solution.SchemeType, packaged by solution.Scheme
 )
 
 // A Citizen is one discovered catalogue element: the exported var's Go
@@ -192,6 +193,8 @@ func citizenKind(t types.Type) (kind, typeName string, ok bool) {
 		return KindProvision, "solution.ProvisionType", true
 	case isNamed(t, solutionPath, "SymbolType"):
 		return KindSymbol, "solution.SymbolType", true
+	case isNamed(t, solutionPath, "SchemeType"):
+		return KindScheme, "solution.SchemeType", true
 	}
 	return "", "", false
 }
