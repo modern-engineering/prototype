@@ -95,6 +95,10 @@ func testImage() *image.Image {
 	}
 }
 
+// Equal compares desired state, not provenance: Generation, the whole
+// Build block, and every Binding.Source — in params, metadata,
+// deployment, and extension compartments alike — are masked, alone
+// and all at once.
 func TestEqualMasksProvenance(t *testing.T) {
 	base := testImage()
 
@@ -147,6 +151,9 @@ func TestEqualMasksProvenance(t *testing.T) {
 	}
 }
 
+// Everything Equal does not mask is sensitivity: each single mutation
+// of desired state — one field, one arm, one entry at a time — must
+// compare unequal against the unmutated twin.
 func TestEqualCatchesRealDifferences(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -274,10 +281,10 @@ func TestEqualCatchesRealDifferences(t *testing.T) {
 	}
 }
 
-// TestEqualExtensionsNilEmpty pins the two nil-tolerance levels of the
-// extensions comparison: an absent map equals an empty one, and a nil
-// stanza equals an empty stanza — while stanza presence itself stays a
-// real difference (covered by the mutation cases above).
+// The extensions comparison tolerates nil at both levels: an absent
+// map equals an empty one, and a nil stanza equals an empty stanza —
+// while stanza presence itself stays a real difference (covered by
+// the mutation cases above).
 func TestEqualExtensionsNilEmpty(t *testing.T) {
 	emptyMap := testImage()
 	emptyMap.Records[1].Extensions = map[string][]image.Binding{}
@@ -292,6 +299,9 @@ func TestEqualExtensionsNilEmpty(t *testing.T) {
 	}
 }
 
+// Two nil images are equal, an image never equals nil, and equality
+// follows the represented literal — residue in an unselected value
+// arm does not count.
 func TestEqualNilAndDirtyArms(t *testing.T) {
 	if !image.Equal(nil, nil) {
 		t.Error("Equal(nil, nil) = false, want true")

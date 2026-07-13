@@ -12,6 +12,9 @@ import (
 	"github.com/modern-engineering/prototype/solution/image"
 )
 
+// An image survives the encode-decode round trip whole: the document
+// ends in a single trailing newline, the decoded twin is Equal, and
+// even the provenance Equal masks (Generation) is carried verbatim.
 func TestEncodeDecodeRoundTrip(t *testing.T) {
 	img := testImage()
 	var buf bytes.Buffer
@@ -33,11 +36,11 @@ func TestEncodeDecodeRoundTrip(t *testing.T) {
 	}
 }
 
-// TestBuildRoundTrip pins the governance block's carriage: encoding
-// keeps it (in header position, between generation and catalogue) and
-// decoding restores it verbatim — Equal masks the block, so the
-// comparison here is direct — while a document without one decodes to
-// a nil Build, the shape of every image predating the block.
+// The governance block rides the document: encoding keeps it (in
+// header position, between generation and catalogue) and decoding
+// restores it verbatim — Equal masks the block, so the comparison
+// here is direct — while a document without one decodes to a nil
+// Build, the shape of every image predating the block.
 func TestBuildRoundTrip(t *testing.T) {
 	img := testImage()
 	img.Build = &image.Build{
@@ -82,6 +85,8 @@ func TestBuildRoundTrip(t *testing.T) {
 	}
 }
 
+// The same image encodes to the same bytes, every time — determinism
+// is what makes image diffs meaningful.
 func TestEncodeDeterminism(t *testing.T) {
 	var first, second bytes.Buffer
 	if err := testImage().Encode(&first); err != nil {
@@ -95,10 +100,10 @@ func TestEncodeDeterminism(t *testing.T) {
 	}
 }
 
-// TestEncodeRejectsInvalidUTF8 pins the belt-and-braces guard behind
-// the parser's own literal check: encoding/json would silently rewrite
-// invalid bytes as U+FFFD, so a non-UTF-8 string reaching Encode must
-// fail loudly instead of producing an image that decodes differently.
+// A non-UTF-8 string reaching Encode fails loudly — the
+// belt-and-braces guard behind the parser's own literal check:
+// encoding/json would silently rewrite invalid bytes as U+FFFD,
+// producing an image that decodes differently than it was built.
 func TestEncodeRejectsInvalidUTF8(t *testing.T) {
 	img := &image.Image{
 		Format:   image.Format,
@@ -112,9 +117,9 @@ func TestEncodeRejectsInvalidUTF8(t *testing.T) {
 	}
 }
 
-// TestDecodeRejectsTrailingData pins that an image is one whole JSON
-// document: trailing whitespace (Encode's own newline included) stays
-// legal, anything else fails instead of being silently ignored.
+// An image is one whole JSON document: trailing whitespace (Encode's
+// own newline included) stays legal, anything else fails instead of
+// being silently ignored.
 func TestDecodeRejectsTrailingData(t *testing.T) {
 	var buf bytes.Buffer
 	if err := testImage().Encode(&buf); err != nil {
@@ -131,6 +136,9 @@ func TestDecodeRejectsTrailingData(t *testing.T) {
 	}
 }
 
+// Only the one format this package writes decodes: a foreign format
+// string names both sides of the disagreement, and non-JSON fails
+// outright.
 func TestDecodeRejectsForeignFormat(t *testing.T) {
 	_, err := image.Decode(strings.NewReader(`{"format":"solution-image/9"}`))
 	if err == nil || !strings.Contains(err.Error(), `format "solution-image/9" is not "solution-image/1"`) {

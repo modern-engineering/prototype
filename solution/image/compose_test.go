@@ -187,6 +187,10 @@ func canonicalImage() *image.Image {
 	}
 }
 
+// Canonicalize turns a disordered hand-composed image into the
+// spelled-out canonical twin a compilation would emit — and a second
+// pass changes nothing, so composed and compiled images meet on one
+// form.
 func TestCanonicalize(t *testing.T) {
 	img := disorderedImage()
 	img.Canonicalize()
@@ -200,10 +204,9 @@ func TestCanonicalize(t *testing.T) {
 	}
 }
 
-// TestCanonicalizeLiftsNilSections pins the nil-to-empty lift: a
-// minimal hand-composed image encodes its catalogue, symbols, and
-// records as empty arrays — the spelling compiled images carry — never
-// as null.
+// Nil sections lift to empty: a minimal hand-composed image encodes
+// its catalogue, symbols, and records as empty arrays — the spelling
+// compiled images carry — never as null.
 func TestCanonicalizeLiftsNilSections(t *testing.T) {
 	img := &image.Image{Format: image.Format, Solution: "bare", Generation: 1}
 	img.Canonicalize()
@@ -331,9 +334,9 @@ func composedPingpong() *image.Image {
 	}
 }
 
-// TestComposeRoundTrip is the round-trip guarantee of programmatic
-// composition: a struct-literal pingpong canonicalizes, validates,
-// encodes, and decodes back Equal — and the decoded image re-encodes
+// Programmatic composition carries the round-trip guarantee: a
+// struct-literal pingpong canonicalizes, validates, encodes, and
+// decodes back Equal — and the decoded image re-encodes
 // byte-identically, so a hand-composed image is as stable a document
 // as a compiled one.
 func TestComposeRoundTrip(t *testing.T) {
@@ -367,11 +370,10 @@ func TestComposeRoundTrip(t *testing.T) {
 	}
 }
 
-// TestValidateAcceptsConsistentImages: the equality suite's image and
-// the canonicalization suite's deliberately disordered one both pass —
-// validation judges consistency, never order — and so does an image
-// whose provenance block is arbitrary, since provenance is not judged
-// at all.
+// Validation judges consistency, never order or provenance: the
+// equality suite's image and the canonicalization suite's
+// deliberately disordered one both pass, and so does an image whose
+// provenance block is arbitrary.
 func TestValidateAcceptsConsistentImages(t *testing.T) {
 	if err := testImage().Validate(); err != nil {
 		t.Errorf("Validate(testImage) = %v, want nil", err)
@@ -389,6 +391,7 @@ func TestValidateAcceptsConsistentImages(t *testing.T) {
 	}
 }
 
+// A nil image fails validation instead of dereferencing.
 func TestValidateNilImage(t *testing.T) {
 	var img *image.Image
 	if err := img.Validate(); err == nil {
@@ -396,8 +399,7 @@ func TestValidateNilImage(t *testing.T) {
 	}
 }
 
-// TestValidateJoinsFaults: a broken image reports every fault at once,
-// one line each.
+// A broken image reports every fault at once, one line each.
 func TestValidateJoinsFaults(t *testing.T) {
 	img := testImage()
 	img.Format = "solution-image/9"
@@ -416,8 +418,8 @@ func TestValidateJoinsFaults(t *testing.T) {
 	}
 }
 
-// TestValidateFindsFaults drives one inconsistency at a time through a
-// consistent base image and pins the fault line it must earn.
+// Each kind of inconsistency, driven one at a time through a
+// consistent base image, earns its pinned fault line.
 func TestValidateFindsFaults(t *testing.T) {
 	pingpong := "example.com/acme/pingpong"
 	tests := []struct {

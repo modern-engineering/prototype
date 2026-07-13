@@ -54,6 +54,8 @@ func TestValueJSONRoundTrip(t *testing.T) {
 	}
 }
 
+// A kind this package never defined refuses to marshal — the guard
+// that keeps hand-built values inside the vocabulary.
 func TestValueMarshalUnknownKind(t *testing.T) {
 	_, err := json.Marshal(&image.Value{Kind: "float"})
 	if err == nil || !strings.Contains(err.Error(), `unknown value kind "float"`) {
@@ -61,6 +63,9 @@ func TestValueMarshalUnknownKind(t *testing.T) {
 	}
 }
 
+// A value document must carry the field its kind names: unknown
+// kinds, absent or mismatched arms, and unparseable durations each
+// earn their own refusal.
 func TestValueUnmarshalErrors(t *testing.T) {
 	tests := []struct {
 		name string
