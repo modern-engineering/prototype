@@ -3,7 +3,10 @@
 
 package token
 
-import "strconv"
+import (
+	"iter"
+	"strconv"
+)
 
 // Token is the set of lexical tokens of the SDL language.
 type Token int
@@ -101,6 +104,20 @@ func init() {
 	keywords = make(map[string]Token, keyword_end-(keyword_beg+1))
 	for i := keyword_beg + 1; i < keyword_end; i++ {
 		keywords[tokens[i]] = i
+	}
+}
+
+// Keywords yields the keyword lexemes of the language in token order.
+// It exists for tooling generated from the grammar — syntax
+// highlighters, completion — which needs the whole keyword vocabulary,
+// not the one-word question [Lookup] answers.
+func Keywords() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for tok := keyword_beg + 1; tok < keyword_end; tok++ {
+			if !yield(tokens[tok]) {
+				return
+			}
+		}
 	}
 }
 

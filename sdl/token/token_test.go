@@ -72,6 +72,39 @@ func TestLookup(t *testing.T) {
 	}
 }
 
+// TestKeywords pins the iterator against the two exported views of the
+// same vocabulary: every yielded word must Lookup to a keyword token,
+// and together the words must cover the keyword range exactly — one
+// word per keyword token, in token order.
+func TestKeywords(t *testing.T) {
+	want := []string{"solution", "import", "extern", "var", "default", "deploy", "provision", "as", "true", "false"}
+	var got []string
+	for kw := range token.Keywords() {
+		if tok := token.Lookup(kw); !tok.IsKeyword() {
+			t.Errorf("Keywords() yielded %q, but Lookup(%q) = %v, not a keyword", kw, kw, tok)
+		}
+		got = append(got, kw)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("Keywords() yielded %d words %q, want %d", len(got), got, len(want))
+	}
+	for i, kw := range want {
+		if got[i] != kw {
+			t.Errorf("Keywords()[%d] = %q, want %q", i, got[i], kw)
+		}
+	}
+
+	// An early break must stop the iteration, the iter.Seq contract.
+	n := 0
+	for range token.Keywords() {
+		n++
+		break
+	}
+	if n != 1 {
+		t.Errorf("break after the first word iterated %d times, want 1", n)
+	}
+}
+
 func TestPredicates(t *testing.T) {
 	tests := []struct {
 		tok                        token.Token
