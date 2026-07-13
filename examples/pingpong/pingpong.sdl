@@ -5,13 +5,17 @@ solution pingpong
 import ff "github.com/modern-engineering/prototype/examples/ff"
 
 deploy ff.Ping as Ping1 {
-	count: 3
-	interval: 500ms
-	target: "pong"
+	params {
+		count: 3
+		interval: 500ms
+		target: "pong"
+	}
 }
 
 deploy ff.Ping as Ping2 {
-	count: -1
-	interval: 2s
-	target: "pong"
+	params {
+		count: -1
+		interval: 2s
+		target: "pong"
+	}
 }
