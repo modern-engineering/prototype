@@ -337,10 +337,12 @@ type Record struct {
 	// Extensions are the statement's advisory with-stanzas, keyed by
 	// dotted qualifier, each stanza sorted by Key. A controller that
 	// recognizes a qualifier applies its stanza; one that does not
-	// ignores it, and unknown stanzas ride the image opaquely
-	// (discovered stanza schemes are a later rung). Values are
-	// literals or opaque tokens, outside the solution's namespace and
-	// the binding DAG; an empty stanza still names its scheme.
+	// ignores it, and a stanza whose qualifier no catalogue package
+	// claims rides the image opaquely — the compiler checks a stanza
+	// against its discovered scheme ([KindScheme]) when the qualifier
+	// resolves, and the binding shape is the same either way. Values
+	// are literals or opaque tokens, outside the solution's namespace
+	// and the binding DAG; an empty stanza still names its scheme.
 	Extensions map[string][]Binding `json:"extensions,omitempty"`
 
 	// Metadata is the statement's carried-through compartment nobody

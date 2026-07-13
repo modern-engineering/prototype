@@ -94,6 +94,238 @@ func TestMainCompileSchemePinning(t *testing.T) {
 	}
 }
 
+// TestMainCompileSchemeChecking pins the pre-fold stanza checks: keys
+// against the discovered scheme's declared set, literal values
+// through its dry surface, in instance bodies and both default
+// flavors alike, with faults aggregating rather than short-circuiting.
+func TestMainCompileSchemeChecking(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   []string
+	}{
+		{
+			name: "unknown key",
+			source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\twith k8s.pod {\n" +
+				"\t\tunknownKey: 1\n" +
+				"\t}\n" +
+				"}\n",
+			want: []string{"u.sdl:5:3: unknown key unknownKey in with k8s.pod (scheme k8s.Pod)"},
+		},
+		{
+			name: "invalid literal for a typed key",
+			source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\twith k8s.pod {\n" +
+				"\t\treplicas: \"three\"\n" +
+				"\t}\n" +
+				"}\n",
+			want: []string{"u.sdl:5:13: invalid value three for k8s.pod key replicas: parse error"},
+		},
+		{
+			name: "faults aggregate within a stanza",
+			source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\twith k8s.pod {\n" +
+				"\t\tunknownKey: 1\n" +
+				"\t\treplicas: \"three\"\n" +
+				"\t}\n" +
+				"}\n",
+			want: []string{
+				"u.sdl:5:3: unknown key unknownKey in with k8s.pod (scheme k8s.Pod)",
+				"u.sdl:6:13: invalid value three for k8s.pod key replicas: parse error",
+			},
+		},
+		{
+			name: "keyless scheme rejects every key",
+			source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\twith k8s.workload {\n" +
+				"\t\tx: 1\n" +
+				"\t}\n" +
+				"}\n",
+			want: []string{"u.sdl:5:3: unknown key x in with k8s.workload (scheme k8s.Workload)"},
+		},
+		{
+			name: "verb default stanza checked at collection",
+			source: "solution sample\n" +
+				"default deploy {\n" +
+				"\twith k8s.pod {\n" +
+				"\t\tunknownKey: 1\n" +
+				"\t}\n" +
+				"}\n",
+			want: []string{"u.sdl:4:3: unknown key unknownKey in with k8s.pod (scheme k8s.Pod)"},
+		},
+		{
+			name: "type default stanza checked at collection",
+			source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"default ff.Ping {\n" +
+				"\twith k8s.pod {\n" +
+				"\t\tunknownKey: 1\n" +
+				"\t}\n" +
+				"}\n",
+			want: []string{"u.sdl:5:3: unknown key unknownKey in with k8s.pod (scheme k8s.Pod)"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code, stdout, stderr := compile(t, solution.CompileConfig{
+				Solution:  "sample",
+				Units:     []solution.Unit{{Name: "u.sdl", Source: tt.source}},
+				Catalogue: schemeCatalogue(),
+			})
+			if code != 1 {
+				t.Fatalf("exit code = %d, want 1; stderr:\n%s", code, stderr)
+			}
+			if stdout != "" {
+				t.Errorf("stdout = %q, want empty", stdout)
+			}
+			if want := strings.Join(tt.want, "\n") + "\n"; stderr != want {
+				t.Errorf("stderr = %q, want %q", stderr, want)
+			}
+		})
+	}
+}
+
+// TestMainCompileSchemeAdvisoryContract proves the two paths that
+// must coexist in one unit: a stanza whose qualifier resolves is
+// checked yet binds exactly like an opaque one (same compartment
+// shape, token values passing unvalidated — a profile token's
+// eventual value is the controller's business, whatever the declared
+// key type), while a qualifier no package claims rides the image
+// opaquely, verbatim, exactly as before schemes existed.
+func TestMainCompileSchemeAdvisoryContract(t *testing.T) {
+	source := "solution sample\n" +
+		"import ff \"example.com/acme/pingpong\"\n" +
+		"deploy ff.Ping as P {\n" +
+		"\twith k8s.pod {\n" +
+		"\t\treplicas: 3\n" +
+		"\t\tpriorityClass: critical\n" +
+		"\t}\n" +
+		"\twith acme.rollout {\n" +
+		"\t\tanything: fast\n" +
+		"\t\tcount: 5\n" +
+		"\t}\n" +
+		"}\n"
+	code, stdout, stderr := compile(t, solution.CompileConfig{
+		Solution:  "sample",
+		Units:     []solution.Unit{{Name: "u.sdl", Source: source}},
+		Catalogue: schemeCatalogue(),
+	})
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	if stderr != "" {
+		t.Errorf("stderr = %q, want empty", stderr)
+	}
+	img, err := image.Decode(strings.NewReader(stdout))
+	if err != nil {
+		t.Fatalf("decoding the image: %v", err)
+	}
+	if len(img.Records) != 1 {
+		t.Fatalf("records = %d, want 1", len(img.Records))
+	}
+	want := map[string][]image.Binding{
+		"k8s.pod": {
+			{Key: "priorityClass", Value: image.Token("critical"), Source: image.SourceInstance},
+			{Key: "replicas", Value: image.Int(3), Source: image.SourceInstance},
+		},
+		"acme.rollout": {
+			{Key: "anything", Value: image.Token("fast"), Source: image.SourceInstance},
+			{Key: "count", Value: image.Int(5), Source: image.SourceInstance},
+		},
+	}
+	if got := img.Records[0].Extensions; !reflect.DeepEqual(got, want) {
+		t.Errorf("extensions = %+v, want %+v", got, want)
+	}
+}
+
+// TestMainCompileSchemeTokenPassthrough pins the token rule on its
+// own: a bare identifier passes a typed key unvalidated even where a
+// literal of the wrong kind would fail.
+func TestMainCompileSchemeTokenPassthrough(t *testing.T) {
+	source := "solution sample\n" +
+		"import ff \"example.com/acme/pingpong\"\n" +
+		"deploy ff.Ping as P {\n" +
+		"\twith k8s.pod {\n" +
+		"\t\treplicas: notAnInt\n" +
+		"\t}\n" +
+		"}\n"
+	code, _, stderr := compile(t, solution.CompileConfig{
+		Solution:  "sample",
+		Units:     []solution.Unit{{Name: "u.sdl", Source: source}},
+		Catalogue: schemeCatalogue(),
+	})
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+	}
+	if stderr != "" {
+		t.Errorf("stderr = %q, want empty", stderr)
+	}
+}
+
+// TestMainCompileSchemeParamsPanic drives the recover guards around
+// the one place scheme user code runs: a panicking Params aborts with
+// exit 2, positioned at the referencing stanza when one exists and
+// positionless when only the catalogue pin reaches the element.
+func TestMainCompileSchemeParamsPanic(t *testing.T) {
+	catalogue := append(testCatalogue(), solution.Package{
+		Path: "example.com/acme/boom",
+		Name: "boom",
+		Elements: []solution.Element{solution.Scheme("Boom", &solution.SchemeType{
+			Doc:       "panic on dry instantiation",
+			Qualifier: "boom.q",
+			Params:    func(*flag.FlagSet) { panic("zap") },
+		})},
+	})
+	tests := []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{
+			name: "referenced by a stanza",
+			source: "solution sample\n" +
+				"import ff \"example.com/acme/pingpong\"\n" +
+				"deploy ff.Ping as P {\n" +
+				"\twith boom.q {\n" +
+				"\t}\n" +
+				"}\n",
+			want: "u.sdl:4:7: element boom.Boom: Params panicked: zap\n",
+		},
+		{
+			name:   "unreferenced, pinned at emit",
+			source: "solution sample\n",
+			want:   "compile: element boom.Boom: Params panicked: zap\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code, stdout, stderr := compile(t, solution.CompileConfig{
+				Solution:  "sample",
+				Units:     []solution.Unit{{Name: "u.sdl", Source: tt.source}},
+				Catalogue: catalogue,
+			})
+			if code != 2 {
+				t.Fatalf("exit code = %d, want 2; stderr:\n%s", code, stderr)
+			}
+			if stdout != "" {
+				t.Errorf("stdout = %q, want empty", stdout)
+			}
+			if stderr != tt.want {
+				t.Errorf("stderr = %q, want %q", stderr, tt.want)
+			}
+		})
+	}
+}
+
 // TestMainCompileSchemeMisuse pins the kind diagnostics: a scheme
 // element is neither deployable, provisionable, extern-typable, nor
 // defaultable — stanzas are its one attachment point.

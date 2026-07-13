@@ -48,8 +48,10 @@ import (
 // element's parameters — literals, symbol references, and
 // provision-output references (a.b), whose edges form a DAG with
 // cycles among provision outputs as link errors — while with-stanzas
-// and the metadata section carry the statement's other compartments,
-// outside the namespace and the DAG.
+// (checked against their discovered schemes when a registered
+// package claims the qualifier, opaque otherwise) and the metadata
+// section carry the statement's other compartments, outside the
+// namespace and the DAG.
 func MainCompile(cfg CompileConfig) int {
 	stderr := cfg.Stderr
 	if stderr == nil {
@@ -1438,6 +1440,10 @@ func (ln *linker) routeSection(parts *routedBody, sec *ast.Section, seen map[str
 	case "params":
 		parts.paramItems = items
 	case "with":
+		checked := ln.checkStanza(sec, items)
+		if ln.internal != nil {
+			return false
+		}
 		bindings, bound := ln.bindItems(items, func(it *ast.Param) (image.Binding, bool) {
 			return ln.opaqueParam(it, source, "with-stanza values are literals or opaque tokens, not output references")
 		})
@@ -1448,13 +1454,100 @@ func (ln *linker) routeSection(parts *routedBody, sec *ast.Section, seen map[str
 			bindings = []image.Binding{} // an empty stanza still names its scheme
 		}
 		parts.extensions[sec.Qualifier.Name] = bindings
-		ok = ok && bound
+		ok = ok && bound && checked
 	case "metadata":
 		bindings, bound := ln.bindItems(items, func(it *ast.Param) (image.Binding, bool) {
 			return ln.metadataParam(it, source)
 		})
 		parts.metadata = bindings
 		ok = ok && bound
+	}
+	return ok
+}
+
+// checkStanza validates one with-stanza block against the scheme its
+// dotted qualifier names, when the compile catalogue provides one:
+// every key must be a key the scheme declares, and literal values
+// must satisfy the scheme's own flag.Value.Set on a fresh throwaway
+// dry surface — the very validator a recognizing controller re-runs
+// wet (A-14). Bare tokens pass unvalidated: a profile token's
+// eventual value is the controller's to render and check. A
+// qualifier no registered package claims keeps the advisory contract
+// verbatim — the stanza rides the image opaquely (D-12), unchecked —
+// and value shapes another check already rejected (bad values at
+// parse, dotted references in opaqueParam) are skipped, not
+// double-reported.
+//
+// Checking is per source stanza block, before any fold: a default's
+// stanza is diagnosed once, where it is written, and folded bindings
+// never re-validate. The bindings themselves are the caller's
+// business — checked or not, the compartment keeps one shape in the
+// image.
+func (ln *linker) checkStanza(sec *ast.Section, items []*ast.Param) bool {
+	elem, claimed := ln.schemes[sec.Qualifier.Name]
+	if !claimed {
+		return true
+	}
+	if !ln.dryAt(elem, sec.Qualifier.NamePos, elem.String()) {
+		return false
+	}
+	ok := true
+	var fs *flag.FlagSet // the stanza's throwaway surface, made at the first literal
+	for _, it := range items {
+		if _, isBad := it.Value.(*ast.BadValue); isBad {
+			continue
+		}
+		ref, isRef := it.Value.(*ast.RefExpr)
+		if isRef && ref.Sel != nil {
+			continue
+		}
+		if !elem.keys[it.Key.Name] {
+			ln.errorf(it.Key.NamePos, "unknown key %s in with %s (scheme %s)", it.Key.Name, sec.Qualifier.Name, elem)
+			ok = false
+			continue
+		}
+		if isRef {
+			continue // a bare token passes unvalidated
+		}
+		_, text, isLiteral := literalValue(it.Value)
+		if !isLiteral {
+			// Unreachable past a clean parse: every remaining value
+			// node is a literal.
+			continue
+		}
+		if fs == nil {
+			var panicked any
+			fs, panicked = elemFlags(elem)
+			if panicked != nil {
+				ln.internal = &internalError{
+					pos: sec.Qualifier.NamePos,
+					msg: fmt.Sprintf("element %s: Params panicked: %v", elem, panicked),
+				}
+				return false
+			}
+		}
+		f := lookupFlag(fs, it.Key.Name)
+		if f == nil {
+			// The schema knows the key but a fresh surface does not:
+			// Params broke the dry-instantiation invariant.
+			ln.internal = &internalError{
+				pos: it.Key.NamePos,
+				msg: fmt.Sprintf("element %s: Params broke the dry-instantiation invariant: fresh surface lacks key %s", elem, it.Key.Name),
+			}
+			return false
+		}
+		panicked, err := setFlag(f.Value, text)
+		if panicked != nil {
+			ln.internal = &internalError{
+				pos: it.Value.Pos(),
+				msg: fmt.Sprintf("element %s: key %s: Set panicked: %v", elem, it.Key.Name, panicked),
+			}
+			return false
+		}
+		if err != nil {
+			ln.errorf(it.Value.Pos(), "invalid value %s for %s key %s: %v", text, sec.Qualifier.Name, it.Key.Name, err)
+			ok = false
+		}
 	}
 	return ok
 }
@@ -1496,10 +1589,12 @@ func (ln *linker) bindItems(items []*ast.Param, bindItem func(*ast.Param) (image
 // or a with-stanza parameter. Literals bind canonically; a bare
 // identifier binds as an opaque token ([image.KindToken]), never
 // resolved against the solution's symbols, so these compartments stay
-// outside the flat namespace and the binding DAG (checking tokens
-// against a platform profile or a discovered stanza scheme is a
-// recorded door). A dotted reference is the one rejected value shape;
-// refMsg teaches it in the compartment's own vocabulary.
+// outside the flat namespace and the binding DAG. A stanza whose
+// qualifier names a discovered scheme has its keys and literals
+// checked in checkStanza before binding lands here; checking tokens
+// against a platform profile stays a recorded door. A dotted
+// reference is the one rejected value shape; refMsg teaches it in the
+// compartment's own vocabulary.
 func (ln *linker) opaqueParam(it *ast.Param, source, refMsg string) (image.Binding, bool) {
 	if _, isBad := it.Value.(*ast.BadValue); isBad {
 		return image.Binding{}, false // the parse already reported it
