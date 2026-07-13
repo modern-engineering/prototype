@@ -79,7 +79,8 @@ func boomDescriptor() *application.Descriptor {
 
 // busProvisionType registers both kinds, a two-slot parameter surface,
 // and a mixed-sensitivity output scheme listed out of canonical order
-// (the image must sort outputs by name).
+// (the image must sort outputs by name). url declares its type; config
+// leaves it to the string default, which the image must omit.
 func busProvisionType() *solution.ProvisionType {
 	return &solution.ProvisionType{
 		Doc: "an account carved from the shared message bus",
@@ -88,7 +89,7 @@ func busProvisionType() *solution.ProvisionType {
 			fs.String("cluster", "", "cluster to hold the account")
 		},
 		Outputs: []solution.Output{
-			{Name: "url", Doc: "endpoint of the account"},
+			{Name: "url", Doc: "endpoint of the account", Type: solution.OutputString},
 			{Name: "config", Doc: "account configuration", Sensitive: true},
 		},
 		Kinds: solution.Slice | solution.Attach,
@@ -249,7 +250,8 @@ provision sub.Store as legacy
 
 // goldenImage is the canonical image for mainUnit against
 // testCatalogue: packages sorted by path, elements and symbols by
-// name, bindings by key, outputs by name, the unreferenced Pong and
+// name, bindings by key, outputs by name (url carrying its declared
+// type, config's string default omitted), the unreferenced Pong and
 // Endpoint pinned all the same, durations rendered canonically
 // (1500ms as 1.5s, 2h45m as 2h45m0s), reference bindings carrying
 // refs instead of values, the extern-bound subject and admin tainted
@@ -348,7 +350,8 @@ const goldenImage = `{
               "sensitive": true
             },
             {
-              "name": "url"
+              "name": "url",
+              "type": "string"
             }
           ],
           "kinds": [

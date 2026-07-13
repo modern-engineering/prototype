@@ -222,6 +222,9 @@ func TestEqualCatchesRealDifferences(t *testing.T) {
 		{"catalogue output change", func(img *image.Image) {
 			img.Catalogue[0].Elements[2].Outputs[0].Sensitive = false
 		}},
+		{"catalogue output type change", func(img *image.Image) {
+			img.Catalogue[0].Elements[2].Outputs[0].Type = "int"
+		}},
 		{"catalogue provision kinds change", func(img *image.Image) {
 			img.Catalogue[0].Elements[2].Kinds = []string{image.KindSlice}
 		}},

@@ -190,6 +190,14 @@ type OutputSchema struct {
 	// [SymbolRef].
 	Name string `json:"name"`
 
+	// Type is the output's declared scalar type: string, int, bool,
+	// or duration. Empty means string — the permissive default, and
+	// the spelling under which images predating typed outputs decode.
+	// The binding site validates the rendered value against its own
+	// slot; the type is what static checks and typed transports hold
+	// the value to before then.
+	Type string `json:"type,omitempty"`
+
 	// Sensitive marks outputs that must not be logged or exposed.
 	// Bindings referencing the output carry the taint.
 	Sensitive bool `json:"sensitive,omitempty"`

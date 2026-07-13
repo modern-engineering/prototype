@@ -79,10 +79,31 @@ type Output struct {
 	// Doc documents what the output carries.
 	Doc string
 
+	// Type is the output's scalar type, one of the [OutputType]
+	// constants; empty means [OutputString], the permissive default.
+	// The image pins the declaration, and consumers hold values to
+	// it: the linker statically where a reference site is provably
+	// boolean, the binding site's own flag.Value.Set everywhere else
+	// once the value exists.
+	Type OutputType
+
 	// Sensitive marks outputs that must not be logged or exposed.
 	// Bindings referencing a sensitive output carry the taint (A-10).
 	Sensitive bool
 }
+
+// An OutputType names the scalar type a provision output carries,
+// mirroring the SDL literal kinds. Outputs stay scalar for now;
+// structured outputs wait on composite values.
+type OutputType string
+
+// The output types.
+const (
+	OutputString   OutputType = "string"
+	OutputInt      OutputType = "int"
+	OutputBool     OutputType = "bool"
+	OutputDuration OutputType = "duration"
+)
 
 // Kinds is the bitset of provision kinds a [ProvisionType] registers.
 type Kinds uint8

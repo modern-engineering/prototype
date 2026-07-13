@@ -1763,14 +1763,16 @@ func elemFlags(elem *catalogueElement) (fs *flag.FlagSet, panicked any) {
 
 // outputSchemas pins a provision type's output scheme sorted by name,
 // the canonical order shared with parameter schemas; registration
-// order carries no meaning the image would need to keep.
+// order carries no meaning the image would need to keep. The declared
+// type pins verbatim: an omitted type stays omitted in the image,
+// where both spellings mean string.
 func outputSchemas(outputs []Output) []image.OutputSchema {
 	if len(outputs) == 0 {
 		return nil
 	}
 	schemas := make([]image.OutputSchema, 0, len(outputs))
 	for _, out := range outputs {
-		schemas = append(schemas, image.OutputSchema{Name: out.Name, Sensitive: out.Sensitive})
+		schemas = append(schemas, image.OutputSchema{Name: out.Name, Type: string(out.Type), Sensitive: out.Sensitive})
 	}
 	slices.SortFunc(schemas, func(a, b image.OutputSchema) int {
 		return strings.Compare(a.Name, b.Name)
