@@ -8,6 +8,8 @@
 package substrate
 
 import (
+	"context"
+	"errors"
 	"flag"
 
 	"github.com/modern-engineering/prototype/solution"
@@ -59,24 +61,38 @@ var Endpoint = &solution.SymbolType{
 // Kafka provisions access to a managed cluster or attaches an externally
 // administered broker. Topic lifecycle remains outside this provision type.
 var Kafka = &solution.ProvisionType{
-	Doc: "access to a Kafka cluster: sliced from the per-environment Strimzi operator or attached to an external broker",
-	Params: func(fs *flag.FlagSet) {
-		fs.String("cluster", "", "substrate cluster to hold or verify the access on")
-	},
+	Doc:  "access to a Kafka cluster: sliced from the per-environment Strimzi operator or attached to an external broker",
+	Make: makeKafka,
 	Outputs: []solution.Output{
 		{Name: "brokers", Doc: "comma-separated bootstrap broker addresses (for example site-kafka-bootstrap:9092)"},
 	},
 	Kinds: solution.Slice | solution.Attach,
 }
 
+// A kafkaProvisioner validates configuration without changing infrastructure.
+// Adopter-owned drivers implement reconciliation behind the same seam.
+type kafkaProvisioner struct {
+	flags   *flag.FlagSet
+	cluster string
+}
+
+func makeKafka() solution.Provisioner {
+	p := &kafkaProvisioner{flags: flag.NewFlagSet("kafka", flag.ContinueOnError)}
+	p.flags.StringVar(&p.cluster, "cluster", "", "substrate cluster to hold or verify the access on")
+	return p
+}
+
+func (p *kafkaProvisioner) Flags() *flag.FlagSet { return p.flags }
+
+func (p *kafkaProvisioner) Attach(context.Context, *solution.OutputWriter) error {
+	return errors.New("Kafka provisioning is not implemented; the type compiles solutions but cannot enact them")
+}
+
 // Redis provisions an account on one logical database of a shared server.
 // Separate provisions make controller-token and detector-state access explicit.
 var Redis = &solution.ProvisionType{
-	Doc: "an account on one logical database of the shared Redis server",
-	Params: func(fs *flag.FlagSet) {
-		fs.String("server", "", "Redis server to carve the database access from")
-		fs.Int("db", 0, "logical database number the access is scoped to")
-	},
+	Doc:  "an account on one logical database of the shared Redis server",
+	Make: makeRedis,
 	Outputs: []solution.Output{
 		{Name: "address", Doc: "host:port coordinate of the server, for consumers taking one address flag"},
 		{Name: "host", Doc: "host part of the coordinate, for consumers taking host and port separately"},
@@ -88,12 +104,31 @@ var Redis = &solution.ProvisionType{
 	Kinds: solution.Slice | solution.Attach,
 }
 
+// A redisProvisioner is one dry Redis instance; see kafkaProvisioner
+// for why Attach refuses.
+type redisProvisioner struct {
+	flags  *flag.FlagSet
+	server string
+	db     int
+}
+
+func makeRedis() solution.Provisioner {
+	p := &redisProvisioner{flags: flag.NewFlagSet("redis", flag.ContinueOnError)}
+	p.flags.StringVar(&p.server, "server", "", "Redis server to carve the database access from")
+	p.flags.IntVar(&p.db, "db", 0, "logical database number the access is scoped to")
+	return p
+}
+
+func (p *redisProvisioner) Flags() *flag.FlagSet { return p.flags }
+
+func (p *redisProvisioner) Attach(context.Context, *solution.OutputWriter) error {
+	return errors.New("scenario Redis provisioning is not implemented; the type compiles solutions but cannot enact them")
+}
+
 // Neo4j provisions a tainted account for the target-network digital twin.
 var Neo4j = &solution.ProvisionType{
-	Doc: "access to a Neo4j server for the digital twin of a target network's graph database",
-	Params: func(fs *flag.FlagSet) {
-		fs.String("server", "", "Neo4j server to hold or verify the access on")
-	},
+	Doc:  "access to a Neo4j server for the digital twin of a target network's graph database",
+	Make: makeNeo4j,
 	Outputs: []solution.Output{
 		{Name: "uri", Doc: "bolt URI of the server (for example bolt://twin-neo4j:7687)"},
 		{Name: "username", Doc: "basic-auth username; stored in a ConfigMap in the deployment manifest, tainted here", Sensitive: true},
@@ -102,13 +137,29 @@ var Neo4j = &solution.ProvisionType{
 	Kinds: solution.Slice | solution.Attach,
 }
 
+// A neo4jProvisioner is one dry Neo4j instance; see kafkaProvisioner
+// for why Attach refuses.
+type neo4jProvisioner struct {
+	flags  *flag.FlagSet
+	server string
+}
+
+func makeNeo4j() solution.Provisioner {
+	p := &neo4jProvisioner{flags: flag.NewFlagSet("neo4j", flag.ContinueOnError)}
+	p.flags.StringVar(&p.server, "server", "", "Neo4j server to hold or verify the access on")
+	return p
+}
+
+func (p *neo4jProvisioner) Flags() *flag.FlagSet { return p.flags }
+
+func (p *neo4jProvisioner) Attach(context.Context, *solution.OutputWriter) error {
+	return errors.New("scenario Neo4j provisioning is not implemented; the type compiles solutions but cannot enact them")
+}
+
 // Postgres provisions a tainted account for the alert journal.
 var Postgres = &solution.ProvisionType{
-	Doc: "access to a named database on the PostgreSQL server",
-	Params: func(fs *flag.FlagSet) {
-		fs.String("server", "", "PostgreSQL server to hold or verify the access on")
-		fs.String("database", "", "database name the access is scoped to (for example \"postgres\")")
-	},
+	Doc:  "access to a named database on the PostgreSQL server",
+	Make: makePostgres,
 	Outputs: []solution.Output{
 		{Name: "address", Doc: "host:port coordinate of the server (for example postgresql:5432)"},
 		{Name: "database", Doc: "the provisioned database name, echoed for consumer flags"},
@@ -116,4 +167,24 @@ var Postgres = &solution.ProvisionType{
 		{Name: "password", Doc: "account password; postgresql-secret/postgresqlPassword in the scenario deployment", Sensitive: true},
 	},
 	Kinds: solution.Slice | solution.Attach,
+}
+
+// A postgresProvisioner is one dry Postgres instance; see
+// kafkaProvisioner for why Attach refuses.
+type postgresProvisioner struct {
+	flags            *flag.FlagSet
+	server, database string
+}
+
+func makePostgres() solution.Provisioner {
+	p := &postgresProvisioner{flags: flag.NewFlagSet("postgres", flag.ContinueOnError)}
+	p.flags.StringVar(&p.server, "server", "", "PostgreSQL server to hold or verify the access on")
+	p.flags.StringVar(&p.database, "database", "", "database name the access is scoped to (for example \"postgres\")")
+	return p
+}
+
+func (p *postgresProvisioner) Flags() *flag.FlagSet { return p.flags }
+
+func (p *postgresProvisioner) Attach(context.Context, *solution.OutputWriter) error {
+	return errors.New("scenario Postgres provisioning is not implemented; the type compiles solutions but cannot enact them")
 }
