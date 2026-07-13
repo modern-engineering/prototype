@@ -10,6 +10,8 @@ import (
 	"github.com/modern-engineering/prototype/application"
 )
 
+// CheckDescriptor accepts well-formed citizens, with and without a
+// parameter surface.
 func TestCheckDescriptorAcceptsCitizens(t *testing.T) {
 	application.CheckDescriptor(t, pingLike())
 	application.CheckDescriptor(t, named("flagless"))
@@ -54,6 +56,8 @@ func checkFails(t *testing.T, d *application.Descriptor) string {
 	return f.failed
 }
 
+// CheckDescriptor rejects each citizenship violation with a message
+// naming the violated clause.
 func TestCheckDescriptorRejectsViolations(t *testing.T) {
 	sharedFS := flag.NewFlagSet("shared", flag.ContinueOnError)
 	sharedFS.Int("count", 0, "shared across calls")

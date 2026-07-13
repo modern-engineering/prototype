@@ -18,6 +18,9 @@ func named(name string) *application.Descriptor {
 	}
 }
 
+// NewSet refuses what descriptor values cannot check about each other:
+// nil entries, non-identifier names, the same descriptor listed twice,
+// and two descriptors colliding on a name.
 func TestNewSet(t *testing.T) {
 	ping, pong := named("ping"), named("pong")
 

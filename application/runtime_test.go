@@ -10,9 +10,9 @@ import (
 	"github.com/modern-engineering/prototype/application"
 )
 
-// CancelsOnErrors demonstrates how the first error cancels the context passed to
-// sibling applications. Thus, signalling to other goroutines in that same
-// runtime group to return.
+// The first error to arrive cancels the context passed to sibling
+// applications, signalling every other goroutine in the same runtime
+// group to return.
 func ExampleRuntime_cancelsOnError() {
 	var r application.Runtime
 	r.Go(func(context.Context) error { return errors.New("runtime: doomed") })
@@ -33,6 +33,9 @@ func ExampleRuntime_cancelsOnError() {
 	// Wait() = runtime: doomed
 }
 
+// A zero Runtime is ready to use: Wait returns the first error among
+// the runners started so far, and keeps returning it as later runners
+// come and go.
 func TestZeroRuntime(t *testing.T) {
 	err1 := errors.New("runtime_test: 1")
 	err2 := errors.New("runtime_test: 2")
@@ -68,6 +71,9 @@ func TestZeroRuntime(t *testing.T) {
 	})
 }
 
+// RuntimeWithContext derives a context that is cancelled by the time
+// Wait returns — with the first runner error as its cause, or plain
+// context.Canceled after an error-free run.
 func TestRuntimeWithContext(t *testing.T) {
 	errDoom := errors.New("runtime_test: doomed")
 
@@ -129,6 +135,7 @@ func TestRuntimeWithContext(t *testing.T) {
 	})
 }
 
+// Running lists the tracked runners in start order, done or not.
 func ExampleRuntime_Running() {
 	var r application.Runtime
 	r.Go(func(context.Context) error { return nil })
@@ -146,9 +153,9 @@ func ExampleRuntime_Running() {
 	// App #2: github.com/modern-engineering/prototype/application_test.ExampleRuntime_Running.func3
 }
 
-// TestShutdownHonorsContext pins Shutdown's context contract: the
-// caller's ctx — not the runtime's own, which a shutdown sequence has
-// typically cancelled already — reaches every Shutdowner, alive.
+// Shutdown hands the caller's ctx — not the runtime's own, which a
+// shutdown sequence has typically cancelled already — to every
+// Shutdowner, alive.
 func TestShutdownHonorsContext(t *testing.T) {
 	r := new(application.Runtime)
 	probe := new(shutdownProbe)
@@ -185,6 +192,8 @@ func (p *shutdownProbe) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// A graceful stop asks each running Shutdowner and waits for its
+// runner to leave on its own terms.
 func ExampleRuntime_Shutdown() {
 	var r application.Runtime
 	r.Run(&ShutdownRunner{

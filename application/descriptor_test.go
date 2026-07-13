@@ -23,6 +23,9 @@ func pingLike() *application.Descriptor {
 	}
 }
 
+// Flags dry-instantiates through Make: every call yields a fresh
+// parameter surface with the declared schema, mutable without leaking
+// into the next call's surface.
 func TestDescriptorFlagsDryInstantiation(t *testing.T) {
 	d := pingLike()
 
@@ -53,6 +56,8 @@ func TestDescriptorFlagsDryInstantiation(t *testing.T) {
 	}
 }
 
+// A flagless application's surface is nil, not an empty set — the
+// shape [Main] adapters produce.
 func TestDescriptorFlagsNilForFlagless(t *testing.T) {
 	d := &application.Descriptor{
 		Name: "noop",
@@ -65,6 +70,8 @@ func TestDescriptorFlagsNilForFlagless(t *testing.T) {
 	}
 }
 
+// A descriptor without a Make factory has no inspectable surface and
+// is no catalogue citizen: Flags panics rather than guessing.
 func TestDescriptorFlagsPanicsWithoutMake(t *testing.T) {
 	defer func() {
 		if recover() == nil {
