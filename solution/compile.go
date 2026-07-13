@@ -17,6 +17,7 @@ import (
 	"unicode"
 
 	"github.com/modern-engineering/prototype/application"
+	"github.com/modern-engineering/prototype/application/parameter"
 	"github.com/modern-engineering/prototype/sdl/ast"
 	"github.com/modern-engineering/prototype/sdl/parser"
 	"github.com/modern-engineering/prototype/sdl/scanner"
@@ -247,6 +248,19 @@ func (ce *catalogueElement) factory() string {
 		return "Params"
 	}
 	return "Make"
+}
+
+// booleanParam reports whether the element's pinned schema marks the
+// named parameter boolean (settable without a value). It reads the
+// schema, so it answers only for dried elements — which every caller
+// binding against the element already guarantees.
+func (ce *catalogueElement) booleanParam(name string) bool {
+	for _, p := range ce.schema {
+		if p.Name == name {
+			return p.Boolean
+		}
+	}
+	return false
 }
 
 // An importBinding is one entry of a unit's import table.
@@ -1486,10 +1500,26 @@ func (ln *linker) resolveOutput(ref *ast.RefExpr) *Output {
 // bindOutput binds one resolved provision-output reference. Like an
 // extern, an output has no value to validate at compile time — the
 // deployment environment resolves it at reconcile time, stage (d) —
-// so only the key is checked, the reference alone is recorded, and a
-// sensitive output taints the binding (A-10).
+// so the reference alone is recorded and a sensitive output taints
+// the binding (A-10). The key is checked against the schema, plus the
+// one kind check that is honest statically: a boolean parameter is
+// set without a value at wet binding, so nothing but a bool-typed
+// output can ever satisfy it. Every other mismatch defers to the
+// slot's own flag.Value.Set once the rendered value exists — the same
+// validator dry and wet (A-14).
 func (ln *linker) bindOutput(sf *surface, key *ast.Ident, ref *ast.RefExpr, out *Output, source string) (image.Binding, bool) {
 	if sf.elem == nil || !sf.known(key) {
+		return image.Binding{}, false
+	}
+	if sf.elem.booleanParam(key.Name) && out.Type != OutputBool {
+		typ := out.Type
+		if typ == "" {
+			typ = OutputString
+		}
+		// The instance symbol resolved when out did; its element names
+		// the scheme the diagnostic teaches.
+		ln.errorf(ref.Pos(), "output %s of %s is %s; parameter %s is boolean",
+			out.Name, ln.symbols[ref.X.Name].elem, typ, key.Name)
 		return image.Binding{}, false
 	}
 	return image.Binding{
@@ -1796,22 +1826,20 @@ func kindStrings(k Kinds) []string {
 // paramSchemas reads a dry flag surface into the pinned parameter
 // schema, in flag.FlagSet.VisitAll order (lexicographic). Default pins
 // the flag's DefValue verbatim as a schema fact; Boolean marks flags
-// settable without a value.
+// settable without a value, detected by [parameter.IsBoolean] — the
+// one detector, so the linker's reference checks and the schema can
+// never disagree about what counts as boolean.
 func paramSchemas(fs *flag.FlagSet) []image.ParamSchema {
 	if fs == nil {
 		return nil
 	}
 	var params []image.ParamSchema
 	fs.VisitAll(func(f *flag.Flag) {
-		boolean := false
-		if bf, ok := f.Value.(interface{ IsBoolFlag() bool }); ok {
-			boolean = bf.IsBoolFlag()
-		}
 		params = append(params, image.ParamSchema{
 			Name:    f.Name,
 			Usage:   f.Usage,
 			Default: f.DefValue,
-			Boolean: boolean,
+			Boolean: parameter.IsBoolean(f.Value),
 		})
 	})
 	return params

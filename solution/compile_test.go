@@ -1029,6 +1029,94 @@ func TestMainCompileDefaultOutputRefs(t *testing.T) {
 	}
 }
 
+// gateCatalogue registers a provision type declaring one output per
+// arm of the boolean reference check: a bool the check admits into
+// boolean slots, an int and an untyped (string-default) output it
+// refuses there.
+func gateCatalogue() []solution.Package {
+	return []solution.Package{{
+		Path: "example.com/acme/gate",
+		Name: "gate",
+		Elements: []solution.Element{solution.Provision("Gate", &solution.ProvisionType{
+			Doc: "a feature gate on shared substrate",
+			Outputs: []solution.Output{
+				{Name: "open", Doc: "whether the gate admits traffic", Type: solution.OutputBool},
+				{Name: "level", Doc: "admission level", Type: solution.OutputInt},
+				{Name: "mode", Doc: "gate mode word"},
+			},
+			Kinds: solution.Attach,
+		})},
+	}}
+}
+
+// TestMainCompileBooleanOutputRefs pins the one static kind check on
+// output references: a boolean parameter is set without a value at
+// wet binding, so only a bool-typed output may reference into it —
+// int and untyped outputs are positioned link errors there — while a
+// non-boolean slot takes an output of any declared type, its own
+// flag.Value.Set validating the rendered value at binding time.
+func TestMainCompileBooleanOutputRefs(t *testing.T) {
+	const imports = "import (\n" +
+		"\tff \"example.com/acme/pingpong\"\n" +
+		"\tgate \"example.com/acme/gate\"\n" +
+		")\n"
+	catalogue := append(testCatalogue(), gateCatalogue()...)
+
+	t.Run("BoolIntoBooleanSlot", func(t *testing.T) {
+		units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" + imports +
+			"provision gate.Gate as g\n" +
+			"deploy ff.Ping as P {\n" +
+			"\tparams {\n" +
+			"\t\tverbose: g.open\n" +
+			"\t\tcount: g.level\n" +
+			"\t\ttarget: g.mode\n" +
+			"\t}\n" +
+			"}\n"}}
+		code, stdout, stderr := compile(t, solution.CompileConfig{Solution: "sample", Units: units, Catalogue: catalogue})
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0; stderr:\n%s", code, stderr)
+		}
+		img, err := image.Decode(strings.NewReader(stdout))
+		if err != nil {
+			t.Fatalf("Decode: %v", err)
+		}
+		ping := img.Records[1]
+		if len(ping.Params) != 3 ||
+			ping.Params[0].Key != "count" || ping.Params[0].Ref == nil || ping.Params[0].Ref.Output != "level" ||
+			ping.Params[1].Key != "target" || ping.Params[1].Ref == nil || ping.Params[1].Ref.Output != "mode" ||
+			ping.Params[2].Key != "verbose" || ping.Params[2].Ref == nil || ping.Params[2].Ref.Output != "open" {
+			t.Errorf("P params = %+v, want refs to g.level, g.mode, and g.open", ping.Params)
+		}
+	})
+
+	t.Run("NonBoolIntoBooleanSlot", func(t *testing.T) {
+		units := []solution.Unit{{Name: "u.sdl", Source: "solution sample\n" + imports +
+			"provision gate.Gate as g\n" +
+			"deploy ff.Ping as P {\n" +
+			"\tparams {\n" +
+			"\t\tverbose: g.mode\n" +
+			"\t}\n" +
+			"}\n" +
+			"deploy ff.Ping as Q {\n" +
+			"\tparams {\n" +
+			"\t\tverbose: g.level\n" +
+			"\t}\n" +
+			"}\n"}}
+		code, _, stderr := compile(t, solution.CompileConfig{Solution: "sample", Units: units, Catalogue: catalogue})
+		if code != 1 {
+			t.Fatalf("exit code = %d, want 1; stderr:\n%s", code, stderr)
+		}
+		for _, want := range []string{
+			"u.sdl:9:12: output mode of gate.Gate is string; parameter verbose is boolean",
+			"u.sdl:14:12: output level of gate.Gate is int; parameter verbose is boolean",
+		} {
+			if !strings.Contains(stderr, want) {
+				t.Errorf("stderr is missing %q:\n%s", want, stderr)
+			}
+		}
+	})
+}
+
 // TestMainCompileProvisionDefaults proves the verb tier folds by the
 // record's own verb: default provision reaches provision records with
 // its own Source and never touches deploys, the type default overrides
