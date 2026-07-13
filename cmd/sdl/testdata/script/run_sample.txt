@@ -1,0 +1,12 @@
+# The design sample compiles but cannot be enacted yet: its NATS
+# slice is refused at plan time — slice lifecycle is deliberately
+# unimplemented — as a configuration fault, exit 2, and the plan fault
+# preempts the extern gate (the sample's unbound externs never get a
+# say). The refusal wording is enact's pin; the relay and the
+# preemption order are this one.
+[short] skip 'drives the go toolchain'
+
+status 2 sdl run $SDLREPO/examples/sample
+stderr 'slice provisioning is not implemented: natsAccount provisions substrate\.NATS as a slice \(attach only\)'
+! stderr 'unbound extern'
+! stdout .

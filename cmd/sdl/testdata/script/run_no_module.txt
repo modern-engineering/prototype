@@ -1,0 +1,27 @@
+# A solution directory outside any go.mod or go.work runs by
+# resolving its imports at their latest versions through the ambient
+# proxy configuration — here the hermetic fixture serving this
+# checkout as v0.1.0 — and with it the clean-completion half of the
+# exit contract: a run of finite work exits 0 with no signal
+# anywhere, and completion must not read as a wind-down.
+[short] skip 'drives the go toolchain'
+
+proxy
+sdl run
+stderr 'running 1 instance\(s\)'
+stderr 'ping pong #1'
+! stderr 'shutdown'
+! stdout .
+
+-- nomod.sdl --
+solution nomod
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Ping as Ping1 {
+	params {
+		count: 1
+		interval: 100ms
+		target: "pong"
+	}
+}

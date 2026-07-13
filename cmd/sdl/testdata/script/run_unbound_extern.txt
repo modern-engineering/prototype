@@ -1,0 +1,11 @@
+# A solution declaring an extern the invocation never bound is a
+# configuration fault through the whole stack: exit 2 before anything
+# wet runs, and the message teaches the flag that fixes it. The gate's
+# own wording and ordering are solution/host's pins; the relay is
+# this one.
+[short] skip 'drives the go toolchain'
+
+status 2 sdl run $SDLREPO/examples/pingpong
+stderr 'unbound extern natsEndpoint \(substrate\.Endpoint\): pass -extern natsEndpoint=<value>'
+! stderr 'running'
+! stdout .

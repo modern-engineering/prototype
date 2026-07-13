@@ -1,0 +1,27 @@
+# One link fault, two verdicts: build exits 1 — the diagnostics are
+# its product — while run exits 2, because under run the broken
+# solution is the invocation's input and nothing wet has happened;
+# restarting reproduces it. The diagnostic stays positioned at the
+# offending source either way.
+[short] skip 'drives the go toolchain'
+
+exec go mod edit -replace=github.com/modern-engineering/prototype=$SDLREPO
+cp $SDLREPO/go.sum go.sum
+status 1 sdl build
+stderr 'sol\.sdl:5:8: unknown element Gone'
+status 2 sdl run
+stderr 'sol\.sdl:5:8: unknown element Gone'
+! stdout .
+
+-- go.mod --
+module example.test/sol
+
+go 1.25.0
+
+require github.com/modern-engineering/prototype v0.0.0
+-- sol.sdl --
+solution broken
+
+import ff "github.com/modern-engineering/prototype/examples/ff"
+
+deploy ff.Gone as G

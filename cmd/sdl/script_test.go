@@ -78,6 +78,7 @@ func TestScript(t *testing.T) {
 		UpdateScripts: *update,
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"status": cmdStatus,
+			"proxy":  cmdProxy,
 		},
 	})
 }
@@ -125,6 +126,26 @@ func scriptEnv(env *testscript.Env) error {
 	}
 	env.Vars = append(env.Vars, vars...)
 	return nil
+}
+
+// cmdProxy points the script's module resolution at the shared
+// hermetic fixture — the file:// proxy serving this checkout as the
+// fictional v0.1.0 over a private module cache (e2e_test.go builds
+// and scrubs both; scripts consume infrastructure, they never build
+// it). Developer overrides that could route the fictional module past
+// the fixture are neutralized in the same breath.
+func cmdProxy(ts *testscript.TestScript, neg bool, args []string) {
+	if neg || len(args) > 0 {
+		ts.Fatalf("usage: proxy")
+	}
+	infra, err := sharedProxy()
+	ts.Check(err)
+	ts.Setenv("GOPROXY", infra.goproxy)
+	ts.Setenv("GOMODCACHE", infra.modcache)
+	ts.Setenv("GOSUMDB", "off")
+	for _, override := range []string{"GOPRIVATE", "GONOPROXY", "GONOSUMDB", "GOFLAGS"} {
+		ts.Setenv(override, "")
+	}
 }
 
 // hostGoEnv resolves the go env values worth carrying into a script,
