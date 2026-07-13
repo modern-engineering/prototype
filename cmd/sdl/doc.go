@@ -147,4 +147,19 @@
 // code here to bake in. Reconcile is not a phase: it names the
 // convergence discipline — observe, diff, converge, prune (D-08) — a
 // controller applies while enacting.
+//
+// # Tooling
+//
+// Beside the compiler verbs, sdl carries tooling that accompanies
+// solution units in editors and shells. One rule governs the layer:
+// tooling that describes the language is generated from the grammar
+// code — sdl/token's vocabulary and the linker's body vocabulary
+// (solution.Vocabulary) — never maintained by hand, and gate tests
+// require every vocabulary word in every generated output, so a
+// tool's view of the language cannot drift from the compiler's.
+//
+// sdl highlight emits editor syntax definitions (a Vim syntax file, a
+// TextMate grammar for Visual Studio Code) on exactly this rule;
+// installing the output into an editor is deliberately the user's
+// affair, and 'sdl help highlight' carries the wiring snippets.
 package main
