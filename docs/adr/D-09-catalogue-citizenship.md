@@ -4,6 +4,8 @@ since: 2026-07-06
 refines:
   - A-01-scope
   - A-11-substrate-slices
+refined-by:
+  - D-15-discovered-stanza-schemes
 ---
 
 # Scope the Catalogue to Application-Library Citizens
@@ -69,6 +71,13 @@ they enter as a declared second citizenship class with reduced guarantees, never
 as pretend citizens. [A-12 Operator I/O]'s ambient-surface advertisement is the
 likely vehicle — a shim is, in effect, all ambience and no contract.
 
+[D-15 Discovered Stanza Schemes] qualifies the boundary from the other side:
+stanza schemes join the catalogue as citizens that are declaration alone — a
+self-declared qualifier over a dry key surface, nothing deployable — so the
+fence this record builds keeps facing what it always faced: software that would
+enter the catalogue without living on the library.
+
 [A-01 Scope]: ../analyses/A-01-scope.md
 [A-11 Substrate and Slices]: ../analyses/A-11-substrate-slices.md
 [A-12 Operator I/O]: ../analyses/A-12-operator-io.md
+[D-15 Discovered Stanza Schemes]: D-15-discovered-stanza-schemes.md

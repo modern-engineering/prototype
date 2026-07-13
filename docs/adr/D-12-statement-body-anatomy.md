@@ -3,6 +3,8 @@ status: proposed
 since: 2026-07-13
 refines:
   - A-09-solution-layer
+refined-by:
+  - D-15-discovered-stanza-schemes
 ---
 
 # Structure Statement Bodies as One Compartment per Audience
@@ -198,14 +200,6 @@ go.
 
 Open doors, each with its reopening trigger:
 
-- **Discovered stanza schemes.** Stanza values are opaque today; the designed
-  next step is compilation discovering a value scheme for a qualifier it can
-  resolve — checked when the scheme's package is importable, tolerated opaque
-  otherwise, never an `init()` registry — with controllers free to require the
-  stanzas they need. Whether such schemes are catalogue citizens
-  ([D-09 Catalogue Citizenship]'s boundary) or a parallel discovered namespace
-  is decided then. Trigger: the first controller that consumes a stanza in
-  earnest.
 - **Naming.** `params` sits beside [A-03 Parameterization]'s "parameters"
   wording; the section words (`params`, `with`, `metadata`) stay provisional,
   like every keyword in the notation, until a requirement locks names.
@@ -215,9 +209,17 @@ Open doors, each with its reopening trigger:
   ([D-14 Driver-on-Type]'s door, shared with this one) both wait on. Trigger:
   the first scheme or output that will not flatten.
 
+The door this list once held first — discovered stanza schemes, and the
+citizenship classification deferred with it — is closed by
+[D-15 Discovered Stanza Schemes]: schemes join the catalogue as self-naming
+citizens (settling the classification against [D-09 Catalogue Citizenship]'s
+boundary), stanzas whose qualifier resolves are checked pre-fold, and unresolved
+qualifiers keep the opaque ride-along this record promised.
+
 [A-03 Parameterization]: ../analyses/A-03-parameterization.md
 [A-09 Solution Layer]: ../analyses/A-09-solution-layer.md
 [A-10 Value Binding]: ../analyses/A-10-value-binding.md
 [D-07 Verb-First Directives]: D-07-verb-directive-syntax.md
 [D-09 Catalogue Citizenship]: D-09-catalogue-citizenship.md
 [D-14 Driver-on-Type]: D-14-driver-on-type.md
+[D-15 Discovered Stanza Schemes]: D-15-discovered-stanza-schemes.md
