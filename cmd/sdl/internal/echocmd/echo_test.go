@@ -409,3 +409,119 @@ func TestEchoFormatGate(t *testing.T) {
 		t.Errorf("echo printed despite the format fault: %q", out.String())
 	}
 }
+
+// TestEchoComposedImage closes the loop for the programmatic frontend:
+// an image composed by struct literal — no source text anywhere in its
+// life — walks the composer's whole chain (Canonicalize, Validate,
+// Encode) and echoes as the same canonical unit a compiled pingpong
+// would, proving the IR is one meeting point for every frontend.
+func TestEchoComposedImage(t *testing.T) {
+	const (
+		ffPath        = "github.com/modern-engineering/prototype/examples/ff"
+		substratePath = "github.com/modern-engineering/prototype/examples/substrate"
+	)
+	symbol := func(key, name string) image.Binding {
+		return image.Binding{Key: key, Ref: &image.SymbolRef{Symbol: name}, Source: image.SourceInstance}
+	}
+	output := func(key, instance, output string) image.Binding {
+		return image.Binding{Key: key, Ref: &image.SymbolRef{Symbol: instance, Output: output}, Source: image.SourceInstance}
+	}
+	img := &image.Image{
+		Format:     image.Format,
+		Solution:   "pingpong",
+		Generation: 1,
+		Catalogue: []image.Package{
+			{Path: substratePath, Name: "substrate", Elements: []image.ElementSchema{
+				{Name: "StandIn", Kind: image.KindProvision,
+					Outputs: []image.OutputSchema{{Name: "config", Type: "string"}},
+					Kinds:   []string{image.KindAttach}},
+				{Name: "Endpoint", Kind: image.KindSymbol},
+			}},
+			{Path: ffPath, Name: "ff", Elements: []image.ElementSchema{
+				{Name: "Ping", Kind: image.KindComponent},
+				{Name: "Pong", Kind: image.KindComponent},
+			}},
+		},
+		Symbols: []image.SymbolDef{
+			{Name: "natsEndpoint", Class: image.ClassExtern, Type: &image.Ref{Package: substratePath, Name: "Endpoint"}},
+			{Name: "echoSubject", Class: image.ClassVar, Value: image.String("ping")},
+		},
+		Records: []image.Record{
+			{
+				Verb:    image.VerbProvision,
+				Kind:    image.KindAttach,
+				Element: image.Ref{Package: substratePath, Name: "StandIn"},
+				Name:    "natsStandIn",
+				Params:  []image.Binding{symbol("endpoint", "natsEndpoint")},
+			},
+			{
+				Verb:    image.VerbDeploy,
+				Element: image.Ref{Package: ffPath, Name: "Ping"},
+				Name:    "Ping1",
+				Params: []image.Binding{
+					symbol("target", "echoSubject"),
+					binding("count", image.Int(3)),
+					output("nats", "natsStandIn", "config"),
+					binding("interval", image.Duration(500*time.Millisecond)),
+				},
+			},
+			{
+				Verb:    image.VerbDeploy,
+				Element: image.Ref{Package: ffPath, Name: "Pong"},
+				Name:    "Pong",
+				Params: []image.Binding{
+					symbol("subject", "echoSubject"),
+					output("nats", "natsStandIn", "config"),
+				},
+			},
+		},
+	}
+	img.Canonicalize()
+	if err := img.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+
+	want := `solution pingpong
+
+import (
+	"github.com/modern-engineering/prototype/examples/ff"
+	"github.com/modern-engineering/prototype/examples/substrate"
+)
+
+extern natsEndpoint substrate.Endpoint
+
+var echoSubject: "ping"
+
+provision substrate.StandIn attach as natsStandIn {
+	params {
+		endpoint: natsEndpoint
+	}
+}
+
+deploy ff.Ping as Ping1 {
+	params {
+		count: 3
+		interval: 500ms
+		nats: natsStandIn.config
+		target: echoSubject
+	}
+}
+
+deploy ff.Pong as Pong {
+	params {
+		nats: natsStandIn.config
+		subject: echoSubject
+	}
+}
+`
+	got, err := render(t, img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Errorf("echoed unit:\n%s--- want ---\n%s", got, want)
+	}
+	if _, err := parser.ParseFile("echo.sdl", []byte(got)); err != nil {
+		t.Errorf("echoed unit does not parse: %v", err)
+	}
+}
