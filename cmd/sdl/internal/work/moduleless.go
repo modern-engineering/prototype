@@ -117,6 +117,22 @@ func (m *Moduleless) BuildAndRun(ctx context.Context, source []byte, output stri
 	return runCompiler(ctx, m.Dir, output, m.stderr)
 }
 
+// BuildAndExec finishes a run the way BuildAndRun finishes a build:
+// the generated tailored host replaces the probe, is compiled, and
+// then runs in dir under the [Exec] contract. The host main imports
+// one framework package the probe never named — solution/host — but it
+// rides the framework module the probe already resolved, so the tidied
+// go.mod satisfies this build too.
+func (m *Moduleless) BuildAndExec(ctx context.Context, source []byte, dir string, ex *Exec) error {
+	if err := os.WriteFile(filepath.Join(m.Dir, "solmain.go"), source, 0o666); err != nil {
+		return fmt.Errorf("writing generated host: %v", err)
+	}
+	if err := buildCompiler(ctx, m.Dir, m.env, m.stderr); err != nil {
+		return err
+	}
+	return execProgram(ctx, m.Dir, dir, ex, m.stderr)
+}
+
 // probeSource renders the resolution probe: a placeholder main whose
 // blank imports carry the solution's import paths plus the solution
 // package the generated compiler will need, so one tidy resolves them

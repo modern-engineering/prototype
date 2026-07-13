@@ -1,10 +1,12 @@
 // Copyright 2026 The prototype authors. Use of this source code is
 // governed by the license that can be found in the LICENSE file.
 
-// Package work drives the back half of sdl build: it lays the generated
-// compiler down in a temporary work directory, synthesizes a module
-// context that resolves packages exactly as the go CLI would in the
-// solution directory, builds the compiler, and runs it.
+// Package work drives the back half of sdl build and sdl run: it lays
+// the generated program down in a temporary work directory, synthesizes
+// a module context that resolves packages exactly as the go CLI would
+// in the solution directory, builds the program, and runs it — under
+// the image emitter contract for build, or as a process in its own
+// right ([Exec]) for run.
 //
 // # Module context
 //
@@ -86,8 +88,13 @@ type Config struct {
 	Source []byte
 
 	// Output is the image destination; empty means the inherited
-	// stdout.
+	// stdout. Unused when Exec is set.
 	Output string
+
+	// Exec, when non-nil, runs the built program as a process in its
+	// own right instead of under the image emitter contract; see
+	// [Exec]. The synthesis and build halves are identical either way.
+	Exec *Exec
 
 	// Keep preserves the work directory and prints WORK=<dir> on
 	// Stderr (the cmd/go -work precedent).
@@ -100,12 +107,13 @@ type Config struct {
 
 // Run executes the driver for the two enclosing-context modes:
 // synthesize the work directory's module context, build the generated
-// compiler, run it, and relay its verdict. (Builds outside any module
+// program, run it, and relay its verdict. (Builds outside any module
 // context go through ResolveModuleless instead, discovery between its
-// two halves.) Solution faults come back as *base.DiagnosticsError
-// (exit code 1, matching the compiler's own exit 1); everything else —
-// including a compiler that exits 2 — is an ordinary error (exit code
-// 2).
+// two halves.) Under the emitter contract solution faults come back as
+// *base.DiagnosticsError (exit code 1, matching the compiler's own
+// exit 1) and everything else — including a compiler that exits 2 — is
+// an ordinary error (exit code 2); with cfg.Exec set the child's exit
+// code comes back verbatim instead, a *base.RelayedExit.
 func Run(ctx context.Context, cfg Config) error {
 	stderr := cfg.Stderr
 	if stderr == nil {
@@ -154,6 +162,9 @@ func runModule(ctx context.Context, cfg Config, stderr io.Writer) error {
 
 	if err := buildCompiler(ctx, workdir, env, stderr); err != nil {
 		return err
+	}
+	if cfg.Exec != nil {
+		return execProgram(ctx, workdir, cfg.Dir, cfg.Exec, stderr)
 	}
 	return runCompiler(ctx, workdir, cfg.Output, stderr)
 }

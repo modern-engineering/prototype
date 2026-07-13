@@ -58,6 +58,9 @@ func runWorkspace(ctx context.Context, cfg Config, stderr io.Writer) error {
 	if err := buildCompiler(ctx, workdir, buildEnv, stderr); err != nil {
 		return err
 	}
+	if cfg.Exec != nil {
+		return execProgram(ctx, workdir, cfg.Dir, cfg.Exec, stderr)
+	}
 	return runCompiler(ctx, workdir, cfg.Output, stderr)
 }
 
