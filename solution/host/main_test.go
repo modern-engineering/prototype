@@ -28,16 +28,17 @@ const parkPath = "example.com/acme/park"
 type parker struct {
 	started     chan<- struct{}
 	sawDeadline chan<- bool
-	sig         application.ShutdownSignal
+	stop        chan struct{} // closed by Shutdown to release Run
+	done        chan struct{} // closed by Run on its way out
 }
 
 func (p *parker) Flags() *flag.FlagSet { return nil }
 
 func (p *parker) Run(ctx context.Context) error {
 	p.started <- struct{}{}
-	defer p.sig.Done()
+	defer close(p.done)
 	select {
-	case <-p.sig.C():
+	case <-p.stop:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -45,11 +46,18 @@ func (p *parker) Run(ctx context.Context) error {
 }
 
 // Shutdown records whether the grace context arrived with a deadline —
-// the budget Main promises to pass verbatim — then stops the runner.
+// the budget Main promises to pass verbatim — then stops the runner
+// and waits for it to leave, bounded by the grace window.
 func (p *parker) Shutdown(ctx context.Context) error {
 	_, ok := ctx.Deadline()
 	p.sawDeadline <- ok
-	return p.sig.Shutdown(ctx)
+	close(p.stop)
+	select {
+	case <-p.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func parkCatalogue(started chan<- struct{}, sawDeadline chan<- bool) []solution.Package {
@@ -61,7 +69,12 @@ func parkCatalogue(started chan<- struct{}, sawDeadline chan<- bool) []solution.
 				Name: "parker",
 				Doc:  "park until asked to stop",
 				Make: func() application.Service {
-					return &parker{started: started, sawDeadline: sawDeadline}
+					return &parker{
+						started:     started,
+						sawDeadline: sawDeadline,
+						stop:        make(chan struct{}),
+						done:        make(chan struct{}),
+					}
 				},
 			}),
 			solution.App("Faulty", &application.Descriptor{
