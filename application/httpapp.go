@@ -9,14 +9,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func NewHTTPServer(addr string, handler http.Handler) Runner {
-	srv := &http.Server{
-		Addr:    addr,
-		Handler: handler,
-	}
-	return (*HTTPServer)(srv)
-}
-
+// An HTTPServer adapts an http.Server into a Runner: convert a
+// configured server — (*HTTPServer)(srv) — and Run serves it until the
+// context ends, closing abruptly on cancellation; Shutdown is the
+// graceful sibling, draining under the caller's context.
 type HTTPServer http.Server
 
 func (a *HTTPServer) Run(ctx context.Context) error {
