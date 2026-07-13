@@ -246,7 +246,7 @@ deploy Ping1: bound nats = <redacted>
   semantics doing their job.
 - How drivers come to run inside the PROVISION phase — where provisioning
   execution lives, and what its outputs are worth to the parameters they feed —
-  is a companion record's subject.
+  is [D-14 Driver-on-Type]'s subject.
 
 ## More Information
 
@@ -262,8 +262,9 @@ Doors this decision leaves open, each with its reopening trigger:
 - **Cross-binary phases.** The plan already refuses to assume one binary, but
   both phases run in one process today, and provisioning outputs cross to the
   DEPLOY phase in memory. Provisioning in one binary and deploying in another
-  needs a typed transport for outputs between them. Trigger: the first
-  controller whose provisioning runs where its deployments do not.
+  needs a typed transport for outputs between them, carrying the output contract
+  [D-14 Driver-on-Type] fixes across processes. Trigger: the first controller
+  whose provisioning runs where its deployments do not.
 - **Multi-solution serving.** A Mode-P host binds one image per process; the
   prebuilt binary serves many solutions, one enactment at a time. One host
   process serving several solutions, or a resident host accepting new
@@ -287,3 +288,4 @@ Doors this decision leaves open, each with its reopening trigger:
 [D-10 Generate-Compile-Run]: D-10-generate-compile-run.md
 [D-11 Self-Contained Services]: D-11-self-contained-services.md
 [D-12 Statement-Body Anatomy]: D-12-statement-body-anatomy.md
+[D-14 Driver-on-Type]: D-14-driver-on-type.md

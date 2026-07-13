@@ -3,6 +3,8 @@ status: proposed
 since: 2026-07-09
 supersedes:
   - D-06-declarative-descriptor-values
+refined-by:
+  - D-14-driver-on-type
 ---
 
 # Construct Application Instances as Self-Contained Services
@@ -12,9 +14,9 @@ supersedes:
 [D-06 Declarative Descriptor Values] settled how applications are identified:
 descriptor values defined by filling exported fields, referenced directly,
 registered nowhere. It also sketched how they are constructed — an instantiation
-function receiving an instance remote collector that holds the per-instance flag set —
+function receiving an instance carrier that holds the per-instance flag set —
 and that sketch has not survived contact with newer iterations. Building
-toolchains against the model showed the remote collector earns nothing: every consumer
+toolchains against the model showed the carrier earns nothing: every consumer
 that held an instance immediately wanted the constructed unit, and every
 constructed unit already had to know its own flags. A revised shape emerged in
 practice; this record supersedes [D-06 Declarative Descriptor Values] to
@@ -29,16 +31,16 @@ what proved over-engineered.
   [A-14 Staged Catalogue Compilation]).
 - Multi-instance hosting must stay trivial: one application, many instances, no
   shared mutable state ([A-02 Architecture]).
-- Fewer moving parts: each concept must pay for itself; remote collectors that only ferry
+- Fewer moving parts: each concept must pay for itself; carriers that only ferry
   data between two neighbours do not.
 - Everything [D-06 Declarative Descriptor Values] got right must survive: values
   over registries, direct reference, explicit collection.
 
 ## Considered Options
 
-- **Instantiation function over an instance remote collector.**
+- **Instantiation function over an instance carrier.**
   `New(inst
-  *Instance) Runner`; the remote collector holds identity and the
+  *Instance) Runner`; the carrier holds identity and the
   per-instance flag set (the shape D-06 sketched).
 - **Self-contained service values from a pure factory.** `Make() Service` where
   `Service` is a `Runner` that exposes its own `Flags() *flag.FlagSet`; the
@@ -54,14 +56,14 @@ Chosen option: **self-contained service values from a pure factory.**
 A `Descriptor` remains a declarative value — identity fields plus constructors,
 no `init()`, no registration, referenced directly:
 
-- **`Make func() Service`** is the pure factory and the invariant remote collector: a
+- **`Make func() Service`** is the pure factory and the invariant carrier: a
   fresh `Service` per call, flags declared, nothing else — no I/O, no failure,
   safe to call any number of times. Every catalogue citizen sets it. Dry
   instantiation is `Make().Flags()`.
 - **`Service`** is a `Runner` with `Flags() *flag.FlagSet` (working name;
   `Application` is the candidate rename). The service value IS the instance: its
   flag set is its parameter surface, hosting N instances means calling `Make` N
-  times, and no separate instance remote collector exists. Instance NAMES are not the
+  times, and no separate instance carrier exists. Instance NAMES are not the
   application's concern — they belong to whoever composes instances (loaders,
   the solution layer's records).
 - **`New func(context.Context) (Service, error)`** stays as the optional
@@ -77,7 +79,7 @@ Carried forward from [D-06 Declarative Descriptor Values] unchanged: the
 definition is a package-level struct literal; relationships are ordinary Go
 references; name-to-descriptor resolution happens only at an explicit `Set`
 assembly, the single seam where relational invariants are checked. The sketched
-`Requires` edges are dropped with the remote collector — no consumer materialized for
+`Requires` edges are dropped with the carrier — no consumer materialized for
 them — and return, if ever, through the Set.
 
 ### Consequences
@@ -102,7 +104,12 @@ names; `Requires`-style structural edges return through the Set if a consumer
 materializes; whether `New` earns its keep is judged when the first host rung
 lands (its drop trigger: no loader calls it).
 
+The factory shape has since proved load-bearing beyond applications:
+[D-14 Driver-on-Type] extends `Make`'s pure-factory contract to provisioning
+types, whose product carries a driver beside its flags.
+
 [A-02 Architecture]: ../analyses/A-02-architecture.md
 [A-07 Component Documentation]: ../analyses/A-07-documentation.md
 [A-14 Staged Catalogue Compilation]: ../analyses/A-14-staged-catalogue-compilation.md
 [D-06 Declarative Descriptor Values]: D-06-declarative-descriptor-values.md
+[D-14 Driver-on-Type]: D-14-driver-on-type.md

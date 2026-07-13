@@ -211,11 +211,13 @@ Open doors, each with its reopening trigger:
   like every keyword in the notation, until a requirement locks names.
 - **Composite values.** Parameter and stanza values are scalars, composites
   surviving only as flattened dotted keys; a real composite form is a named gap
-  that richer stanza schemes and structured provision outputs both wait on.
-  Trigger: the first scheme or output that will not flatten.
+  that richer stanza schemes and structured provision outputs
+  ([D-14 Driver-on-Type]'s door, shared with this one) both wait on. Trigger:
+  the first scheme or output that will not flatten.
 
 [A-03 Parameterization]: ../analyses/A-03-parameterization.md
 [A-09 Solution Layer]: ../analyses/A-09-solution-layer.md
 [A-10 Value Binding]: ../analyses/A-10-value-binding.md
 [D-07 Verb-First Directives]: D-07-verb-directive-syntax.md
 [D-09 Catalogue Citizenship]: D-09-catalogue-citizenship.md
+[D-14 Driver-on-Type]: D-14-driver-on-type.md

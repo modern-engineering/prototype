@@ -1,6 +1,8 @@
 ---
 status: draft
 since: 2026-07-06
+refined-by:
+  - D-14-driver-on-type
 ---
 
 # Substrate, Slices, and Attachments
@@ -118,10 +120,12 @@ re-verification degrades the solution's status rather than deleting anything.
   take-ownership story (and stateful renames need a moved-equivalent); neither
   is designed.
 - **Driver authorship.** Whether slice drivers are written by platform teams
-  (who own the substrate) or developers (who own the catalogue), and where they
-  live, is undecided.
+  (who own the substrate) or developers (who own the catalogue) is undecided.
+  Where they live no longer is: [D-14 Driver-on-Type] puts the driver on the
+  declaring type itself, so it ships with whichever team publishes the package.
 
 [A-03 Parameterization]: A-03-parameterization.md
 [A-04 Component Contract]: A-04-component-contract.md
 [A-08 Ambient Services]: A-08-ambient-services.md
 [A-09 Solution Layer]: A-09-solution-layer.md
+[D-14 Driver-on-Type]: ../adr/D-14-driver-on-type.md
