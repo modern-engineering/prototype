@@ -62,6 +62,72 @@ func TestExitTaxonomy(t *testing.T) {
 	}
 }
 
+// Help renders the registered command tree, never a hand-maintained
+// copy: 'sdl help' lists every top-level command with its short
+// description on stdout, a command topic prints its usage line and
+// long text, a group topic lists its subcommands behind a deeper help
+// pointer, and a bare 'sdl' says the same top-level words on stderr
+// at exit 2 — the tree itself is the oracle here, so registering a
+// verb is all it takes to be spoken for.
+func TestHelpRendersCommandTree(t *testing.T) {
+	helpOut := func(t *testing.T, args ...string) string {
+		t.Helper()
+		var stdout, stderr strings.Builder
+		s := base.Streams{Stdout: &stdout, Stderr: &stderr}
+		if code := invoke(context.Background(), s, args); code != 0 {
+			t.Fatalf("invoke(%q) = %d, want 0\n%s", args, code, stderr.String())
+		}
+		if stderr.Len() != 0 {
+			t.Errorf("invoke(%q) wrote on stderr:\n%s", args, stderr.String())
+		}
+		return stdout.String()
+	}
+
+	t.Run("top-level usage", func(t *testing.T) {
+		out := helpOut(t, "help")
+		for _, cmd := range base.Commands {
+			if !strings.Contains(out, cmd.Name()) || !strings.Contains(out, cmd.Short) {
+				t.Errorf("usage does not carry %q with its description", cmd.Name())
+			}
+		}
+	})
+
+	t.Run("command topic", func(t *testing.T) {
+		cmd := base.Lookup(base.Commands, "build")
+		out := helpOut(t, "help", "build")
+		if !strings.Contains(out, "usage: "+cmd.UsageLine) || !strings.Contains(out, cmd.Long) {
+			t.Errorf("help build does not carry the usage line and the long text:\n%s", out)
+		}
+	})
+
+	t.Run("group topic lists subcommands", func(t *testing.T) {
+		group := base.Lookup(base.Commands, "image")
+		out := helpOut(t, "help", "image")
+		for _, sub := range group.Commands {
+			if !strings.Contains(out, sub.Name()) || !strings.Contains(out, sub.Short) {
+				t.Errorf("help image does not carry subcommand %q", sub.Name())
+			}
+		}
+		if !strings.Contains(out, `"sdl help image <command>"`) {
+			t.Errorf("help image does not point at the deeper help:\n%s", out)
+		}
+	})
+
+	t.Run("bare sdl says usage on stderr", func(t *testing.T) {
+		var stdout, stderr strings.Builder
+		s := base.Streams{Stdout: &stdout, Stderr: &stderr}
+		if code := invoke(context.Background(), s, nil); code != 2 {
+			t.Fatalf("invoke() = %d, want 2", code)
+		}
+		if stdout.Len() != 0 {
+			t.Errorf("bare sdl wrote on stdout:\n%s", stdout.String())
+		}
+		if got, want := stderr.String(), helpOut(t, "help"); got != want {
+			t.Errorf("bare sdl's stderr differs from 'sdl help':\n%s", got)
+		}
+	})
+}
+
 // Malformed invocations — an unknown command, a bare command group, a
 // bad flag, surplus arguments — classify as usage faults: exit 2, a
 // report on the error stream, and a silent payload stream. Every case
