@@ -53,8 +53,8 @@ func inputFiles(t *testing.T) []string {
 	return inputs
 }
 
-// TestGolden pins the canonical form of the corpus: each testdata input
-// prints to exactly its .golden neighbour.
+// Each testdata input prints to exactly its .golden neighbour: the
+// corpus pins the canonical form.
 func TestGolden(t *testing.T) {
 	for _, input := range inputFiles(t) {
 		name := strings.TrimSuffix(filepath.Base(input), ".input")
@@ -126,8 +126,7 @@ func sources(t *testing.T) map[string]string {
 	return all
 }
 
-// TestIdempotent is the fixed point property: printing a printed unit
-// changes nothing.
+// Printing a printed unit changes nothing: the fixed point property.
 func TestIdempotent(t *testing.T) {
 	for name, src := range sources(t) {
 		t.Run(name, func(t *testing.T) {
@@ -140,9 +139,9 @@ func TestIdempotent(t *testing.T) {
 	}
 }
 
-// TestReparse is the identity property: the canonical form parses back
-// into a structurally equal tree — same statements, same lexemes, same
-// comment texts in the same slots.
+// The canonical form parses back into a structurally equal tree (same
+// statements, same lexemes, same comment texts in the same slots): the
+// identity property.
 func TestReparse(t *testing.T) {
 	for name, src := range sources(t) {
 		t.Run(name, func(t *testing.T) {
@@ -174,10 +173,10 @@ var adversarialStrings = []string{
 line breaks`,
 }
 
-// TestStringRoundTrip drives adversarial string values through both
-// printer paths: an authored literal keeps its lexeme, and a
-// synthesized literal (no lexeme, the echo path) canonicalizes through
-// strconv.Quote — both must parse back to the same value.
+// Adversarial string values survive both printer paths: an authored
+// literal keeps its lexeme, and a synthesized literal (no lexeme, the
+// echo path) canonicalizes through strconv.Quote — both must parse
+// back to the same value.
 func TestStringRoundTrip(t *testing.T) {
 	for i, s := range adversarialStrings {
 		name := fmt.Sprintf("string%d", i)
@@ -226,11 +225,11 @@ func varValue(t *testing.T, f *ast.File) string {
 	return ""
 }
 
-// TestSynthesized pins the layout of position-free trees, the shape sdl
-// echo builds: blank lines between top-level statements, snug block
-// items, factored rendering for multi-spec declarations without a
-// recorded paren, canonical lexemes for every value kind, and the
-// one-space qualified section head.
+// Position-free trees, the shape sdl echo builds, print with a pinned
+// layout: blank lines between top-level statements, snug block items,
+// factored rendering for multi-spec declarations without a recorded
+// paren, canonical lexemes for every value kind, and the one-space
+// qualified section head.
 func TestSynthesized(t *testing.T) {
 	f := &ast.File{
 		Solution: &ast.SolutionClause{Name: &ast.Ident{Name: "synth"}},
@@ -293,8 +292,8 @@ deploy util.Pong as P2
 	}
 }
 
-// TestErrors covers the structural holes the printer refuses: trees no
-// clean parse produces.
+// The printer refuses trees no clean parse produces: the structural
+// holes.
 func TestErrors(t *testing.T) {
 	sol := &ast.SolutionClause{Name: &ast.Ident{Name: "s"}}
 	cases := map[string]*ast.File{
