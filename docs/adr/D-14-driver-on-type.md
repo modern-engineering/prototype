@@ -89,13 +89,12 @@ type Provisioner interface {
   declaration — and is refused at plan time ("declares no driver",
   [D-13 Two-Phase Enactment]), so a type may enter the catalogue before its
   driver exists and solutions still compile against it.
-- **`Attach` is the whole verb set, v0.** The driver verifies and adopts what
-  already exists and reports its coordinates — [A-11 Substrate and Slices]'s
-  attachment, made runnable. Slice records still compile (the declaration is
-  meaningful and the DAG is checked), but enactment refuses them until lifecycle
-  verbs exist; a substrate type whose real driver has not landed may keep an
-  `Attach` that fails with a teaching error, staying compilable while
-  unenactable.
+- **`Attach` is the whole verb set, v0.** The driver verifies what already
+  exists and reports its coordinates — [A-11 Substrate and Slices]'s attachment,
+  made runnable. Slice records still compile (the declaration is meaningful and
+  the DAG is checked), but enactment refuses them until lifecycle verbs exist; a
+  substrate type whose real driver has not landed may keep an `Attach` that
+  fails with a teaching error, staying compilable while unenactable.
 - **Outputs are typed scalars, pinned into the image.** An output declares its
   type from a small vocabulary — string, int, bool, duration; empty means
   string, the permissive default — and the compiler pins that type into the
