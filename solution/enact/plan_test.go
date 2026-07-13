@@ -235,9 +235,9 @@ func wantFault(t *testing.T, img *image.Image, cat []solution.Package, want stri
 // ----------------------------------------------------------------------------
 // Planning
 
-// TestLoadResolvesSteps proves a step carries its record verbatim and
-// the very live value the catalogue registers — the seam the wet half
-// Makes instances through.
+// A step carries its record verbatim and the very live value the
+// catalogue registers — the seam the wet half Makes instances
+// through.
 func TestLoadResolvesSteps(t *testing.T) {
 	k := newKit()
 	img := kitImage(nil,
@@ -266,8 +266,8 @@ func TestLoadResolvesSteps(t *testing.T) {
 	}
 }
 
-// TestLoadOrdersProvisions pins the dependency order: a chain
-// reverses image order, and every dependency precedes its dependents.
+// Provision steps come out in dependency order: a chain reverses
+// image order, and every dependency precedes its dependents.
 func TestLoadOrdersProvisions(t *testing.T) {
 	k := newKit()
 	img := kitImage(nil,
@@ -285,12 +285,12 @@ func TestLoadOrdersProvisions(t *testing.T) {
 	}
 }
 
-// TestLoadOrderBreaksTiesByImageOrder pins the tie-break semantics:
-// at every extraction the earliest ready step in image record order
-// runs next, so a step freed by a placement runs before later
-// independent steps — not merely appended after the pass that freed
-// it. Image order py (waits on px), px, pz: px is the earliest ready
-// step, and placing it frees py, which outranks pz.
+// Ties break by image record order: at every extraction the earliest
+// ready step in image record order runs next, so a step freed by a
+// placement runs before later independent steps — not merely appended
+// after the pass that freed it. Image order py (waits on px), px, pz:
+// px is the earliest ready step, and placing it frees py, which
+// outranks pz.
 func TestLoadOrderBreaksTiesByImageOrder(t *testing.T) {
 	k := newKit()
 	img := kitImage(nil,
@@ -307,8 +307,7 @@ func TestLoadOrderBreaksTiesByImageOrder(t *testing.T) {
 	}
 }
 
-// TestLoadKeepsIndependentOrder: with no edges at all, both phases
-// keep the image's record order.
+// With no edges at all, both phases keep the image's record order.
 func TestLoadKeepsIndependentOrder(t *testing.T) {
 	k := newKit()
 	img := kitImage(nil,
@@ -329,9 +328,8 @@ func TestLoadKeepsIndependentOrder(t *testing.T) {
 	}
 }
 
-// TestLoadListsExterns: externs come out in symbol-table order with
-// the pinned type identity and sensitivity; vars stay out of the
-// list.
+// Externs come out in symbol-table order with the pinned type
+// identity and sensitivity; vars stay out of the list.
 func TestLoadListsExterns(t *testing.T) {
 	k := newKit()
 	endpoint, secret := ref("Endpoint"), ref("Secret")
@@ -358,8 +356,8 @@ func TestLoadListsExterns(t *testing.T) {
 	}
 }
 
-// TestLoadEmptyImage: an image with no records plans to an empty,
-// valid plan — nothing to run is not a fault.
+// An image with no records plans to an empty, valid plan — nothing to
+// run is not a fault.
 func TestLoadEmptyImage(t *testing.T) {
 	plan, err := enact.Load(kitImage(nil), newKit().cat)
 	if err != nil {
@@ -370,7 +368,7 @@ func TestLoadEmptyImage(t *testing.T) {
 	}
 }
 
-// TestLoadNilImage: a nil image is refused, not dereferenced.
+// A nil image is refused, not dereferenced.
 func TestLoadNilImage(t *testing.T) {
 	if _, err := enact.Load(nil, newKit().cat); err == nil {
 		t.Fatal("Load(nil) succeeded")
@@ -380,8 +378,8 @@ func TestLoadNilImage(t *testing.T) {
 // ----------------------------------------------------------------------------
 // Refusals
 
-// TestLoadRefusesSlices asserts the teaching error verbatim: slice
-// records compile — citizenship is dry — and are refused only here.
+// Slice records compile — citizenship is dry — and are refused only
+// here; the teaching error asserts verbatim.
 func TestLoadRefusesSlices(t *testing.T) {
 	k := newKit()
 	img := kitImage(nil, image.Record{
@@ -394,7 +392,7 @@ func TestLoadRefusesSlices(t *testing.T) {
 		"slice provisioning is not implemented: poolSlice provisions kit.Pool as a slice (attach only)")
 }
 
-// TestLoadResolutionFaults drives the catalogue-drift refusals: an
+// Resolution names every way an image can miss its catalogue: an
 // element the catalogue does not register, and records whose verb
 // disagrees with the element's kind.
 func TestLoadResolutionFaults(t *testing.T) {
@@ -442,17 +440,17 @@ func TestLoadResolutionFaults(t *testing.T) {
 	}
 }
 
-// TestLoadRefusesDuplicateInstances: instance names are the
-// reconciliation keys; two records under one name cannot both hold.
+// Instance names are the reconciliation keys; two records under one
+// name cannot both hold.
 func TestLoadRefusesDuplicateInstances(t *testing.T) {
 	k := newKit()
 	img := kitImage(nil, deployRec("w1"), deployRec("w1"))
 	wantFault(t, img, k.cat, "image declares instance w1 twice")
 }
 
-// TestLoadRefusesCycles: the linker guarantees acyclic references, so
-// a cycle marks a hand-crafted image; the plan refuses rather than
-// guesses an order. The self-loop is the smallest case.
+// The linker guarantees acyclic references, so a cycle marks a
+// hand-crafted image; the plan refuses rather than guesses an order.
+// The self-loop is the smallest case.
 func TestLoadRefusesCycles(t *testing.T) {
 	k := newKit()
 	t.Run("pair", func(t *testing.T) {
@@ -468,19 +466,18 @@ func TestLoadRefusesCycles(t *testing.T) {
 	})
 }
 
-// TestLoadRefusesDriverless asserts the teaching error verbatim: a
-// nil-Make type is a complete dry citizen — its statements compiled —
-// and the missing driver surfaces only here, where one is finally
-// needed.
+// A nil-Make type is a complete dry citizen — its statements compiled
+// — and the missing driver surfaces only here, where one is finally
+// needed; the teaching error asserts verbatim.
 func TestLoadRefusesDriverless(t *testing.T) {
 	k := newKit()
 	img := kitImage(nil, attachTo("Ghost", "g1"))
 	wantFault(t, img, k.cat, "provision type kit.Ghost declares no driver")
 }
 
-// TestLoadRefusesDrift asserts the drift error verbatim wherever a
-// record binds a key the live element no longer declares: the
-// compile-time catalogue and the process's have diverged.
+// Wherever a record binds a key the live element no longer declares,
+// the drift error asserts verbatim: the compile-time catalogue and
+// the process's have diverged.
 func TestLoadRefusesDrift(t *testing.T) {
 	k := newKit()
 	t.Run("component", func(t *testing.T) {
@@ -508,9 +505,9 @@ func TestLoadRefusesDrift(t *testing.T) {
 	})
 }
 
-// TestLoadClosesReferences drives the reference-closure refusals: a
-// dangling reference would otherwise fault wet, mid-phase, in
-// whichever process runs that phase.
+// Every reference must close over the plan: a dangling one would
+// otherwise fault wet, mid-phase, in whichever process runs that
+// phase.
 func TestLoadClosesReferences(t *testing.T) {
 	k := newKit()
 	t.Run("undeclared symbol", func(t *testing.T) {
@@ -540,9 +537,9 @@ func TestLoadClosesReferences(t *testing.T) {
 	})
 }
 
-// TestLoadGuardsUserCode: Make is user code, and planning touches it
-// only under the compiler's recover discipline — a panicking factory
-// or a factory-less descriptor is a fault line, not a crash.
+// Make is user code, and planning touches it only under the
+// compiler's recover discipline — a panicking factory or a
+// factory-less descriptor is a fault line, not a crash.
 func TestLoadGuardsUserCode(t *testing.T) {
 	k := newKit()
 	t.Run("panicking Make", func(t *testing.T) {
@@ -555,9 +552,9 @@ func TestLoadGuardsUserCode(t *testing.T) {
 	})
 }
 
-// TestLoadCollectsFaults: one Load reports the whole distance between
-// image and catalogue — every distinct fault present, each exactly
-// once, however many sites raise it.
+// One Load reports the whole distance between image and catalogue —
+// every distinct fault present, each exactly once, however many sites
+// raise it.
 func TestLoadCollectsFaults(t *testing.T) {
 	k := newKit()
 	img := kitImage(nil,
