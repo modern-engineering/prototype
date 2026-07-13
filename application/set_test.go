@@ -2,6 +2,7 @@ package application_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -53,23 +54,27 @@ func TestNewSet(t *testing.T) {
 	}
 }
 
-func TestSetLookupAndOrder(t *testing.T) {
+// A Set assembled from descriptors resolves names back to the very
+// same descriptor values, answers nil for strangers, and iterates in
+// the order the descriptors were given.
+func ExampleNewSet() {
 	ping, pong := named("ping"), named("pong")
-	s, err := application.NewSet(ping, pong)
+	set, err := application.NewSet(ping, pong)
 	if err != nil {
-		t.Fatal(err)
+		fmt.Println("assemble:", err)
+		return
 	}
-	if got := s.Lookup("ping"); got != ping {
-		t.Fatalf("Lookup(ping) = %v, want the ping descriptor", got)
+	fmt.Println("len:", set.Len())
+	fmt.Println("lookup ping is ping:", set.Lookup("ping") == ping)
+	fmt.Println("lookup gone:", set.Lookup("gone"))
+	for d := range set.All() {
+		fmt.Println("member:", d.Name)
 	}
-	if got := s.Lookup("gone"); got != nil {
-		t.Fatalf("Lookup(gone) = %v, want nil", got)
-	}
-	var order []string
-	for d := range s.All() {
-		order = append(order, d.Name)
-	}
-	if len(order) != 2 || order[0] != "ping" || order[1] != "pong" {
-		t.Fatalf("All order = %v, want [ping pong]", order)
-	}
+
+	// Output:
+	// len: 2
+	// lookup ping is ping: true
+	// lookup gone: <nil>
+	// member: ping
+	// member: pong
 }
