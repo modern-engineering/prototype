@@ -14,11 +14,13 @@
 package main_test
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -63,7 +65,8 @@ func (w e2eM) Run() int {
 	return code
 }
 
-// TestScript runs the script corpus. A failing cmp shows its diff;
+// The script corpus is the shell-level contract: each transcript can
+// assert only what a user observes. A failing cmp shows its diff;
 // -update rewrites the failing golden sections in place; go test
 // -testwork preserves each script's extracted work tree for a manual
 // look.
@@ -72,7 +75,38 @@ func TestScript(t *testing.T) {
 		Dir:           filepath.Join("testdata", "script"),
 		Setup:         scriptEnv,
 		UpdateScripts: *update,
+		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
+			"status": cmdStatus,
+		},
 	})
+}
+
+// cmdStatus is the corpus's exit-code assertion — the taxonomy (0 ok,
+// 1 diagnostics, 2 usage) is CLI contract, and the engine's ! prefix
+// sees only pass/fail. Usage: status <code> <program> [args...]; the
+// program's streams remain available to stdout/stderr/cmp.
+func cmdStatus(ts *testscript.TestScript, neg bool, args []string) {
+	if neg {
+		ts.Fatalf("status asserts an exact code; ! status is meaningless")
+	}
+	if len(args) < 2 {
+		ts.Fatalf("usage: status <code> <program> [args...]")
+	}
+	want, err := strconv.Atoi(args[0])
+	if err != nil {
+		ts.Fatalf("status: %q is not an exit code", args[0])
+	}
+	code := 0
+	if err := ts.Exec(args[1], args[2:]...); err != nil {
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) {
+			ts.Fatalf("status: running %s: %v", args[1], err)
+		}
+		code = exit.ExitCode()
+	}
+	if code != want {
+		ts.Fatalf("%s exited %d, want %d", args[1], code, want)
+	}
 }
 
 // scriptEnv hands each script the host's effective toolchain

@@ -3,7 +3,7 @@
 # on stderr, nothing on stdout — there is not even a solution here to
 # read.
 
-! sdl build -generation 0
+status 2 sdl build -generation 0
 ! stdout .
 cmp stderr want-stderr
 

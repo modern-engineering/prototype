@@ -1,14 +1,14 @@
 # A solution fault found deep inside the generated compiler comes
-# back as a positioned diagnostic: exit nonzero, file:line:col on
-# stderr, nothing on stdout. The unknown-element fault only exists
-# once the catalogue is live, so this one case proves the whole
+# back as a positioned diagnostic: exit 1, file:line:col on stderr,
+# nothing on stdout. The unknown-element fault only exists once the
+# catalogue is live, so this one case proves the whole
 # generate-compile-run relay; the diagnostic wording matrix itself
 # stays with solution's own tables, not here.
 [short] skip 'drives the go toolchain'
 
 exec go mod edit -replace=github.com/modern-engineering/prototype=$SDLREPO
 cp $SDLREPO/go.sum go.sum
-! sdl build
+status 1 sdl build
 stderr 'sol\.sdl:5:8: unknown element Gone'
 ! stdout .
 
