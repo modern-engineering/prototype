@@ -46,6 +46,7 @@ func TestProvisionTypes(t *testing.T) {
 	for name, pt := range map[string]*solution.ProvisionType{
 		"NATS":     substrate.NATS,
 		"Postgres": substrate.Postgres,
+		"StandIn":  substrate.StandIn,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if pt == nil {
@@ -70,6 +71,38 @@ func TestProvisionTypes(t *testing.T) {
 	}
 	if len(substrate.NATS.Outputs) == 0 || !substrate.NATS.Outputs[0].Sensitive {
 		t.Error("NATS.config must be a sensitive output: it exists to demonstrate output taint")
+	}
+	if substrate.StandIn.Kinds != solution.Attach {
+		t.Error("StandIn must register attach only: a stand-in owns nothing to slice")
+	}
+	if out := substrate.StandIn.Outputs; len(out) != 1 ||
+		out[0].Name != "config" || out[0].Sensitive || out[0].Type != solution.OutputString {
+		t.Errorf("StandIn outputs = %+v, want one non-sensitive string-typed config: demos show its value unredacted", out)
+	}
+}
+
+// TestStandInAttach drives the one runnable driver end to end the way
+// a host will: make a provisioner, bind its parameter, Attach with a
+// writer over the declared scheme, then read the output back typed
+// and rendered. The parameter must not matter — the stand-in emits
+// its fixed value no matter what endpoint it was pointed at.
+func TestStandInAttach(t *testing.T) {
+	p := substrate.StandIn.Make()
+	if err := p.Flags().Set("endpoint", "nats.example:4222"); err != nil {
+		t.Fatalf("binding endpoint: %v", err)
+	}
+	w := solution.NewOutputWriter(substrate.StandIn.Outputs)
+	if err := p.Attach(t.Context(), w); err != nil {
+		t.Fatalf("Attach = %v, want success: StandIn exists to be enactable", err)
+	}
+	if missing := w.Missing(); len(missing) != 0 {
+		t.Fatalf("Attach left outputs unwritten: %v", missing)
+	}
+	if got, err := w.GetString("config"); err != nil || got != substrate.StandInConfig {
+		t.Errorf("GetString(config) = %q, %v; want %q", got, err, substrate.StandInConfig)
+	}
+	if got, err := w.Render("config"); err != nil || got != substrate.StandInConfig {
+		t.Errorf("Render(config) = %q, %v; want %q", got, err, substrate.StandInConfig)
 	}
 }
 

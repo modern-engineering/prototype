@@ -131,6 +131,26 @@
           "kind": "symbol",
           "doc": "an operator-supplied credential, bound by the site and redacted wherever it surfaces",
           "sensitive": true
+        },
+        {
+          "name": "StandIn",
+          "kind": "provision",
+          "doc": "a local stand-in attachment emitting a fixed demo output in place of real substrate access",
+          "params": [
+            {
+              "name": "endpoint",
+              "usage": "substrate endpoint the stand-in pretends to attach to; ignored"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "config",
+              "type": "string"
+            }
+          ],
+          "kinds": [
+            "attach"
+          ]
         }
       ]
     }

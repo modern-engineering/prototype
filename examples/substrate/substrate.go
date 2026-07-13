@@ -9,6 +9,12 @@
 // *solution.SymbolType vars that extern declarations name, and
 // exported *solution.ProvisionType vars whose instances slice or
 // attach to shared substrate and emit reconcile-time outputs.
+//
+// NATS and Postgres are compile-only citizens: complete dry surfaces,
+// drivers that refuse until the real ones land. StandIn is the
+// runnable exception — the local stand-in of A-13's single-process
+// run, attaching to nothing and emitting a fixed output, so a whole
+// solution can be enacted with no infrastructure within reach.
 package substrate
 
 import (
@@ -122,4 +128,48 @@ func (p *postgresProvisioner) Flags() *flag.FlagSet { return p.flags }
 // solutions and stops their enactment.
 func (p *postgresProvisioner) Attach(context.Context, *solution.OutputWriter) error {
 	return errors.New("real Postgres provisioning is not implemented; the type compiles solutions but cannot enact them")
+}
+
+// StandIn attaches to nothing: it is the local stand-in of A-13's
+// single-process run, where substrate bindings point at stand-ins so
+// a whole solution hosts in one process with no infrastructure within
+// reach. Its driver — the one real Attach in this catalogue — is
+// deliberately trivial: it ignores its endpoint parameter and writes
+// the fixed [StandInConfig]. The output is declared non-sensitive on
+// purpose, so demos can show the value flowing from provision output
+// into application parameters unredacted.
+var StandIn = &solution.ProvisionType{
+	Doc:  "a local stand-in attachment emitting a fixed demo output in place of real substrate access",
+	Make: makeStandIn,
+	Outputs: []solution.Output{
+		{Name: "config", Doc: "the fixed stand-in access coordinate every consumer receives", Type: solution.OutputString},
+	},
+	Kinds: solution.Attach,
+}
+
+// StandInConfig is the one value StandIn's driver ever emits:
+// hard-coded, carrying no secret, shaped like an access coordinate so
+// consumers treat it exactly as they would a real one.
+const StandInConfig = "stand-in://local"
+
+// A standInProvisioner is one dry StandIn instance. The endpoint slot
+// exists so solutions have a parameter to wire externs into; the
+// driver deliberately ignores it — a stand-in attaches to nothing.
+type standInProvisioner struct {
+	flags    *flag.FlagSet
+	endpoint string
+}
+
+func makeStandIn() solution.Provisioner {
+	p := &standInProvisioner{flags: flag.NewFlagSet("standin", flag.ContinueOnError)}
+	p.flags.StringVar(&p.endpoint, "endpoint", "", "substrate endpoint the stand-in pretends to attach to; ignored")
+	return p
+}
+
+func (p *standInProvisioner) Flags() *flag.FlagSet { return p.flags }
+
+// Attach is the attach contract in miniature: verify (nothing to
+// verify), emit the declared scheme, own nothing.
+func (p *standInProvisioner) Attach(_ context.Context, w *solution.OutputWriter) error {
+	return w.SetString("config", StandInConfig)
 }
