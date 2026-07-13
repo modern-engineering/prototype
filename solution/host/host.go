@@ -45,6 +45,14 @@ type Config struct {
 	// skin.
 	Grace time.Duration
 
+	// Signals feeds [Main] the process signals that drive the
+	// wind-down; nil subscribes the real SIGINT/SIGTERM. A non-nil
+	// channel makes the caller the kernel: whatever arrives on it is
+	// treated as a termination signal, which is how tests drive the
+	// shutdown sequence deterministically. [Run] never listens —
+	// signal handling belongs to the process skin.
+	Signals <-chan os.Signal
+
 	// Log receives the audit lines; nil means os.Stderr. Stdout stays
 	// the services' own (A-12's stream discipline).
 	Log io.Writer

@@ -20,8 +20,9 @@ import (
 // prebuilt binary calling Main serves any image compiled against its
 // catalogue; examples/host is the committed demonstration.
 //
-// The first SIGINT/SIGTERM starts the wind-down: every running service
-// with a Shutdown capability is asked to stop within cfg.Grace
+// The first SIGINT/SIGTERM — or the first value on cfg.Signals when
+// the caller supplies the feed — starts the wind-down: every running
+// service with a Shutdown capability is asked to stop within cfg.Grace
 // ([application.Runtime.Shutdown] with the grace context passed
 // verbatim), then the runtime's context is cancelled and the last
 // runners drain. A second signal skips straight to the cancel.
@@ -38,11 +39,16 @@ import (
 func Main(cfg Config) int {
 	logw := cfg.log()
 
-	// Subscribe before anything wet runs so a signal racing startup
-	// parks in the channel buffer instead of killing the process.
-	signals := make(chan os.Signal, 2)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(signals)
+	signals := cfg.Signals
+	if signals == nil {
+		// Subscribe before anything wet runs so a signal racing
+		// startup parks in the channel buffer instead of killing the
+		// process.
+		kernel := make(chan os.Signal, 2)
+		signal.Notify(kernel, os.Interrupt, syscall.SIGTERM)
+		defer signal.Stop(kernel)
+		signals = kernel
+	}
 
 	rt, err := start(context.Background(), cfg)
 	if err != nil {
