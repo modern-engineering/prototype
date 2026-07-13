@@ -5,6 +5,7 @@ package enact
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"strconv"
 	"strings"
@@ -264,14 +265,22 @@ func (ld *loader) deploy(rec image.Record) (Step, bool) {
 		ld.fault("cannot deploy %s: %s is %s, not a component", rec.Name, elem, noun(reg))
 		return Step{}, false
 	}
+	if reg.App.Make == nil {
+		// A descriptor without a factory is no component at all
+		// (application.CheckDescriptor refuses it); without one there
+		// is no surface to hold the bindings to either.
+		ld.fault("component %s has no Make factory", elem)
+		return Step{}, false
+	}
+	ld.checkParams(rec, elem, func() *flag.FlagSet { return reg.App.Make().Flags() })
 	return Step{Record: rec, Component: reg.App}, true
 }
 
 // provision resolves one provision record against the live catalogue
-// and holds the record's kind to what enactment implements: attach
-// only, and only where the live type still registers it. Slice
-// records are refused wholesale — the slice lifecycle (create,
-// mutate, destroy, prune) is unbuilt — even though they compile:
+// and holds it to what enactment implements: the kind must be attach
+// — slice records are refused wholesale, the slice lifecycle (create,
+// mutate, destroy, prune) being unbuilt — the live type must still
+// register attach, and it must carry a driver. All of that compiles:
 // citizenship in the image is dry, running is not.
 func (ld *loader) provision(rec image.Record) (Step, bool) {
 	elem := ld.display(rec.Element)
@@ -294,7 +303,94 @@ func (ld *loader) provision(rec image.Record) (Step, bool) {
 	default:
 		ld.fault("record %s declares unknown provision kind %q", rec.Name, rec.Kind)
 	}
+	surface := func() *flag.FlagSet { return nil }
+	if reg.Provision.Make == nil {
+		// Nil Make declares a parameterless, driverless type: a
+		// complete dry citizen the compiler accepts, refused only
+		// here, where a driver is finally needed. Parameterless also
+		// means any binding the record carries is drift, which the
+		// empty surface below reports.
+		ld.fault("provision type %s declares no driver", elem)
+	} else {
+		surface = func() *flag.FlagSet { return reg.Provision.Make().Flags() }
+	}
+	ld.checkParams(rec, elem, surface)
 	return Step{Record: rec, Provision: reg.Provision}, true
+}
+
+// checkParams holds a record's param bindings to the element's dry
+// flag surface — a fresh instance's, the same surface the compiler
+// validated against and the wet half will parse into (A-14) — and to
+// the image's own reference closure. Only binding keys are judged:
+// values were validated at compile and are validated again by
+// flag.Value.Set at wet binding, so a dry re-judgement here would add
+// a third opinion, not safety.
+func (ld *loader) checkParams(rec image.Record, elem string, surface func() *flag.FlagSet) {
+	fs, panicked := dryFlags(surface)
+	if panicked != nil {
+		ld.fault("element %s: Make panicked: %v", elem, panicked)
+		return
+	}
+	for _, b := range rec.Params {
+		if fs == nil || fs.Lookup(b.Key) == nil {
+			ld.fault("image binds %s but %s declares no such flag", b.Key, elem)
+		}
+		ld.checkRef(b)
+	}
+}
+
+// checkRef closes one binding's reference over the image: a symbol
+// reference must land in the symbol table, an output reference on a
+// provision record of the image and — where that record's own type
+// resolved — on an output the live type still declares. A dangling
+// reference would otherwise surface mid-phase, wet, in whichever
+// process runs that phase; the plan refuses it while nothing has run
+// anywhere.
+func (ld *loader) checkRef(b image.Binding) {
+	if b.Ref == nil {
+		return
+	}
+	if b.Ref.Output == "" {
+		if _, ok := ld.symbols[b.Ref.Symbol]; !ok {
+			ld.fault("image references undeclared symbol %s", b.Ref.Symbol)
+		}
+		return
+	}
+	target, ok := ld.provisions[b.Ref.Symbol]
+	if !ok {
+		ld.fault("image references output %s.%s but provisions no instance %s", b.Ref.Symbol, b.Ref.Output, b.Ref.Symbol)
+		return
+	}
+	reg, ok := ld.live[target.Element]
+	if !ok || reg.Provision == nil {
+		return // the target record's own resolution fault reports this
+	}
+	if !declaresOutput(reg.Provision, b.Ref.Output) {
+		ld.fault("image references output %s.%s but %s declares no such output", b.Ref.Symbol, b.Ref.Output, ld.display(target.Element))
+	}
+}
+
+// declaresOutput reports whether the live type's scheme declares the
+// named output.
+func declaresOutput(pt *solution.ProvisionType, name string) bool {
+	for _, out := range pt.Outputs {
+		if out.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// dryFlags runs one recover-guarded dry instantiation of an element's
+// parameter surface: Make is user code, and the compiler holds the
+// same guard around every excursion into it.
+func dryFlags(surface func() *flag.FlagSet) (fs *flag.FlagSet, panicked any) {
+	defer func() {
+		if p := recover(); p != nil {
+			fs, panicked = nil, p
+		}
+	}()
+	return surface(), nil
 }
 
 // noun names a registration's kind the way faults speak about it,

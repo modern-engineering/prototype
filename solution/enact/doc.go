@@ -34,11 +34,19 @@
 //
 // Whatever the plan can prove broken is refused at Load, before
 // anything runs: a record whose element the catalogue no longer
-// registers, or registers as another kind, and slice provision
-// records — the slice lifecycle is unbuilt, so attach is the one
-// kind a plan admits. Faults are collected, not cut short: the
-// returned error joins every fault found, one line each, so one Load
-// reports the whole distance between image and catalogue.
+// registers, or registers as another kind; a binding to a flag the
+// element no longer declares (image/catalogue drift, held against a
+// fresh instance's dry flag surface — the same surface the compiler
+// validated and the wet half will parse into, A-14's drift-proofing);
+// references that do not close over the image's own symbols and
+// provision instances; a provision type that declares no driver; and
+// slice provision records — the slice lifecycle is unbuilt, so
+// attach is the one kind a plan admits. Binding values are
+// deliberately not judged here: the compiler validated them dry, and
+// the wet half's own flag.Value.Set validates what actually arrives.
+// Faults are collected, not cut short: the returned error joins
+// every fault found, one line each, so one Load reports the whole
+// distance between image and catalogue.
 //
 // # Never assume one binary
 //

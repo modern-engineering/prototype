@@ -18,9 +18,11 @@ import (
 
 // ----------------------------------------------------------------------------
 // The live test catalogue: one package "kit" holding a component, a
-// provisionable type, a driverless type, and two symbol types. The
-// tests craft images against it by hand — enactment must stand on any
-// image, not only what today's compiler emits.
+// provisionable type, two symbol types, and the broken citizens the
+// refusals need — a driverless type, a slice-only flagless type, a
+// panicking factory, a factory-less descriptor. The tests craft
+// images against it by hand: enactment must stand on any image, not
+// only what today's compiler emits.
 
 const kitPath = "example.com/acme/kit"
 
@@ -79,6 +81,35 @@ func ghostProvisionType() *solution.ProvisionType {
 	}
 }
 
+// A vaultProvisioner is flagless — a nil Flags() is a legal surface —
+// and its type registers slice only, so attach records against it are
+// drift.
+type vaultProvisioner struct{}
+
+func (vaultProvisioner) Flags() *flag.FlagSet { return nil }
+
+func (vaultProvisioner) Attach(context.Context, *solution.OutputWriter) error {
+	panic("planning must never run a driver")
+}
+
+func vaultProvisionType() *solution.ProvisionType {
+	return &solution.ProvisionType{
+		Doc:   "a slice-only, flagless type",
+		Make:  func() solution.Provisioner { return vaultProvisioner{} },
+		Kinds: solution.Slice,
+	}
+}
+
+// boomProvisionType panics on Make: user code the planner must guard
+// its dry instantiation against.
+func boomProvisionType() *solution.ProvisionType {
+	return &solution.ProvisionType{
+		Doc:   "a factory that blows up",
+		Make:  func() solution.Provisioner { panic("kaboom") },
+		Kinds: solution.Attach,
+	}
+}
+
 // A kit is one live catalogue with the values it registers held on
 // the side, so tests can assert steps resolve to the very pointers
 // the catalogue carries.
@@ -100,8 +131,11 @@ func newKit() *kit {
 		Name: "kit",
 		Elements: []solution.Element{
 			solution.App("Widget", k.widget),
+			solution.App("Hollow", &application.Descriptor{Name: "hollow", Doc: "a descriptor without a factory"}),
 			solution.Provision("Pool", k.pool),
 			solution.Provision("Ghost", k.ghost),
+			solution.Provision("Vault", vaultProvisionType()),
+			solution.Provision("Boom", boomProvisionType()),
 			solution.Symbol("Endpoint", &solution.SymbolType{Doc: "a plain endpoint"}),
 			solution.Symbol("Secret", &solution.SymbolType{Doc: "a credential", Sensitive: true}),
 		},
@@ -127,10 +161,13 @@ func kitImage(symbols []image.SymbolDef, records ...image.Record) *image.Image {
 			Path: kitPath,
 			Name: "kit",
 			Elements: []image.ElementSchema{
+				{Name: "Boom", Kind: image.KindProvision, Kinds: []string{image.KindAttach}},
 				{Name: "Endpoint", Kind: image.KindSymbol},
 				{Name: "Ghost", Kind: image.KindProvision, Kinds: []string{image.KindAttach}},
+				{Name: "Hollow", Kind: image.KindComponent},
 				{Name: "Pool", Kind: image.KindProvision, Kinds: []string{image.KindSlice, image.KindAttach}},
 				{Name: "Secret", Kind: image.KindSymbol, Sensitive: true},
+				{Name: "Vault", Kind: image.KindProvision, Kinds: []string{image.KindSlice}},
 				{Name: "Widget", Kind: image.KindComponent},
 			},
 		}},
@@ -150,12 +187,20 @@ func outputRef(key, instance, output string) image.Binding {
 	return image.Binding{Key: key, Ref: &image.SymbolRef{Symbol: instance, Output: output}, Source: image.SourceInstance}
 }
 
+func symbolRef(key, symbol string) image.Binding {
+	return image.Binding{Key: key, Ref: &image.SymbolRef{Symbol: symbol}, Source: image.SourceInstance}
+}
+
 func deployRec(name string, params ...image.Binding) image.Record {
 	return image.Record{Verb: image.VerbDeploy, Element: ref("Widget"), Name: name, Params: params}
 }
 
 func attachRec(name string, params ...image.Binding) image.Record {
-	return image.Record{Verb: image.VerbProvision, Kind: image.KindAttach, Element: ref("Pool"), Name: name, Params: params}
+	return attachTo("Pool", name, params...)
+}
+
+func attachTo(elem, name string, params ...image.Binding) image.Record {
+	return image.Record{Verb: image.VerbProvision, Kind: image.KindAttach, Element: ref(elem), Name: name, Params: params}
 }
 
 // provisionNames flattens a phase's step order for comparison.
@@ -421,4 +466,128 @@ func TestLoadRefusesCycles(t *testing.T) {
 		img := kitImage(nil, attachRec("p1", outputRef("seed", "p1", "config")))
 		wantFault(t, img, k.cat, "provision reference cycle: no order settles p1")
 	})
+}
+
+// TestLoadRefusesDriverless asserts the teaching error verbatim: a
+// nil-Make type is a complete dry citizen — its statements compiled —
+// and the missing driver surfaces only here, where one is finally
+// needed.
+func TestLoadRefusesDriverless(t *testing.T) {
+	k := newKit()
+	img := kitImage(nil, attachTo("Ghost", "g1"))
+	wantFault(t, img, k.cat, "provision type kit.Ghost declares no driver")
+}
+
+// TestLoadRefusesDrift asserts the drift error verbatim wherever a
+// record binds a key the live element no longer declares: the
+// compile-time catalogue and the process's have diverged.
+func TestLoadRefusesDrift(t *testing.T) {
+	k := newKit()
+	t.Run("component", func(t *testing.T) {
+		img := kitImage(nil, deployRec("w1", literal("gone", "x")))
+		wantFault(t, img, k.cat, "image binds gone but kit.Widget declares no such flag")
+	})
+	t.Run("provision type", func(t *testing.T) {
+		img := kitImage(nil, attachRec("p1", literal("gone", "x")))
+		wantFault(t, img, k.cat, "image binds gone but kit.Pool declares no such flag")
+	})
+	t.Run("flagless provisioner", func(t *testing.T) {
+		// Vault's Flags() is nil, so every binding is drift; the
+		// slice-only registration is a second, separate fault.
+		img := kitImage(nil, attachTo("Vault", "v1", literal("size", "1")))
+		wantFault(t, img, k.cat, "image binds size but kit.Vault declares no such flag")
+		wantFault(t, img, k.cat, "image provisions v1 as attach but kit.Vault does not register attach")
+	})
+	t.Run("driverless params", func(t *testing.T) {
+		// Nil Make is parameterless by definition: a binding on such
+		// a type is drift on top of the missing driver, and both
+		// lines report.
+		img := kitImage(nil, attachTo("Ghost", "g1", literal("size", "1")))
+		wantFault(t, img, k.cat, "provision type kit.Ghost declares no driver")
+		wantFault(t, img, k.cat, "image binds size but kit.Ghost declares no such flag")
+	})
+}
+
+// TestLoadClosesReferences drives the reference-closure refusals: a
+// dangling reference would otherwise fault wet, mid-phase, in
+// whichever process runs that phase.
+func TestLoadClosesReferences(t *testing.T) {
+	k := newKit()
+	t.Run("undeclared symbol", func(t *testing.T) {
+		img := kitImage(nil, deployRec("w1", symbolRef("target", "missing")))
+		wantFault(t, img, k.cat, "image references undeclared symbol missing")
+	})
+	t.Run("unknown instance", func(t *testing.T) {
+		img := kitImage(nil, deployRec("w1", outputRef("nats", "phantom", "config")))
+		wantFault(t, img, k.cat, "image references output phantom.config but provisions no instance phantom")
+	})
+	t.Run("undeclared output", func(t *testing.T) {
+		img := kitImage(nil,
+			attachRec("pool1"),
+			deployRec("w1", outputRef("nats", "pool1", "nope")),
+		)
+		wantFault(t, img, k.cat, "image references output pool1.nope but kit.Pool declares no such output")
+	})
+	t.Run("declared symbol binds", func(t *testing.T) {
+		endpoint := ref("Endpoint")
+		img := kitImage(
+			[]image.SymbolDef{{Name: "natsEndpoint", Class: image.ClassExtern, Type: &endpoint}},
+			deployRec("w1", symbolRef("target", "natsEndpoint")),
+		)
+		if _, err := enact.Load(img, k.cat); err != nil {
+			t.Fatalf("Load() = %v", err)
+		}
+	})
+}
+
+// TestLoadGuardsUserCode: Make is user code, and planning touches it
+// only under the compiler's recover discipline — a panicking factory
+// or a factory-less descriptor is a fault line, not a crash.
+func TestLoadGuardsUserCode(t *testing.T) {
+	k := newKit()
+	t.Run("panicking Make", func(t *testing.T) {
+		img := kitImage(nil, attachTo("Boom", "b1"))
+		wantFault(t, img, k.cat, "element kit.Boom: Make panicked: kaboom")
+	})
+	t.Run("component without Make", func(t *testing.T) {
+		img := kitImage(nil, image.Record{Verb: image.VerbDeploy, Element: ref("Hollow"), Name: "h1"})
+		wantFault(t, img, k.cat, "component kit.Hollow has no Make factory")
+	})
+}
+
+// TestLoadCollectsFaults: one Load reports the whole distance between
+// image and catalogue — every distinct fault present, each exactly
+// once, however many sites raise it.
+func TestLoadCollectsFaults(t *testing.T) {
+	k := newKit()
+	img := kitImage(nil,
+		image.Record{Verb: image.VerbProvision, Kind: image.KindSlice, Element: ref("Pool"), Name: "s1"},
+		attachTo("Ghost", "g1"),
+		deployRec("w1", literal("gone", "x")),
+		deployRec("w2", literal("gone", "x")),
+	)
+	_, err := enact.Load(img, k.cat)
+	if err == nil {
+		t.Fatal("Load() succeeded, want the collected faults")
+	}
+	lines := strings.Split(err.Error(), "\n")
+	for _, want := range []string{
+		"slice provisioning is not implemented: s1 provisions kit.Pool as a slice (attach only)",
+		"provision type kit.Ghost declares no driver",
+		"image binds gone but kit.Widget declares no such flag",
+	} {
+		if n := countLines(lines, want); n != 1 {
+			t.Errorf("fault %q appears %d times, want exactly once", want, n)
+		}
+	}
+}
+
+func countLines(lines []string, want string) int {
+	n := 0
+	for _, line := range lines {
+		if line == want {
+			n++
+		}
+	}
+	return n
 }
