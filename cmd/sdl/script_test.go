@@ -57,6 +57,7 @@ func (w e2eM) Run() int {
 		}
 	}
 	code := w.m.Run()
+	scrubProxy()
 	if sdlPath != "" {
 		if err := os.RemoveAll(filepath.Dir(sdlPath)); err != nil {
 			fmt.Fprintln(os.Stderr, "cleaning up the built CLI:", err)

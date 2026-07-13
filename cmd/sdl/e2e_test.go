@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1039,43 +1041,126 @@ func runSDLEnv(t *testing.T, dir string, env []string, args ...string) result {
 	return result{code: code, stdout: outb.String(), stderr: errb.String()}
 }
 
+// proxyInfra is the hermetic module-resolution fixture: a file://
+// proxy serving this checkout at the fictional v0.1.0 and a fresh
+// module cache so nothing real is poisoned by that version. It is
+// built at most once per test-binary run — Go tests and scripts
+// share it — and scrubProxy clears it at the end.
+type proxyInfra struct {
+	root     string // holds the proxy tree and the module cache
+	goproxy  string // the GOPROXY value consumers export
+	modcache string // the GOMODCACHE value consumers export
+}
+
+var (
+	proxyBuilt  atomic.Bool
+	sharedProxy = sync.OnceValues(func() (proxyInfra, error) {
+		root, err := os.MkdirTemp("", "sdl-proxy-")
+		if err != nil {
+			return proxyInfra{}, err
+		}
+		infra, err := buildProxyInfra(root)
+		if err != nil {
+			os.RemoveAll(root)
+			return proxyInfra{}, err
+		}
+		proxyBuilt.Store(true)
+		return infra, nil
+	})
+)
+
+// buildProxyInfra lays the fixture under root: the proxy tree, a
+// GOPROXY falling back (on 404, the comma semantics) to the local
+// module cache in its download layout for the x/ dependencies — which
+// the cache holds whenever this suite runs at all, since building the
+// CLI needs them — and an empty module cache directory. No route
+// leaves the machine.
+func buildProxyInfra(root string) (proxyInfra, error) {
+	proxy := filepath.Join(root, "proxy")
+	if err := writeProxy(proxy); err != nil {
+		return proxyInfra{}, err
+	}
+	out, err := exec.Command("go", "env", "GOMODCACHE").Output()
+	if err != nil {
+		return proxyInfra{}, fmt.Errorf("locating the module cache: %v", err)
+	}
+	download := filepath.Join(strings.TrimSpace(string(out)), "cache", "download")
+	cache := filepath.Join(root, "modcache")
+	if err := os.MkdirAll(cache, 0o777); err != nil {
+		return proxyInfra{}, err
+	}
+	return proxyInfra{
+		root:     root,
+		goproxy:  "file://" + filepath.ToSlash(proxy) + ",file://" + filepath.ToSlash(download),
+		modcache: cache,
+	}, nil
+}
+
+// scrubProxy clears the shared fixture if any consumer built it. The
+// module cache write-protects its directories, which os.RemoveAll
+// alone cannot clear, so go clean -modcache goes first.
+func scrubProxy() {
+	if !proxyBuilt.Load() {
+		return
+	}
+	infra, err := sharedProxy()
+	if err != nil {
+		return
+	}
+	cmd := exec.Command("go", "clean", "-modcache")
+	cmd.Env = append(os.Environ(), "GOMODCACHE="+infra.modcache)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "scrubbing the proxy module cache: %v\n%s", err, out)
+	}
+	if err := os.RemoveAll(infra.root); err != nil {
+		fmt.Fprintln(os.Stderr, "removing the proxy fixture:", err)
+	}
+}
+
 // writeProxy lays down a file:// module proxy serving this checkout as
 // github.com/modern-engineering/prototype@v0.1.0 in the cmd/go proxy
 // layout — @v/list, .info, .mod, and a module zip holding everything
 // the generated compiler imports (application, solution, sdl, and the
 // examples catalogue) plus the module's own metadata files.
-func writeProxy(t *testing.T, dir string) {
-	t.Helper()
+func writeProxy(dir string) error {
 	const version = "v0.1.0"
 	vdir := filepath.Join(dir, "github.com", "modern-engineering", "prototype", "@v")
 	if err := os.MkdirAll(vdir, 0o777); err != nil {
-		t.Fatal(err)
+		return err
 	}
-	writeFile(t, filepath.Join(vdir, "list"), version+"\n")
-	writeFile(t, filepath.Join(vdir, version+".info"), fmt.Sprintf("{\"Version\":%q}\n", version))
+	if err := os.WriteFile(filepath.Join(vdir, "list"), []byte(version+"\n"), 0o666); err != nil {
+		return err
+	}
+	info := fmt.Sprintf("{\"Version\":%q}\n", version)
+	if err := os.WriteFile(filepath.Join(vdir, version+".info"), []byte(info), 0o666); err != nil {
+		return err
+	}
 	gomod, err := os.ReadFile(filepath.Join(repoRoot, "go.mod"))
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
-	writeFile(t, filepath.Join(vdir, version+".mod"), string(gomod))
+	if err := os.WriteFile(filepath.Join(vdir, version+".mod"), gomod, 0o666); err != nil {
+		return err
+	}
 
 	var zbuf bytes.Buffer
 	zw := zip.NewWriter(&zbuf)
-	add := func(rel string) {
+	add := func(rel string) error {
 		w, err := zw.Create("github.com/modern-engineering/prototype@" + version + "/" + filepath.ToSlash(rel))
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
 		data, err := os.ReadFile(filepath.Join(repoRoot, rel))
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
-		if _, err := w.Write(data); err != nil {
-			t.Fatal(err)
-		}
+		_, err = w.Write(data)
+		return err
 	}
 	for _, rel := range []string{"go.mod", "go.sum", "LICENSE"} {
-		add(rel)
+		if err := add(rel); err != nil {
+			return err
+		}
 	}
 	for _, tree := range []string{"application", "solution", "sdl", "examples"} {
 		err := filepath.WalkDir(filepath.Join(repoRoot, tree), func(p string, d fs.DirEntry, err error) error {
@@ -1087,52 +1172,31 @@ func writeProxy(t *testing.T, dir string) {
 				if err != nil {
 					return err
 				}
-				add(rel)
+				return add(rel)
 			}
 			return nil
 		})
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
 	}
 	if err := zw.Close(); err != nil {
-		t.Fatal(err)
+		return err
 	}
-	if err := os.WriteFile(filepath.Join(vdir, version+".zip"), zbuf.Bytes(), 0o666); err != nil {
-		t.Fatal(err)
-	}
+	return os.WriteFile(filepath.Join(vdir, version+".zip"), zbuf.Bytes(), 0o666)
 }
 
-// hermeticProxyEnv builds the module-resolution environment for the
-// module-less tests: a file:// proxy serving this checkout at v0.1.0,
-// falling back (on 404, the comma semantics) to the local module cache
-// in its download layout for the x/ dependencies — which the cache
-// holds whenever this suite runs at all, since building the CLI needs
-// them — and a fresh GOMODCACHE so nothing real is poisoned by the
-// fictional version. No route leaves the machine. The fresh cache is
-// scrubbed with go clean -modcache before removal: the cache write-
-// protects its directories, which os.RemoveAll alone cannot clear.
+// hermeticProxyEnv hands a Go-shaped test the shared fixture's
+// module-resolution environment.
 func hermeticProxyEnv(t *testing.T) []string {
 	t.Helper()
-	proxy := t.TempDir()
-	writeProxy(t, proxy)
-	out, err := exec.Command("go", "env", "GOMODCACHE").Output()
+	infra, err := sharedProxy()
 	if err != nil {
-		t.Fatalf("locating the module cache: %v", err)
+		t.Fatal(err)
 	}
-	download := filepath.Join(strings.TrimSpace(string(out)), "cache", "download")
-
-	cache := t.TempDir()
-	t.Cleanup(func() {
-		cmd := exec.Command("go", "clean", "-modcache")
-		cmd.Env = append(os.Environ(), "GOMODCACHE="+cache)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Logf("cleaning the test module cache: %v\n%s", err, out)
-		}
-	})
 	return []string{
-		"GOPROXY=file://" + filepath.ToSlash(proxy) + ",file://" + filepath.ToSlash(download),
-		"GOMODCACHE=" + cache,
+		"GOPROXY=" + infra.goproxy,
+		"GOMODCACHE=" + infra.modcache,
 		"GOSUMDB=off",
 		// Neutralize developer overrides that could route the fictional
 		// module past the fixture.
