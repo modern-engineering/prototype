@@ -68,6 +68,34 @@ func TestRenderedPodContract(t *testing.T) {
 		}
 	}
 
+	// The namespace knob: unset leaves the set namespace-free for the
+	// apply to choose (the default asserted above by omission); set,
+	// it bakes into every object at render.
+	bakedDir := filepath.Join(t.TempDir(), "baked")
+	baked := exec.Command(filepath.Join(bin, "k8sgen"),
+		"-image", filepath.Join("testdata", "pingpong.json"),
+		"-o", bakedDir,
+		"-namespace", "pingpong-dev7",
+		"-extern", "natsEndpoint=nats://e2e.invalid:4222",
+	)
+	if out, err := baked.CombinedOutput(); err != nil {
+		t.Fatalf("k8sgen -namespace: %v\n%s", err, out)
+	}
+	plain, err := os.ReadFile(filepath.Join(outDir, "pong.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(plain), "namespace:") {
+		t.Error("the default render names a namespace; the apply's choice was pre-empted")
+	}
+	bakedDoc, err := os.ReadFile(filepath.Join(bakedDir, "pong.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(string(bakedDoc), "namespace: pingpong-dev7"); got != 2 {
+		t.Errorf("baked render names the namespace on %d objects, want its ConfigMap and Deployment", got)
+	}
+
 	// Project ping1's mounted files the way the kubelet would and run
 	// the pod's process: the finite Ping1 completes, so a clean exit
 	// is the whole verdict — no signal choreography.

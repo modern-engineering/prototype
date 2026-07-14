@@ -9,10 +9,19 @@
 // ordinary prebuilt host (examples/host) against its mounted shard.
 //
 //	k8sgen -image <file> -o <dir> [-extern name=value]... [-var name=value]...
+//	       [-namespace name]
 //
 // The zero profile renders the basic contract; platform teams with
 // house conventions write their own command around
 // [kubernetes.Render] the way this one is written.
+//
+// -namespace bakes the objects' namespace at render time, one more
+// per-environment knob beside the site bindings. Left unset, the
+// manifests stay namespace-free and the apply chooses (kubectl -n, a
+// GitOps destination) — the same rendered set then serves any number
+// of environments. A namespace is never the solution's to name;
+// whether it is the render's or the apply's is the environment
+// pipeline's split to pick.
 //
 // Exit codes follow the taxonomy hosts answer to: 2 for configuration
 // faults (bad arguments, an unreadable image, a site the render gate
@@ -35,6 +44,7 @@ import (
 func main() {
 	path := flag.String("image", "", "path to the solution image to render")
 	out := flag.String("o", "", "directory to write the manifest set into")
+	namespace := flag.String("namespace", "", "bake this namespace into the objects; empty leaves the apply to choose")
 	site := kubernetes.Site{Externs: make(map[string]string), Vars: make(map[string]string)}
 	bind := func(dst map[string]string) func(string) error {
 		return func(arg string) error {
@@ -66,7 +76,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	files, err := kubernetes.Render(img, site, kubernetes.Profile{})
+	files, err := kubernetes.Render(img, site, kubernetes.Profile{Namespace: *namespace})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(2)
