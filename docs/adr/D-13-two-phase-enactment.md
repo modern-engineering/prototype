@@ -5,6 +5,8 @@ refines:
   - A-13-mission-analysis
   - A-14-staged-catalogue-compilation
   - D-08-desired-state-image
+refined-by:
+  - D-16-static-manifest-rendering
 ---
 
 # Enact the Image in Two Phases on Any Host

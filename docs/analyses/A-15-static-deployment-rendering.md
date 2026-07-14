@@ -1,6 +1,8 @@
 ---
 status: draft
 since: 2026-07-14
+refined-by:
+  - D-16-static-manifest-rendering
 ---
 
 # Static Deployment Rendering: From Image to Kubernetes Manifests
@@ -376,7 +378,7 @@ not this analysis's job; a decision record takes this up.
 - **Co-location and grouping.** [A-09 Solution Layer]'s compute-isolation
   question made concrete: what vocabulary expresses grouping without breaking
   single-process reification. Advisory stanzas in
-  [D-15 Discovered Stanza Schemes]'s mold are the natural remote collector; none is
+  [D-15 Discovered Stanza Schemes]'s mold are the natural carrier; none is
   designed.
 - **The home of the site document.** Rendering is the consumer
   [D-13 Two-Phase Enactment]'s site-file door predicts — a whole solution's
