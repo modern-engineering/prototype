@@ -371,6 +371,13 @@ func payload(in Instance, prof Profile) (Payload, error) {
 
 	var plain, secret []string
 	for _, b := range in.Externs {
+		// The extern file is line-based (host.ParseExterns); a value
+		// spanning lines would corrupt it silently, so refuse loudly.
+		// A document-shaped extern wants the secret-reference custody
+		// door, not smuggling.
+		if strings.ContainsAny(b.Value, "\r\n") {
+			return Payload{}, fmt.Errorf("extern %s: the value spans lines; the extern file carries one binding per line", b.Name)
+		}
 		line := fmt.Sprintf("%s = %s", b.Name, b.Value)
 		if b.Sensitive {
 			secret = append(secret, line)

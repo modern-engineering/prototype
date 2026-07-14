@@ -139,6 +139,15 @@ func TestRenderGates(t *testing.T) {
 	if !strings.Contains(err.Error(), "Grinder") || !strings.Contains(err.Error(), "siloKey") {
 		t.Errorf("gate %q does not name the instance and its unbound extern", err)
 	}
+
+	// The extern file is line-based; a value spanning lines would
+	// corrupt it silently, so the basic payload refuses it by name.
+	_, err = kubernetes.Render(img, kubernetes.Site{
+		Externs: map[string]string{"siloKey": "-----BEGIN KEY-----\nabc"},
+	}, kubernetes.Profile{})
+	if err == nil || !strings.Contains(err.Error(), "siloKey") {
+		t.Errorf("a multiline extern value rendered; err = %v, want a refusal naming it", err)
+	}
 }
 
 // TestRenderProfile pins the profile seam end to end: a house shape
