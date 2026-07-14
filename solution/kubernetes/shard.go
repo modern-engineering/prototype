@@ -1,18 +1,10 @@
 // Copyright 2026 The prototype authors. Use of this source code is
 // governed by the license that can be found in the LICENSE file.
 
-// Package kubernetes is the static-emitter controller for the
-// Kubernetes archetype: it consumes a solution's desired-state image
-// dry — no live catalogue, no cluster client, never an apply — and
-// derives the artifacts a Kubernetes environment deploys statically
-// (D-16). The pod is the enactment boundary: whatever this package
-// emits, the process inside the pod is an ordinary image-enacting
-// host, so plans keep loading where D-13 put them and nothing here
-// re-implements the wet half.
-//
-// [Shard] is the package's foundation: one deploy record's slice of
-// the desired state, derived as an image in its own right, so a pod
+// The sharding half of the package: how one deploy record's slice of
+// the desired state becomes an image in its own right, so a pod
 // receives exactly the state it enacts and nothing beyond its reach.
+
 package kubernetes
 
 import (

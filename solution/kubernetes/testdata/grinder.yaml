@@ -1,0 +1,311 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grinder-cm
+  labels:
+    app: grinder
+    solution: shardcorpus
+    app.kubernetes.io/part-of: "milling"
+data:
+  externs.conf: |
+    # no plain externs reach this instance
+  image.json: |
+    {
+      "format": "solution-image/1",
+      "solution": "shardcorpus",
+      "generation": 7,
+      "build": {
+        "units": [
+          {
+            "name": "main.sdl",
+            "sha256": "abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "catalogue": [
+        {
+          "path": "example.test/mill",
+          "name": "mill",
+          "elements": [
+            {
+              "name": "App",
+              "kind": "component",
+              "params": [
+                {
+                  "name": "in"
+                },
+                {
+                  "name": "mode"
+                },
+                {
+                  "name": "spin"
+                }
+              ]
+            },
+            {
+              "name": "Feed",
+              "kind": "provision",
+              "params": [
+                {
+                  "name": "from"
+                },
+                {
+                  "name": "grade"
+                }
+              ],
+              "outputs": [
+                {
+                  "name": "chute"
+                },
+                {
+                  "name": "dust",
+                  "sensitive": true
+                }
+              ],
+              "kinds": [
+                "attach"
+              ]
+            },
+            {
+              "name": "Silo",
+              "kind": "symbol",
+              "sensitive": true
+            },
+            {
+              "name": "Yard",
+              "kind": "symbol"
+            }
+          ]
+        }
+      ],
+      "symbols": [
+        {
+          "name": "grade",
+          "class": "var",
+          "value": {
+            "kind": "string",
+            "string": "fine"
+          }
+        },
+        {
+          "name": "siloKey",
+          "class": "extern",
+          "type": {
+            "package": "example.test/mill",
+            "name": "Silo"
+          }
+        },
+        {
+          "name": "spin",
+          "class": "var",
+          "value": {
+            "kind": "duration",
+            "duration": "1.5s"
+          }
+        }
+      ],
+      "records": [
+        {
+          "verb": "provision",
+          "kind": "attach",
+          "element": {
+            "package": "example.test/mill",
+            "name": "Feed"
+          },
+          "name": "intake",
+          "params": [
+            {
+              "key": "from",
+              "ref": {
+                "symbol": "siloKey"
+              },
+              "source": "instance",
+              "sensitive": true
+            }
+          ]
+        },
+        {
+          "verb": "provision",
+          "kind": "attach",
+          "element": {
+            "package": "example.test/mill",
+            "name": "Feed"
+          },
+          "name": "hopper",
+          "params": [
+            {
+              "key": "from",
+              "ref": {
+                "symbol": "intake",
+                "output": "chute"
+              },
+              "source": "instance"
+            },
+            {
+              "key": "grade",
+              "ref": {
+                "symbol": "grade"
+              },
+              "source": "instance"
+            }
+          ]
+        },
+        {
+          "verb": "deploy",
+          "element": {
+            "package": "example.test/mill",
+            "name": "App"
+          },
+          "name": "Grinder",
+          "params": [
+            {
+              "key": "in",
+              "ref": {
+                "symbol": "hopper",
+                "output": "chute"
+              },
+              "source": "instance"
+            },
+            {
+              "key": "spin",
+              "ref": {
+                "symbol": "spin"
+              },
+              "source": "instance"
+            }
+          ],
+          "deployment": [
+            {
+              "key": "location",
+              "value": {
+                "kind": "token",
+                "token": "west"
+              },
+              "source": "instance"
+            }
+          ],
+          "extensions": {
+            "acme.mesh": [
+              {
+                "key": "lane",
+                "value": {
+                  "kind": "token",
+                  "token": "gold"
+                },
+                "source": "instance"
+              }
+            ],
+            "k8s.pod": [
+              {
+                "key": "cpu",
+                "value": {
+                  "kind": "string",
+                  "string": "300m"
+                },
+                "source": "instance"
+              },
+              {
+                "key": "memory",
+                "value": {
+                  "kind": "string",
+                  "string": "250Mi"
+                },
+                "source": "instance"
+              }
+            ],
+            "k8s.workload": [
+              {
+                "key": "partOf",
+                "value": {
+                  "kind": "string",
+                  "string": "milling"
+                },
+                "source": "instance"
+              }
+            ]
+          },
+          "metadata": [
+            {
+              "key": "team",
+              "value": {
+                "kind": "string",
+                "string": "ops"
+              },
+              "source": "instance"
+            }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grinder-secret
+  labels:
+    app: grinder
+    solution: shardcorpus
+    app.kubernetes.io/part-of: "milling"
+type: Opaque
+# The sensitive custody: tainted values mount from here, never from a
+# ConfigMap and never through the environment.
+stringData:
+  externs.conf: |
+    siloKey = hunter2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grinder
+  labels:
+    app: grinder
+    solution: shardcorpus
+    app.kubernetes.io/part-of: "milling"
+  annotations:
+    solution.metadata/team: "ops"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grinder
+  template:
+    metadata:
+      labels:
+        app: grinder
+        solution: shardcorpus
+      annotations:
+        checksum/config: 6e87832d7b5d4e8bb7b85086f1e88a05771b4044a6c073404f309e6d0e47ebc8
+    spec:
+      containers:
+        - name: grinder
+          image: ${SHARDCORPUS_HOST_IMAGE}
+          args:
+            - -image=/etc/solution/config/image.json
+            - -externs=/etc/solution/config/externs.conf
+            - -externs=/etc/solution/secret/externs.conf
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "250Mi"
+            limits:
+              cpu: "300m"
+              memory: "250Mi"
+          volumeMounts:
+            - name: solution-config
+              mountPath: /etc/solution/config
+              readOnly: true
+            - name: solution-secret
+              mountPath: /etc/solution/secret
+              readOnly: true
+      volumes:
+        - name: solution-config
+          configMap:
+            name: grinder-cm
+            items:
+              - key: externs.conf
+                path: externs.conf
+              - key: image.json
+                path: image.json
+        - name: solution-secret
+          secret:
+            secretName: grinder-secret

@@ -1,0 +1,141 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: idle-cm
+  labels:
+    app: idle
+    solution: shardcorpus
+data:
+  externs.conf: |
+    # no plain externs reach this instance
+  image.json: |
+    {
+      "format": "solution-image/1",
+      "solution": "shardcorpus",
+      "generation": 7,
+      "build": {
+        "units": [
+          {
+            "name": "main.sdl",
+            "sha256": "abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "catalogue": [
+        {
+          "path": "example.test/mill",
+          "name": "mill",
+          "elements": [
+            {
+              "name": "App",
+              "kind": "component",
+              "params": [
+                {
+                  "name": "in"
+                },
+                {
+                  "name": "mode"
+                },
+                {
+                  "name": "spin"
+                }
+              ]
+            },
+            {
+              "name": "Feed",
+              "kind": "provision",
+              "params": [
+                {
+                  "name": "from"
+                },
+                {
+                  "name": "grade"
+                }
+              ],
+              "outputs": [
+                {
+                  "name": "chute"
+                },
+                {
+                  "name": "dust",
+                  "sensitive": true
+                }
+              ],
+              "kinds": [
+                "attach"
+              ]
+            },
+            {
+              "name": "Silo",
+              "kind": "symbol",
+              "sensitive": true
+            },
+            {
+              "name": "Yard",
+              "kind": "symbol"
+            }
+          ]
+        }
+      ],
+      "symbols": [],
+      "records": [
+        {
+          "verb": "deploy",
+          "element": {
+            "package": "example.test/mill",
+            "name": "App"
+          },
+          "name": "Idle",
+          "params": [
+            {
+              "key": "in",
+              "value": {
+                "kind": "string",
+                "string": "nothing"
+              },
+              "source": "instance"
+            }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: idle
+  labels:
+    app: idle
+    solution: shardcorpus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: idle
+  template:
+    metadata:
+      labels:
+        app: idle
+        solution: shardcorpus
+      annotations:
+        checksum/config: 4d3a7f614a8e9b6e07702742cb27b28b90575f5ca95c7f0482a795cb04e6176c
+    spec:
+      containers:
+        - name: idle
+          image: ${SHARDCORPUS_HOST_IMAGE}
+          args:
+            - -image=/etc/solution/config/image.json
+            - -externs=/etc/solution/config/externs.conf
+          volumeMounts:
+            - name: solution-config
+              mountPath: /etc/solution/config
+              readOnly: true
+      volumes:
+        - name: solution-config
+          configMap:
+            name: idle-cm
+            items:
+              - key: externs.conf
+                path: externs.conf
+              - key: image.json
+                path: image.json
