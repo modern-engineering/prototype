@@ -150,12 +150,20 @@ Chosen option: **per-record sub-images on the stock host.**
   identifier to DNS-1123 kebab), labels, the rollout-on-config-change annotation
   (a checksum over the pod's ConfigMap on the pod template), and the pod
   contract — image reference, payload file names and mounts, container env,
-  args, probes — are defaults a platform team's profile may override. The bar
-  this seam must clear is evidence-set: the estate [A-13 Mission Analysis]
-  studied runs every pod off one shared binary with the component selected at
-  runtime, and that shape must be reachable as a profile of this renderer, never
-  a fork of it — the validation exercise above already regenerated that estate's
-  deployment shape this way.
+  args, probes — are defaults a platform team's profile may override. The
+  namespace splits the same way the seam does: a solution may never name one
+  (nothing in the image speaks of namespaces, and deployment indifference keeps
+  it that way), a profile may bake one at render — the namespace-per-solution
+  operational shape some estates prefer, at the price that a baked set routes
+  itself and refuses any other destination — and the unset default leaves every
+  object namespace-free for the apply to choose, so one rendered set serves any
+  number of environments: the ephemeral-environment pattern the studied estate
+  runs, structure constant while the destination varies. The bar this seam must
+  clear is evidence-set: the estate [A-13 Mission Analysis] studied runs every
+  pod off one shared binary with the component selected at runtime, and that
+  shape must be reachable as a profile of this renderer, never a fork of it —
+  the validation exercise above already regenerated that estate's deployment
+  shape this way.
 
 An illustrative sketch — one deploy record, one file, the whole pod at rest:
 
@@ -306,6 +314,13 @@ Doors this decision leaves open, each with its reopening trigger:
   grouping several records into one pod (the whole-solution pod as its limit)
   waits on [A-09 Solution Layer]'s open compute-isolation question — co-location
   constraints, never assignments. Trigger: that question getting an answer.
+- **Workload kinds.** Every deploy record renders as a Deployment — the
+  archetype's serving assumption. A run-to-completion record completes into a
+  restart loop: the kubelet backs off restarts on clean exits too, so finite
+  work crash-loops on its own success. Nothing in the image marks a record
+  finite ([D-13 Two-Phase Enactment]'s host deliberately imposes no
+  long-runningness), so a Job is underivable without guessing. Trigger: the
+  first real solution carrying run-to-completion work.
 
 [A-09 Solution Layer]: ../analyses/A-09-solution-layer.md
 [A-10 Value Binding]: ../analyses/A-10-value-binding.md
