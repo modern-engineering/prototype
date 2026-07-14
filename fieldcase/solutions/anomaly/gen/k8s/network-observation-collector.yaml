@@ -6,12 +6,8 @@ metadata:
     app: network-observation-collector
     solution: anomaly
 data:
-  # The enable key: the pod's env selects exactly this instance out of
-  # the shared host image (tri-state enable semantics).
-  networkObservationCollector: "true"
   health: ":3000"
-  # The site fragment this instance's bindings reach; the host reads
-  # it at startup (args[0]) and enforces the extern gate again.
+  networkObservationCollector: "true"
   site.conf: |
     extern.kafkaCluster = localhost:9092
     var.networkController = http://127.0.0.1:8081/api
@@ -29,10 +25,9 @@ metadata:
     app: network-observation-collector
     solution: anomaly
 type: Opaque
+# The sensitive custody: tainted values mount from here, never from a
+# ConfigMap and never through the environment.
 stringData:
-  # The sensitive half of the site: extern Secrets and tainted driver
-  # outputs, mounted as a second site file (path-in-args), never in a
-  # ConfigMap and never in env.
   secret.conf: |
     extern.organizationID = 0abcdef0-dev0-4000-8000-devorg000000
     extern.tenantID = 0abcdef0-dev0-4000-8000-devaccount00
@@ -60,12 +55,10 @@ spec:
         app: network-observation-collector
         solution: anomaly
       annotations:
-        checksum/config: f063757503aef1f20643d3468cf5c5561dc47b7a4f162cec6da0804555871ac0
+        checksum/config: e24394b751bbcbc5521e092d602c377f10fcc455524786cfcb20994050fb8247
     spec:
       containers:
         - name: network-observation-collector
-          # One host image serves every instance of the solution; the
-          # deployment pipeline substitutes the token.
           image: ${ANOMALY_HOST_IMAGE}
           args:
             - /etc/solution/config/site.conf
@@ -105,19 +98,19 @@ spec:
               cpu: "150m"
               memory: "100Mi"
           volumeMounts:
-            - name: site-config
+            - name: solution-config
               mountPath: /etc/solution/config
               readOnly: true
-            - name: site-secret
+            - name: solution-secret
               mountPath: /etc/solution/secret
               readOnly: true
       volumes:
-        - name: site-config
+        - name: solution-config
           configMap:
             name: network-observation-collector-cm
             items:
               - key: site.conf
                 path: site.conf
-        - name: site-secret
+        - name: solution-secret
           secret:
             secretName: network-observation-collector-secret

@@ -6,12 +6,8 @@ metadata:
     app: detection-alerts-journal
     solution: anomaly
 data:
-  # The enable key: the pod's env selects exactly this instance out of
-  # the shared host image (tri-state enable semantics).
   detectionAlertsJournal: "true"
   health: ":3000"
-  # The site fragment this instance's bindings reach; the host reads
-  # it at startup (args[0]) and enforces the extern gate again.
   site.conf: |
     extern.kafkaCluster = localhost:9092
     extern.postgresServer = localhost:5432
@@ -27,10 +23,9 @@ metadata:
     app: detection-alerts-journal
     solution: anomaly
 type: Opaque
+# The sensitive custody: tainted values mount from here, never from a
+# ConfigMap and never through the environment.
 stringData:
-  # The sensitive half of the site: extern Secrets and tainted driver
-  # outputs, mounted as a second site file (path-in-args), never in a
-  # ConfigMap and never in env.
   secret.conf: |
     driver.alertsDB.password = dev-alerts-pass
     driver.alertsDB.username = postgres
@@ -56,12 +51,10 @@ spec:
         app: detection-alerts-journal
         solution: anomaly
       annotations:
-        checksum/config: e4cf87febd9c46075eeea649d6e73da50c945c6c8d168a85d3775d0a724846f1
+        checksum/config: 2760a249c10e909f9769ed62b26cababcd61ad318557637daffc13a6ac950222
     spec:
       containers:
         - name: detection-alerts-journal
-          # One host image serves every instance of the solution; the
-          # deployment pipeline substitutes the token.
           image: ${ANOMALY_HOST_IMAGE}
           args:
             - /etc/solution/config/site.conf
@@ -101,19 +94,19 @@ spec:
               cpu: "300m"
               memory: "250Mi"
           volumeMounts:
-            - name: site-config
+            - name: solution-config
               mountPath: /etc/solution/config
               readOnly: true
-            - name: site-secret
+            - name: solution-secret
               mountPath: /etc/solution/secret
               readOnly: true
       volumes:
-        - name: site-config
+        - name: solution-config
           configMap:
             name: detection-alerts-journal-cm
             items:
               - key: site.conf
                 path: site.conf
-        - name: site-secret
+        - name: solution-secret
           secret:
             secretName: detection-alerts-journal-secret

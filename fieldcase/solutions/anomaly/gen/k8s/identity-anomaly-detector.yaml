@@ -6,12 +6,8 @@ metadata:
     app: identity-anomaly-detector
     solution: anomaly
 data:
-  # The enable key: the pod's env selects exactly this instance out of
-  # the shared host image (tri-state enable semantics).
-  identityAnomalyDetector: "true"
   health: ":3000"
-  # The site fragment this instance's bindings reach; the host reads
-  # it at startup (args[0]) and enforces the extern gate again.
+  identityAnomalyDetector: "true"
   site.conf: |
     extern.kafkaCluster = localhost:9092
     extern.redisServer = localhost:6379
@@ -27,10 +23,9 @@ metadata:
     app: identity-anomaly-detector
     solution: anomaly
 type: Opaque
+# The sensitive custody: tainted values mount from here, never from a
+# ConfigMap and never through the environment.
 stringData:
-  # The sensitive half of the site: extern Secrets and tainted driver
-  # outputs, mounted as a second site file (path-in-args), never in a
-  # ConfigMap and never in env.
   secret.conf: |
     driver.identityState.password = dev-anomaly-pass
     driver.identityState.username = dev-anomaly
@@ -56,12 +51,10 @@ spec:
         app: identity-anomaly-detector
         solution: anomaly
       annotations:
-        checksum/config: 109b7c6f72013fdcdf8245fe59f2f9581f12764e397378f858918f02cfa115ed
+        checksum/config: ea085a24edb621d2b2b2eaef175c73078a7698ce27309e4810ceda10f90b486f
     spec:
       containers:
         - name: identity-anomaly-detector
-          # One host image serves every instance of the solution; the
-          # deployment pipeline substitutes the token.
           image: ${ANOMALY_HOST_IMAGE}
           args:
             - /etc/solution/config/site.conf
@@ -101,19 +94,19 @@ spec:
               cpu: "300m"
               memory: "250Mi"
           volumeMounts:
-            - name: site-config
+            - name: solution-config
               mountPath: /etc/solution/config
               readOnly: true
-            - name: site-secret
+            - name: solution-secret
               mountPath: /etc/solution/secret
               readOnly: true
       volumes:
-        - name: site-config
+        - name: solution-config
           configMap:
             name: identity-anomaly-detector-cm
             items:
               - key: site.conf
                 path: site.conf
-        - name: site-secret
+        - name: solution-secret
           secret:
             secretName: identity-anomaly-detector-secret

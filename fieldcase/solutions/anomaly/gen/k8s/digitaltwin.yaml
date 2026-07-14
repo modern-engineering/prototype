@@ -6,12 +6,8 @@ metadata:
     app: digitaltwin
     solution: anomaly
 data:
-  # The enable key: the pod's env selects exactly this instance out of
-  # the shared host image (tri-state enable semantics).
   digitaltwin: "true"
   health: ":3000"
-  # The site fragment this instance's bindings reach; the host reads
-  # it at startup (args[0]) and enforces the extern gate again.
   site.conf: |
     extern.kafkaCluster = localhost:9092
     driver.kafka.brokers = localhost:9092
@@ -37,12 +33,10 @@ spec:
         app: digitaltwin
         solution: anomaly
       annotations:
-        checksum/config: 0017829d1da7ef74e27ef669a9b98d44f0f7fc029bb6b6edb303ec790b280136
+        checksum/config: 2c255d82cf41ee0dc284a94ed7ea2a6b6a84c39c265029d5fadc5cee85e75361
     spec:
       containers:
         - name: digitaltwin
-          # One host image serves every instance of the solution; the
-          # deployment pipeline substitutes the token.
           image: ${ANOMALY_HOST_IMAGE}
           args:
             - /etc/solution/config/site.conf
@@ -81,11 +75,11 @@ spec:
               cpu: "1"
               memory: "250Mi"
           volumeMounts:
-            - name: site-config
+            - name: solution-config
               mountPath: /etc/solution/config
               readOnly: true
       volumes:
-        - name: site-config
+        - name: solution-config
           configMap:
             name: digitaltwin-cm
             items:

@@ -6,12 +6,8 @@ metadata:
     app: observation-translator
     solution: anomaly
 data:
-  # The enable key: the pod's env selects exactly this instance out of
-  # the shared host image (tri-state enable semantics).
-  observationTranslator: "true"
   health: ":3000"
-  # The site fragment this instance's bindings reach; the host reads
-  # it at startup (args[0]) and enforces the extern gate again.
+  observationTranslator: "true"
   site.conf: |
     extern.kafkaCluster = localhost:9092
     driver.kafka.brokers = localhost:9092
@@ -37,12 +33,10 @@ spec:
         app: observation-translator
         solution: anomaly
       annotations:
-        checksum/config: bbdd626be635afb92fa0056791402ac3eac626a1519af8a6941176cfe681f604
+        checksum/config: ad6484a0ff247d603f631200a8d299f6676a03f76922e8563f17e5d3336a7e62
     spec:
       containers:
         - name: observation-translator
-          # One host image serves every instance of the solution; the
-          # deployment pipeline substitutes the token.
           image: ${ANOMALY_HOST_IMAGE}
           args:
             - /etc/solution/config/site.conf
@@ -81,11 +75,11 @@ spec:
               cpu: "300m"
               memory: "100Mi"
           volumeMounts:
-            - name: site-config
+            - name: solution-config
               mountPath: /etc/solution/config
               readOnly: true
       volumes:
-        - name: site-config
+        - name: solution-config
           configMap:
             name: observation-translator-cm
             items:

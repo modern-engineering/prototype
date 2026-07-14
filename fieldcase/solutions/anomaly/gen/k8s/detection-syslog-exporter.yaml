@@ -6,12 +6,8 @@ metadata:
     app: detection-syslog-exporter
     solution: anomaly
 data:
-  # The enable key: the pod's env selects exactly this instance out of
-  # the shared host image (tri-state enable semantics).
   detectionSyslogExporter: "true"
   health: ":3000"
-  # The site fragment this instance's bindings reach; the host reads
-  # it at startup (args[0]) and enforces the extern gate again.
   site.conf: |
     extern.kafkaCluster = localhost:9092
     extern.siemServer = 127.0.0.1:5514
@@ -38,12 +34,10 @@ spec:
         app: detection-syslog-exporter
         solution: anomaly
       annotations:
-        checksum/config: ca1982cdb4c39673b37c0db04d8a5cf8f4daba734d950abc8963af4e1deab210
+        checksum/config: de401c40f096e66cabdfadfd85e066c7b28e1824490ad7ee9293702d289d5d3f
     spec:
       containers:
         - name: detection-syslog-exporter
-          # One host image serves every instance of the solution; the
-          # deployment pipeline substitutes the token.
           image: ${ANOMALY_HOST_IMAGE}
           args:
             - /etc/solution/config/site.conf
@@ -82,11 +76,11 @@ spec:
               cpu: "300m"
               memory: "250Mi"
           volumeMounts:
-            - name: site-config
+            - name: solution-config
               mountPath: /etc/solution/config
               readOnly: true
       volumes:
-        - name: site-config
+        - name: solution-config
           configMap:
             name: detection-syslog-exporter-cm
             items:

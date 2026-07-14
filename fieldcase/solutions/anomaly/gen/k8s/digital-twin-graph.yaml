@@ -6,12 +6,8 @@ metadata:
     app: digital-twin-graph
     solution: anomaly
 data:
-  # The enable key: the pod's env selects exactly this instance out of
-  # the shared host image (tri-state enable semantics).
   digitalTwinGraph: "true"
   health: ":3000"
-  # The site fragment this instance's bindings reach; the host reads
-  # it at startup (args[0]) and enforces the extern gate again.
   site.conf: |
     extern.kafkaCluster = localhost:9092
     extern.neo4jServer = bolt://localhost:7687
@@ -26,10 +22,9 @@ metadata:
     app: digital-twin-graph
     solution: anomaly
 type: Opaque
+# The sensitive custody: tainted values mount from here, never from a
+# ConfigMap and never through the environment.
 stringData:
-  # The sensitive half of the site: extern Secrets and tainted driver
-  # outputs, mounted as a second site file (path-in-args), never in a
-  # ConfigMap and never in env.
   secret.conf: |
     driver.twinDB.password = dev-twin-pass
     driver.twinDB.username = neo4j
@@ -55,12 +50,10 @@ spec:
         app: digital-twin-graph
         solution: anomaly
       annotations:
-        checksum/config: f79dde22fd938c85abca837ee3446385b8c87b2997ecb01b9b4838f4147730c5
+        checksum/config: 37dbda8bcadc9fe0d0e245649bc3103cf406495e4fada718241773c90c80c280
     spec:
       containers:
         - name: digital-twin-graph
-          # One host image serves every instance of the solution; the
-          # deployment pipeline substitutes the token.
           image: ${ANOMALY_HOST_IMAGE}
           args:
             - /etc/solution/config/site.conf
@@ -100,19 +93,19 @@ spec:
               cpu: "1"
               memory: "250Mi"
           volumeMounts:
-            - name: site-config
+            - name: solution-config
               mountPath: /etc/solution/config
               readOnly: true
-            - name: site-secret
+            - name: solution-secret
               mountPath: /etc/solution/secret
               readOnly: true
       volumes:
-        - name: site-config
+        - name: solution-config
           configMap:
             name: digital-twin-graph-cm
             items:
               - key: site.conf
                 path: site.conf
-        - name: site-secret
+        - name: solution-secret
           secret:
             secretName: digital-twin-graph-secret
