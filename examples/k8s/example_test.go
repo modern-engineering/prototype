@@ -30,6 +30,8 @@ func Example() {
 	}
 	// Output:
 	// k8s.pod
+	//   cpu = "" (cpu request and limit (requests==limits))
+	//   memory = "" (memory request and limit (requests==limits))
 	//   priorityClass = "" (scheduling priority class)
 	//   replicas = "1" (desired pod replicas)
 	// k8s.workload

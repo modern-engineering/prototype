@@ -462,6 +462,8 @@ func TestBuildSample(t *testing.T) {
 			Doc:       "pod-level scheduling conventions",
 			Qualifier: "k8s.pod",
 			Params: []image.ParamSchema{
+				{Name: "cpu", Usage: "cpu request and limit (requests==limits)"},
+				{Name: "memory", Usage: "memory request and limit (requests==limits)"},
 				{Name: "priorityClass", Usage: "scheduling priority class"},
 				{Name: "replicas", Usage: "desired pod replicas", Default: "1"},
 			},

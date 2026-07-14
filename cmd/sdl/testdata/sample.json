@@ -73,6 +73,14 @@
           "qualifier": "k8s.pod",
           "params": [
             {
+              "name": "cpu",
+              "usage": "cpu request and limit (requests==limits)"
+            },
+            {
+              "name": "memory",
+              "usage": "memory request and limit (requests==limits)"
+            },
+            {
               "name": "priorityClass",
               "usage": "scheduling priority class"
             },

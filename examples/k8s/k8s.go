@@ -25,17 +25,22 @@ import (
 )
 
 // Pod carries the pod-level scheduling conventions a deployment
-// controller reads off a deploy record. Its two keys deliberately
-// span the value discipline: replicas is an int with a default the
-// image pins, priorityClass a string whose values are usually written
-// as bare profile tokens — which pass the dry surface unvalidated, a
-// token's meaning being the controller's business.
+// controller reads off a deploy record. Its keys deliberately span
+// the value discipline: replicas is an int with a default the image
+// pins, priorityClass a string whose values are usually written as
+// bare profile tokens — which pass the dry surface unvalidated, a
+// token's meaning being the controller's business — and the cpu and
+// memory pair carries quantities in the reading ecosystem's own
+// grammar, opaque strings to the dry surface. Controllers that honor
+// the pair emit requests==limits from it, both keys or neither.
 var Pod = &solution.SchemeType{
 	Doc:       "pod-level scheduling conventions",
 	Qualifier: "k8s.pod",
 	Params: func(fs *flag.FlagSet) {
 		fs.Int("replicas", 1, "desired pod replicas")
 		fs.String("priorityClass", "", "scheduling priority class")
+		fs.String("cpu", "", "cpu request and limit (requests==limits)")
+		fs.String("memory", "", "memory request and limit (requests==limits)")
 	},
 }
 
