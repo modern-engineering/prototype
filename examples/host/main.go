@@ -13,10 +13,13 @@
 // build` discovers for the example solutions, so an image built there
 // enacts here.
 //
-//	host -image <file> [-extern name=value]... [-grace duration]
+//	host -image <file> [-extern name=value]... [-externs file]... [-grace duration]
 //
-// Exit codes follow host.Main's contract: 0 clean, 1 wet failure,
-// 2 configuration fault.
+// -externs reads bindings from a file of name=value lines
+// (host.ParseExterns) — the same namespace the -extern flag feeds, so
+// an environment may mount values where an operator would type them;
+// a name bound by two files is refused. Exit codes follow host.Main's
+// contract: 0 clean, 1 wet failure, 2 configuration fault.
 package main
 
 import (
@@ -62,6 +65,24 @@ func main() {
 			return fmt.Errorf("%q is not name=value", arg)
 		}
 		externs[name] = value
+		return nil
+	})
+	flag.Func("externs", "read extern bindings from `file` (name=value lines, repeatable)", func(path string) error {
+		f, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		bound, err := host.ParseExterns(f)
+		if err != nil {
+			return fmt.Errorf("%s: %v", path, err)
+		}
+		for name, value := range bound {
+			if _, dup := externs[name]; dup {
+				return fmt.Errorf("%s: extern %s already bound", path, name)
+			}
+			externs[name] = value
+		}
 		return nil
 	})
 	flag.Parse() // flag.ExitOnError: bad arguments exit 2 here

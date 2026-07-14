@@ -40,9 +40,11 @@
 // an embedded solution, compiling it in memory and delegating to
 // Main.
 //
-// Doors, recorded here where they would reopen: a site-file extern
-// source beside the in-memory map (the fieldcase host's site loader is
-// the precedent); running PROVISION and DEPLOY in different binaries
+// Doors, recorded here where they would reopen: a recorded
+// site-binding document with classes beyond externs ([ParseExterns]
+// reads the -extern argument list in file form, deliberately not a
+// site format; D-13 keeps the document itself open); running
+// PROVISION and DEPLOY in different binaries
 // (each phase re-Loads the image against its own catalogue — plans
 // never cross processes); one host process serving several solutions;
 // extern values supplied but not declared are ignored today, and
