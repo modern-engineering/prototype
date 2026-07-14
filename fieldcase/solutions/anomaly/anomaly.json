@@ -6,7 +6,7 @@
     "units": [
       {
         "name": "detection.sdl",
-        "sha256": "00717679acfd3a0afa113e1a46df4616fbfc00a1e2cf82cbcd1504eeae959a6b"
+        "sha256": "fe013f788dcb572c38aa40f22311665f7e2c673ad80a105c26b69ec5a5202c71"
       },
       {
         "name": "substrate.sdl",
@@ -14,11 +14,54 @@
       },
       {
         "name": "visibility.sdl",
-        "sha256": "c8ea09c4569a0f14634e28b5a04cbea00d9cf0e7a1290557bb26ca3cb1bf0863"
+        "sha256": "0f4e8a7960c1dff63b445563c15449520adbba5a72ca34ecff93589f5e2f0daf"
       }
     ]
   },
   "catalogue": [
+    {
+      "path": "github.com/modern-engineering/prototype/examples/k8s",
+      "name": "k8s",
+      "elements": [
+        {
+          "name": "Pod",
+          "kind": "scheme",
+          "doc": "pod-level scheduling conventions",
+          "qualifier": "k8s.pod",
+          "params": [
+            {
+              "name": "cpu",
+              "usage": "cpu request and limit (requests==limits)"
+            },
+            {
+              "name": "memory",
+              "usage": "memory request and limit (requests==limits)"
+            },
+            {
+              "name": "priorityClass",
+              "usage": "scheduling priority class"
+            },
+            {
+              "name": "replicas",
+              "usage": "desired pod replicas",
+              "default": "1"
+            }
+          ]
+        },
+        {
+          "name": "Workload",
+          "kind": "scheme",
+          "doc": "workload grouping conventions",
+          "qualifier": "k8s.workload",
+          "params": [
+            {
+              "name": "partOf",
+              "usage": "umbrella workload this instance joins"
+            }
+          ]
+        }
+      ]
+    },
     {
       "path": "github.com/modern-engineering/prototype/fieldcase/catalog/controller",
       "name": "controller",

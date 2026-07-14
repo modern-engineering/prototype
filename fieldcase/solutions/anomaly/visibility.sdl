@@ -3,6 +3,10 @@
 solution anomaly
 
 import (
+	// No element references — importing the scheme package pins it in
+	// the compile catalogue, flipping this unit's with k8s.pod stanzas
+	// from opaque ride-alongs to compile-checked blocks.
+	"github.com/modern-engineering/prototype/examples/k8s"
 	"github.com/modern-engineering/prototype/fieldcase/catalog/controller"
 	"github.com/modern-engineering/prototype/fieldcase/catalog/digitaltwin"
 	"github.com/modern-engineering/prototype/fieldcase/catalog/translator"
