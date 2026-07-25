@@ -1,0 +1,37 @@
+== limiter-write-tests/with_skill_looped_fable__r3 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+limiter.go
+limiter_test.go
+--- go vet ---
+--- go test (single) ---
+panic: non-positive interval for NewTicker
+
+goroutine 48 [running, synctest bubble 3]:
+time.NewTicker(0x1005f8080?)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/time/tick.go:38 +0xbc
+example.invalid/limiter.(*Limiter).refill(0x2ad7c8ab0320, 0x100798640?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_looped_fable__r3/outputs/limiter.go:54 +0x30
+created by example.invalid/limiter.New in goroutine 47
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_looped_fable__r3/outputs/limiter.go:47 +0x114
+FAIL	example.invalid/limiter	0.348s
+FAIL
+--- go test -count=30 ---
+time.NewTicker(0x100e08080?)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/time/tick.go:38 +0xbc
+example.invalid/limiter.(*Limiter).refill(0x13c5040200e0, 0x100fa8640?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_looped_fable__r3/outputs/limiter.go:54 +0x30
+created by example.invalid/limiter.New in goroutine 24
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_looped_fable__r3/outputs/limiter.go:47 +0x114
+FAIL	example.invalid/limiter	0.238s
+FAIL
+--- go test -race -count=5 ---
+time.NewTicker(0x0)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/time/tick.go:38 +0xf4
+example.invalid/limiter.(*Limiter).refill(0xc00018a060, 0x0)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_looped_fable__r3/outputs/limiter.go:54 +0x34
+created by example.invalid/limiter.New in goroutine 5
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_looped_fable__r3/outputs/limiter.go:47 +0x1d0
+FAIL	example.invalid/limiter	0.359s
+FAIL

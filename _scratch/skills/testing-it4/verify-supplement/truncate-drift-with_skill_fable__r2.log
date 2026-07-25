@@ -1,0 +1,31 @@
+== truncate-drift/with_skill_fable__r2 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+truncate.go
+truncate_test.go
+--- go vet ---
+--- go test (single) ---
+--- FAIL: TestNegativeCountMeansEmpty (0.00s)
+    truncate_test.go:61: Head("héllo", -1) panicked: runtime error: slice bounds out of range [:-1], want "" per the doc comment
+FAIL
+FAIL	example.invalid/truncate	0.343s
+FAIL
+--- go test -count=30 ---
+    truncate_test.go:61: Head("héllo", -1) panicked: runtime error: slice bounds out of range [:-1], want "" per the doc comment
+--- FAIL: TestNegativeCountMeansEmpty (0.00s)
+    truncate_test.go:61: Head("héllo", -1) panicked: runtime error: slice bounds out of range [:-1], want "" per the doc comment
+--- FAIL: TestNegativeCountMeansEmpty (0.00s)
+    truncate_test.go:61: Head("héllo", -1) panicked: runtime error: slice bounds out of range [:-1], want "" per the doc comment
+FAIL
+FAIL	example.invalid/truncate	0.230s
+FAIL
+--- go test -race -count=5 ---
+    truncate_test.go:61: Head("héllo", -1) panicked: runtime error: slice bounds out of range [:-1], want "" per the doc comment
+--- FAIL: TestNegativeCountMeansEmpty (0.00s)
+    truncate_test.go:61: Head("héllo", -1) panicked: runtime error: slice bounds out of range [:-1], want "" per the doc comment
+--- FAIL: TestNegativeCountMeansEmpty (0.00s)
+    truncate_test.go:61: Head("héllo", -1) panicked: runtime error: slice bounds out of range [:-1], want "" per the doc comment
+FAIL
+FAIL	example.invalid/truncate	0.364s
+FAIL

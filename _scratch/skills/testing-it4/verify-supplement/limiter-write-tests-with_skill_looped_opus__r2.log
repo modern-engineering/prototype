@@ -1,0 +1,13 @@
+== limiter-write-tests/with_skill_looped_opus__r2 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+limiter.go
+limiter_test.go
+--- go vet ---
+--- go test (single) ---
+ok  	example.invalid/limiter	0.849s
+--- go test -count=30 ---
+ok  	example.invalid/limiter	0.742s
+--- go test -race -count=5 ---
+ok  	example.invalid/limiter	1.871s

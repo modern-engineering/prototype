@@ -1,0 +1,31 @@
+== truncate-drift/with_skill_opus__r2 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+truncate.go
+truncate_test.go
+--- go vet ---
+--- go test (single) ---
+--- FAIL: TestNegativeCountYieldsEmptyString (0.00s)
+    truncate_test.go:84: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:-1]), want ""
+FAIL
+FAIL	example.invalid/truncate	0.347s
+FAIL
+--- go test -count=30 ---
+    truncate_test.go:84: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:-1]), want ""
+--- FAIL: TestNegativeCountYieldsEmptyString (0.00s)
+    truncate_test.go:84: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:-1]), want ""
+--- FAIL: TestNegativeCountYieldsEmptyString (0.00s)
+    truncate_test.go:84: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:-1]), want ""
+FAIL
+FAIL	example.invalid/truncate	0.234s
+FAIL
+--- go test -race -count=5 ---
+    truncate_test.go:84: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:-1]), want ""
+--- FAIL: TestNegativeCountYieldsEmptyString (0.00s)
+    truncate_test.go:84: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:-1]), want ""
+--- FAIL: TestNegativeCountYieldsEmptyString (0.00s)
+    truncate_test.go:84: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:-1]), want ""
+FAIL
+FAIL	example.invalid/truncate	0.351s
+FAIL

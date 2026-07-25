@@ -1,0 +1,31 @@
+== truncate-drift/with_skill_sonnet__r2 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+truncate.go
+truncate_test.go
+--- go vet ---
+--- go test (single) ---
+--- FAIL: TestNegativeNIsZero (0.00s)
+    truncate_test.go:58: Head("hello", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want "" per doc
+FAIL
+FAIL	example.invalid/truncate	0.346s
+FAIL
+--- go test -count=30 ---
+    truncate_test.go:58: Head("hello", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want "" per doc
+--- FAIL: TestNegativeNIsZero (0.00s)
+    truncate_test.go:58: Head("hello", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want "" per doc
+--- FAIL: TestNegativeNIsZero (0.00s)
+    truncate_test.go:58: Head("hello", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want "" per doc
+FAIL
+FAIL	example.invalid/truncate	0.233s
+FAIL
+--- go test -race -count=5 ---
+    truncate_test.go:58: Head("hello", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want "" per doc
+--- FAIL: TestNegativeNIsZero (0.00s)
+    truncate_test.go:58: Head("hello", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want "" per doc
+--- FAIL: TestNegativeNIsZero (0.00s)
+    truncate_test.go:58: Head("hello", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want "" per doc
+FAIL
+FAIL	example.invalid/truncate	0.380s
+FAIL

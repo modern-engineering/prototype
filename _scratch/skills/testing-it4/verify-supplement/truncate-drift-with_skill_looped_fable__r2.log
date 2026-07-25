@@ -1,0 +1,31 @@
+== truncate-drift/with_skill_looped_fable__r2 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+truncate.go
+truncate_test.go
+--- go vet ---
+--- go test (single) ---
+--- FAIL: TestTruncate (0.00s)
+    truncate_test.go:71: Head("héllo", -1) = panic(runtime error: slice bounds out of range [:-1]), want ""
+FAIL
+FAIL	example.invalid/truncate	0.345s
+FAIL
+--- go test -count=30 ---
+    truncate_test.go:71: Head("héllo", -1) = panic(runtime error: slice bounds out of range [:-1]), want ""
+--- FAIL: TestTruncate (0.00s)
+    truncate_test.go:71: Head("héllo", -1) = panic(runtime error: slice bounds out of range [:-1]), want ""
+--- FAIL: TestTruncate (0.00s)
+    truncate_test.go:71: Head("héllo", -1) = panic(runtime error: slice bounds out of range [:-1]), want ""
+FAIL
+FAIL	example.invalid/truncate	0.232s
+FAIL
+--- go test -race -count=5 ---
+    truncate_test.go:71: Head("héllo", -1) = panic(runtime error: slice bounds out of range [:-1]), want ""
+--- FAIL: TestTruncate (0.00s)
+    truncate_test.go:71: Head("héllo", -1) = panic(runtime error: slice bounds out of range [:-1]), want ""
+--- FAIL: TestTruncate (0.00s)
+    truncate_test.go:71: Head("héllo", -1) = panic(runtime error: slice bounds out of range [:-1]), want ""
+FAIL
+FAIL	example.invalid/truncate	0.366s
+FAIL

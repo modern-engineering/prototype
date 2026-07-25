@@ -1,0 +1,1 @@
+`go-digitaltwins/` held a 772K clone of the external repo <https://github.com/go-digitaltwin/go-digitaltwin.git> at `main` (7aba933), pruned as external; restore with `git clone https://github.com/go-digitaltwin/go-digitaltwin.git go-digitaltwins`.

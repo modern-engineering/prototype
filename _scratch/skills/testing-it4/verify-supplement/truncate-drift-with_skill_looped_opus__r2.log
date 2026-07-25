@@ -1,0 +1,31 @@
+== truncate-drift/with_skill_looped_opus__r2 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+truncate.go
+truncate_test.go
+--- go vet ---
+--- go test (single) ---
+--- FAIL: TestHeadAndTailCountRunes (0.00s)
+    truncate_test.go:89: Head("café", -5) panicked (runtime error: slice bounds out of range [:-5]), want ""
+FAIL
+FAIL	example.invalid/truncate	0.346s
+FAIL
+--- go test -count=30 ---
+    truncate_test.go:89: Head("café", -5) panicked (runtime error: slice bounds out of range [:-5]), want ""
+--- FAIL: TestHeadAndTailCountRunes (0.00s)
+    truncate_test.go:89: Head("café", -5) panicked (runtime error: slice bounds out of range [:-5]), want ""
+--- FAIL: TestHeadAndTailCountRunes (0.00s)
+    truncate_test.go:89: Head("café", -5) panicked (runtime error: slice bounds out of range [:-5]), want ""
+FAIL
+FAIL	example.invalid/truncate	0.242s
+FAIL
+--- go test -race -count=5 ---
+    truncate_test.go:89: Head("café", -5) panicked (runtime error: slice bounds out of range [:-5]), want ""
+--- FAIL: TestHeadAndTailCountRunes (0.00s)
+    truncate_test.go:89: Head("café", -5) panicked (runtime error: slice bounds out of range [:-5]), want ""
+--- FAIL: TestHeadAndTailCountRunes (0.00s)
+    truncate_test.go:89: Head("café", -5) panicked (runtime error: slice bounds out of range [:-5]), want ""
+FAIL
+FAIL	example.invalid/truncate	0.352s
+FAIL

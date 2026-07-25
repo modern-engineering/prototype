@@ -1,0 +1,32 @@
+== truncate-drift/with_skill_looped_opus__r1 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+truncate.go
+truncate_test.go
+--- go vet ---
+--- go test (single) ---
+--- FAIL: TestNegativeCountYieldsEmptyString (0.00s)
+    --- FAIL: TestNegativeCountYieldsEmptyString/Head (0.00s)
+        truncate_test.go:80: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want the empty string
+FAIL
+FAIL	example.invalid/truncate	0.347s
+FAIL
+--- go test -count=30 ---
+    --- FAIL: TestNegativeCountYieldsEmptyString/Head (0.00s)
+        truncate_test.go:80: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want the empty string
+--- FAIL: TestNegativeCountYieldsEmptyString (0.00s)
+    --- FAIL: TestNegativeCountYieldsEmptyString/Head (0.00s)
+        truncate_test.go:80: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want the empty string
+FAIL
+FAIL	example.invalid/truncate	0.229s
+FAIL
+--- go test -race -count=5 ---
+    --- FAIL: TestNegativeCountYieldsEmptyString/Head (0.00s)
+        truncate_test.go:80: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want the empty string
+--- FAIL: TestNegativeCountYieldsEmptyString (0.00s)
+    --- FAIL: TestNegativeCountYieldsEmptyString/Head (0.00s)
+        truncate_test.go:80: Head("héllo", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want the empty string
+FAIL
+FAIL	example.invalid/truncate	0.362s
+FAIL

@@ -1,0 +1,37 @@
+== limiter-write-tests/with_skill_fable__r2 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+limiter.go
+limiter_test.go
+--- go vet ---
+--- go test (single) ---
+panic: non-positive interval for NewTicker
+
+goroutine 32 [running]:
+time.NewTicker(0x218fddb78780?)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/time/tick.go:38 +0xbc
+example.invalid/limiter.(*Limiter).refill(0x218fddb14300, 0x0?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_fable__r2/outputs/limiter.go:54 +0x30
+created by example.invalid/limiter.New in goroutine 31
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_fable__r2/outputs/limiter.go:47 +0x114
+FAIL	example.invalid/limiter	0.546s
+FAIL
+--- go test -count=30 ---
+time.NewTicker(0x43e765d89780?)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/time/tick.go:38 +0xbc
+example.invalid/limiter.(*Limiter).refill(0x43e765ea82e0, 0x103230638?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_fable__r2/outputs/limiter.go:54 +0x30
+created by example.invalid/limiter.New in goroutine 28
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_fable__r2/outputs/limiter.go:47 +0x114
+FAIL	example.invalid/limiter	0.267s
+FAIL
+--- go test -race -count=5 ---
+time.NewTicker(0x0)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/time/tick.go:38 +0xf4
+example.invalid/limiter.(*Limiter).refill(0xc0001200a0, 0x0)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_fable__r2/outputs/limiter.go:54 +0x34
+created by example.invalid/limiter.New in goroutine 21
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_fable__r2/outputs/limiter.go:47 +0x1d0
+FAIL	example.invalid/limiter	0.481s
+FAIL

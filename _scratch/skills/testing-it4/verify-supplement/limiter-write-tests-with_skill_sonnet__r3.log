@@ -1,0 +1,39 @@
+== limiter-write-tests/with_skill_sonnet__r3 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+limiter.go
+limiter_test.go
+--- go vet ---
+--- go test (single) ---
+panic: Fail in goroutine after TestZeroBurstDeliversOnlyToWaiters has completed
+
+goroutine 30 [running, synctest bubble 2]:
+testing.(*common).Fail(0x7bb7fabea908)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:969 +0xbc
+testing.(*common).Errorf(0x7bb7fabea908, {0x10467525e?, 0x7bb7fabe41e0?}, {0x7bb7fab16798?, 0x7bb7fab961d0?, 0x7bb7fab961d0?})
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:1214 +0x60
+example.invalid/limiter_test.TestZeroBurstDeliversOnlyToWaiters.func1.1()
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_sonnet__r3/outputs/limiter_test.go:127 +0x68
+created by example.invalid/limiter_test.TestZeroBurstDeliversOnlyToWaiters.func1 in goroutine 28
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_sonnet__r3/outputs/limiter_test.go:125 +0xd8
+FAIL	example.invalid/limiter	0.354s
+FAIL
+--- go test -count=30 ---
+testing.(*common).Errorf(0x1b8cddce8908, {0x1029fd25e?, 0x1b8cddce41e0?}, {0x1b8cddc45f98?, 0x1b8cddce0160?, 0x1b8cddce0160?})
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:1214 +0x60
+example.invalid/limiter_test.TestZeroBurstDeliversOnlyToWaiters.func1.1()
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_sonnet__r3/outputs/limiter_test.go:127 +0x68
+created by example.invalid/limiter_test.TestZeroBurstDeliversOnlyToWaiters.func1 in goroutine 26
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_sonnet__r3/outputs/limiter_test.go:125 +0xd8
+FAIL	example.invalid/limiter	0.232s
+FAIL
+--- go test -race -count=5 ---
+testing.(*common).Errorf(0xc0001946c8, {0x1005ab0d2, 0x3f}, {0xc0000b1fb8, 0x1, 0x1})
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:1214 +0x88
+example.invalid/limiter_test.TestZeroBurstDeliversOnlyToWaiters.func1.1()
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_sonnet__r3/outputs/limiter_test.go:127 +0xc4
+created by example.invalid/limiter_test.TestZeroBurstDeliversOnlyToWaiters.func1 in goroutine 40
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_sonnet__r3/outputs/limiter_test.go:125 +0x164
+FAIL	example.invalid/limiter	0.365s
+FAIL

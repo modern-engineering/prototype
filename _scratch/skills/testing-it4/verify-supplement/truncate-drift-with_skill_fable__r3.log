@@ -1,0 +1,46 @@
+== truncate-drift/with_skill_fable__r3 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+truncate.go
+truncate_test.go
+--- go vet ---
+--- go test (single) ---
+--- FAIL: TestNegativeCountMeansEmptyString (0.00s)
+panic: runtime error: slice bounds out of range [:0] with capacity 32 [recovered, repanicked]
+
+goroutine 5 [running]:
+testing.tRunner.func1.2({0x10448fbe0, 0x4616f28f61b0})
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:1974 +0x1a0
+testing.tRunner.func1()
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:1977 +0x318
+panic({0x10448fbe0?, 0x4616f28f61b0?})
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/runtime/panic.go:860 +0x12c
+example.invalid/truncate.Head(...)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/truncate-drift/with_skill_fable__r3/outputs/truncate.go:23
+example.invalid/truncate_test.TestNegativeCountMeansEmptyString(0x4616f2a38488?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/truncate-drift/with_skill_fable__r3/outputs/truncate_test.go:65 +0x3c
+testing.tRunner(0x4616f2a38488, 0x10449ff00)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2036 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2101 +0x3a8
+FAIL	example.invalid/truncate	0.347s
+FAIL
+--- go test -count=30 ---
+example.invalid/truncate_test.TestNegativeCountMeansEmptyString(0x59c265c5a488?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/truncate-drift/with_skill_fable__r3/outputs/truncate_test.go:65 +0x3c
+testing.tRunner(0x59c265c5a488, 0x104997f00)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2036 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2101 +0x3a8
+FAIL	example.invalid/truncate	0.233s
+FAIL
+--- go test -race -count=5 ---
+example.invalid/truncate_test.TestNegativeCountMeansEmptyString(0xc000188488?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/truncate-drift/with_skill_fable__r3/outputs/truncate_test.go:65 +0x44
+testing.tRunner(0xc000188488, 0x104fbade0)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2036 +0x168
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2101 +0x7c0
+FAIL	example.invalid/truncate	0.359s
+FAIL

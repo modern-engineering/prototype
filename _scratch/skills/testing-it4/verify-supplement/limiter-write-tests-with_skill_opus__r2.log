@@ -1,0 +1,42 @@
+== limiter-write-tests/with_skill_opus__r2 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+limiter.go
+limiter_test.go
+--- go vet ---
+--- go test (single) ---
+--- FAIL: TestNewRejectsIntervalFlooringRate (0.01s)
+    limiter_test.go:191: New(2e9, 1) crashed the process instead of rejecting the rate: exit status 2
+        a zero-flooring rate must panic in New (like rate <= 0), not on the refill goroutine
+        === RUN   TestNewRejectsIntervalFlooringRate
+        panic: non-positive interval for NewTicker
+        
+        goroutine 8 [running]:
+        time.NewTicker(0x0?)
+        	/opt/homebrew/Cellar/go/1.26.5/libexec/src/time/tick.go:38 +0xbc
+        example.invalid/limiter.(*Limiter).refill(0x29ba60a50220, 0x0?)
+        	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_opus__r2/outputs/limiter.go:54 +0x30
+        created by example.invalid/limiter.New in goroutine 7
+        	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_opus__r2/outputs/limiter.go:47 +0x114
+FAIL
+FAIL	example.invalid/limiter	0.885s
+FAIL
+--- go test -count=30 ---
+        	/opt/homebrew/Cellar/go/1.26.5/libexec/src/time/tick.go:38 +0xbc
+        example.invalid/limiter.(*Limiter).refill(0x2923f5bd6220, 0x105087208?)
+        	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_opus__r2/outputs/limiter.go:54 +0x30
+        created by example.invalid/limiter.New in goroutine 7
+        	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_opus__r2/outputs/limiter.go:47 +0x114
+FAIL
+FAIL	example.invalid/limiter	1.011s
+FAIL
+--- go test -race -count=5 ---
+        	/opt/homebrew/Cellar/go/1.26.5/libexec/src/time/tick.go:38 +0xf4
+        example.invalid/limiter.(*Limiter).refill(0xc000098220, 0x0)
+        	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_opus__r2/outputs/limiter.go:54 +0x34
+        created by example.invalid/limiter.New in goroutine 7
+        	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/limiter-write-tests/with_skill_opus__r2/outputs/limiter.go:47 +0x1d0
+FAIL
+FAIL	example.invalid/limiter	0.995s
+FAIL

@@ -1,0 +1,46 @@
+== truncate-drift/with_skill_looped_sonnet__r2 ==
+SOURCE: unchanged
+--- files ---
+go.mod
+truncate.go
+truncate_test.go
+--- go vet ---
+--- go test (single) ---
+--- FAIL: TestHeadPanicsWhereDocPromisesZero (0.00s)
+panic: runtime error: slice bounds out of range [:0] with capacity 32 [recovered, repanicked]
+
+goroutine 37 [running]:
+testing.tRunner.func1.2({0x1008b3be0, 0x2b61008a8018})
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:1974 +0x1a0
+testing.tRunner.func1()
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:1977 +0x318
+panic({0x1008b3be0?, 0x2b61008a8018?})
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/runtime/panic.go:860 +0x12c
+example.invalid/truncate.Head(...)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/truncate-drift/with_skill_looped_sonnet__r2/outputs/truncate.go:23
+example.invalid/truncate_test.TestHeadPanicsWhereDocPromisesZero(0x2b61008e86c8?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/truncate-drift/with_skill_looped_sonnet__r2/outputs/truncate_test.go:65 +0x3c
+testing.tRunner(0x2b61008e86c8, 0x1008c3f00)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2036 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2101 +0x3a8
+FAIL	example.invalid/truncate	0.367s
+FAIL
+--- go test -count=30 ---
+example.invalid/truncate_test.TestHeadPanicsWhereDocPromisesZero(0x174c894986c8?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/truncate-drift/with_skill_looped_sonnet__r2/outputs/truncate_test.go:65 +0x3c
+testing.tRunner(0x174c894986c8, 0x102e73f00)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2036 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2101 +0x3a8
+FAIL	example.invalid/truncate	0.238s
+FAIL
+--- go test -race -count=5 ---
+example.invalid/truncate_test.TestHeadPanicsWhereDocPromisesZero(0xc00013e6c8?)
+	/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/iteration-4/truncate-drift/with_skill_looped_sonnet__r2/outputs/truncate_test.go:65 +0x44
+testing.tRunner(0xc00013e6c8, 0x103222de0)
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2036 +0x168
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.26.5/libexec/src/testing/testing.go:2101 +0x7c0
+FAIL	example.invalid/truncate	0.347s
+FAIL
