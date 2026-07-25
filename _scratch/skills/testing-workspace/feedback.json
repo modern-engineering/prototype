@@ -1,0 +1,65 @@
+{
+  "reviews": [
+    {
+      "run_id": "limiter-write-tests-with_skill",
+      "feedback": "The tests generally look and feel great! The sleep inside `testing/synctest` is exactly as expected and accurate, it should be a passing grade this time.\n\nI did not run the tests myself: I would run them a hundred times to see if they are flaky, even with a trivial docker or cgroup to limit CPU/Memory, as usually the become flaky on weak github runners. If the tests indeed pass, they are great.\n\nThe tests really cover the documented promises. I would expect `TestCloseStopsWait` to be flaky because the `select` statement between `l.done`, `ctx.Done()`, and `l.tokens` is non-deterministic. However, looking at the code it indeed does a check first for `l.done` to match that contract. I wonder if you really wrote the test, then ran it, then fixed this? Because that would be impressive.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_opus",
+      "feedback": "MUCH WORSE! The previous iteration was excellent, but this one is terrible. I had no will power to continue reading. Tests like these are much clearer with hard-coded numbers, not algorithms for a test. Like, there is math in the sleeps, and in the sizes of things, which is by far more readable when that math is performed at coding time and written as results. No loops, no algos, just trivial code to read top to bottom. When the maths are delicate and unexpected, an adjacent comment does the trick.\n\nIt indeed uses `synctest`, but I think there are unnecessary `synctest.Wait` calls and concurrent goroutines that don't contribute.\n\nEven the example test doesn't really exercise `Allow` is a typical user.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_sonnet",
+      "feedback": "The names are a bit too much mechanical. Like, they don't read as proper English. The agent was correct in identifying that the name of symbols is `limiter.New` and `limiter.Wait`, but better names would be:\n- `TestLimiterNewPanics` -> `TestNewLimiterPanics` or better yet `TestInvalidNewLimiter`.\n- `TestLimiterWaitBlocksUntilRefill` -> `TestWaitBlocksUntilRefill`.\n\nLike, it still mistakenly names **the symbol** instead of the **property of the package**.\n\nAlso, there is no example. This package has typical runnable example use-cases to easily complement the package's doc and make it easy to navigate quickly.\n\nThe first `TestLimiter` is nice, as it is clearly a test function that exercises the entire package.\n\nI wonder if `TestLimiterWaitBlocksUntilRefill` really needed this complex orchestration of concurrent goroutines or could we have relied on `synctest` better, like in the first test iteration; wherein synctest just runs ready \"background\" goroutines when the main goroutine is blocked, no need for explicit `synctest.Wait`. But check me on this.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "limiter-write-tests-without_skill",
+      "feedback": "Wasn't a fun read, I skimmed it. Feels too many tests for such a concise package. Also, it feels like it **hunts for bugs**, which you could do but never commit.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "config-test-review-with_skill",
+      "feedback": "Overall looks good.\n\nFirst test `TestLoadAndLookups` can have a better name like `TestConfiguration` or `TestConfig` (after the package's name) because it exercises the common user. Though thinking about it more, this is a classic runnable example test, with comments explaining behaviours echoing the package's guarantees and quirks. `ExampleLoad` is too trivial, and doesn't benefit for `Load` per-sae. Go supports package tests, not all of them must be tied to a symbol.\n\nBenchmark is nice and well expected - good job. Written according to latest standards (using `b.Loop`, and using it correctly). That's worth a highlight in the skill I guess, like with Test Comments, to make sure the most up to date training space becomes relevant to the code generation/evaluation.\n\nThe constant sample config is nice. I wonder if embedding from `testdata/` isn't better when testing file inputs. For this simple case I'd accept the const also.\n\nFailures of `TestLoadErrors` are not testable. That is, we never want to test strings in errors, especially not errors we control in the same package. Instead, return typed errors so that users and tests may inspect it programatically. I would want to see this test identified in a review that leads back to rework on the package.\n\nError messages are formatted well though.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "config-test-review-with_skill_opus",
+      "feedback": "Benchmark is the same, good. Nothing to be creative about here.\n\nThe example is for the entire package - suits very well for this package with shallow API.\n\nWe still don't test errors with string prefixes, but I've already commented on that. If anything new to say, then I'd say that these table-driven tests wherein the name of each test-case is a description, then sub-tests don't necessarily fit. While they make the test very easy to write and read, the logs don't benefit from the sub-test-ness. Naming the inputs is sometimes enough, no need to even describe the case. If anything, you'd oftentimes see the \"name\" part completing a sentence that is logged. For example, \"Load(%q) succeeded for a config with %s\".\n\nWhile the test name `TestTypedLookupRejectsUnparsableValues` is very literal, and describes perfectly, I personally think it's too much. Not the most crtiical, nothing I'd necessarily flag, but it feels off.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "config-test-review-with_skill_sonnet",
+      "feedback": "This style is different from the previous ones, but actually works in a way. It still lacks examples, but testing each typed field is fine. I'd just test them in runnable examples instead. The code would be much simpler and the package doc site would benefit tremendously. Even better than a huge example covering the entire package.\n\nBenchmarkLoad uses older syntax, better use `b.Loop` for its avoidance of common bugs. The testing compiler recognizes the pattern specifically and disables optimizations that make benchmark code convoluted. This specific benchmark is susceptible to being optimized out and thus not measure `Load` at all.\n\nThe name `TestLoadRejectsMalformedLines` centers too much on the symbol. Instead, focusing on the package would be `TestRejectingMalformedLines/TestRejectsMalformedLines/TestMalformedLinesRejected/TestMalformedLines`.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "config-test-review-without_skill",
+      "feedback": "While the use of helpers is a good skill, it is unnecessary for this trivial test. It replaces 3 lines with 1 in each test - not such a big save. I'd allow it for a human, but for an LLM coding agent I fear it is a code smell that hides bigger misunderstandings.\n\nFunction `TestLoad` is a change detector for the `const sample`. It doesn't really contribute anything other than blunt coverage. Testing Concurrent use is meaningless because the package makes no concurrent guarantees. According to the Go team (I think maybe it's Effective Go, not sure you gotta check) all *methods* are **not safe** for concurrent use, while *functions* are.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "units-add-test-with_skill",
+      "feedback": "I don't see any output to review.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "units-add-test-with_skill_opus",
+      "feedback": "I don't see any output to review.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "units-add-test-with_skill_sonnet",
+      "feedback": "I don't see any output to review.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    },
+    {
+      "run_id": "units-add-test-without_skill",
+      "feedback": "I don't see any output to review.",
+      "timestamp": "2026-07-22T00:32:39.304Z"
+    }
+  ],
+  "status": "complete"
+}
