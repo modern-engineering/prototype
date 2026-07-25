@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in an external test package (package limiter_test), not package limiter",
+      "passed": false,
+      "evidence": "limiter_test.go:1 declares `package limiter`, not `package limiter_test`"
+    },
+    {
+      "text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code",
+      "passed": false,
+      "evidence": "grep finds no synctest import, and time.Sleep appears at limiter_test.go:79,90,92,173,232"
+    },
+    {
+      "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario",
+      "passed": true,
+      "evidence": "grep -E '^func (TestNew|TestAllow|TestWait|TestClose)\\(' matches nothing; TestConcurrentAllowWaitClose (limiter_test.go:208) composes New, Allow, Wait, and Close in one scenario"
+    },
+    {
+      "text": "No test/example doc comment opens with its own function name; comments state contract clauses",
+      "passed": true,
+      "evidence": "No doc comment starts with a Test* name; comments state contract clauses, e.g. limiter_test.go:33 'The bucket starts full...' and limiter_test.go:155 'After Close, Wait reports ErrClosed even if unused tokens remain'"
+    },
+    {
+      "text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs",
+      "passed": true,
+      "evidence": "TestWaitHonorsContextCancellation (limiter_test.go:127) checks ctx.Err() propagation, TestCloseIsIdempotent (limiter_test.go:200) checks double Close, TestWaitAfterCloseReturnsErrClosed (limiter_test.go:157) checks ErrClosed, matching the doc comments in limiter.go:80-102"
+    },
+    {
+      "text": "go test ./... passes in the module",
+      "passed": true,
+      "evidence": "`go test -count=1 ./...` output: ok example.invalid/limiter 0.531s (exit 0)"
+    }
+  ]
+}

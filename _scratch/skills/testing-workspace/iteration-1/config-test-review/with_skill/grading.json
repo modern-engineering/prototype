@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together",
+      "passed": true,
+      "evidence": "config_test.go now has only 2 Test funcs: TestLoadAndLookups (lines 28-61) exercises Load, String, Int, Duration, and Keys in one contract scenario; TestLoadErrors (lines 66-87) is table-driven"
+    },
+    {
+      "text": "The committed dev scaffold TestDebugDump is deleted, not polished",
+      "passed": true,
+      "evidence": "grep -n 'TestDebugDump' config_test.go exits 1 (no match); the fixture's TestDebugDump is gone with no polished variant"
+    },
+    {
+      "text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)",
+      "passed": false,
+      "evidence": "grep for 'time.Sleep|synctest|chan |go func|TestConcurrentUse' in config_test.go exits 1: the sleep-based TestConcurrentUse was deleted entirely, not rewritten with synctest or channel synchronization"
+    },
+    {
+      "text": "The assert-nothing BenchmarkLoad is deleted or now asserts something",
+      "passed": true,
+      "evidence": "config_test.go:103-105 BenchmarkLoad now checks Load's error and calls b.Fatal(err)"
+    },
+    {
+      "text": "The internals-reaching test states its claim through the exported surface instead",
+      "passed": true,
+      "evidence": "config_test.go:1 is 'package config_test' (external test package) and grep '.values' exits 1; Load's claim is stated via exported String/Int/Duration/Keys lookups (lines 28-61)"
+    },
+    {
+      "text": "At least one trivial case became a runnable Example",
+      "passed": true,
+      "evidence": "ExampleLoad with '// Output:' block at config_test.go:89-99; go test -count=1 -run Example -v reports '--- PASS: ExampleLoad'"
+    },
+    {
+      "text": "No test doc comment opens with its own function name after the fix",
+      "passed": true,
+      "evidence": "TestLoadAndLookups doc opens 'A loaded Config answers...' (config_test.go:24), TestLoadErrors doc opens 'Load rejects a line...' (line 63); ExampleLoad and BenchmarkLoad have no doc comments"
+    },
+    {
+      "text": "go test ./... still passes",
+      "passed": true,
+      "evidence": "go test -count=1 ./... in with_skill/outputs prints 'ok example.invalid/config 0.210s', exit 0 (go vet also clean)"
+    }
+  ]
+}

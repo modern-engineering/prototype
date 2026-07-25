@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in an external test package (package limiter_test), not package limiter",
+      "passed": true,
+      "evidence": "limiter_test.go:1 declares `package limiter_test`"
+    },
+    {
+      "text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code",
+      "passed": false,
+      "evidence": "synctest.Test is used (limiter_test.go:18,45,66,89), but grep finds time.Sleep at limiter_test.go:31 and limiter_test.go:49"
+    },
+    {
+      "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario",
+      "passed": true,
+      "evidence": "Test names are TestAllowDrainsBurstThenRefills, TestBucketCapsAtBurst, TestWaitBlocksUntilRefill, TestWaitHonorsContext, TestCloseStopsWait, TestNewPanicsOnBadArguments; TestCloseStopsWait (limiter_test.go:103-111) composes New, Close, Wait, and ErrClosed"
+    },
+    {
+      "text": "No test/example doc comment opens with its own function name; comments state contract clauses",
+      "passed": true,
+      "evidence": "Comments open with contract prose, e.g. limiter_test.go:14 'A new limiter starts with a full bucket...' and limiter_test.go:101 'Close is idempotent...'; none begins with the test function's own name"
+    },
+    {
+      "text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs",
+      "passed": true,
+      "evidence": "TestWaitHonorsContext (limiter_test.go:95) checks context.DeadlineExceeded per Wait's doc; TestCloseStopsWait calls Close twice (limiter_test.go:105-106) and checks Wait returns limiter.ErrClosed (limiter_test.go:108); panic tests match New's documented panics (limiter.go:32)"
+    },
+    {
+      "text": "go test ./... passes in the module",
+      "passed": true,
+      "evidence": "`go test -count=1 ./...` output: ok example.invalid/limiter 0.229s (all 6 tests + example PASS)"
+    }
+  ]
+}

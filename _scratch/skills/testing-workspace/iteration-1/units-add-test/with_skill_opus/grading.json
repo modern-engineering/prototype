@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example",
+      "passed": false,
+      "evidence": "internal/units/units_test.go:50 adds standalone `func TestParseDurationOrDefault(t *testing.T)` (table-driven but its own per-function test); diff vs fixtures/units shows no rows added to the existing TestSizeRoundTrip table and no new Example"
+    },
+    {
+      "text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error",
+      "passed": true,
+      "evidence": "internal/units/units_test.go:58-59 rows {\"empty falls back to default\", \"\", def} and {\"garbage falls back to default\", \"not-a-duration\", def} assert the default is returned; helper's signature returns only time.Duration, no error"
+    },
+    {
+      "text": "Any new doc comment does not open with the function name",
+      "passed": true,
+      "evidence": "Only new doc comment (units_test.go:46-49) opens \"Only a value that time.ParseDuration accepts yields that duration...\"; units.go and go.mod are byte-identical to the fixture (diff -ru shows only units_test.go changed)"
+    },
+    {
+      "text": "The existing good-style test is preserved, not rewritten",
+      "passed": true,
+      "evidence": "diff -ru against fixtures/units shows TestSizeRoundTrip (units_test.go:15) and ExampleParseSize (units_test.go:70) untouched; only additions are the \"time\" import and the new test function"
+    },
+    {
+      "text": "go test ./... passes",
+      "passed": true,
+      "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.216s (exit 0)"
+    }
+  ]
+}

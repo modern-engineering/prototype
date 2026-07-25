@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together",
+      "passed": false,
+      "evidence": "config_test.go lines 21/62/76/90/104 still define TestLoad, TestString, TestInt, TestDuration, TestKeys as separate per-symbol tests; nothing was consolidated"
+    },
+    {
+      "text": "The committed dev scaffold TestDebugDump is deleted, not polished",
+      "passed": true,
+      "evidence": "grep -n TestDebugDump config_test.go returns no matches; the function list contains only TestLoad, TestLoadRejectsMalformedLines, TestString, TestInt, TestDuration, TestKeys, BenchmarkLoad"
+    },
+    {
+      "text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)",
+      "passed": false,
+      "evidence": "grep for time.Sleep/synctest/sync./chan in config_test.go finds nothing and imports are only slices/strings/testing/time: the sleep-based concurrency test was deleted outright rather than rewritten with synctest or channel synchronization"
+    },
+    {
+      "text": "The assert-nothing BenchmarkLoad is deleted or now asserts something",
+      "passed": false,
+      "evidence": "config_test.go:116-120 keeps BenchmarkLoad looping `Load(strings.NewReader(sample))` with both return values discarded and no assertion"
+    },
+    {
+      "text": "The internals-reaching test states its claim through the exported surface instead",
+      "passed": true,
+      "evidence": "grep '\\.values' config_test.go returns no matches; TestKeys (config_test.go:104-113) states the sorted-keys claim via exported Keys() and all other tests use String/Int/Duration"
+    },
+    {
+      "text": "At least one trivial case became a runnable Example",
+      "passed": false,
+      "evidence": "grep 'func Example' across the module returns no matches; no Example functions exist"
+    },
+    {
+      "text": "No test doc comment opens with its own function name after the fix",
+      "passed": false,
+      "evidence": "All seven doc comments open with their own function name, e.g. config_test.go:18 '// TestLoad verifies...', :61 '// TestString verifies...', :115 '// BenchmarkLoad measures...'"
+    },
+    {
+      "text": "go test ./... still passes",
+      "passed": true,
+      "evidence": "`go test -count=1 ./...` in outputs/ prints 'ok example.invalid/config 0.239s' with exit code 0"
+    }
+  ]
+}

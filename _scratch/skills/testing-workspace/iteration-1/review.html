@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "testing", "runs": [{"id": "limiter-write-tests-with_skill", "prompt": "I just finished writing this little rate-limiter package for our internal gateway (token bucket, refills on a ticker goroutine, has a Wait(ctx) and an Allow() and a Close()). Can you write the tests for it before I send the PR?", "eval_id": 1, "outputs": [{"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC9saW1pdGVyCgpnbyAxLjI1Cg=="}, {"name": "limiter.go", "type": "text", "content": "// Package limiter provides a token-bucket rate limiter driven by a\n// background refill goroutine.\n//\n// A limiter created with burst 0 stores no tokens: Allow always reports\n// false, and Wait proceeds only when a refill arrives while the caller\n// is already waiting.\npackage limiter\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// ErrClosed is returned by Wait once the limiter has been closed.\nvar ErrClosed = errors.New(\"limiter: closed\")\n\n// Limiter is a token-bucket rate limiter. Tokens accumulate at a fixed\n// rate up to a maximum of burst; each permitted event consumes one\n// token.\ntype Limiter struct {\n\ttokens    chan struct{}\n\tdone      chan struct{}\n\tcloseOnce sync.Once\n}\n\n// New returns a Limiter that refills at rate tokens per second and\n// holds at most burst unused tokens. The bucket starts full. New starts\n// a background refill goroutine; callers must release it with Close.\n//\n// New panics if rate is not positive or if burst is negative.\nfunc New(rate, burst int) *Limiter {\n\tif rate <= 0 {\n\t\tpanic(\"limiter: rate must be positive\")\n\t}\n\tif burst < 0 {\n\t\tpanic(\"limiter: burst must not be negative\")\n\t}\n\tl := &Limiter{\n\t\ttokens: make(chan struct{}, burst),\n\t\tdone:   make(chan struct{}),\n\t}\n\tfor range burst {\n\t\tl.tokens <- struct{}{}\n\t}\n\tgo l.refill(time.Second / time.Duration(rate))\n\treturn l\n}\n\n// refill adds one token per interval until the limiter is closed.\n// Tokens beyond the bucket's capacity are dropped.\nfunc (l *Limiter) refill(interval time.Duration) {\n\tticker := time.NewTicker(interval)\n\tdefer ticker.Stop()\n\tfor {\n\t\tselect {\n\t\tcase <-l.done:\n\t\t\treturn\n\t\tcase <-ticker.C:\n\t\t\tselect {\n\t\t\tcase l.tokens <- struct{}{}:\n\t\t\tdefault:\n\t\t\t}\n\t\t}\n\t}\n}\n\n// Allow reports whether a token is available right now, consuming one\n// if so. It never blocks.\nfunc (l *Limiter) Allow() bool {\n\tselect {\n\tcase <-l.tokens:\n\t\treturn true\n\tdefault:\n\t\treturn false\n\t}\n}\n\n// Wait blocks until a token is available, consumes it, and returns nil.\n// If ctx is done first, Wait returns ctx.Err(). Once Close has\n// returned, every subsequent Wait call returns ErrClosed.\nfunc (l *Limiter) Wait(ctx context.Context) error {\n\tselect {\n\tcase <-l.done:\n\t\treturn ErrClosed\n\tdefault:\n\t}\n\tselect {\n\tcase <-l.tokens:\n\t\treturn nil\n\tcase <-ctx.Done():\n\t\treturn ctx.Err()\n\tcase <-l.done:\n\t\treturn ErrClosed\n\t}\n}\n\n// Close stops the refill goroutine. Close is idempotent: calling it\n// more than once is safe, and every call after the first does nothing.\nfunc (l *Limiter) Close() {\n\tl.closeOnce.Do(func() { close(l.done) })\n}\n"}, {"name": "limiter_test.go", "type": "text", "content": "package limiter_test\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"fmt\"\n\t\"testing\"\n\t\"testing/synctest\"\n\t\"time\"\n\n\t\"example.invalid/limiter\"\n)\n\n// A new limiter starts with a full bucket: Allow hands out one token\n// per call without blocking until the bucket is empty, and one token\n// refills per interval at the configured rate.\nfunc TestAllowDrainsBurstThenRefills(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tl := limiter.New(1, 2)\n\t\tdefer l.Close()\n\n\t\tfor i := range 2 {\n\t\t\tif !l.Allow() {\n\t\t\t\tt.Fatalf(\"Allow() = false for token %d of a full burst-2 bucket, want true\", i+1)\n\t\t\t}\n\t\t}\n\t\tif l.Allow() {\n\t\t\tt.Fatal(\"Allow() = true on an empty bucket, want false\")\n\t\t}\n\n\t\ttime.Sleep(time.Second) // one refill interval at rate 1\n\t\tsynctest.Wait()\n\t\tif !l.Allow() {\n\t\t\tt.Fatal(\"Allow() = false one refill interval after draining, want true\")\n\t\t}\n\t\tif l.Allow() {\n\t\t\tt.Fatal(\"Allow() = true before the next refill, want false\")\n\t\t}\n\t})\n}\n\n// The bucket holds at most burst unused tokens; refills beyond that\n// capacity are dropped, so an idle limiter never exceeds its burst.\nfunc TestBucketCapsAtBurst(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tl := limiter.New(100, 2)\n\t\tdefer l.Close()\n\n\t\ttime.Sleep(time.Second) // 100 refill intervals pass unused\n\t\tsynctest.Wait()\n\t\tfor i := range 2 {\n\t\t\tif !l.Allow() {\n\t\t\t\tt.Fatalf(\"Allow() = false for token %d of a burst-2 bucket, want true\", i+1)\n\t\t\t}\n\t\t}\n\t\tif l.Allow() {\n\t\t\tt.Fatal(\"Allow() = true for a third token from a burst-2 bucket, want false\")\n\t\t}\n\t})\n}\n\n// With burst 0 the limiter stores no tokens: Allow always reports\n// false, and Wait proceeds only when a refill arrives while the caller\n// is already blocked, one interval after New.\nfunc TestWaitBlocksUntilRefill(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tl := limiter.New(1, 0)\n\t\tdefer l.Close()\n\n\t\tif l.Allow() {\n\t\t\tt.Fatal(\"Allow() = true with burst 0, want false\")\n\t\t}\n\n\t\tctx, cancel := context.WithCancel(context.Background())\n\t\tdefer cancel()\n\t\tstart := time.Now()\n\t\tif err := l.Wait(ctx); err != nil {\n\t\t\tt.Fatalf(\"Wait() = %v, want nil\", err)\n\t\t}\n\t\tif d := time.Since(start); d != time.Second {\n\t\t\tt.Fatalf(\"Wait returned after %v, want one refill interval (1s)\", d)\n\t\t}\n\t})\n}\n\n// When the context is done before a token becomes available, Wait\n// returns the context's error.\nfunc TestWaitHonorsContext(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tl := limiter.New(1, 0)\n\t\tdefer l.Close()\n\n\t\tctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)\n\t\tdefer cancel()\n\t\tif err := l.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {\n\t\t\tt.Fatalf(\"Wait() = %v, want %v\", err, context.DeadlineExceeded)\n\t\t}\n\t})\n}\n\n// Close is idempotent, and once it has returned every Wait call\n// reports ErrClosed even while tokens remain in the bucket.\nfunc TestCloseStopsWait(t *testing.T) {\n\tl := limiter.New(1, 1) // starts full, so one token remains after Close\n\tl.Close()\n\tl.Close() // second call must be a no-op\n\n\tif err := l.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {\n\t\tt.Fatalf(\"Wait() after Close = %v, want %v\", err, limiter.ErrClosed)\n\t}\n}\n\n// New rejects a non-positive rate and a negative burst by panicking.\nfunc TestNewPanicsOnBadArguments(t *testing.T) {\n\tfor _, tt := range []struct {\n\t\tname        string\n\t\trate, burst int\n\t}{\n\t\t{\"zero rate\", 0, 1},\n\t\t{\"negative rate\", -1, 1},\n\t\t{\"negative burst\", 1, -1},\n\t} {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\tdefer func() {\n\t\t\t\tif recover() == nil {\n\t\t\t\t\tt.Errorf(\"New(%d, %d) did not panic\", tt.rate, tt.burst)\n\t\t\t\t}\n\t\t\t}()\n\t\t\tlimiter.New(tt.rate, tt.burst)\n\t\t})\n\t}\n}\n\nfunc ExampleLimiter_Allow() {\n\tl := limiter.New(1, 2) // 1 token per second, burst of 2; the bucket starts full\n\tdefer l.Close()\n\n\tfmt.Println(l.Allow())\n\tfmt.Println(l.Allow())\n\tfmt.Println(l.Allow())\n\t// Output:\n\t// true\n\t// true\n\t// false\n}\n"}], "grading": {"expectations": [{"text": "Tests live in an external test package (package limiter_test), not package limiter", "passed": true, "evidence": "limiter_test.go:1 declares `package limiter_test`"}, {"text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code", "passed": false, "evidence": "synctest.Test is used (limiter_test.go:18,45,66,89), but grep finds time.Sleep at limiter_test.go:31 and limiter_test.go:49"}, {"text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario", "passed": true, "evidence": "Test names are TestAllowDrainsBurstThenRefills, TestBucketCapsAtBurst, TestWaitBlocksUntilRefill, TestWaitHonorsContext, TestCloseStopsWait, TestNewPanicsOnBadArguments; TestCloseStopsWait (limiter_test.go:103-111) composes New, Close, Wait, and ErrClosed"}, {"text": "No test/example doc comment opens with its own function name; comments state contract clauses", "passed": true, "evidence": "Comments open with contract prose, e.g. limiter_test.go:14 'A new limiter starts with a full bucket...' and limiter_test.go:101 'Close is idempotent...'; none begins with the test function's own name"}, {"text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs", "passed": true, "evidence": "TestWaitHonorsContext (limiter_test.go:95) checks context.DeadlineExceeded per Wait's doc; TestCloseStopsWait calls Close twice (limiter_test.go:105-106) and checks Wait returns limiter.ErrClosed (limiter_test.go:108); panic tests match New's documented panics (limiter.go:32)"}, {"text": "go test ./... passes in the module", "passed": true, "evidence": "`go test -count=1 ./...` output: ok example.invalid/limiter 0.229s (all 6 tests + example PASS)"}]}}, {"id": "limiter-write-tests-with_skill_opus", "prompt": "I just finished writing this little rate-limiter package for our internal gateway (token bucket, refills on a ticker goroutine, has a Wait(ctx) and an Allow() and a Close()). Can you write the tests for it before I send the PR?", "eval_id": 1, "outputs": [{"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC9saW1pdGVyCgpnbyAxLjI1Cg=="}, {"name": "limiter.go", "type": "text", "content": "// Package limiter provides a token-bucket rate limiter driven by a\n// background refill goroutine.\n//\n// A limiter created with burst 0 stores no tokens: Allow always reports\n// false, and Wait proceeds only when a refill arrives while the caller\n// is already waiting.\npackage limiter\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// ErrClosed is returned by Wait once the limiter has been closed.\nvar ErrClosed = errors.New(\"limiter: closed\")\n\n// Limiter is a token-bucket rate limiter. Tokens accumulate at a fixed\n// rate up to a maximum of burst; each permitted event consumes one\n// token.\ntype Limiter struct {\n\ttokens    chan struct{}\n\tdone      chan struct{}\n\tcloseOnce sync.Once\n}\n\n// New returns a Limiter that refills at rate tokens per second and\n// holds at most burst unused tokens. The bucket starts full. New starts\n// a background refill goroutine; callers must release it with Close.\n//\n// New panics if rate is not positive or if burst is negative.\nfunc New(rate, burst int) *Limiter {\n\tif rate <= 0 {\n\t\tpanic(\"limiter: rate must be positive\")\n\t}\n\tif burst < 0 {\n\t\tpanic(\"limiter: burst must not be negative\")\n\t}\n\tl := &Limiter{\n\t\ttokens: make(chan struct{}, burst),\n\t\tdone:   make(chan struct{}),\n\t}\n\tfor range burst {\n\t\tl.tokens <- struct{}{}\n\t}\n\tgo l.refill(time.Second / time.Duration(rate))\n\treturn l\n}\n\n// refill adds one token per interval until the limiter is closed.\n// Tokens beyond the bucket's capacity are dropped.\nfunc (l *Limiter) refill(interval time.Duration) {\n\tticker := time.NewTicker(interval)\n\tdefer ticker.Stop()\n\tfor {\n\t\tselect {\n\t\tcase <-l.done:\n\t\t\treturn\n\t\tcase <-ticker.C:\n\t\t\tselect {\n\t\t\tcase l.tokens <- struct{}{}:\n\t\t\tdefault:\n\t\t\t}\n\t\t}\n\t}\n}\n\n// Allow reports whether a token is available right now, consuming one\n// if so. It never blocks.\nfunc (l *Limiter) Allow() bool {\n\tselect {\n\tcase <-l.tokens:\n\t\treturn true\n\tdefault:\n\t\treturn false\n\t}\n}\n\n// Wait blocks until a token is available, consumes it, and returns nil.\n// If ctx is done first, Wait returns ctx.Err(). Once Close has\n// returned, every subsequent Wait call returns ErrClosed.\nfunc (l *Limiter) Wait(ctx context.Context) error {\n\tselect {\n\tcase <-l.done:\n\t\treturn ErrClosed\n\tdefault:\n\t}\n\tselect {\n\tcase <-l.tokens:\n\t\treturn nil\n\tcase <-ctx.Done():\n\t\treturn ctx.Err()\n\tcase <-l.done:\n\t\treturn ErrClosed\n\t}\n}\n\n// Close stops the refill goroutine. Close is idempotent: calling it\n// more than once is safe, and every call after the first does nothing.\nfunc (l *Limiter) Close() {\n\tl.closeOnce.Do(func() { close(l.done) })\n}\n"}, {"name": "limiter_test.go", "type": "text", "content": "package limiter_test\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"fmt\"\n\t\"testing\"\n\t\"testing/synctest\"\n\t\"time\"\n\n\t\"example.invalid/limiter\"\n)\n\n// The bucket starts full, so the first burst events are permitted and the\n// next is denied. Time is frozen by the bubble, so no refill interferes.\nfunc TestNewAllowConsumesFullBucket(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tconst burst = 3\n\t\tl := limiter.New(10, burst)\n\t\tdefer l.Close()\n\t\tsynctest.Wait()\n\n\t\tfor i := 0; i < burst; i++ {\n\t\t\tif !l.Allow() {\n\t\t\t\tt.Fatalf(\"Allow #%d on a full bucket = false, want true\", i+1)\n\t\t\t}\n\t\t}\n\t\tif l.Allow() {\n\t\t\tt.Error(\"Allow on a drained bucket = true, want false\")\n\t\t}\n\t})\n}\n\n// Tokens accumulate at one per interval and stop at the burst cap; overflow\n// refills are dropped rather than stored.\nfunc TestRefillReplenishesUpToBurst(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tconst (\n\t\t\trate     = 10\n\t\t\tburst    = 5\n\t\t\tinterval = time.Second / rate\n\t\t)\n\t\tl := limiter.New(rate, burst)\n\t\tdefer l.Close()\n\t\tsynctest.Wait() // the refill goroutine has armed its ticker at time zero\n\n\t\tfor i := 0; i < burst; i++ {\n\t\t\tl.Allow() // drain the initial fill\n\t\t}\n\t\tif l.Allow() {\n\t\t\tt.Fatal(\"Allow on a drained bucket = true, want false\")\n\t\t}\n\n\t\t// One interval yields exactly one fresh token.\n\t\ttime.Sleep(interval)\n\t\tsynctest.Wait()\n\t\tif !l.Allow() {\n\t\t\tt.Error(\"Allow one interval after draining = false, want true\")\n\t\t}\n\t\tif l.Allow() {\n\t\t\tt.Error(\"Allow drew a second token from a single refill\")\n\t\t}\n\n\t\t// Idling far past burst intervals still leaves at most burst tokens.\n\t\ttime.Sleep(2 * burst * interval)\n\t\tsynctest.Wait()\n\t\tfor i := 0; i < burst; i++ {\n\t\t\tif !l.Allow() {\n\t\t\t\tt.Errorf(\"Allow #%d after a long idle = false, want a full bucket\", i+1)\n\t\t\t}\n\t\t}\n\t\tif l.Allow() {\n\t\t\tt.Errorf(\"Allow beyond burst = true; bucket exceeded its cap of %d\", burst)\n\t\t}\n\t})\n}\n\n// Wait returns nil at once when a token is ready and consumes exactly one.\nfunc TestWaitConsumesAvailableToken(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tconst burst = 3\n\t\tl := limiter.New(10, burst)\n\t\tdefer l.Close()\n\t\tsynctest.Wait()\n\n\t\tif err := l.Wait(context.Background()); err != nil {\n\t\t\tt.Fatalf(\"Wait on a full bucket = %v, want nil\", err)\n\t\t}\n\t\tfor i := 0; i < burst-1; i++ {\n\t\t\tif !l.Allow() {\n\t\t\t\tt.Fatalf(\"Allow #%d after one Wait = false, want true\", i+1)\n\t\t\t}\n\t\t}\n\t\tif l.Allow() {\n\t\t\tt.Error(\"bucket held more than burst tokens after one Wait\")\n\t\t}\n\t})\n}\n\n// A burst-0 bucket stores nothing: Allow is always false and Wait blocks until\n// a refill arrives while the caller is parked, then proceeds.\nfunc TestWaitProceedsOnRefillWhileWaiting(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tconst interval = time.Second / 10\n\t\tl := limiter.New(10, 0)\n\t\tdefer l.Close()\n\t\tsynctest.Wait()\n\n\t\tif l.Allow() {\n\t\t\tt.Error(\"Allow with burst 0 = true, want false\")\n\t\t}\n\n\t\terrc := make(chan error, 1)\n\t\tgo func() { errc <- l.Wait(context.Background()) }()\n\t\tsynctest.Wait() // the caller is now parked, waiting for a refill\n\n\t\tselect {\n\t\tcase err := <-errc:\n\t\t\tt.Fatalf(\"Wait returned %v before any refill arrived\", err)\n\t\tdefault:\n\t\t}\n\n\t\ttime.Sleep(interval) // a refill arrives while the caller waits\n\t\tsynctest.Wait()\n\t\tif err := <-errc; err != nil {\n\t\t\tt.Errorf(\"Wait after a refill = %v, want nil\", err)\n\t\t}\n\t})\n}\n\n// When the context ends before a token is free, Wait reports the context's own\n// error, whether the context was canceled or its deadline passed.\nfunc TestWaitReturnsContextError(t *testing.T) {\n\tt.Run(\"canceled\", func(t *testing.T) {\n\t\tsynctest.Test(t, func(t *testing.T) {\n\t\t\tl := limiter.New(1, 1) // interval 1s, far longer than this test runs\n\t\t\tdefer l.Close()\n\t\t\tsynctest.Wait()\n\t\t\tif !l.Allow() {\n\t\t\t\tt.Fatal(\"Allow on a full bucket = false, want true\")\n\t\t\t}\n\n\t\t\tctx, cancel := context.WithCancel(context.Background())\n\t\t\terrc := make(chan error, 1)\n\t\t\tgo func() { errc <- l.Wait(ctx) }()\n\t\t\tsynctest.Wait() // the caller is parked on the empty bucket\n\n\t\t\tcancel()\n\t\t\tsynctest.Wait()\n\t\t\tif err := <-errc; !errors.Is(err, context.Canceled) {\n\t\t\t\tt.Errorf(\"Wait after cancel = %v, want context.Canceled\", err)\n\t\t\t}\n\t\t})\n\t})\n\n\tt.Run(\"deadline\", func(t *testing.T) {\n\t\tsynctest.Test(t, func(t *testing.T) {\n\t\t\tl := limiter.New(1, 1) // interval 1s, so no refill beats the deadline\n\t\t\tdefer l.Close()\n\t\t\tsynctest.Wait()\n\t\t\tif !l.Allow() {\n\t\t\t\tt.Fatal(\"Allow on a full bucket = false, want true\")\n\t\t\t}\n\n\t\t\tctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)\n\t\t\tdefer cancel()\n\t\t\terrc := make(chan error, 1)\n\t\t\tgo func() { errc <- l.Wait(ctx) }()\n\t\t\tsynctest.Wait() // the caller is parked on the empty bucket\n\n\t\t\ttime.Sleep(10 * time.Millisecond)\n\t\t\tsynctest.Wait()\n\t\t\tif err := <-errc; !errors.Is(err, context.DeadlineExceeded) {\n\t\t\t\tt.Errorf(\"Wait after deadline = %v, want context.DeadlineExceeded\", err)\n\t\t\t}\n\t\t})\n\t})\n}\n\n// Close releases a parked caller with ErrClosed and makes every later Wait\n// return ErrClosed too. The bubble also proves Close lets the refill goroutine\n// exit: an unclosed limiter would leave a lingering goroutine and fail.\nfunc TestCloseReleasesWaitersAndRejectsWaits(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tl := limiter.New(1, 1)\n\t\tdefer l.Close()\n\t\tsynctest.Wait()\n\t\tif !l.Allow() {\n\t\t\tt.Fatal(\"Allow on a full bucket = false, want true\")\n\t\t}\n\n\t\terrc := make(chan error, 1)\n\t\tgo func() { errc <- l.Wait(context.Background()) }()\n\t\tsynctest.Wait() // the caller is parked on the empty bucket\n\n\t\tl.Close()\n\t\tsynctest.Wait()\n\t\tif err := <-errc; !errors.Is(err, limiter.ErrClosed) {\n\t\t\tt.Errorf(\"Wait released by Close = %v, want ErrClosed\", err)\n\t\t}\n\t\tif err := l.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {\n\t\t\tt.Errorf(\"Wait after Close = %v, want ErrClosed\", err)\n\t\t}\n\t})\n}\n\n// Repeated Close calls are safe; the limiter stays closed.\nfunc TestCloseIsIdempotent(t *testing.T) {\n\tl := limiter.New(1, 1)\n\tl.Close()\n\tl.Close()\n\tif err := l.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {\n\t\tt.Errorf(\"Wait after repeated Close = %v, want ErrClosed\", err)\n\t}\n}\n\n// New rejects arguments that cannot describe a bucket: a non-positive rate has\n// no interval, and a negative burst has no capacity.\nfunc TestNewPanicsOnInvalidArguments(t *testing.T) {\n\tfor _, tt := range []struct {\n\t\tname        string\n\t\trate, burst int\n\t}{\n\t\t{\"zero rate\", 0, 1},\n\t\t{\"negative rate\", -1, 1},\n\t\t{\"negative burst\", 1, -1},\n\t} {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\tdefer func() {\n\t\t\t\tif recover() == nil {\n\t\t\t\t\tt.Errorf(\"New(%d, %d) did not panic\", tt.rate, tt.burst)\n\t\t\t\t}\n\t\t\t}()\n\t\t\tlimiter.New(tt.rate, tt.burst)\n\t\t})\n\t}\n}\n\nfunc ExampleLimiter_Allow() {\n\tl := limiter.New(1, 1) // the bucket starts full with one token\n\tdefer l.Close()\n\tfmt.Println(l.Allow())\n\t// Output: true\n}\n"}], "grading": {"expectations": [{"text": "Tests live in an external test package (package limiter_test), not package limiter", "passed": true, "evidence": "limiter_test.go:1 declares 'package limiter_test' and imports example.invalid/limiter at line 11"}, {"text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code", "passed": false, "evidence": "synctest.Test is used throughout (limiter_test.go:8,17,37,...), but grep finds time.Sleep at limiter_test.go:55,65,123,171 (inside synctest bubbles, yet the assertion forbids any time.Sleep in test code)"}, {"text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario", "passed": true, "evidence": "grep '^func Test' shows no exact TestNew/TestAllow/TestWait/TestClose; TestCloseReleasesWaitersAndRejectsWaits (limiter_test.go:183) composes New, Allow, Wait, Close, and ErrClosed"}, {"text": "No test/example doc comment opens with its own function name; comments state contract clauses", "passed": true, "evidence": "Doc comments open with contract statements, e.g. limiter_test.go:14 'The bucket starts full...', :180 'Close releases a parked caller with ErrClosed...'; none begins with its Test function name and ExampleLimiter_Allow has no doc comment"}, {"text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs", "passed": true, "evidence": "TestWaitReturnsContextError (limiter_test.go:133) checks context.Canceled and context.DeadlineExceeded per limiter.go:82; TestCloseIsIdempotent (limiter_test.go:208) per limiter.go:99-100; TestCloseReleasesWaitersAndRejectsWaits (limiter_test.go:201) checks Wait-after-Close returns ErrClosed"}, {"text": "go test ./... passes in the module", "passed": true, "evidence": "go test -count=1 ./... in outputs/ prints 'ok example.invalid/limiter 0.330s' with all 8 tests and the example passing"}]}}, {"id": "limiter-write-tests-with_skill_sonnet", "prompt": "I just finished writing this little rate-limiter package for our internal gateway (token bucket, refills on a ticker goroutine, has a Wait(ctx) and an Allow() and a Close()). Can you write the tests for it before I send the PR?", "eval_id": 1, "outputs": [{"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC9saW1pdGVyCgpnbyAxLjI1Cg=="}, {"name": "limiter.go", "type": "text", "content": "// Package limiter provides a token-bucket rate limiter driven by a\n// background refill goroutine.\n//\n// A limiter created with burst 0 stores no tokens: Allow always reports\n// false, and Wait proceeds only when a refill arrives while the caller\n// is already waiting.\npackage limiter\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// ErrClosed is returned by Wait once the limiter has been closed.\nvar ErrClosed = errors.New(\"limiter: closed\")\n\n// Limiter is a token-bucket rate limiter. Tokens accumulate at a fixed\n// rate up to a maximum of burst; each permitted event consumes one\n// token.\ntype Limiter struct {\n\ttokens    chan struct{}\n\tdone      chan struct{}\n\tcloseOnce sync.Once\n}\n\n// New returns a Limiter that refills at rate tokens per second and\n// holds at most burst unused tokens. The bucket starts full. New starts\n// a background refill goroutine; callers must release it with Close.\n//\n// New panics if rate is not positive or if burst is negative.\nfunc New(rate, burst int) *Limiter {\n\tif rate <= 0 {\n\t\tpanic(\"limiter: rate must be positive\")\n\t}\n\tif burst < 0 {\n\t\tpanic(\"limiter: burst must not be negative\")\n\t}\n\tl := &Limiter{\n\t\ttokens: make(chan struct{}, burst),\n\t\tdone:   make(chan struct{}),\n\t}\n\tfor range burst {\n\t\tl.tokens <- struct{}{}\n\t}\n\tgo l.refill(time.Second / time.Duration(rate))\n\treturn l\n}\n\n// refill adds one token per interval until the limiter is closed.\n// Tokens beyond the bucket's capacity are dropped.\nfunc (l *Limiter) refill(interval time.Duration) {\n\tticker := time.NewTicker(interval)\n\tdefer ticker.Stop()\n\tfor {\n\t\tselect {\n\t\tcase <-l.done:\n\t\t\treturn\n\t\tcase <-ticker.C:\n\t\t\tselect {\n\t\t\tcase l.tokens <- struct{}{}:\n\t\t\tdefault:\n\t\t\t}\n\t\t}\n\t}\n}\n\n// Allow reports whether a token is available right now, consuming one\n// if so. It never blocks.\nfunc (l *Limiter) Allow() bool {\n\tselect {\n\tcase <-l.tokens:\n\t\treturn true\n\tdefault:\n\t\treturn false\n\t}\n}\n\n// Wait blocks until a token is available, consumes it, and returns nil.\n// If ctx is done first, Wait returns ctx.Err(). Once Close has\n// returned, every subsequent Wait call returns ErrClosed.\nfunc (l *Limiter) Wait(ctx context.Context) error {\n\tselect {\n\tcase <-l.done:\n\t\treturn ErrClosed\n\tdefault:\n\t}\n\tselect {\n\tcase <-l.tokens:\n\t\treturn nil\n\tcase <-ctx.Done():\n\t\treturn ctx.Err()\n\tcase <-l.done:\n\t\treturn ErrClosed\n\t}\n}\n\n// Close stops the refill goroutine. Close is idempotent: calling it\n// more than once is safe, and every call after the first does nothing.\nfunc (l *Limiter) Close() {\n\tl.closeOnce.Do(func() { close(l.done) })\n}\n"}, {"name": "limiter_test.go", "type": "text", "content": "package limiter_test\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"testing\"\n\t\"testing/synctest\"\n\t\"time\"\n\n\t\"example.invalid/limiter\"\n)\n\n// The token bucket starts full, Allow drains it without blocking, and\n// refills arrive at the configured rate up to the burst capacity.\nfunc TestLimiter(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tlim := limiter.New(1, 2) // 1 token/sec, burst of 2\n\t\tdefer lim.Close()\n\n\t\tif !lim.Allow() {\n\t\t\tt.Fatal(\"Allow() = false, want true: the bucket starts full\")\n\t\t}\n\t\tif !lim.Allow() {\n\t\t\tt.Fatal(\"Allow() = false, want true: the bucket starts full\")\n\t\t}\n\t\tif lim.Allow() {\n\t\t\tt.Fatal(\"Allow() = true, want false once the burst is exhausted\")\n\t\t}\n\n\t\t// Just under one interval: no refill has arrived yet.\n\t\ttime.Sleep(999 * time.Millisecond)\n\t\tsynctest.Wait()\n\t\tif lim.Allow() {\n\t\t\tt.Fatal(\"Allow() = true before the refill interval elapsed\")\n\t\t}\n\n\t\t// One interval elapses: exactly one token refills.\n\t\ttime.Sleep(time.Millisecond)\n\t\tsynctest.Wait()\n\t\tif !lim.Allow() {\n\t\t\tt.Fatal(\"Allow() = false, want true after one refill interval\")\n\t\t}\n\t\tif lim.Allow() {\n\t\t\tt.Fatal(\"Allow() = true, want false: only one token should have refilled\")\n\t\t}\n\t})\n}\n\n// Wait blocks a caller until a token becomes available from a\n// refill, then returns nil. With a zero burst the bucket stores no\n// tokens of its own, so the only way Wait can succeed is by catching\n// a refill while already waiting.\nfunc TestLimiterWaitBlocksUntilRefill(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tlim := limiter.New(1, 0)\n\t\tdefer lim.Close()\n\n\t\tif lim.Allow() {\n\t\t\tt.Fatal(\"Allow() = true, want false: burst 0 stores no tokens\")\n\t\t}\n\n\t\twaited := make(chan error, 1)\n\t\tgo func() {\n\t\t\twaited <- lim.Wait(context.Background())\n\t\t}()\n\t\tsynctest.Wait()\n\n\t\tselect {\n\t\tcase err := <-waited:\n\t\t\tt.Fatalf(\"Wait() returned %v before any token refilled\", err)\n\t\tdefault:\n\t\t}\n\n\t\ttime.Sleep(time.Second)\n\t\tsynctest.Wait()\n\n\t\tselect {\n\t\tcase err := <-waited:\n\t\t\tif err != nil {\n\t\t\t\tt.Fatalf(\"Wait() = %v, want nil once a token refilled\", err)\n\t\t\t}\n\t\tdefault:\n\t\t\tt.Fatal(\"Wait did not return after a token refilled\")\n\t\t}\n\t})\n}\n\n// Wait reports the context's error when the context is done before a\n// token arrives.\nfunc TestLimiterWaitContextCanceled(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tlim := limiter.New(1, 0)\n\t\tdefer lim.Close()\n\n\t\tctx, cancel := context.WithCancel(context.Background())\n\t\tcancel()\n\n\t\tif err := lim.Wait(ctx); !errors.Is(err, context.Canceled) {\n\t\t\tt.Fatalf(\"Wait(canceled ctx) = %v, want context.Canceled\", err)\n\t\t}\n\t})\n}\n\n// Once Close has returned, every subsequent Wait call reports\n// ErrClosed instead of blocking, and Close itself is safe to call\n// more than once.\nfunc TestLimiterCloseStopsWait(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tlim := limiter.New(1, 0)\n\n\t\tlim.Close()\n\t\tlim.Close()\n\n\t\tif err := lim.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {\n\t\t\tt.Fatalf(\"Wait() after Close = %v, want ErrClosed\", err)\n\t\t}\n\t})\n}\n\n// New validates its arguments: rate must be positive and burst must\n// not be negative.\nfunc TestLimiterNewPanics(t *testing.T) {\n\ttests := []struct {\n\t\tname        string\n\t\trate, burst int\n\t}{\n\t\t{\"zero rate\", 0, 1},\n\t\t{\"negative rate\", -1, 1},\n\t\t{\"negative burst\", 1, -1},\n\t}\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\tdefer func() {\n\t\t\t\tif recover() == nil {\n\t\t\t\t\tt.Error(\"New did not panic\")\n\t\t\t\t}\n\t\t\t}()\n\t\t\tlim := limiter.New(tt.rate, tt.burst)\n\t\t\tlim.Close()\n\t\t})\n\t}\n}\n"}], "grading": {"expectations": [{"text": "Tests live in an external test package (package limiter_test), not package limiter", "passed": true, "evidence": "limiter_test.go:1 declares `package limiter_test`"}, {"text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code", "passed": false, "evidence": "synctest.Test is used (limiter_test.go:16,54,91,108) but grep finds time.Sleep at limiter_test.go:31,38,74 (inside synctest bubbles, yet the assertion forbids any time.Sleep in test code)"}, {"text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario", "passed": true, "evidence": "grep '^func Test' yields TestLimiter, TestLimiterWaitBlocksUntilRefill, TestLimiterWaitContextCanceled, TestLimiterCloseStopsWait, TestLimiterNewPanics; TestLimiterCloseStopsWait (limiter_test.go:107-118) composes New, Close, Wait, and ErrClosed in one scenario"}, {"text": "No test/example doc comment opens with its own function name; comments state contract clauses", "passed": true, "evidence": "Doc comments open with contract prose, e.g. limiter_test.go:13 'The token bucket starts full...', :49 'Wait blocks a caller until...', :104 'Once Close has returned...'; none begins with its Test function name"}, {"text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs", "passed": true, "evidence": "limiter_test.go:98 checks context.Canceled (promise at limiter.go:82), :111-112 calls Close twice (limiter.go:99-100 idempotence), :114 checks ErrClosed after Close (limiter.go:16-17,82)"}, {"text": "go test ./... passes in the module", "passed": true, "evidence": "`go test ./...` in outputs/ printed 'ok example.invalid/limiter 0.228s' with exit code 0"}]}}, {"id": "limiter-write-tests-without_skill", "prompt": "I just finished writing this little rate-limiter package for our internal gateway (token bucket, refills on a ticker goroutine, has a Wait(ctx) and an Allow() and a Close()). Can you write the tests for it before I send the PR?", "eval_id": 1, "outputs": [{"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC9saW1pdGVyCgpnbyAxLjI1Cg=="}, {"name": "limiter.go", "type": "text", "content": "// Package limiter provides a token-bucket rate limiter driven by a\n// background refill goroutine.\n//\n// A limiter created with burst 0 stores no tokens: Allow always reports\n// false, and Wait proceeds only when a refill arrives while the caller\n// is already waiting.\npackage limiter\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// ErrClosed is returned by Wait once the limiter has been closed.\nvar ErrClosed = errors.New(\"limiter: closed\")\n\n// Limiter is a token-bucket rate limiter. Tokens accumulate at a fixed\n// rate up to a maximum of burst; each permitted event consumes one\n// token.\ntype Limiter struct {\n\ttokens    chan struct{}\n\tdone      chan struct{}\n\tcloseOnce sync.Once\n}\n\n// New returns a Limiter that refills at rate tokens per second and\n// holds at most burst unused tokens. The bucket starts full. New starts\n// a background refill goroutine; callers must release it with Close.\n//\n// New panics if rate is not positive or if burst is negative.\nfunc New(rate, burst int) *Limiter {\n\tif rate <= 0 {\n\t\tpanic(\"limiter: rate must be positive\")\n\t}\n\tif burst < 0 {\n\t\tpanic(\"limiter: burst must not be negative\")\n\t}\n\tl := &Limiter{\n\t\ttokens: make(chan struct{}, burst),\n\t\tdone:   make(chan struct{}),\n\t}\n\tfor range burst {\n\t\tl.tokens <- struct{}{}\n\t}\n\tgo l.refill(time.Second / time.Duration(rate))\n\treturn l\n}\n\n// refill adds one token per interval until the limiter is closed.\n// Tokens beyond the bucket's capacity are dropped.\nfunc (l *Limiter) refill(interval time.Duration) {\n\tticker := time.NewTicker(interval)\n\tdefer ticker.Stop()\n\tfor {\n\t\tselect {\n\t\tcase <-l.done:\n\t\t\treturn\n\t\tcase <-ticker.C:\n\t\t\tselect {\n\t\t\tcase l.tokens <- struct{}{}:\n\t\t\tdefault:\n\t\t\t}\n\t\t}\n\t}\n}\n\n// Allow reports whether a token is available right now, consuming one\n// if so. It never blocks.\nfunc (l *Limiter) Allow() bool {\n\tselect {\n\tcase <-l.tokens:\n\t\treturn true\n\tdefault:\n\t\treturn false\n\t}\n}\n\n// Wait blocks until a token is available, consumes it, and returns nil.\n// If ctx is done first, Wait returns ctx.Err(). Once Close has\n// returned, every subsequent Wait call returns ErrClosed.\nfunc (l *Limiter) Wait(ctx context.Context) error {\n\tselect {\n\tcase <-l.done:\n\t\treturn ErrClosed\n\tdefault:\n\t}\n\tselect {\n\tcase <-l.tokens:\n\t\treturn nil\n\tcase <-ctx.Done():\n\t\treturn ctx.Err()\n\tcase <-l.done:\n\t\treturn ErrClosed\n\t}\n}\n\n// Close stops the refill goroutine. Close is idempotent: calling it\n// more than once is safe, and every call after the first does nothing.\nfunc (l *Limiter) Close() {\n\tl.closeOnce.Do(func() { close(l.done) })\n}\n"}, {"name": "limiter_test.go", "type": "text", "content": "package limiter\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"sync\"\n\t\"testing\"\n\t\"time\"\n)\n\nfunc TestNewPanicsOnNonPositiveRate(t *testing.T) {\n\tfor _, rate := range []int{0, -1} {\n\t\tfunc() {\n\t\t\tdefer func() {\n\t\t\t\tif recover() == nil {\n\t\t\t\t\tt.Errorf(\"New(%d, 1) did not panic\", rate)\n\t\t\t\t}\n\t\t\t}()\n\t\t\tNew(rate, 1)\n\t\t}()\n\t}\n}\n\nfunc TestNewPanicsOnNegativeBurst(t *testing.T) {\n\tdefer func() {\n\t\tif recover() == nil {\n\t\t\tt.Error(\"New(1, -1) did not panic\")\n\t\t}\n\t}()\n\tNew(1, -1)\n}\n\n// The bucket starts full: exactly burst Allow calls succeed before any\n// refill can plausibly arrive.\nfunc TestBucketStartsFull(t *testing.T) {\n\tconst burst = 3\n\tl := New(1, burst) // 1s interval: no refill lands during this test.\n\tdefer l.Close()\n\n\tfor i := range burst {\n\t\tif !l.Allow() {\n\t\t\tt.Fatalf(\"Allow call %d = false, want true\", i+1)\n\t\t}\n\t}\n\tif l.Allow() {\n\t\tt.Fatalf(\"Allow call %d = true, want false (bucket drained)\", burst+1)\n\t}\n}\n\n// With burst 0 the bucket stores nothing, so Allow never succeeds even\n// while refills are being generated.\nfunc TestZeroBurstAllowAlwaysFalse(t *testing.T) {\n\tl := New(1000, 0)\n\tdefer l.Close()\n\n\tdeadline := time.Now().Add(50 * time.Millisecond)\n\tfor time.Now().Before(deadline) {\n\t\tif l.Allow() {\n\t\t\tt.Fatal(\"Allow = true, want false for a burst-0 limiter\")\n\t\t}\n\t}\n}\n\n// A drained bucket becomes usable again once the refill goroutine adds\n// a token.\nfunc TestRefillReplenishesToken(t *testing.T) {\n\tl := New(100, 1) // refill every 10ms\n\tdefer l.Close()\n\n\tif !l.Allow() {\n\t\tt.Fatal(\"Allow = false on a fresh limiter, want true\")\n\t}\n\n\tdeadline := time.Now().Add(2 * time.Second)\n\tfor time.Now().Before(deadline) {\n\t\tif l.Allow() {\n\t\t\treturn\n\t\t}\n\t\ttime.Sleep(time.Millisecond)\n\t}\n\tt.Fatal(\"no token refilled within 2s at rate 100/s\")\n}\n\n// Tokens beyond burst are dropped: after ample refill time only burst\n// tokens are stored.\nfunc TestRefillCapsAtBurst(t *testing.T) {\n\tconst burst = 2\n\tl := New(1000, burst) // refill every 1ms\n\n\ttime.Sleep(100 * time.Millisecond) // far more refills than capacity\n\tl.Close()\n\ttime.Sleep(10 * time.Millisecond) // let any in-flight refill land\n\n\tgot := 0\n\tfor l.Allow() {\n\t\tgot++\n\t}\n\tif got != burst {\n\t\tt.Fatalf(\"drained %d tokens after saturation, want exactly %d\", got, burst)\n\t}\n}\n\nfunc TestWaitReturnsImmediatelyWithToken(t *testing.T) {\n\tl := New(1, 1)\n\tdefer l.Close()\n\n\tctx, cancel := context.WithTimeout(context.Background(), time.Second)\n\tdefer cancel()\n\tif err := l.Wait(ctx); err != nil {\n\t\tt.Fatalf(\"Wait = %v, want nil\", err)\n\t}\n}\n\n// Wait on an empty burst-0 bucket parks until the refill goroutine\n// hands over a token.\nfunc TestWaitBlocksUntilRefill(t *testing.T) {\n\tl := New(100, 0) // refill every 10ms\n\tdefer l.Close()\n\n\tctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)\n\tdefer cancel()\n\tif err := l.Wait(ctx); err != nil {\n\t\tt.Fatalf(\"Wait = %v, want nil once a refill arrives\", err)\n\t}\n}\n\nfunc TestWaitHonorsContextCancellation(t *testing.T) {\n\tl := New(1, 0) // no token for ~1s\n\tdefer l.Close()\n\n\tt.Run(\"deadline\", func(t *testing.T) {\n\t\tctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)\n\t\tdefer cancel()\n\t\tif err := l.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {\n\t\t\tt.Fatalf(\"Wait = %v, want %v\", err, context.DeadlineExceeded)\n\t\t}\n\t})\n\n\tt.Run(\"cancel\", func(t *testing.T) {\n\t\tctx, cancel := context.WithCancel(context.Background())\n\t\terrc := make(chan error, 1)\n\t\tgo func() { errc <- l.Wait(ctx) }()\n\t\tcancel()\n\t\tselect {\n\t\tcase err := <-errc:\n\t\t\tif !errors.Is(err, context.Canceled) {\n\t\t\t\tt.Fatalf(\"Wait = %v, want %v\", err, context.Canceled)\n\t\t\t}\n\t\tcase <-time.After(2 * time.Second):\n\t\t\tt.Fatal(\"Wait did not return after context cancellation\")\n\t\t}\n\t})\n}\n\n// After Close, Wait reports ErrClosed even if unused tokens remain in\n// the bucket.\nfunc TestWaitAfterCloseReturnsErrClosed(t *testing.T) {\n\tl := New(1, 1)\n\tl.Close()\n\n\tif err := l.Wait(context.Background()); !errors.Is(err, ErrClosed) {\n\t\tt.Fatalf(\"Wait after Close = %v, want %v\", err, ErrClosed)\n\t}\n}\n\n// Close unblocks a Wait that is already parked.\nfunc TestCloseUnblocksPendingWait(t *testing.T) {\n\tl := New(1, 0) // no token for ~1s\n\n\terrc := make(chan error, 1)\n\tgo func() { errc <- l.Wait(context.Background()) }()\n\n\ttime.Sleep(20 * time.Millisecond) // let Wait park\n\tl.Close()\n\n\tselect {\n\tcase err := <-errc:\n\t\tif !errors.Is(err, ErrClosed) {\n\t\t\tt.Fatalf(\"Wait = %v, want %v\", err, ErrClosed)\n\t\t}\n\tcase <-time.After(2 * time.Second):\n\t\tt.Fatal(\"Wait did not return after Close\")\n\t}\n}\n\n// Allow keeps handing out tokens that were already banked before Close;\n// it only stops once the bucket is drained.\nfunc TestAllowAfterCloseDrainsRemainingTokens(t *testing.T) {\n\tl := New(1, 2)\n\tl.Close()\n\n\tif !l.Allow() || !l.Allow() {\n\t\tt.Fatal(\"Allow = false for tokens banked before Close, want true\")\n\t}\n\tif l.Allow() {\n\t\tt.Fatal(\"Allow = true on a drained, closed limiter, want false\")\n\t}\n}\n\nfunc TestCloseIsIdempotent(t *testing.T) {\n\tl := New(1, 1)\n\tl.Close()\n\tl.Close() // must not panic\n}\n\n// Smoke test for the race detector: Allow, Wait, and Close from many\n// goroutines at once must not race or deadlock.\nfunc TestConcurrentAllowWaitClose(t *testing.T) {\n\tl := New(1000, 8)\n\n\tvar wg sync.WaitGroup\n\tfor range 8 {\n\t\twg.Add(1)\n\t\tgo func() {\n\t\t\tdefer wg.Done()\n\t\t\tctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)\n\t\t\tdefer cancel()\n\t\t\tfor l.Wait(ctx) == nil {\n\t\t\t}\n\t\t}()\n\t}\n\tfor range 8 {\n\t\twg.Add(1)\n\t\tgo func() {\n\t\t\tdefer wg.Done()\n\t\t\tfor range 100 {\n\t\t\t\tl.Allow()\n\t\t\t}\n\t\t}()\n\t}\n\n\ttime.Sleep(20 * time.Millisecond)\n\tl.Close()\n\tl.Close()\n\twg.Wait()\n}\n"}], "grading": {"expectations": [{"text": "Tests live in an external test package (package limiter_test), not package limiter", "passed": false, "evidence": "limiter_test.go:1 declares `package limiter`, not `package limiter_test`"}, {"text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code", "passed": false, "evidence": "grep finds no synctest import, and time.Sleep appears at limiter_test.go:79,90,92,173,232"}, {"text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario", "passed": true, "evidence": "grep -E '^func (TestNew|TestAllow|TestWait|TestClose)\\(' matches nothing; TestConcurrentAllowWaitClose (limiter_test.go:208) composes New, Allow, Wait, and Close in one scenario"}, {"text": "No test/example doc comment opens with its own function name; comments state contract clauses", "passed": true, "evidence": "No doc comment starts with a Test* name; comments state contract clauses, e.g. limiter_test.go:33 'The bucket starts full...' and limiter_test.go:155 'After Close, Wait reports ErrClosed even if unused tokens remain'"}, {"text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs", "passed": true, "evidence": "TestWaitHonorsContextCancellation (limiter_test.go:127) checks ctx.Err() propagation, TestCloseIsIdempotent (limiter_test.go:200) checks double Close, TestWaitAfterCloseReturnsErrClosed (limiter_test.go:157) checks ErrClosed, matching the doc comments in limiter.go:80-102"}, {"text": "go test ./... passes in the module", "passed": true, "evidence": "`go test -count=1 ./...` output: ok example.invalid/limiter 0.531s (exit 0)"}]}}, {"id": "config-test-review-with_skill", "prompt": "our new hire wrote tests for the config package and something feels off about them, can you review and fix? dont break anything, the suite is green", "eval_id": 2, "outputs": [{"name": "config.go", "type": "text", "content": "// Package config loads simple key/value configuration files.\n//\n// A configuration file holds one \"key = value\" pair per line. Blank\n// lines and lines beginning with '#' are ignored. Whitespace around\n// keys and values is trimmed.\npackage config\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"io\"\n\t\"slices\"\n\t\"strconv\"\n\t\"strings\"\n\t\"time\"\n)\n\n// Config holds the key/value pairs read from a configuration file.\n// Lookups for unknown keys fall back to caller-supplied defaults.\ntype Config struct {\n\tvalues map[string]string\n}\n\n// Load reads key/value pairs from r. A line that is neither blank, a\n// comment, nor a \"key = value\" pair produces a positioned error of the\n// form \"line N: ...\".\nfunc Load(r io.Reader) (*Config, error) {\n\tc := &Config{values: make(map[string]string)}\n\tscanner := bufio.NewScanner(r)\n\tn := 0\n\tfor scanner.Scan() {\n\t\tn++\n\t\tline := strings.TrimSpace(scanner.Text())\n\t\tif line == \"\" || strings.HasPrefix(line, \"#\") {\n\t\t\tcontinue\n\t\t}\n\t\tkey, value, ok := strings.Cut(line, \"=\")\n\t\tif !ok {\n\t\t\treturn nil, fmt.Errorf(\"line %d: missing '=' in %q\", n, line)\n\t\t}\n\t\tkey = strings.TrimSpace(key)\n\t\tif key == \"\" {\n\t\t\treturn nil, fmt.Errorf(\"line %d: empty key\", n)\n\t\t}\n\t\tc.values[key] = strings.TrimSpace(value)\n\t}\n\tif err := scanner.Err(); err != nil {\n\t\treturn nil, err\n\t}\n\treturn c, nil\n}\n\n// String returns the value for key. An unknown key falls back to def.\nfunc (c *Config) String(key, def string) string {\n\tif v, ok := c.values[key]; ok {\n\t\treturn v\n\t}\n\treturn def\n}\n\n// Int returns the value for key parsed as a decimal integer. An\n// unknown key, or a value that does not parse, falls back to def.\nfunc (c *Config) Int(key string, def int) int {\n\tv, ok := c.values[key]\n\tif !ok {\n\t\treturn def\n\t}\n\ti, err := strconv.Atoi(v)\n\tif err != nil {\n\t\treturn def\n\t}\n\treturn i\n}\n\n// Duration returns the value for key parsed with time.ParseDuration.\n// An unknown key, or a value that does not parse, falls back to def.\nfunc (c *Config) Duration(key string, def time.Duration) time.Duration {\n\tv, ok := c.values[key]\n\tif !ok {\n\t\treturn def\n\t}\n\td, err := time.ParseDuration(v)\n\tif err != nil {\n\t\treturn def\n\t}\n\treturn d\n}\n\n// Keys returns every configured key in sorted order.\nfunc (c *Config) Keys() []string {\n\tkeys := make([]string, 0, len(c.values))\n\tfor k := range c.values {\n\t\tkeys = append(keys, k)\n\t}\n\tslices.Sort(keys)\n\treturn keys\n}\n"}, {"name": "config_test.go", "type": "text", "content": "package config_test\n\nimport (\n\t\"fmt\"\n\t\"log\"\n\t\"slices\"\n\t\"strings\"\n\t\"testing\"\n\t\"time\"\n\n\t\"example.invalid/config\"\n)\n\n// sample exercises every documented line form: key/value pairs, a\n// blank line, a comment, and whitespace around keys and values.\nconst sample = `\nname = app\nport = 8080\ntimeout = 2s\n# retries controls how often we try again\nretries = 3\n`\n\n// A loaded Config answers every typed lookup from one parse. String,\n// Int, and Duration return the parsed value for a known key. Unknown\n// keys and values that do not parse fall back to the caller's default.\n// Keys lists the configured keys in sorted order.\nfunc TestLoadAndLookups(t *testing.T) {\n\tcfg, err := config.Load(strings.NewReader(sample))\n\tif err != nil {\n\t\tt.Fatalf(\"Load: %v\", err)\n\t}\n\tif got, want := cfg.String(\"name\", \"fallback\"), \"app\"; got != want {\n\t\tt.Errorf(`String(\"name\") = %q, want %q`, got, want)\n\t}\n\tif got, want := cfg.String(\"missing\", \"fallback\"), \"fallback\"; got != want {\n\t\tt.Errorf(`String(\"missing\") = %q, want %q`, got, want)\n\t}\n\tif got, want := cfg.Int(\"port\", 0), 8080; got != want {\n\t\tt.Errorf(`Int(\"port\") = %d, want %d`, got, want)\n\t}\n\tif got, want := cfg.Int(\"missing\", 42), 42; got != want {\n\t\tt.Errorf(`Int(\"missing\") = %d, want %d`, got, want)\n\t}\n\tif got, want := cfg.Int(\"name\", 42), 42; got != want {\n\t\tt.Errorf(`Int(\"name\") = %d, want default %d for unparsable value`, got, want)\n\t}\n\tif got, want := cfg.Duration(\"timeout\", 0), 2*time.Second; got != want {\n\t\tt.Errorf(`Duration(\"timeout\") = %v, want %v`, got, want)\n\t}\n\tif got, want := cfg.Duration(\"missing\", time.Second), time.Second; got != want {\n\t\tt.Errorf(`Duration(\"missing\") = %v, want %v`, got, want)\n\t}\n\tif got, want := cfg.Duration(\"port\", time.Second), time.Second; got != want {\n\t\tt.Errorf(`Duration(\"port\") = %v, want default %v for unparsable value`, got, want)\n\t}\n\twant := []string{\"name\", \"port\", \"retries\", \"timeout\"}\n\tif got := cfg.Keys(); !slices.Equal(got, want) {\n\t\tt.Errorf(\"Keys() = %v, want %v\", got, want)\n\t}\n}\n\n// Load rejects a line that is neither blank, a comment, nor a\n// \"key = value\" pair with an error positioned as \"line N: ...\".\n// Blank and comment lines still count toward the position.\nfunc TestLoadErrors(t *testing.T) {\n\ttests := []struct {\n\t\tname   string\n\t\tinput  string\n\t\tprefix string\n\t}{\n\t\t{\"missing equals\", \"name = app\\nbroken\\n\", \"line 2:\"},\n\t\t{\"empty key\", \"= value\\n\", \"line 1:\"},\n\t\t{\"position counts blanks and comments\", \"# comment\\n\\nbroken\\n\", \"line 3:\"},\n\t}\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\t_, err := config.Load(strings.NewReader(tt.input))\n\t\t\tif err == nil {\n\t\t\t\tt.Fatalf(\"Load(%q) succeeded, want error\", tt.input)\n\t\t\t}\n\t\t\tif !strings.HasPrefix(err.Error(), tt.prefix) {\n\t\t\t\tt.Errorf(\"Load(%q) error = %q, want %q prefix\", tt.input, err, tt.prefix)\n\t\t\t}\n\t\t})\n\t}\n}\n\nfunc ExampleLoad() {\n\tcfg, err := config.Load(strings.NewReader(\"port = 8080\\ntimeout = 2s\\n\"))\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(cfg.Int(\"port\", 0))\n\tfmt.Println(cfg.Duration(\"timeout\", time.Second))\n\t// Output:\n\t// 8080\n\t// 2s\n}\n\nfunc BenchmarkLoad(b *testing.B) {\n\tfor b.Loop() {\n\t\tif _, err := config.Load(strings.NewReader(sample)); err != nil {\n\t\t\tb.Fatal(err)\n\t\t}\n\t}\n}\n"}, {"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC9jb25maWcKCmdvIDEuMjUK"}], "grading": {"expectations": [{"text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together", "passed": true, "evidence": "config_test.go now has only 2 Test funcs: TestLoadAndLookups (lines 28-61) exercises Load, String, Int, Duration, and Keys in one contract scenario; TestLoadErrors (lines 66-87) is table-driven"}, {"text": "The committed dev scaffold TestDebugDump is deleted, not polished", "passed": true, "evidence": "grep -n 'TestDebugDump' config_test.go exits 1 (no match); the fixture's TestDebugDump is gone with no polished variant"}, {"text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)", "passed": false, "evidence": "grep for 'time.Sleep|synctest|chan |go func|TestConcurrentUse' in config_test.go exits 1: the sleep-based TestConcurrentUse was deleted entirely, not rewritten with synctest or channel synchronization"}, {"text": "The assert-nothing BenchmarkLoad is deleted or now asserts something", "passed": true, "evidence": "config_test.go:103-105 BenchmarkLoad now checks Load's error and calls b.Fatal(err)"}, {"text": "The internals-reaching test states its claim through the exported surface instead", "passed": true, "evidence": "config_test.go:1 is 'package config_test' (external test package) and grep '.values' exits 1; Load's claim is stated via exported String/Int/Duration/Keys lookups (lines 28-61)"}, {"text": "At least one trivial case became a runnable Example", "passed": true, "evidence": "ExampleLoad with '// Output:' block at config_test.go:89-99; go test -count=1 -run Example -v reports '--- PASS: ExampleLoad'"}, {"text": "No test doc comment opens with its own function name after the fix", "passed": true, "evidence": "TestLoadAndLookups doc opens 'A loaded Config answers...' (config_test.go:24), TestLoadErrors doc opens 'Load rejects a line...' (line 63); ExampleLoad and BenchmarkLoad have no doc comments"}, {"text": "go test ./... still passes", "passed": true, "evidence": "go test -count=1 ./... in with_skill/outputs prints 'ok example.invalid/config 0.210s', exit 0 (go vet also clean)"}]}}, {"id": "config-test-review-with_skill_opus", "prompt": "our new hire wrote tests for the config package and something feels off about them, can you review and fix? dont break anything, the suite is green", "eval_id": 2, "outputs": [{"name": "config.go", "type": "text", "content": "// Package config loads simple key/value configuration files.\n//\n// A configuration file holds one \"key = value\" pair per line. Blank\n// lines and lines beginning with '#' are ignored. Whitespace around\n// keys and values is trimmed.\npackage config\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"io\"\n\t\"slices\"\n\t\"strconv\"\n\t\"strings\"\n\t\"time\"\n)\n\n// Config holds the key/value pairs read from a configuration file.\n// Lookups for unknown keys fall back to caller-supplied defaults.\ntype Config struct {\n\tvalues map[string]string\n}\n\n// Load reads key/value pairs from r. A line that is neither blank, a\n// comment, nor a \"key = value\" pair produces a positioned error of the\n// form \"line N: ...\".\nfunc Load(r io.Reader) (*Config, error) {\n\tc := &Config{values: make(map[string]string)}\n\tscanner := bufio.NewScanner(r)\n\tn := 0\n\tfor scanner.Scan() {\n\t\tn++\n\t\tline := strings.TrimSpace(scanner.Text())\n\t\tif line == \"\" || strings.HasPrefix(line, \"#\") {\n\t\t\tcontinue\n\t\t}\n\t\tkey, value, ok := strings.Cut(line, \"=\")\n\t\tif !ok {\n\t\t\treturn nil, fmt.Errorf(\"line %d: missing '=' in %q\", n, line)\n\t\t}\n\t\tkey = strings.TrimSpace(key)\n\t\tif key == \"\" {\n\t\t\treturn nil, fmt.Errorf(\"line %d: empty key\", n)\n\t\t}\n\t\tc.values[key] = strings.TrimSpace(value)\n\t}\n\tif err := scanner.Err(); err != nil {\n\t\treturn nil, err\n\t}\n\treturn c, nil\n}\n\n// String returns the value for key. An unknown key falls back to def.\nfunc (c *Config) String(key, def string) string {\n\tif v, ok := c.values[key]; ok {\n\t\treturn v\n\t}\n\treturn def\n}\n\n// Int returns the value for key parsed as a decimal integer. An\n// unknown key, or a value that does not parse, falls back to def.\nfunc (c *Config) Int(key string, def int) int {\n\tv, ok := c.values[key]\n\tif !ok {\n\t\treturn def\n\t}\n\ti, err := strconv.Atoi(v)\n\tif err != nil {\n\t\treturn def\n\t}\n\treturn i\n}\n\n// Duration returns the value for key parsed with time.ParseDuration.\n// An unknown key, or a value that does not parse, falls back to def.\nfunc (c *Config) Duration(key string, def time.Duration) time.Duration {\n\tv, ok := c.values[key]\n\tif !ok {\n\t\treturn def\n\t}\n\td, err := time.ParseDuration(v)\n\tif err != nil {\n\t\treturn def\n\t}\n\treturn d\n}\n\n// Keys returns every configured key in sorted order.\nfunc (c *Config) Keys() []string {\n\tkeys := make([]string, 0, len(c.values))\n\tfor k := range c.values {\n\t\tkeys = append(keys, k)\n\t}\n\tslices.Sort(keys)\n\treturn keys\n}\n"}, {"name": "config_test.go", "type": "text", "content": "// The tests live in config_test so they exercise the package exactly as\n// its users do: through the exported API, never the unexported value map.\npackage config_test\n\nimport (\n\t\"fmt\"\n\t\"log\"\n\t\"slices\"\n\t\"strings\"\n\t\"testing\"\n\t\"time\"\n\n\t\"example.invalid/config\"\n)\n\nconst sample = `\nname = app\nport = 8080\ntimeout = 2s\n# retries controls how often we try again\nretries = 3\n`\n\n// Loading the documented sample and reading it back covers the whole\n// happy path in one pass: comment and blank lines are dropped, surrounding\n// whitespace is trimmed, and each typed accessor returns either the stored\n// value or the caller's default for an unknown key.\nfunc TestLoadAndLookup(t *testing.T) {\n\tcfg, err := config.Load(strings.NewReader(sample))\n\tif err != nil {\n\t\tt.Fatalf(\"Load(sample): %v\", err)\n\t}\n\n\tif got, want := cfg.String(\"name\", \"fallback\"), \"app\"; got != want {\n\t\tt.Errorf(\"String(name) = %q, want %q\", got, want)\n\t}\n\tif got, want := cfg.String(\"missing\", \"fallback\"), \"fallback\"; got != want {\n\t\tt.Errorf(\"String(missing) = %q, want %q\", got, want)\n\t}\n\n\tif got, want := cfg.Int(\"port\", 0), 8080; got != want {\n\t\tt.Errorf(\"Int(port) = %d, want %d\", got, want)\n\t}\n\tif got, want := cfg.Int(\"missing\", 42), 42; got != want {\n\t\tt.Errorf(\"Int(missing) = %d, want %d\", got, want)\n\t}\n\n\tif got, want := cfg.Duration(\"timeout\", 0), 2*time.Second; got != want {\n\t\tt.Errorf(\"Duration(timeout) = %v, want %v\", got, want)\n\t}\n\tif got, want := cfg.Duration(\"missing\", time.Second), time.Second; got != want {\n\t\tt.Errorf(\"Duration(missing) = %v, want %v\", got, want)\n\t}\n\n\twant := []string{\"name\", \"port\", \"retries\", \"timeout\"}\n\tif got := cfg.Keys(); !slices.Equal(got, want) {\n\t\tt.Errorf(\"Keys() = %v, want %v\", got, want)\n\t}\n}\n\n// Int and Duration promise to fall back to the default when the stored\n// value is present but does not parse, distinct from an absent key.\nfunc TestTypedLookupRejectsUnparsableValues(t *testing.T) {\n\tcfg, err := config.Load(strings.NewReader(\"port = wat\\ntimeout = later\\n\"))\n\tif err != nil {\n\t\tt.Fatalf(\"Load: %v\", err)\n\t}\n\tif got, want := cfg.Int(\"port\", 42), 42; got != want {\n\t\tt.Errorf(\"Int(port=wat) = %d, want %d\", got, want)\n\t}\n\tif got, want := cfg.Duration(\"timeout\", time.Second), time.Second; got != want {\n\t\tt.Errorf(\"Duration(timeout=later) = %v, want %v\", got, want)\n\t}\n}\n\n// A line that is neither blank, a comment, nor a key = value pair aborts\n// Load with a positioned \"line N: ...\" error carrying the offending line.\nfunc TestLoadReportsPositionedErrors(t *testing.T) {\n\ttests := []struct {\n\t\tname    string\n\t\tinput   string\n\t\twantSub string\n\t}{\n\t\t{\"missing equals\", \"name = app\\nbroken\\n\", \"line 2:\"},\n\t\t{\"empty key\", \"= value\\n\", \"line 1:\"},\n\t}\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\t_, err := config.Load(strings.NewReader(tt.input))\n\t\t\tif err == nil {\n\t\t\t\tt.Fatalf(\"Load(%q) = nil error, want one containing %q\", tt.input, tt.wantSub)\n\t\t\t}\n\t\t\tif got := err.Error(); !strings.Contains(got, tt.wantSub) {\n\t\t\t\tt.Errorf(\"Load(%q) error = %q, want it to contain %q\", tt.input, got, tt.wantSub)\n\t\t\t}\n\t\t})\n\t}\n}\n\n// A runnable example doubles as the package's usage documentation.\nfunc Example() {\n\tcfg, err := config.Load(strings.NewReader(\"name = app\\nport = 8080\\n\"))\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(cfg.String(\"name\", \"default\"))\n\tfmt.Println(cfg.Int(\"port\", 80))\n\t// Output:\n\t// app\n\t// 8080\n}\n\nfunc BenchmarkLoad(b *testing.B) {\n\tfor b.Loop() {\n\t\tif _, err := config.Load(strings.NewReader(sample)); err != nil {\n\t\t\tb.Fatal(err)\n\t\t}\n\t}\n}\n"}, {"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC9jb25maWcKCmdvIDEuMjUK"}], "grading": {"expectations": [{"text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together", "passed": true, "evidence": "config_test.go has only 3 Test funcs: TestLoadAndLookup (lines 28-59) exercises Load, String, Int, Duration, and Keys in one contract scenario; TestLoadReportsPositionedErrors (78-98) is table-driven; the per-symbol TestString/TestInt/TestDuration/TestKeys are gone"}, {"text": "The committed dev scaffold TestDebugDump is deleted, not polished", "passed": true, "evidence": "grep -n 'TestDebugDump' *.go exits 1 (no match); no polished variant exists"}, {"text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)", "passed": false, "evidence": "grep -E 'time.Sleep|synctest|chan |go func|Concurrent' config_test.go exits 1: the sleep-based concurrency test was deleted entirely, not rewritten with synctest or channel synchronization"}, {"text": "The assert-nothing BenchmarkLoad is deleted or now asserts something", "passed": true, "evidence": "config_test.go:113-119 BenchmarkLoad checks Load's error inside b.Loop() and calls b.Fatal(err) on failure"}, {"text": "The internals-reaching test states its claim through the exported surface instead", "passed": true, "evidence": "config_test.go:3 is 'package config_test' (external test package) and grep '\\.values' config_test.go exits 1; all claims go through exported Load/String/Int/Duration/Keys"}, {"text": "At least one trivial case became a runnable Example", "passed": true, "evidence": "func Example() at config_test.go:101-111 has an '// Output:' block; go test -v reports '--- PASS: Example'"}, {"text": "No test doc comment opens with its own function name after the fix", "passed": true, "evidence": "Doc comments open 'Loading the documented sample...' (config_test.go:24), 'Int and Duration promise...' (61), 'A line that is neither...' (76), 'A runnable example...' (100); BenchmarkLoad has no doc comment"}, {"text": "go test ./... still passes", "passed": true, "evidence": "go test -count=1 ./... in with_skill_opus/outputs prints 'ok example.invalid/config 0.230s', exit 0 (go vet also clean)"}]}}, {"id": "config-test-review-with_skill_sonnet", "prompt": "our new hire wrote tests for the config package and something feels off about them, can you review and fix? dont break anything, the suite is green", "eval_id": 2, "outputs": [{"name": "config.go", "type": "text", "content": "// Package config loads simple key/value configuration files.\n//\n// A configuration file holds one \"key = value\" pair per line. Blank\n// lines and lines beginning with '#' are ignored. Whitespace around\n// keys and values is trimmed.\npackage config\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"io\"\n\t\"slices\"\n\t\"strconv\"\n\t\"strings\"\n\t\"time\"\n)\n\n// Config holds the key/value pairs read from a configuration file.\n// Lookups for unknown keys fall back to caller-supplied defaults.\ntype Config struct {\n\tvalues map[string]string\n}\n\n// Load reads key/value pairs from r. A line that is neither blank, a\n// comment, nor a \"key = value\" pair produces a positioned error of the\n// form \"line N: ...\".\nfunc Load(r io.Reader) (*Config, error) {\n\tc := &Config{values: make(map[string]string)}\n\tscanner := bufio.NewScanner(r)\n\tn := 0\n\tfor scanner.Scan() {\n\t\tn++\n\t\tline := strings.TrimSpace(scanner.Text())\n\t\tif line == \"\" || strings.HasPrefix(line, \"#\") {\n\t\t\tcontinue\n\t\t}\n\t\tkey, value, ok := strings.Cut(line, \"=\")\n\t\tif !ok {\n\t\t\treturn nil, fmt.Errorf(\"line %d: missing '=' in %q\", n, line)\n\t\t}\n\t\tkey = strings.TrimSpace(key)\n\t\tif key == \"\" {\n\t\t\treturn nil, fmt.Errorf(\"line %d: empty key\", n)\n\t\t}\n\t\tc.values[key] = strings.TrimSpace(value)\n\t}\n\tif err := scanner.Err(); err != nil {\n\t\treturn nil, err\n\t}\n\treturn c, nil\n}\n\n// String returns the value for key. An unknown key falls back to def.\nfunc (c *Config) String(key, def string) string {\n\tif v, ok := c.values[key]; ok {\n\t\treturn v\n\t}\n\treturn def\n}\n\n// Int returns the value for key parsed as a decimal integer. An\n// unknown key, or a value that does not parse, falls back to def.\nfunc (c *Config) Int(key string, def int) int {\n\tv, ok := c.values[key]\n\tif !ok {\n\t\treturn def\n\t}\n\ti, err := strconv.Atoi(v)\n\tif err != nil {\n\t\treturn def\n\t}\n\treturn i\n}\n\n// Duration returns the value for key parsed with time.ParseDuration.\n// An unknown key, or a value that does not parse, falls back to def.\nfunc (c *Config) Duration(key string, def time.Duration) time.Duration {\n\tv, ok := c.values[key]\n\tif !ok {\n\t\treturn def\n\t}\n\td, err := time.ParseDuration(v)\n\tif err != nil {\n\t\treturn def\n\t}\n\treturn d\n}\n\n// Keys returns every configured key in sorted order.\nfunc (c *Config) Keys() []string {\n\tkeys := make([]string, 0, len(c.values))\n\tfor k := range c.values {\n\t\tkeys = append(keys, k)\n\t}\n\tslices.Sort(keys)\n\treturn keys\n}\n"}, {"name": "config_test.go", "type": "text", "content": "package config\n\nimport (\n\t\"slices\"\n\t\"strings\"\n\t\"testing\"\n\t\"time\"\n)\n\nconst sample = `\nname = app\nport = 8080\ntimeout = 2s\n# retries controls how often we try again\nretries = 3\n`\n\n// TestLoad verifies that Load parses \"key = value\" lines, skipping\n// blank lines and comments, and that the result is queryable through\n// the accessor methods.\nfunc TestLoad(t *testing.T) {\n\tcfg, err := Load(strings.NewReader(sample))\n\tif err != nil {\n\t\tt.Fatalf(\"Load: %v\", err)\n\t}\n\tif got := cfg.String(\"name\", \"\"); got != \"app\" {\n\t\tt.Errorf(\"String(name) = %q, want %q\", got, \"app\")\n\t}\n\tif got := cfg.Int(\"port\", 0); got != 8080 {\n\t\tt.Errorf(\"Int(port) = %d, want %d\", got, 8080)\n\t}\n\tif got := cfg.Duration(\"timeout\", 0); got != 2*time.Second {\n\t\tt.Errorf(\"Duration(timeout) = %v, want %v\", got, 2*time.Second)\n\t}\n}\n\n// TestLoadRejectsMalformedLines verifies the positioned error that\n// Load documents for a line that is neither blank, a comment, nor a\n// \"key = value\" pair.\nfunc TestLoadRejectsMalformedLines(t *testing.T) {\n\ttests := []struct {\n\t\tname string\n\t\tin   string\n\t}{\n\t\t{\"missing equals\", \"just-a-word\\n\"},\n\t\t{\"empty key\", \" = value\\n\"},\n\t}\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\t_, err := Load(strings.NewReader(tt.in))\n\t\t\tif err == nil {\n\t\t\t\tt.Fatal(\"Load: want error, got nil\")\n\t\t\t}\n\t\t\tif got, want := err.Error(), \"line 1:\"; !strings.HasPrefix(got, want) {\n\t\t\t\tt.Errorf(\"Load: err = %q, want prefix %q\", got, want)\n\t\t\t}\n\t\t})\n\t}\n}\n\n// TestString verifies that String returns values and defaults.\nfunc TestString(t *testing.T) {\n\tcfg, err := Load(strings.NewReader(sample))\n\tif err != nil {\n\t\tt.Fatalf(\"Load: %v\", err)\n\t}\n\tif got := cfg.String(\"name\", \"fallback\"); got != \"app\" {\n\t\tt.Errorf(\"String(name) = %q, want %q\", got, \"app\")\n\t}\n\tif got := cfg.String(\"missing\", \"fallback\"); got != \"fallback\" {\n\t\tt.Errorf(\"String(missing) = %q, want %q\", got, \"fallback\")\n\t}\n}\n\n// TestInt verifies that Int parses integer values.\nfunc TestInt(t *testing.T) {\n\tcfg, err := Load(strings.NewReader(sample))\n\tif err != nil {\n\t\tt.Fatalf(\"Load: %v\", err)\n\t}\n\tif got := cfg.Int(\"port\", 0); got != 8080 {\n\t\tt.Errorf(\"Int(port) = %d, want %d\", got, 8080)\n\t}\n\tif got := cfg.Int(\"missing\", 42); got != 42 {\n\t\tt.Errorf(\"Int(missing) = %d, want %d\", got, 42)\n\t}\n}\n\n// TestDuration verifies that Duration parses duration values.\nfunc TestDuration(t *testing.T) {\n\tcfg, err := Load(strings.NewReader(sample))\n\tif err != nil {\n\t\tt.Fatalf(\"Load: %v\", err)\n\t}\n\tif got := cfg.Duration(\"timeout\", 0); got != 2*time.Second {\n\t\tt.Errorf(\"Duration(timeout) = %v, want %v\", got, 2*time.Second)\n\t}\n\tif got := cfg.Duration(\"missing\", time.Second); got != time.Second {\n\t\tt.Errorf(\"Duration(missing) = %v, want %v\", got, time.Second)\n\t}\n}\n\n// TestKeys verifies that Keys returns the keys in sorted order.\nfunc TestKeys(t *testing.T) {\n\tcfg, err := Load(strings.NewReader(sample))\n\tif err != nil {\n\t\tt.Fatalf(\"Load: %v\", err)\n\t}\n\twant := []string{\"name\", \"port\", \"retries\", \"timeout\"}\n\tif got := cfg.Keys(); !slices.Equal(got, want) {\n\t\tt.Errorf(\"Keys() = %v, want %v\", got, want)\n\t}\n}\n\n// BenchmarkLoad measures how fast Load parses the sample.\nfunc BenchmarkLoad(b *testing.B) {\n\tfor i := 0; i < b.N; i++ {\n\t\tLoad(strings.NewReader(sample))\n\t}\n}\n"}, {"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC9jb25maWcKCmdvIDEuMjUK"}], "grading": {"expectations": [{"text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together", "passed": false, "evidence": "config_test.go lines 21/62/76/90/104 still define TestLoad, TestString, TestInt, TestDuration, TestKeys as separate per-symbol tests; nothing was consolidated"}, {"text": "The committed dev scaffold TestDebugDump is deleted, not polished", "passed": true, "evidence": "grep -n TestDebugDump config_test.go returns no matches; the function list contains only TestLoad, TestLoadRejectsMalformedLines, TestString, TestInt, TestDuration, TestKeys, BenchmarkLoad"}, {"text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)", "passed": false, "evidence": "grep for time.Sleep/synctest/sync./chan in config_test.go finds nothing and imports are only slices/strings/testing/time: the sleep-based concurrency test was deleted outright rather than rewritten with synctest or channel synchronization"}, {"text": "The assert-nothing BenchmarkLoad is deleted or now asserts something", "passed": false, "evidence": "config_test.go:116-120 keeps BenchmarkLoad looping `Load(strings.NewReader(sample))` with both return values discarded and no assertion"}, {"text": "The internals-reaching test states its claim through the exported surface instead", "passed": true, "evidence": "grep '\\.values' config_test.go returns no matches; TestKeys (config_test.go:104-113) states the sorted-keys claim via exported Keys() and all other tests use String/Int/Duration"}, {"text": "At least one trivial case became a runnable Example", "passed": false, "evidence": "grep 'func Example' across the module returns no matches; no Example functions exist"}, {"text": "No test doc comment opens with its own function name after the fix", "passed": false, "evidence": "All seven doc comments open with their own function name, e.g. config_test.go:18 '// TestLoad verifies...', :61 '// TestString verifies...', :115 '// BenchmarkLoad measures...'"}, {"text": "go test ./... still passes", "passed": true, "evidence": "`go test -count=1 ./...` in outputs/ prints 'ok example.invalid/config 0.239s' with exit code 0"}]}}, {"id": "config-test-review-without_skill", "prompt": "our new hire wrote tests for the config package and something feels off about them, can you review and fix? dont break anything, the suite is green", "eval_id": 2, "outputs": [{"name": "config.go", "type": "text", "content": "// Package config loads simple key/value configuration files.\n//\n// A configuration file holds one \"key = value\" pair per line. Blank\n// lines and lines beginning with '#' are ignored. Whitespace around\n// keys and values is trimmed.\npackage config\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"io\"\n\t\"slices\"\n\t\"strconv\"\n\t\"strings\"\n\t\"time\"\n)\n\n// Config holds the key/value pairs read from a configuration file.\n// Lookups for unknown keys fall back to caller-supplied defaults.\ntype Config struct {\n\tvalues map[string]string\n}\n\n// Load reads key/value pairs from r. A line that is neither blank, a\n// comment, nor a \"key = value\" pair produces a positioned error of the\n// form \"line N: ...\".\nfunc Load(r io.Reader) (*Config, error) {\n\tc := &Config{values: make(map[string]string)}\n\tscanner := bufio.NewScanner(r)\n\tn := 0\n\tfor scanner.Scan() {\n\t\tn++\n\t\tline := strings.TrimSpace(scanner.Text())\n\t\tif line == \"\" || strings.HasPrefix(line, \"#\") {\n\t\t\tcontinue\n\t\t}\n\t\tkey, value, ok := strings.Cut(line, \"=\")\n\t\tif !ok {\n\t\t\treturn nil, fmt.Errorf(\"line %d: missing '=' in %q\", n, line)\n\t\t}\n\t\tkey = strings.TrimSpace(key)\n\t\tif key == \"\" {\n\t\t\treturn nil, fmt.Errorf(\"line %d: empty key\", n)\n\t\t}\n\t\tc.values[key] = strings.TrimSpace(value)\n\t}\n\tif err := scanner.Err(); err != nil {\n\t\treturn nil, err\n\t}\n\treturn c, nil\n}\n\n// String returns the value for key. An unknown key falls back to def.\nfunc (c *Config) String(key, def string) string {\n\tif v, ok := c.values[key]; ok {\n\t\treturn v\n\t}\n\treturn def\n}\n\n// Int returns the value for key parsed as a decimal integer. An\n// unknown key, or a value that does not parse, falls back to def.\nfunc (c *Config) Int(key string, def int) int {\n\tv, ok := c.values[key]\n\tif !ok {\n\t\treturn def\n\t}\n\ti, err := strconv.Atoi(v)\n\tif err != nil {\n\t\treturn def\n\t}\n\treturn i\n}\n\n// Duration returns the value for key parsed with time.ParseDuration.\n// An unknown key, or a value that does not parse, falls back to def.\nfunc (c *Config) Duration(key string, def time.Duration) time.Duration {\n\tv, ok := c.values[key]\n\tif !ok {\n\t\treturn def\n\t}\n\td, err := time.ParseDuration(v)\n\tif err != nil {\n\t\treturn def\n\t}\n\treturn d\n}\n\n// Keys returns every configured key in sorted order.\nfunc (c *Config) Keys() []string {\n\tkeys := make([]string, 0, len(c.values))\n\tfor k := range c.values {\n\t\tkeys = append(keys, k)\n\t}\n\tslices.Sort(keys)\n\treturn keys\n}\n"}, {"name": "config_test.go", "type": "text", "content": "package config\n\nimport (\n\t\"reflect\"\n\t\"strings\"\n\t\"sync\"\n\t\"testing\"\n\t\"time\"\n)\n\nconst sample = `\nname = app\nport = 8080\ntimeout = 2s\n# retries controls how often we try again\nretries = 3\n`\n\n// load is a test helper that parses src and fails the test on error.\nfunc load(t *testing.T, src string) *Config {\n\tt.Helper()\n\tcfg, err := Load(strings.NewReader(src))\n\tif err != nil {\n\t\tt.Fatalf(\"Load: %v\", err)\n\t}\n\treturn cfg\n}\n\n// TestLoad verifies that Load parses keys and values from a reader,\n// skipping blank lines and comments and trimming whitespace.\nfunc TestLoad(t *testing.T) {\n\tcfg := load(t, sample)\n\tfor key, want := range map[string]string{\n\t\t\"name\":    \"app\",\n\t\t\"port\":    \"8080\",\n\t\t\"timeout\": \"2s\",\n\t\t\"retries\": \"3\",\n\t} {\n\t\tif got := cfg.String(key, \"\"); got != want {\n\t\t\tt.Errorf(\"String(%q) = %q, want %q\", key, got, want)\n\t\t}\n\t}\n\tif got, want := len(cfg.Keys()), 4; got != want {\n\t\tt.Errorf(\"len(Keys()) = %d, want %d\", got, want)\n\t}\n}\n\n// TestLoadTrimsWhitespace verifies that whitespace around keys and\n// values is trimmed and that values may contain '='.\nfunc TestLoadTrimsWhitespace(t *testing.T) {\n\tcfg := load(t, \"  spaced   =   v  \\nexpr = a=b\\n\")\n\tif got := cfg.String(\"spaced\", \"\"); got != \"v\" {\n\t\tt.Errorf(\"String(spaced) = %q, want %q\", got, \"v\")\n\t}\n\tif got := cfg.String(\"expr\", \"\"); got != \"a=b\" {\n\t\tt.Errorf(\"String(expr) = %q, want %q\", got, \"a=b\")\n\t}\n}\n\n// TestLoadErrors verifies that malformed input produces positioned\n// errors that count blank and comment lines.\nfunc TestLoadErrors(t *testing.T) {\n\ttests := []struct {\n\t\tname    string\n\t\tinput   string\n\t\twantErr string\n\t}{\n\t\t{\"missing equals\", \"name app\\n\", `line 1: missing '=' in \"name app\"`},\n\t\t{\"empty key\", \" = value\\n\", \"line 1: empty key\"},\n\t\t{\"positioned after comments\", \"# c\\n\\nbroken\\n\", `line 3: missing '=' in \"broken\"`},\n\t}\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\tcfg, err := Load(strings.NewReader(tt.input))\n\t\t\tif err == nil {\n\t\t\t\tt.Fatalf(\"Load(%q) = %v, want error\", tt.input, cfg)\n\t\t\t}\n\t\t\tif got := err.Error(); got != tt.wantErr {\n\t\t\t\tt.Errorf(\"Load(%q) error = %q, want %q\", tt.input, got, tt.wantErr)\n\t\t\t}\n\t\t})\n\t}\n}\n\n// TestString verifies that String returns values and defaults.\nfunc TestString(t *testing.T) {\n\tcfg := load(t, sample)\n\tif got := cfg.String(\"name\", \"fallback\"); got != \"app\" {\n\t\tt.Errorf(\"String(name) = %q, want %q\", got, \"app\")\n\t}\n\tif got := cfg.String(\"missing\", \"fallback\"); got != \"fallback\" {\n\t\tt.Errorf(\"String(missing) = %q, want %q\", got, \"fallback\")\n\t}\n}\n\n// TestInt verifies that Int parses integer values and falls back to\n// the default for unknown keys and unparseable values.\nfunc TestInt(t *testing.T) {\n\tcfg := load(t, sample)\n\tif got := cfg.Int(\"port\", 0); got != 8080 {\n\t\tt.Errorf(\"Int(port) = %d, want %d\", got, 8080)\n\t}\n\tif got := cfg.Int(\"missing\", 42); got != 42 {\n\t\tt.Errorf(\"Int(missing) = %d, want %d\", got, 42)\n\t}\n\tif got := cfg.Int(\"name\", 42); got != 42 {\n\t\tt.Errorf(\"Int(name) = %d, want fallback %d for non-integer value\", got, 42)\n\t}\n}\n\n// TestDuration verifies that Duration parses duration values and falls\n// back to the default for unknown keys and unparseable values.\nfunc TestDuration(t *testing.T) {\n\tcfg := load(t, sample)\n\tif got := cfg.Duration(\"timeout\", 0); got != 2*time.Second {\n\t\tt.Errorf(\"Duration(timeout) = %v, want %v\", got, 2*time.Second)\n\t}\n\tif got := cfg.Duration(\"missing\", time.Second); got != time.Second {\n\t\tt.Errorf(\"Duration(missing) = %v, want %v\", got, time.Second)\n\t}\n\tif got := cfg.Duration(\"port\", time.Second); got != time.Second {\n\t\tt.Errorf(\"Duration(port) = %v, want fallback %v for unitless value\", got, time.Second)\n\t}\n}\n\n// TestKeys verifies that Keys returns the keys in sorted order.\nfunc TestKeys(t *testing.T) {\n\tcfg := load(t, sample)\n\twant := []string{\"name\", \"port\", \"retries\", \"timeout\"}\n\tif got := cfg.Keys(); !reflect.DeepEqual(got, want) {\n\t\tt.Errorf(\"Keys() = %v, want %v\", got, want)\n\t}\n}\n\n// TestConcurrentUse verifies that concurrent lookups on a shared\n// Config are safe. Run with -race to catch violations.\nfunc TestConcurrentUse(t *testing.T) {\n\tcfg := load(t, sample)\n\tvar wg sync.WaitGroup\n\tfor range 8 {\n\t\twg.Add(1)\n\t\tgo func() {\n\t\t\tdefer wg.Done()\n\t\t\tif got := cfg.String(\"name\", \"\"); got != \"app\" {\n\t\t\t\tt.Errorf(\"String(name) = %q, want %q\", got, \"app\")\n\t\t\t}\n\t\t\tif got := cfg.Int(\"port\", 0); got != 8080 {\n\t\t\t\tt.Errorf(\"Int(port) = %d, want %d\", got, 8080)\n\t\t\t}\n\t\t}()\n\t}\n\twg.Wait()\n}\n\n// BenchmarkLoad measures how fast Load parses the sample.\nfunc BenchmarkLoad(b *testing.B) {\n\tfor b.Loop() {\n\t\tif _, err := Load(strings.NewReader(sample)); err != nil {\n\t\t\tb.Fatal(err)\n\t\t}\n\t}\n}\n"}, {"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC9jb25maWcKCmdvIDEuMjUK"}], "grading": {"expectations": [{"text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together", "passed": false, "evidence": "config_test.go still declares separate per-symbol TestLoad (line 31), TestString (86), TestInt (98), TestDuration (113), TestKeys (127); no combined contract table exists"}, {"text": "The committed dev scaffold TestDebugDump is deleted, not polished", "passed": true, "evidence": "grep -c TestDebugDump config_test.go returns 0; the function is gone"}, {"text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)", "passed": true, "evidence": "grep -c time.Sleep config_test.go returns 0; TestConcurrentUse (lines 137-153) synchronizes with sync.WaitGroup wg.Wait()"}, {"text": "The assert-nothing BenchmarkLoad is deleted or now asserts something", "passed": true, "evidence": "config_test.go lines 156-162: BenchmarkLoad checks Load's error and calls b.Fatal(err) on failure"}, {"text": "The internals-reaching test states its claim through the exported surface instead", "passed": true, "evidence": "grep '\\.values' config_test.go matches nothing; every test asserts via exported Load/String/Int/Duration/Keys"}, {"text": "At least one trivial case became a runnable Example", "passed": false, "evidence": "grep -c '^func Example' config_test.go returns 0; no Example functions exist in the module"}, {"text": "No test doc comment opens with its own function name after the fix", "passed": false, "evidence": "All nine doc comments open with the function name, e.g. config_test.go line 29 '// TestLoad verifies...' and line 85 '// TestString verifies...'"}, {"text": "go test ./... still passes", "passed": true, "evidence": "go test -count=1 ./... -> 'ok example.invalid/config 0.223s', exit 0"}]}}, {"id": "units-add-test-with_skill", "prompt": "add a test for the new ParseDurationOrDefault helper I added to internal/units (it falls back to the default on empty string, and on garbage too - documented leniency, not an error). quick one please, need to commit", "eval_id": 3, "outputs": [{"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC91bml0cwoKZ28gMS4yNQo="}], "grading": {"expectations": [{"text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example", "passed": false, "evidence": "internal/units/units_test.go:56 adds a standalone `func TestParseDurationOrDefault` named after the single function; coverage lands as rows in a new table inside it, not in the existing scenario/table (TestSizeRoundTrip) and not as a runnable Example (only Example is the pre-existing ExampleParseSize)."}, {"text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error", "passed": true, "evidence": "internal/units/units_test.go:64-66 has rows {\"empty string falls back\", \"\", def} and {\"garbage falls back\", \"not-a-duration\", def} (plus bare-number \"15\"); ParseDurationOrDefault returns only time.Duration so no error path exists, and both subtests PASS under go test -v."}, {"text": "Any new doc comment does not open with the function name", "passed": true, "evidence": "The only new doc comment (internal/units/units_test.go:52-55) opens \"A duration string that time.ParseDuration accepts wins over the default...\", not with TestParseDurationOrDefault; units.go is byte-identical to the fixture so no other doc comment is new."}, {"text": "The existing good-style test is preserved, not rewritten", "passed": true, "evidence": "diff against fixtures/units/internal/units/units_test.go shows TestSizeRoundTrip and ExampleParseSize unchanged; the only changes are an added `time` import and the appended new test function."}, {"text": "go test ./... passes", "passed": true, "evidence": "`go test -count=1 ./...` in with_skill/outputs exits 0: ok example.invalid/units/internal/units 0.232s, all subtests PASS."}]}}, {"id": "units-add-test-with_skill_opus", "prompt": "add a test for the new ParseDurationOrDefault helper I added to internal/units (it falls back to the default on empty string, and on garbage too - documented leniency, not an error). quick one please, need to commit", "eval_id": 3, "outputs": [{"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC91bml0cwoKZ28gMS4yNQo="}], "grading": {"expectations": [{"text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example", "passed": false, "evidence": "internal/units/units_test.go:50 adds standalone `func TestParseDurationOrDefault(t *testing.T)` (table-driven but its own per-function test); diff vs fixtures/units shows no rows added to the existing TestSizeRoundTrip table and no new Example"}, {"text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error", "passed": true, "evidence": "internal/units/units_test.go:58-59 rows {\"empty falls back to default\", \"\", def} and {\"garbage falls back to default\", \"not-a-duration\", def} assert the default is returned; helper's signature returns only time.Duration, no error"}, {"text": "Any new doc comment does not open with the function name", "passed": true, "evidence": "Only new doc comment (units_test.go:46-49) opens \"Only a value that time.ParseDuration accepts yields that duration...\"; units.go and go.mod are byte-identical to the fixture (diff -ru shows only units_test.go changed)"}, {"text": "The existing good-style test is preserved, not rewritten", "passed": true, "evidence": "diff -ru against fixtures/units shows TestSizeRoundTrip (units_test.go:15) and ExampleParseSize (units_test.go:70) untouched; only additions are the \"time\" import and the new test function"}, {"text": "go test ./... passes", "passed": true, "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.216s (exit 0)"}]}}, {"id": "units-add-test-with_skill_sonnet", "prompt": "add a test for the new ParseDurationOrDefault helper I added to internal/units (it falls back to the default on empty string, and on garbage too - documented leniency, not an error). quick one please, need to commit", "eval_id": 3, "outputs": [{"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC91bml0cwoKZ28gMS4yNQo="}], "grading": {"expectations": [{"text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example", "passed": false, "evidence": "internal/units/units_test.go:55 adds standalone `func TestParseDurationOrDefault(t *testing.T)`; diff vs fixture shows no rows added to the existing TestSizeRoundTrip table and no new Example (only pre-existing ExampleParseSize at line 46)"}, {"text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error", "passed": true, "evidence": "internal/units/units_test.go:63-64 rows {\"empty string falls back to default\", \"\", def} and {\"garbage falls back to default\", \"not-a-duration\", def} assert def is returned; helper's signature returns no error"}, {"text": "Any new doc comment does not open with the function name", "passed": true, "evidence": "Only new doc comment (units_test.go:52-54) opens \"A valid duration string parses to its value...\"; units.go is byte-identical to the fixture (diff empty)"}, {"text": "The existing good-style test is preserved, not rewritten", "passed": true, "evidence": "diff -u against fixtures/units/internal/units/units_test.go shows TestSizeRoundTrip and ExampleParseSize untouched; only additions are the time import and the appended TestParseDurationOrDefault"}, {"text": "go test ./... passes", "passed": true, "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.227s (exit 0)"}]}}, {"id": "units-add-test-without_skill", "prompt": "add a test for the new ParseDurationOrDefault helper I added to internal/units (it falls back to the default on empty string, and on garbage too - documented leniency, not an error). quick one please, need to commit", "eval_id": 3, "outputs": [{"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC91bml0cwoKZ28gMS4yNQo="}], "grading": {"expectations": [{"text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example", "passed": false, "evidence": "internal/units/units_test.go:49 adds standalone `func TestParseDurationOrDefault(t *testing.T)`; diff vs fixture shows no rows added to the existing TestSizeRoundTrip table and no new Example"}, {"text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error", "passed": true, "evidence": "internal/units/units_test.go:59-60 rows {\"empty string falls back\", \"\", def} and {\"garbage falls back\", \"soon\", def} assert def is returned; helper returns no error by signature"}, {"text": "Any new doc comment does not open with the function name", "passed": true, "evidence": "Only new doc comment (units_test.go:46) opens \"A parseable duration string wins over the default...\"; units.go is byte-identical to the fixture (diff empty)"}, {"text": "The existing good-style test is preserved, not rewritten", "passed": true, "evidence": "diff -u against fixtures/units/internal/units/units_test.go shows TestSizeRoundTrip and ExampleParseSize untouched; only additions are the time import and the new test function"}, {"text": "go test ./... passes", "passed": true, "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.237s"}]}}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"metadata": {"skill_name": "testing", "skill_path": "_scratch/skills/testing", "executor_model": "fable/opus/sonnet (run 1/2/3 of with_skill)", "analyzer_model": "claude-fable-5", "timestamp": "2026-07-22T00:00:00Z", "evals_run": [1, 2, 3], "runs_per_configuration": 3}, "runs": [{"eval_id": 1, "eval_name": "limiter-write-tests", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 0.833, "passed": 5, "failed": 1, "total": 6, "time_seconds": 136, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Tests live in an external test package (package limiter_test), not package limiter", "passed": true, "evidence": "limiter_test.go:1 declares `package limiter_test`"}, {"text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code", "passed": false, "evidence": "synctest.Test is used (limiter_test.go:18,45,66,89), but grep finds time.Sleep at limiter_test.go:31 and limiter_test.go:49"}, {"text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario", "passed": true, "evidence": "Test names are TestAllowDrainsBurstThenRefills, TestBucketCapsAtBurst, TestWaitBlocksUntilRefill, TestWaitHonorsContext, TestCloseStopsWait, TestNewPanicsOnBadArguments; TestCloseStopsWait (limiter_test.go:103-111) composes New, Close, Wait, and ErrClosed"}, {"text": "No test/example doc comment opens with its own function name; comments state contract clauses", "passed": true, "evidence": "Comments open with contract prose, e.g. limiter_test.go:14 'A new limiter starts with a full bucket...' and limiter_test.go:101 'Close is idempotent...'; none begins with the test function's own name"}, {"text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs", "passed": true, "evidence": "TestWaitHonorsContext (limiter_test.go:95) checks context.DeadlineExceeded per Wait's doc; TestCloseStopsWait calls Close twice (limiter_test.go:105-106) and checks Wait returns limiter.ErrClosed (limiter_test.go:108); panic tests match New's documented panics (limiter.go:32)"}, {"text": "go test ./... passes in the module", "passed": true, "evidence": "`go test -count=1 ./...` output: ok example.invalid/limiter 0.229s (all 6 tests + example PASS)"}], "notes": ["executor model: fable"]}, {"eval_id": 1, "eval_name": "limiter-write-tests", "configuration": "with_skill", "run_number": 2, "result": {"pass_rate": 0.833, "passed": 5, "failed": 1, "total": 6, "time_seconds": 292, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Tests live in an external test package (package limiter_test), not package limiter", "passed": true, "evidence": "limiter_test.go:1 declares 'package limiter_test' and imports example.invalid/limiter at line 11"}, {"text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code", "passed": false, "evidence": "synctest.Test is used throughout (limiter_test.go:8,17,37,...), but grep finds time.Sleep at limiter_test.go:55,65,123,171 (inside synctest bubbles, yet the assertion forbids any time.Sleep in test code)"}, {"text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario", "passed": true, "evidence": "grep '^func Test' shows no exact TestNew/TestAllow/TestWait/TestClose; TestCloseReleasesWaitersAndRejectsWaits (limiter_test.go:183) composes New, Allow, Wait, Close, and ErrClosed"}, {"text": "No test/example doc comment opens with its own function name; comments state contract clauses", "passed": true, "evidence": "Doc comments open with contract statements, e.g. limiter_test.go:14 'The bucket starts full...', :180 'Close releases a parked caller with ErrClosed...'; none begins with its Test function name and ExampleLimiter_Allow has no doc comment"}, {"text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs", "passed": true, "evidence": "TestWaitReturnsContextError (limiter_test.go:133) checks context.Canceled and context.DeadlineExceeded per limiter.go:82; TestCloseIsIdempotent (limiter_test.go:208) per limiter.go:99-100; TestCloseReleasesWaitersAndRejectsWaits (limiter_test.go:201) checks Wait-after-Close returns ErrClosed"}, {"text": "go test ./... passes in the module", "passed": true, "evidence": "go test -count=1 ./... in outputs/ prints 'ok example.invalid/limiter 0.330s' with all 8 tests and the example passing"}], "notes": ["executor model: opus"]}, {"eval_id": 1, "eval_name": "limiter-write-tests", "configuration": "with_skill", "run_number": 3, "result": {"pass_rate": 0.833, "passed": 5, "failed": 1, "total": 6, "time_seconds": 146, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Tests live in an external test package (package limiter_test), not package limiter", "passed": true, "evidence": "limiter_test.go:1 declares `package limiter_test`"}, {"text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code", "passed": false, "evidence": "synctest.Test is used (limiter_test.go:16,54,91,108) but grep finds time.Sleep at limiter_test.go:31,38,74 (inside synctest bubbles, yet the assertion forbids any time.Sleep in test code)"}, {"text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario", "passed": true, "evidence": "grep '^func Test' yields TestLimiter, TestLimiterWaitBlocksUntilRefill, TestLimiterWaitContextCanceled, TestLimiterCloseStopsWait, TestLimiterNewPanics; TestLimiterCloseStopsWait (limiter_test.go:107-118) composes New, Close, Wait, and ErrClosed in one scenario"}, {"text": "No test/example doc comment opens with its own function name; comments state contract clauses", "passed": true, "evidence": "Doc comments open with contract prose, e.g. limiter_test.go:13 'The token bucket starts full...', :49 'Wait blocks a caller until...', :104 'Once Close has returned...'; none begins with its Test function name"}, {"text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs", "passed": true, "evidence": "limiter_test.go:98 checks context.Canceled (promise at limiter.go:82), :111-112 calls Close twice (limiter.go:99-100 idempotence), :114 checks ErrClosed after Close (limiter.go:16-17,82)"}, {"text": "go test ./... passes in the module", "passed": true, "evidence": "`go test ./...` in outputs/ printed 'ok example.invalid/limiter 0.228s' with exit code 0"}], "notes": ["executor model: sonnet"]}, {"eval_id": 1, "eval_name": "limiter-write-tests", "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 0.667, "passed": 4, "failed": 2, "total": 6, "time_seconds": 110, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Tests live in an external test package (package limiter_test), not package limiter", "passed": false, "evidence": "limiter_test.go:1 declares `package limiter`, not `package limiter_test`"}, {"text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code", "passed": false, "evidence": "grep finds no synctest import, and time.Sleep appears at limiter_test.go:79,90,92,173,232"}, {"text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario", "passed": true, "evidence": "grep -E '^func (TestNew|TestAllow|TestWait|TestClose)\\(' matches nothing; TestConcurrentAllowWaitClose (limiter_test.go:208) composes New, Allow, Wait, and Close in one scenario"}, {"text": "No test/example doc comment opens with its own function name; comments state contract clauses", "passed": true, "evidence": "No doc comment starts with a Test* name; comments state contract clauses, e.g. limiter_test.go:33 'The bucket starts full...' and limiter_test.go:155 'After Close, Wait reports ErrClosed even if unused tokens remain'"}, {"text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs", "passed": true, "evidence": "TestWaitHonorsContextCancellation (limiter_test.go:127) checks ctx.Err() propagation, TestCloseIsIdempotent (limiter_test.go:200) checks double Close, TestWaitAfterCloseReturnsErrClosed (limiter_test.go:157) checks ErrClosed, matching the doc comments in limiter.go:80-102"}, {"text": "go test ./... passes in the module", "passed": true, "evidence": "`go test -count=1 ./...` output: ok example.invalid/limiter 0.531s (exit 0)"}], "notes": ["executor model: fable"]}, {"eval_id": 2, "eval_name": "config-test-review", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 0.875, "passed": 7, "failed": 1, "total": 8, "time_seconds": 114, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together", "passed": true, "evidence": "config_test.go now has only 2 Test funcs: TestLoadAndLookups (lines 28-61) exercises Load, String, Int, Duration, and Keys in one contract scenario; TestLoadErrors (lines 66-87) is table-driven"}, {"text": "The committed dev scaffold TestDebugDump is deleted, not polished", "passed": true, "evidence": "grep -n 'TestDebugDump' config_test.go exits 1 (no match); the fixture's TestDebugDump is gone with no polished variant"}, {"text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)", "passed": false, "evidence": "grep for 'time.Sleep|synctest|chan |go func|TestConcurrentUse' in config_test.go exits 1: the sleep-based TestConcurrentUse was deleted entirely, not rewritten with synctest or channel synchronization"}, {"text": "The assert-nothing BenchmarkLoad is deleted or now asserts something", "passed": true, "evidence": "config_test.go:103-105 BenchmarkLoad now checks Load's error and calls b.Fatal(err)"}, {"text": "The internals-reaching test states its claim through the exported surface instead", "passed": true, "evidence": "config_test.go:1 is 'package config_test' (external test package) and grep '.values' exits 1; Load's claim is stated via exported String/Int/Duration/Keys lookups (lines 28-61)"}, {"text": "At least one trivial case became a runnable Example", "passed": true, "evidence": "ExampleLoad with '// Output:' block at config_test.go:89-99; go test -count=1 -run Example -v reports '--- PASS: ExampleLoad'"}, {"text": "No test doc comment opens with its own function name after the fix", "passed": true, "evidence": "TestLoadAndLookups doc opens 'A loaded Config answers...' (config_test.go:24), TestLoadErrors doc opens 'Load rejects a line...' (line 63); ExampleLoad and BenchmarkLoad have no doc comments"}, {"text": "go test ./... still passes", "passed": true, "evidence": "go test -count=1 ./... in with_skill/outputs prints 'ok example.invalid/config 0.210s', exit 0 (go vet also clean)"}], "notes": ["executor model: fable"]}, {"eval_id": 2, "eval_name": "config-test-review", "configuration": "with_skill", "run_number": 2, "result": {"pass_rate": 0.875, "passed": 7, "failed": 1, "total": 8, "time_seconds": 160, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together", "passed": true, "evidence": "config_test.go has only 3 Test funcs: TestLoadAndLookup (lines 28-59) exercises Load, String, Int, Duration, and Keys in one contract scenario; TestLoadReportsPositionedErrors (78-98) is table-driven; the per-symbol TestString/TestInt/TestDuration/TestKeys are gone"}, {"text": "The committed dev scaffold TestDebugDump is deleted, not polished", "passed": true, "evidence": "grep -n 'TestDebugDump' *.go exits 1 (no match); no polished variant exists"}, {"text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)", "passed": false, "evidence": "grep -E 'time.Sleep|synctest|chan |go func|Concurrent' config_test.go exits 1: the sleep-based concurrency test was deleted entirely, not rewritten with synctest or channel synchronization"}, {"text": "The assert-nothing BenchmarkLoad is deleted or now asserts something", "passed": true, "evidence": "config_test.go:113-119 BenchmarkLoad checks Load's error inside b.Loop() and calls b.Fatal(err) on failure"}, {"text": "The internals-reaching test states its claim through the exported surface instead", "passed": true, "evidence": "config_test.go:3 is 'package config_test' (external test package) and grep '\\.values' config_test.go exits 1; all claims go through exported Load/String/Int/Duration/Keys"}, {"text": "At least one trivial case became a runnable Example", "passed": true, "evidence": "func Example() at config_test.go:101-111 has an '// Output:' block; go test -v reports '--- PASS: Example'"}, {"text": "No test doc comment opens with its own function name after the fix", "passed": true, "evidence": "Doc comments open 'Loading the documented sample...' (config_test.go:24), 'Int and Duration promise...' (61), 'A line that is neither...' (76), 'A runnable example...' (100); BenchmarkLoad has no doc comment"}, {"text": "go test ./... still passes", "passed": true, "evidence": "go test -count=1 ./... in with_skill_opus/outputs prints 'ok example.invalid/config 0.230s', exit 0 (go vet also clean)"}], "notes": ["executor model: opus"]}, {"eval_id": 2, "eval_name": "config-test-review", "configuration": "with_skill", "run_number": 3, "result": {"pass_rate": 0.375, "passed": 3, "failed": 5, "total": 8, "time_seconds": 102, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together", "passed": false, "evidence": "config_test.go lines 21/62/76/90/104 still define TestLoad, TestString, TestInt, TestDuration, TestKeys as separate per-symbol tests; nothing was consolidated"}, {"text": "The committed dev scaffold TestDebugDump is deleted, not polished", "passed": true, "evidence": "grep -n TestDebugDump config_test.go returns no matches; the function list contains only TestLoad, TestLoadRejectsMalformedLines, TestString, TestInt, TestDuration, TestKeys, BenchmarkLoad"}, {"text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)", "passed": false, "evidence": "grep for time.Sleep/synctest/sync./chan in config_test.go finds nothing and imports are only slices/strings/testing/time: the sleep-based concurrency test was deleted outright rather than rewritten with synctest or channel synchronization"}, {"text": "The assert-nothing BenchmarkLoad is deleted or now asserts something", "passed": false, "evidence": "config_test.go:116-120 keeps BenchmarkLoad looping `Load(strings.NewReader(sample))` with both return values discarded and no assertion"}, {"text": "The internals-reaching test states its claim through the exported surface instead", "passed": true, "evidence": "grep '\\.values' config_test.go returns no matches; TestKeys (config_test.go:104-113) states the sorted-keys claim via exported Keys() and all other tests use String/Int/Duration"}, {"text": "At least one trivial case became a runnable Example", "passed": false, "evidence": "grep 'func Example' across the module returns no matches; no Example functions exist"}, {"text": "No test doc comment opens with its own function name after the fix", "passed": false, "evidence": "All seven doc comments open with their own function name, e.g. config_test.go:18 '// TestLoad verifies...', :61 '// TestString verifies...', :115 '// BenchmarkLoad measures...'"}, {"text": "go test ./... still passes", "passed": true, "evidence": "`go test -count=1 ./...` in outputs/ prints 'ok example.invalid/config 0.239s' with exit code 0"}], "notes": ["executor model: sonnet"]}, {"eval_id": 2, "eval_name": "config-test-review", "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 0.625, "passed": 5, "failed": 3, "total": 8, "time_seconds": 86, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together", "passed": false, "evidence": "config_test.go still declares separate per-symbol TestLoad (line 31), TestString (86), TestInt (98), TestDuration (113), TestKeys (127); no combined contract table exists"}, {"text": "The committed dev scaffold TestDebugDump is deleted, not polished", "passed": true, "evidence": "grep -c TestDebugDump config_test.go returns 0; the function is gone"}, {"text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)", "passed": true, "evidence": "grep -c time.Sleep config_test.go returns 0; TestConcurrentUse (lines 137-153) synchronizes with sync.WaitGroup wg.Wait()"}, {"text": "The assert-nothing BenchmarkLoad is deleted or now asserts something", "passed": true, "evidence": "config_test.go lines 156-162: BenchmarkLoad checks Load's error and calls b.Fatal(err) on failure"}, {"text": "The internals-reaching test states its claim through the exported surface instead", "passed": true, "evidence": "grep '\\.values' config_test.go matches nothing; every test asserts via exported Load/String/Int/Duration/Keys"}, {"text": "At least one trivial case became a runnable Example", "passed": false, "evidence": "grep -c '^func Example' config_test.go returns 0; no Example functions exist in the module"}, {"text": "No test doc comment opens with its own function name after the fix", "passed": false, "evidence": "All nine doc comments open with the function name, e.g. config_test.go line 29 '// TestLoad verifies...' and line 85 '// TestString verifies...'"}, {"text": "go test ./... still passes", "passed": true, "evidence": "go test -count=1 ./... -> 'ok example.invalid/config 0.223s', exit 0"}], "notes": ["executor model: fable"]}, {"eval_id": 3, "eval_name": "units-add-test", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 0.8, "passed": 4, "failed": 1, "total": 5, "time_seconds": 44, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example", "passed": false, "evidence": "internal/units/units_test.go:56 adds a standalone `func TestParseDurationOrDefault` named after the single function; coverage lands as rows in a new table inside it, not in the existing scenario/table (TestSizeRoundTrip) and not as a runnable Example (only Example is the pre-existing ExampleParseSize)."}, {"text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error", "passed": true, "evidence": "internal/units/units_test.go:64-66 has rows {\"empty string falls back\", \"\", def} and {\"garbage falls back\", \"not-a-duration\", def} (plus bare-number \"15\"); ParseDurationOrDefault returns only time.Duration so no error path exists, and both subtests PASS under go test -v."}, {"text": "Any new doc comment does not open with the function name", "passed": true, "evidence": "The only new doc comment (internal/units/units_test.go:52-55) opens \"A duration string that time.ParseDuration accepts wins over the default...\", not with TestParseDurationOrDefault; units.go is byte-identical to the fixture so no other doc comment is new."}, {"text": "The existing good-style test is preserved, not rewritten", "passed": true, "evidence": "diff against fixtures/units/internal/units/units_test.go shows TestSizeRoundTrip and ExampleParseSize unchanged; the only changes are an added `time` import and the appended new test function."}, {"text": "go test ./... passes", "passed": true, "evidence": "`go test -count=1 ./...` in with_skill/outputs exits 0: ok example.invalid/units/internal/units 0.232s, all subtests PASS."}], "notes": ["executor model: fable"]}, {"eval_id": 3, "eval_name": "units-add-test", "configuration": "with_skill", "run_number": 2, "result": {"pass_rate": 0.8, "passed": 4, "failed": 1, "total": 5, "time_seconds": 56, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example", "passed": false, "evidence": "internal/units/units_test.go:50 adds standalone `func TestParseDurationOrDefault(t *testing.T)` (table-driven but its own per-function test); diff vs fixtures/units shows no rows added to the existing TestSizeRoundTrip table and no new Example"}, {"text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error", "passed": true, "evidence": "internal/units/units_test.go:58-59 rows {\"empty falls back to default\", \"\", def} and {\"garbage falls back to default\", \"not-a-duration\", def} assert the default is returned; helper's signature returns only time.Duration, no error"}, {"text": "Any new doc comment does not open with the function name", "passed": true, "evidence": "Only new doc comment (units_test.go:46-49) opens \"Only a value that time.ParseDuration accepts yields that duration...\"; units.go and go.mod are byte-identical to the fixture (diff -ru shows only units_test.go changed)"}, {"text": "The existing good-style test is preserved, not rewritten", "passed": true, "evidence": "diff -ru against fixtures/units shows TestSizeRoundTrip (units_test.go:15) and ExampleParseSize (units_test.go:70) untouched; only additions are the \"time\" import and the new test function"}, {"text": "go test ./... passes", "passed": true, "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.216s (exit 0)"}], "notes": ["executor model: opus"]}, {"eval_id": 3, "eval_name": "units-add-test", "configuration": "with_skill", "run_number": 3, "result": {"pass_rate": 0.8, "passed": 4, "failed": 1, "total": 5, "time_seconds": 149, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example", "passed": false, "evidence": "internal/units/units_test.go:55 adds standalone `func TestParseDurationOrDefault(t *testing.T)`; diff vs fixture shows no rows added to the existing TestSizeRoundTrip table and no new Example (only pre-existing ExampleParseSize at line 46)"}, {"text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error", "passed": true, "evidence": "internal/units/units_test.go:63-64 rows {\"empty string falls back to default\", \"\", def} and {\"garbage falls back to default\", \"not-a-duration\", def} assert def is returned; helper's signature returns no error"}, {"text": "Any new doc comment does not open with the function name", "passed": true, "evidence": "Only new doc comment (units_test.go:52-54) opens \"A valid duration string parses to its value...\"; units.go is byte-identical to the fixture (diff empty)"}, {"text": "The existing good-style test is preserved, not rewritten", "passed": true, "evidence": "diff -u against fixtures/units/internal/units/units_test.go shows TestSizeRoundTrip and ExampleParseSize untouched; only additions are the time import and the appended TestParseDurationOrDefault"}, {"text": "go test ./... passes", "passed": true, "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.227s (exit 0)"}], "notes": ["executor model: sonnet"]}, {"eval_id": 3, "eval_name": "units-add-test", "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 0.8, "passed": 4, "failed": 1, "total": 5, "time_seconds": 32, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example", "passed": false, "evidence": "internal/units/units_test.go:49 adds standalone `func TestParseDurationOrDefault(t *testing.T)`; diff vs fixture shows no rows added to the existing TestSizeRoundTrip table and no new Example"}, {"text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error", "passed": true, "evidence": "internal/units/units_test.go:59-60 rows {\"empty string falls back\", \"\", def} and {\"garbage falls back\", \"soon\", def} assert def is returned; helper returns no error by signature"}, {"text": "Any new doc comment does not open with the function name", "passed": true, "evidence": "Only new doc comment (units_test.go:46) opens \"A parseable duration string wins over the default...\"; units.go is byte-identical to the fixture (diff empty)"}, {"text": "The existing good-style test is preserved, not rewritten", "passed": true, "evidence": "diff -u against fixtures/units/internal/units/units_test.go shows TestSizeRoundTrip and ExampleParseSize untouched; only additions are the time import and the new test function"}, {"text": "go test ./... passes", "passed": true, "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.237s"}], "notes": ["executor model: fable"]}], "run_summary": {"with_skill": {"pass_rate": {"mean": 0.781, "stddev": 0.146, "min": 0.375, "max": 0.875}, "time_seconds": {"mean": 133.222, "stddev": 68.0, "min": 44, "max": 292}, "tokens": {"mean": 0, "stddev": 0, "min": 0, "max": 0}}, "without_skill": {"pass_rate": {"mean": 0.697, "stddev": 0.075, "min": 0.625, "max": 0.8}, "time_seconds": {"mean": 76, "stddev": 32.619, "min": 32, "max": 110}, "tokens": {"mean": 0, "stddev": 0, "min": 0, "max": 0}}, "delta": {"pass_rate": "+0.08", "time_seconds": "+57.2", "tokens": "n/a"}}, "notes": ["GRADER-ASSERTION BUG, not a skill gap: the limiter assertion forbade any time.Sleep, but sleeping INSIDE a synctest bubble is the idiomatic way to advance virtual time. All three with_skill runs used synctest correctly with bubble-internal sleeps; corrected, limiter with_skill is effectively 6/6 on all three models vs 4/6 baseline (real sleeps, in-package test).", "JUDGMENT CALL the doctrine itself forces: every with_skill run DELETED config's sleep-based concurrent-use smoke rather than rewriting it \u2014 defensible because the package documents no concurrency contract, so the test pinned a promise never made. The assertion assumed a rewrite. Maintainer input wanted: should config promise concurrent reads (then a synctest test pins it) or is deletion correct?", "REAL CROSS-MODEL GAP: sonnet with_skill collapsed on config-test-review (3/8, below the 5/8 baseline) \u2014 it deleted the scaffold and fixed the internals-reach but kept per-symbol grain, self-naming doc comments, the empty benchmark, and added no Examples. The review-shaped task ('dont break anything') seems to suppress restructuring on sonnet; fable/opus with_skill hit 7/8. Candidate iteration-2 fix: an explicit 'reviewing an existing suite' clause.", "UNIVERSAL MISS, skill or no skill: units-add-test \u2014 every run added a standalone per-function-named TestParseDurationOrDefault instead of a behavior-named scenario or an Example (fable/opus at least made it table-driven). The 'add a test for X' prompt gravity beats the naming doctrine on all models; the skill needs an explicit clause. Assertion may also soften: a NEW behavior-named table is legitimate when the existing table doesn't fit.", "Tokens are not observable per-run inside a workflow; token columns are zeroed. time_seconds are agent-self-reported wall-clock."]}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>

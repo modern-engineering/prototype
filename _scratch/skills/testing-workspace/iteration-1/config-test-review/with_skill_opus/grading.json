@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together",
+      "passed": true,
+      "evidence": "config_test.go has only 3 Test funcs: TestLoadAndLookup (lines 28-59) exercises Load, String, Int, Duration, and Keys in one contract scenario; TestLoadReportsPositionedErrors (78-98) is table-driven; the per-symbol TestString/TestInt/TestDuration/TestKeys are gone"
+    },
+    {
+      "text": "The committed dev scaffold TestDebugDump is deleted, not polished",
+      "passed": true,
+      "evidence": "grep -n 'TestDebugDump' *.go exits 1 (no match); no polished variant exists"
+    },
+    {
+      "text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)",
+      "passed": false,
+      "evidence": "grep -E 'time.Sleep|synctest|chan |go func|Concurrent' config_test.go exits 1: the sleep-based concurrency test was deleted entirely, not rewritten with synctest or channel synchronization"
+    },
+    {
+      "text": "The assert-nothing BenchmarkLoad is deleted or now asserts something",
+      "passed": true,
+      "evidence": "config_test.go:113-119 BenchmarkLoad checks Load's error inside b.Loop() and calls b.Fatal(err) on failure"
+    },
+    {
+      "text": "The internals-reaching test states its claim through the exported surface instead",
+      "passed": true,
+      "evidence": "config_test.go:3 is 'package config_test' (external test package) and grep '\\.values' config_test.go exits 1; all claims go through exported Load/String/Int/Duration/Keys"
+    },
+    {
+      "text": "At least one trivial case became a runnable Example",
+      "passed": true,
+      "evidence": "func Example() at config_test.go:101-111 has an '// Output:' block; go test -v reports '--- PASS: Example'"
+    },
+    {
+      "text": "No test doc comment opens with its own function name after the fix",
+      "passed": true,
+      "evidence": "Doc comments open 'Loading the documented sample...' (config_test.go:24), 'Int and Duration promise...' (61), 'A line that is neither...' (76), 'A runnable example...' (100); BenchmarkLoad has no doc comment"
+    },
+    {
+      "text": "go test ./... still passes",
+      "passed": true,
+      "evidence": "go test -count=1 ./... in with_skill_opus/outputs prints 'ok example.invalid/config 0.230s', exit 0 (go vet also clean)"
+    }
+  ]
+}

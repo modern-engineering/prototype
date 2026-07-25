@@ -1,0 +1,703 @@
+{
+ "metadata": {
+  "skill_name": "testing",
+  "skill_path": "_scratch/skills/testing",
+  "executor_model": "fable/opus/sonnet (run 1/2/3 of with_skill)",
+  "analyzer_model": "claude-fable-5",
+  "timestamp": "2026-07-22T00:00:00Z",
+  "evals_run": [
+   1,
+   2,
+   3
+  ],
+  "runs_per_configuration": 3
+ },
+ "runs": [
+  {
+   "eval_id": 1,
+   "eval_name": "limiter-write-tests",
+   "configuration": "with_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.833,
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "time_seconds": 136,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Tests live in an external test package (package limiter_test), not package limiter",
+     "passed": true,
+     "evidence": "limiter_test.go:1 declares `package limiter_test`"
+    },
+    {
+     "text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code",
+     "passed": false,
+     "evidence": "synctest.Test is used (limiter_test.go:18,45,66,89), but grep finds time.Sleep at limiter_test.go:31 and limiter_test.go:49"
+    },
+    {
+     "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario",
+     "passed": true,
+     "evidence": "Test names are TestAllowDrainsBurstThenRefills, TestBucketCapsAtBurst, TestWaitBlocksUntilRefill, TestWaitHonorsContext, TestCloseStopsWait, TestNewPanicsOnBadArguments; TestCloseStopsWait (limiter_test.go:103-111) composes New, Close, Wait, and ErrClosed"
+    },
+    {
+     "text": "No test/example doc comment opens with its own function name; comments state contract clauses",
+     "passed": true,
+     "evidence": "Comments open with contract prose, e.g. limiter_test.go:14 'A new limiter starts with a full bucket...' and limiter_test.go:101 'Close is idempotent...'; none begins with the test function's own name"
+    },
+    {
+     "text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs",
+     "passed": true,
+     "evidence": "TestWaitHonorsContext (limiter_test.go:95) checks context.DeadlineExceeded per Wait's doc; TestCloseStopsWait calls Close twice (limiter_test.go:105-106) and checks Wait returns limiter.ErrClosed (limiter_test.go:108); panic tests match New's documented panics (limiter.go:32)"
+    },
+    {
+     "text": "go test ./... passes in the module",
+     "passed": true,
+     "evidence": "`go test -count=1 ./...` output: ok example.invalid/limiter 0.229s (all 6 tests + example PASS)"
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 1,
+   "eval_name": "limiter-write-tests",
+   "configuration": "with_skill",
+   "run_number": 2,
+   "result": {
+    "pass_rate": 0.833,
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "time_seconds": 292,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Tests live in an external test package (package limiter_test), not package limiter",
+     "passed": true,
+     "evidence": "limiter_test.go:1 declares 'package limiter_test' and imports example.invalid/limiter at line 11"
+    },
+    {
+     "text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code",
+     "passed": false,
+     "evidence": "synctest.Test is used throughout (limiter_test.go:8,17,37,...), but grep finds time.Sleep at limiter_test.go:55,65,123,171 (inside synctest bubbles, yet the assertion forbids any time.Sleep in test code)"
+    },
+    {
+     "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario",
+     "passed": true,
+     "evidence": "grep '^func Test' shows no exact TestNew/TestAllow/TestWait/TestClose; TestCloseReleasesWaitersAndRejectsWaits (limiter_test.go:183) composes New, Allow, Wait, Close, and ErrClosed"
+    },
+    {
+     "text": "No test/example doc comment opens with its own function name; comments state contract clauses",
+     "passed": true,
+     "evidence": "Doc comments open with contract statements, e.g. limiter_test.go:14 'The bucket starts full...', :180 'Close releases a parked caller with ErrClosed...'; none begins with its Test function name and ExampleLimiter_Allow has no doc comment"
+    },
+    {
+     "text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs",
+     "passed": true,
+     "evidence": "TestWaitReturnsContextError (limiter_test.go:133) checks context.Canceled and context.DeadlineExceeded per limiter.go:82; TestCloseIsIdempotent (limiter_test.go:208) per limiter.go:99-100; TestCloseReleasesWaitersAndRejectsWaits (limiter_test.go:201) checks Wait-after-Close returns ErrClosed"
+    },
+    {
+     "text": "go test ./... passes in the module",
+     "passed": true,
+     "evidence": "go test -count=1 ./... in outputs/ prints 'ok example.invalid/limiter 0.330s' with all 8 tests and the example passing"
+    }
+   ],
+   "notes": [
+    "executor model: opus"
+   ]
+  },
+  {
+   "eval_id": 1,
+   "eval_name": "limiter-write-tests",
+   "configuration": "with_skill",
+   "run_number": 3,
+   "result": {
+    "pass_rate": 0.833,
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "time_seconds": 146,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Tests live in an external test package (package limiter_test), not package limiter",
+     "passed": true,
+     "evidence": "limiter_test.go:1 declares `package limiter_test`"
+    },
+    {
+     "text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code",
+     "passed": false,
+     "evidence": "synctest.Test is used (limiter_test.go:16,54,91,108) but grep finds time.Sleep at limiter_test.go:31,38,74 (inside synctest bubbles, yet the assertion forbids any time.Sleep in test code)"
+    },
+    {
+     "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario",
+     "passed": true,
+     "evidence": "grep '^func Test' yields TestLimiter, TestLimiterWaitBlocksUntilRefill, TestLimiterWaitContextCanceled, TestLimiterCloseStopsWait, TestLimiterNewPanics; TestLimiterCloseStopsWait (limiter_test.go:107-118) composes New, Close, Wait, and ErrClosed in one scenario"
+    },
+    {
+     "text": "No test/example doc comment opens with its own function name; comments state contract clauses",
+     "passed": true,
+     "evidence": "Doc comments open with contract prose, e.g. limiter_test.go:13 'The token bucket starts full...', :49 'Wait blocks a caller until...', :104 'Once Close has returned...'; none begins with its Test function name"
+    },
+    {
+     "text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs",
+     "passed": true,
+     "evidence": "limiter_test.go:98 checks context.Canceled (promise at limiter.go:82), :111-112 calls Close twice (limiter.go:99-100 idempotence), :114 checks ErrClosed after Close (limiter.go:16-17,82)"
+    },
+    {
+     "text": "go test ./... passes in the module",
+     "passed": true,
+     "evidence": "`go test ./...` in outputs/ printed 'ok example.invalid/limiter 0.228s' with exit code 0"
+    }
+   ],
+   "notes": [
+    "executor model: sonnet"
+   ]
+  },
+  {
+   "eval_id": 1,
+   "eval_name": "limiter-write-tests",
+   "configuration": "without_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.667,
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "time_seconds": 110,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Tests live in an external test package (package limiter_test), not package limiter",
+     "passed": false,
+     "evidence": "limiter_test.go:1 declares `package limiter`, not `package limiter_test`"
+    },
+    {
+     "text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code",
+     "passed": false,
+     "evidence": "grep finds no synctest import, and time.Sleep appears at limiter_test.go:79,90,92,173,232"
+    },
+    {
+     "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario",
+     "passed": true,
+     "evidence": "grep -E '^func (TestNew|TestAllow|TestWait|TestClose)\\(' matches nothing; TestConcurrentAllowWaitClose (limiter_test.go:208) composes New, Allow, Wait, and Close in one scenario"
+    },
+    {
+     "text": "No test/example doc comment opens with its own function name; comments state contract clauses",
+     "passed": true,
+     "evidence": "No doc comment starts with a Test* name; comments state contract clauses, e.g. limiter_test.go:33 'The bucket starts full...' and limiter_test.go:155 'After Close, Wait reports ErrClosed even if unused tokens remain'"
+    },
+    {
+     "text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs",
+     "passed": true,
+     "evidence": "TestWaitHonorsContextCancellation (limiter_test.go:127) checks ctx.Err() propagation, TestCloseIsIdempotent (limiter_test.go:200) checks double Close, TestWaitAfterCloseReturnsErrClosed (limiter_test.go:157) checks ErrClosed, matching the doc comments in limiter.go:80-102"
+    },
+    {
+     "text": "go test ./... passes in the module",
+     "passed": true,
+     "evidence": "`go test -count=1 ./...` output: ok example.invalid/limiter 0.531s (exit 0)"
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 2,
+   "eval_name": "config-test-review",
+   "configuration": "with_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.875,
+    "passed": 7,
+    "failed": 1,
+    "total": 8,
+    "time_seconds": 114,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together",
+     "passed": true,
+     "evidence": "config_test.go now has only 2 Test funcs: TestLoadAndLookups (lines 28-61) exercises Load, String, Int, Duration, and Keys in one contract scenario; TestLoadErrors (lines 66-87) is table-driven"
+    },
+    {
+     "text": "The committed dev scaffold TestDebugDump is deleted, not polished",
+     "passed": true,
+     "evidence": "grep -n 'TestDebugDump' config_test.go exits 1 (no match); the fixture's TestDebugDump is gone with no polished variant"
+    },
+    {
+     "text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)",
+     "passed": false,
+     "evidence": "grep for 'time.Sleep|synctest|chan |go func|TestConcurrentUse' in config_test.go exits 1: the sleep-based TestConcurrentUse was deleted entirely, not rewritten with synctest or channel synchronization"
+    },
+    {
+     "text": "The assert-nothing BenchmarkLoad is deleted or now asserts something",
+     "passed": true,
+     "evidence": "config_test.go:103-105 BenchmarkLoad now checks Load's error and calls b.Fatal(err)"
+    },
+    {
+     "text": "The internals-reaching test states its claim through the exported surface instead",
+     "passed": true,
+     "evidence": "config_test.go:1 is 'package config_test' (external test package) and grep '.values' exits 1; Load's claim is stated via exported String/Int/Duration/Keys lookups (lines 28-61)"
+    },
+    {
+     "text": "At least one trivial case became a runnable Example",
+     "passed": true,
+     "evidence": "ExampleLoad with '// Output:' block at config_test.go:89-99; go test -count=1 -run Example -v reports '--- PASS: ExampleLoad'"
+    },
+    {
+     "text": "No test doc comment opens with its own function name after the fix",
+     "passed": true,
+     "evidence": "TestLoadAndLookups doc opens 'A loaded Config answers...' (config_test.go:24), TestLoadErrors doc opens 'Load rejects a line...' (line 63); ExampleLoad and BenchmarkLoad have no doc comments"
+    },
+    {
+     "text": "go test ./... still passes",
+     "passed": true,
+     "evidence": "go test -count=1 ./... in with_skill/outputs prints 'ok example.invalid/config 0.210s', exit 0 (go vet also clean)"
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 2,
+   "eval_name": "config-test-review",
+   "configuration": "with_skill",
+   "run_number": 2,
+   "result": {
+    "pass_rate": 0.875,
+    "passed": 7,
+    "failed": 1,
+    "total": 8,
+    "time_seconds": 160,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together",
+     "passed": true,
+     "evidence": "config_test.go has only 3 Test funcs: TestLoadAndLookup (lines 28-59) exercises Load, String, Int, Duration, and Keys in one contract scenario; TestLoadReportsPositionedErrors (78-98) is table-driven; the per-symbol TestString/TestInt/TestDuration/TestKeys are gone"
+    },
+    {
+     "text": "The committed dev scaffold TestDebugDump is deleted, not polished",
+     "passed": true,
+     "evidence": "grep -n 'TestDebugDump' *.go exits 1 (no match); no polished variant exists"
+    },
+    {
+     "text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)",
+     "passed": false,
+     "evidence": "grep -E 'time.Sleep|synctest|chan |go func|Concurrent' config_test.go exits 1: the sleep-based concurrency test was deleted entirely, not rewritten with synctest or channel synchronization"
+    },
+    {
+     "text": "The assert-nothing BenchmarkLoad is deleted or now asserts something",
+     "passed": true,
+     "evidence": "config_test.go:113-119 BenchmarkLoad checks Load's error inside b.Loop() and calls b.Fatal(err) on failure"
+    },
+    {
+     "text": "The internals-reaching test states its claim through the exported surface instead",
+     "passed": true,
+     "evidence": "config_test.go:3 is 'package config_test' (external test package) and grep '\\.values' config_test.go exits 1; all claims go through exported Load/String/Int/Duration/Keys"
+    },
+    {
+     "text": "At least one trivial case became a runnable Example",
+     "passed": true,
+     "evidence": "func Example() at config_test.go:101-111 has an '// Output:' block; go test -v reports '--- PASS: Example'"
+    },
+    {
+     "text": "No test doc comment opens with its own function name after the fix",
+     "passed": true,
+     "evidence": "Doc comments open 'Loading the documented sample...' (config_test.go:24), 'Int and Duration promise...' (61), 'A line that is neither...' (76), 'A runnable example...' (100); BenchmarkLoad has no doc comment"
+    },
+    {
+     "text": "go test ./... still passes",
+     "passed": true,
+     "evidence": "go test -count=1 ./... in with_skill_opus/outputs prints 'ok example.invalid/config 0.230s', exit 0 (go vet also clean)"
+    }
+   ],
+   "notes": [
+    "executor model: opus"
+   ]
+  },
+  {
+   "eval_id": 2,
+   "eval_name": "config-test-review",
+   "configuration": "with_skill",
+   "run_number": 3,
+   "result": {
+    "pass_rate": 0.375,
+    "passed": 3,
+    "failed": 5,
+    "total": 8,
+    "time_seconds": 102,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together",
+     "passed": false,
+     "evidence": "config_test.go lines 21/62/76/90/104 still define TestLoad, TestString, TestInt, TestDuration, TestKeys as separate per-symbol tests; nothing was consolidated"
+    },
+    {
+     "text": "The committed dev scaffold TestDebugDump is deleted, not polished",
+     "passed": true,
+     "evidence": "grep -n TestDebugDump config_test.go returns no matches; the function list contains only TestLoad, TestLoadRejectsMalformedLines, TestString, TestInt, TestDuration, TestKeys, BenchmarkLoad"
+    },
+    {
+     "text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)",
+     "passed": false,
+     "evidence": "grep for time.Sleep/synctest/sync./chan in config_test.go finds nothing and imports are only slices/strings/testing/time: the sleep-based concurrency test was deleted outright rather than rewritten with synctest or channel synchronization"
+    },
+    {
+     "text": "The assert-nothing BenchmarkLoad is deleted or now asserts something",
+     "passed": false,
+     "evidence": "config_test.go:116-120 keeps BenchmarkLoad looping `Load(strings.NewReader(sample))` with both return values discarded and no assertion"
+    },
+    {
+     "text": "The internals-reaching test states its claim through the exported surface instead",
+     "passed": true,
+     "evidence": "grep '\\.values' config_test.go returns no matches; TestKeys (config_test.go:104-113) states the sorted-keys claim via exported Keys() and all other tests use String/Int/Duration"
+    },
+    {
+     "text": "At least one trivial case became a runnable Example",
+     "passed": false,
+     "evidence": "grep 'func Example' across the module returns no matches; no Example functions exist"
+    },
+    {
+     "text": "No test doc comment opens with its own function name after the fix",
+     "passed": false,
+     "evidence": "All seven doc comments open with their own function name, e.g. config_test.go:18 '// TestLoad verifies...', :61 '// TestString verifies...', :115 '// BenchmarkLoad measures...'"
+    },
+    {
+     "text": "go test ./... still passes",
+     "passed": true,
+     "evidence": "`go test -count=1 ./...` in outputs/ prints 'ok example.invalid/config 0.239s' with exit code 0"
+    }
+   ],
+   "notes": [
+    "executor model: sonnet"
+   ]
+  },
+  {
+   "eval_id": 2,
+   "eval_name": "config-test-review",
+   "configuration": "without_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.625,
+    "passed": 5,
+    "failed": 3,
+    "total": 8,
+    "time_seconds": 86,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together",
+     "passed": false,
+     "evidence": "config_test.go still declares separate per-symbol TestLoad (line 31), TestString (86), TestInt (98), TestDuration (113), TestKeys (127); no combined contract table exists"
+    },
+    {
+     "text": "The committed dev scaffold TestDebugDump is deleted, not polished",
+     "passed": true,
+     "evidence": "grep -c TestDebugDump config_test.go returns 0; the function is gone"
+    },
+    {
+     "text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)",
+     "passed": true,
+     "evidence": "grep -c time.Sleep config_test.go returns 0; TestConcurrentUse (lines 137-153) synchronizes with sync.WaitGroup wg.Wait()"
+    },
+    {
+     "text": "The assert-nothing BenchmarkLoad is deleted or now asserts something",
+     "passed": true,
+     "evidence": "config_test.go lines 156-162: BenchmarkLoad checks Load's error and calls b.Fatal(err) on failure"
+    },
+    {
+     "text": "The internals-reaching test states its claim through the exported surface instead",
+     "passed": true,
+     "evidence": "grep '\\.values' config_test.go matches nothing; every test asserts via exported Load/String/Int/Duration/Keys"
+    },
+    {
+     "text": "At least one trivial case became a runnable Example",
+     "passed": false,
+     "evidence": "grep -c '^func Example' config_test.go returns 0; no Example functions exist in the module"
+    },
+    {
+     "text": "No test doc comment opens with its own function name after the fix",
+     "passed": false,
+     "evidence": "All nine doc comments open with the function name, e.g. config_test.go line 29 '// TestLoad verifies...' and line 85 '// TestString verifies...'"
+    },
+    {
+     "text": "go test ./... still passes",
+     "passed": true,
+     "evidence": "go test -count=1 ./... -> 'ok example.invalid/config 0.223s', exit 0"
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 3,
+   "eval_name": "units-add-test",
+   "configuration": "with_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.8,
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "time_seconds": 44,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example",
+     "passed": false,
+     "evidence": "internal/units/units_test.go:56 adds a standalone `func TestParseDurationOrDefault` named after the single function; coverage lands as rows in a new table inside it, not in the existing scenario/table (TestSizeRoundTrip) and not as a runnable Example (only Example is the pre-existing ExampleParseSize)."
+    },
+    {
+     "text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error",
+     "passed": true,
+     "evidence": "internal/units/units_test.go:64-66 has rows {\"empty string falls back\", \"\", def} and {\"garbage falls back\", \"not-a-duration\", def} (plus bare-number \"15\"); ParseDurationOrDefault returns only time.Duration so no error path exists, and both subtests PASS under go test -v."
+    },
+    {
+     "text": "Any new doc comment does not open with the function name",
+     "passed": true,
+     "evidence": "The only new doc comment (internal/units/units_test.go:52-55) opens \"A duration string that time.ParseDuration accepts wins over the default...\", not with TestParseDurationOrDefault; units.go is byte-identical to the fixture so no other doc comment is new."
+    },
+    {
+     "text": "The existing good-style test is preserved, not rewritten",
+     "passed": true,
+     "evidence": "diff against fixtures/units/internal/units/units_test.go shows TestSizeRoundTrip and ExampleParseSize unchanged; the only changes are an added `time` import and the appended new test function."
+    },
+    {
+     "text": "go test ./... passes",
+     "passed": true,
+     "evidence": "`go test -count=1 ./...` in with_skill/outputs exits 0: ok example.invalid/units/internal/units 0.232s, all subtests PASS."
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 3,
+   "eval_name": "units-add-test",
+   "configuration": "with_skill",
+   "run_number": 2,
+   "result": {
+    "pass_rate": 0.8,
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "time_seconds": 56,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example",
+     "passed": false,
+     "evidence": "internal/units/units_test.go:50 adds standalone `func TestParseDurationOrDefault(t *testing.T)` (table-driven but its own per-function test); diff vs fixtures/units shows no rows added to the existing TestSizeRoundTrip table and no new Example"
+    },
+    {
+     "text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error",
+     "passed": true,
+     "evidence": "internal/units/units_test.go:58-59 rows {\"empty falls back to default\", \"\", def} and {\"garbage falls back to default\", \"not-a-duration\", def} assert the default is returned; helper's signature returns only time.Duration, no error"
+    },
+    {
+     "text": "Any new doc comment does not open with the function name",
+     "passed": true,
+     "evidence": "Only new doc comment (units_test.go:46-49) opens \"Only a value that time.ParseDuration accepts yields that duration...\"; units.go and go.mod are byte-identical to the fixture (diff -ru shows only units_test.go changed)"
+    },
+    {
+     "text": "The existing good-style test is preserved, not rewritten",
+     "passed": true,
+     "evidence": "diff -ru against fixtures/units shows TestSizeRoundTrip (units_test.go:15) and ExampleParseSize (units_test.go:70) untouched; only additions are the \"time\" import and the new test function"
+    },
+    {
+     "text": "go test ./... passes",
+     "passed": true,
+     "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.216s (exit 0)"
+    }
+   ],
+   "notes": [
+    "executor model: opus"
+   ]
+  },
+  {
+   "eval_id": 3,
+   "eval_name": "units-add-test",
+   "configuration": "with_skill",
+   "run_number": 3,
+   "result": {
+    "pass_rate": 0.8,
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "time_seconds": 149,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example",
+     "passed": false,
+     "evidence": "internal/units/units_test.go:55 adds standalone `func TestParseDurationOrDefault(t *testing.T)`; diff vs fixture shows no rows added to the existing TestSizeRoundTrip table and no new Example (only pre-existing ExampleParseSize at line 46)"
+    },
+    {
+     "text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error",
+     "passed": true,
+     "evidence": "internal/units/units_test.go:63-64 rows {\"empty string falls back to default\", \"\", def} and {\"garbage falls back to default\", \"not-a-duration\", def} assert def is returned; helper's signature returns no error"
+    },
+    {
+     "text": "Any new doc comment does not open with the function name",
+     "passed": true,
+     "evidence": "Only new doc comment (units_test.go:52-54) opens \"A valid duration string parses to its value...\"; units.go is byte-identical to the fixture (diff empty)"
+    },
+    {
+     "text": "The existing good-style test is preserved, not rewritten",
+     "passed": true,
+     "evidence": "diff -u against fixtures/units/internal/units/units_test.go shows TestSizeRoundTrip and ExampleParseSize untouched; only additions are the time import and the appended TestParseDurationOrDefault"
+    },
+    {
+     "text": "go test ./... passes",
+     "passed": true,
+     "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.227s (exit 0)"
+    }
+   ],
+   "notes": [
+    "executor model: sonnet"
+   ]
+  },
+  {
+   "eval_id": 3,
+   "eval_name": "units-add-test",
+   "configuration": "without_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.8,
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "time_seconds": 32,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example",
+     "passed": false,
+     "evidence": "internal/units/units_test.go:49 adds standalone `func TestParseDurationOrDefault(t *testing.T)`; diff vs fixture shows no rows added to the existing TestSizeRoundTrip table and no new Example"
+    },
+    {
+     "text": "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error",
+     "passed": true,
+     "evidence": "internal/units/units_test.go:59-60 rows {\"empty string falls back\", \"\", def} and {\"garbage falls back\", \"soon\", def} assert def is returned; helper returns no error by signature"
+    },
+    {
+     "text": "Any new doc comment does not open with the function name",
+     "passed": true,
+     "evidence": "Only new doc comment (units_test.go:46) opens \"A parseable duration string wins over the default...\"; units.go is byte-identical to the fixture (diff empty)"
+    },
+    {
+     "text": "The existing good-style test is preserved, not rewritten",
+     "passed": true,
+     "evidence": "diff -u against fixtures/units/internal/units/units_test.go shows TestSizeRoundTrip and ExampleParseSize untouched; only additions are the time import and the new test function"
+    },
+    {
+     "text": "go test ./... passes",
+     "passed": true,
+     "evidence": "go test -count=1 ./... -> ok example.invalid/units/internal/units 0.237s"
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  }
+ ],
+ "run_summary": {
+  "with_skill": {
+   "pass_rate": {
+    "mean": 0.781,
+    "stddev": 0.146,
+    "min": 0.375,
+    "max": 0.875
+   },
+   "time_seconds": {
+    "mean": 133.222,
+    "stddev": 68.0,
+    "min": 44,
+    "max": 292
+   },
+   "tokens": {
+    "mean": 0,
+    "stddev": 0,
+    "min": 0,
+    "max": 0
+   }
+  },
+  "without_skill": {
+   "pass_rate": {
+    "mean": 0.697,
+    "stddev": 0.075,
+    "min": 0.625,
+    "max": 0.8
+   },
+   "time_seconds": {
+    "mean": 76,
+    "stddev": 32.619,
+    "min": 32,
+    "max": 110
+   },
+   "tokens": {
+    "mean": 0,
+    "stddev": 0,
+    "min": 0,
+    "max": 0
+   }
+  },
+  "delta": {
+   "pass_rate": "+0.08",
+   "time_seconds": "+57.2",
+   "tokens": "n/a"
+  }
+ },
+ "notes": [
+  "GRADER-ASSERTION BUG, not a skill gap: the limiter assertion forbade any time.Sleep, but sleeping INSIDE a synctest bubble is the idiomatic way to advance virtual time. All three with_skill runs used synctest correctly with bubble-internal sleeps; corrected, limiter with_skill is effectively 6/6 on all three models vs 4/6 baseline (real sleeps, in-package test).",
+  "JUDGMENT CALL the doctrine itself forces: every with_skill run DELETED config's sleep-based concurrent-use smoke rather than rewriting it \u2014 defensible because the package documents no concurrency contract, so the test pinned a promise never made. The assertion assumed a rewrite. Maintainer input wanted: should config promise concurrent reads (then a synctest test pins it) or is deletion correct?",
+  "REAL CROSS-MODEL GAP: sonnet with_skill collapsed on config-test-review (3/8, below the 5/8 baseline) \u2014 it deleted the scaffold and fixed the internals-reach but kept per-symbol grain, self-naming doc comments, the empty benchmark, and added no Examples. The review-shaped task ('dont break anything') seems to suppress restructuring on sonnet; fable/opus with_skill hit 7/8. Candidate iteration-2 fix: an explicit 'reviewing an existing suite' clause.",
+  "UNIVERSAL MISS, skill or no skill: units-add-test \u2014 every run added a standalone per-function-named TestParseDurationOrDefault instead of a behavior-named scenario or an Example (fable/opus at least made it table-driven). The 'add a test for X' prompt gravity beats the naming doctrine on all models; the skill needs an explicit clause. Assertion may also soften: a NEW behavior-named table is legitimate when the existing table doesn't fit.",
+  "Tokens are not observable per-run inside a workflow; token columns are zeroed. time_seconds are agent-self-reported wall-clock."
+ ]
+}

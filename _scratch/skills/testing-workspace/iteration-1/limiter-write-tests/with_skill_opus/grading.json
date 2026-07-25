@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in an external test package (package limiter_test), not package limiter",
+      "passed": true,
+      "evidence": "limiter_test.go:1 declares 'package limiter_test' and imports example.invalid/limiter at line 11"
+    },
+    {
+      "text": "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code",
+      "passed": false,
+      "evidence": "synctest.Test is used throughout (limiter_test.go:8,17,37,...), but grep finds time.Sleep at limiter_test.go:55,65,123,171 (inside synctest bubbles, yet the assertion forbids any time.Sleep in test code)"
+    },
+    {
+      "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario",
+      "passed": true,
+      "evidence": "grep '^func Test' shows no exact TestNew/TestAllow/TestWait/TestClose; TestCloseReleasesWaitersAndRejectsWaits (limiter_test.go:183) composes New, Allow, Wait, Close, and ErrClosed"
+    },
+    {
+      "text": "No test/example doc comment opens with its own function name; comments state contract clauses",
+      "passed": true,
+      "evidence": "Doc comments open with contract statements, e.g. limiter_test.go:14 'The bucket starts full...', :180 'Close releases a parked caller with ErrClosed...'; none begins with its Test function name and ExampleLimiter_Allow has no doc comment"
+    },
+    {
+      "text": "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs",
+      "passed": true,
+      "evidence": "TestWaitReturnsContextError (limiter_test.go:133) checks context.Canceled and context.DeadlineExceeded per limiter.go:82; TestCloseIsIdempotent (limiter_test.go:208) per limiter.go:99-100; TestCloseReleasesWaitersAndRejectsWaits (limiter_test.go:201) checks Wait-after-Close returns ErrClosed"
+    },
+    {
+      "text": "go test ./... passes in the module",
+      "passed": true,
+      "evidence": "go test -count=1 ./... in outputs/ prints 'ok example.invalid/limiter 0.330s' with all 8 tests and the example passing"
+    }
+  ]
+}

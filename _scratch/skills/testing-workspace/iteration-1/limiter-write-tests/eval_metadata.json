@@ -1,0 +1,13 @@
+{
+ "eval_id": 1,
+ "eval_name": "limiter-write-tests",
+ "prompt": "I just finished writing this little rate-limiter package for our internal gateway (token bucket, refills on a ticker goroutine, has a Wait(ctx) and an Allow() and a Close()). Can you write the tests for it before I send the PR?",
+ "assertions": [
+  "Tests live in an external test package (package limiter_test), not package limiter",
+  "Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code",
+  "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario",
+  "No test/example doc comment opens with its own function name; comments state contract clauses",
+  "Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs",
+  "go test ./... passes in the module"
+ ]
+}

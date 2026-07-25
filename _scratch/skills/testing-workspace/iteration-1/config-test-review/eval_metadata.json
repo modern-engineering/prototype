@@ -1,0 +1,15 @@
+{
+ "eval_id": 2,
+ "eval_name": "config-test-review",
+ "prompt": "our new hire wrote tests for the config package and something feels off about them, can you review and fix? dont break anything, the suite is green",
+ "assertions": [
+  "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together",
+  "The committed dev scaffold TestDebugDump is deleted, not polished",
+  "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)",
+  "The assert-nothing BenchmarkLoad is deleted or now asserts something",
+  "The internals-reaching test states its claim through the exported surface instead",
+  "At least one trivial case became a runnable Example",
+  "No test doc comment opens with its own function name after the fix",
+  "go test ./... still passes"
+ ]
+}

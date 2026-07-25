@@ -1,0 +1,12 @@
+{
+ "eval_id": 3,
+ "eval_name": "units-add-test",
+ "prompt": "add a test for the new ParseDurationOrDefault helper I added to internal/units (it falls back to the default on empty string, and on garbage too - documented leniency, not an error). quick one please, need to commit",
+ "assertions": [
+  "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example",
+  "The documented leniency contract is asserted: empty string returns def AND garbage returns def without error",
+  "Any new doc comment does not open with the function name",
+  "The existing good-style test is preserved, not rewritten",
+  "go test ./... passes"
+ ]
+}

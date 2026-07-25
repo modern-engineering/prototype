@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together",
+      "passed": false,
+      "evidence": "config_test.go still declares separate per-symbol TestLoad (line 31), TestString (86), TestInt (98), TestDuration (113), TestKeys (127); no combined contract table exists"
+    },
+    {
+      "text": "The committed dev scaffold TestDebugDump is deleted, not polished",
+      "passed": true,
+      "evidence": "grep -c TestDebugDump config_test.go returns 0; the function is gone"
+    },
+    {
+      "text": "The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead)",
+      "passed": true,
+      "evidence": "grep -c time.Sleep config_test.go returns 0; TestConcurrentUse (lines 137-153) synchronizes with sync.WaitGroup wg.Wait()"
+    },
+    {
+      "text": "The assert-nothing BenchmarkLoad is deleted or now asserts something",
+      "passed": true,
+      "evidence": "config_test.go lines 156-162: BenchmarkLoad checks Load's error and calls b.Fatal(err) on failure"
+    },
+    {
+      "text": "The internals-reaching test states its claim through the exported surface instead",
+      "passed": true,
+      "evidence": "grep '\\.values' config_test.go matches nothing; every test asserts via exported Load/String/Int/Duration/Keys"
+    },
+    {
+      "text": "At least one trivial case became a runnable Example",
+      "passed": false,
+      "evidence": "grep -c '^func Example' config_test.go returns 0; no Example functions exist in the module"
+    },
+    {
+      "text": "No test doc comment opens with its own function name after the fix",
+      "passed": false,
+      "evidence": "All nine doc comments open with the function name, e.g. config_test.go line 29 '// TestLoad verifies...' and line 85 '// TestString verifies...'"
+    },
+    {
+      "text": "go test ./... still passes",
+      "passed": true,
+      "evidence": "go test -count=1 ./... -> 'ok example.invalid/config 0.223s', exit 0"
+    }
+  ]
+}
