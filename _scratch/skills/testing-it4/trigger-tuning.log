@@ -1,0 +1,936 @@
+Split: 12 train, 8 test (holdout=0.4)
+
+============================================================
+Iteration 1/3
+Description: Sets the maintainer's standard for writing and reviewing committed Go tests (_test.go): the golden hierarchy of contract authority, go-doc-first design and review, Go-team snippets to imitate, references per scenario.
+============================================================
+Train: 19/36 correct, precision=100% recall=6% accuracy=53% (96.5s)
+  [FAIL] rate=0/3 expected=True: what would a picky Go reviewer send back on a _test.go that 
+  [FAIL] rate=0/3 expected=True: i have four one-line Go tests that just check a formatting h
+  [FAIL] rate=0/3 expected=True: here's the shape of my retry package: Do(ctx context.Context
+  [FAIL] rate=1/3 expected=True: before i write a Go package that parses our config DSL, how 
+  [FAIL] rate=0/3 expected=True: we publish an Engine interface with two implementations and 
+  [FAIL] rate=0/3 expected=True: our intern wrote nine test funcs for one auth middleware, on
+  [PASS] rate=0/3 expected=False: write godoc comments for a Go events package: the Publisher 
+  [PASS] rate=0/3 expected=False: draft a test plan document for our Q3 billing migration: sig
+  [PASS] rate=0/3 expected=False: go vet says printf: %d arg is a string in my Go program. how
+  [PASS] rate=0/3 expected=False: my Go fuzz target found a panic in a URL parser. how do i wo
+  [PASS] rate=0/3 expected=False: our cypress e2e login test times out about a third of the ti
+  [PASS] rate=0/3 expected=False: explain what testing/synctest does in go 1.25. the bubble co
+Test : 12/24 correct, precision=100% recall=0% accuracy=50% (0.0s)
+  [FAIL] rate=0/3 expected=True: my Go test spawns three goroutines then sleeps 200ms before 
+  [FAIL] rate=0/3 expected=True: the doc comment on ParseTimeout promises the default on empt
+  [FAIL] rate=0/3 expected=True: what should i name a Go test that checks Close is safe to ca
+  [FAIL] rate=0/3 expected=True: i'm adding a WithTimeout option to a Go client package that 
+  [PASS] rate=0/3 expected=False: write a github actions workflow that runs go test ./... -rac
+  [PASS] rate=0/3 expected=False: write pytest integration tests for a python ingest pipeline,
+  [PASS] rate=0/3 expected=False: rename a Go interface from Store to Repository across a whol
+  [PASS] rate=0/3 expected=False: my Go benchmark reports 412 ns/op and 3 allocs/op. how do i 
+
+Improving description...
+Proposed (22.6s): Use when Go tests are in play: writing or generating `_test.go` files for a package, reviewing or critiquing someone's tests, reworking a bad suite, turning assertions into runnable examples for pkgsite, building a conformance/`httptest`-style testing package for third-party implementers, or shaping an API up front so it stays testable. Also load before finishing any Go code-writing task, since committed code needs contract tests. Applies the maintainer's standard: tests state the package's contract with its users, drafted from the exported docs first; one package-level unit rather than one test per exported symbol; plain-English property names; mandatory representative example; typed errors over string matching; a test that's hard to write means the API needs redesign. Not for non-Go test suites, CI flakiness in other stacks, `go vet`/fuzz triage, or test-plan documents.
+
+============================================================
+Iteration 2/3
+Description: Use when Go tests are in play: writing or generating `_test.go` files for a package, reviewing or critiquing someone's tests, reworking a bad suite, turning assertions into runnable examples for pkgsite, building a conformance/`httptest`-style testing package for third-party implementers, or shaping an API up front so it stays testable. Also load before finishing any Go code-writing task, since committed code needs contract tests. Applies the maintainer's standard: tests state the package's contract with its users, drafted from the exported docs first; one package-level unit rather than one test per exported symbol; plain-English property names; mandatory representative example; typed errors over string matching; a test that's hard to write means the API needs redesign. Not for non-Go test suites, CI flakiness in other stacks, `go vet`/fuzz triage, or test-plan documents.
+============================================================
+Train: 19/36 correct, precision=100% recall=6% accuracy=53% (84.9s)
+  [FAIL] rate=0/3 expected=True: i have four one-line Go tests that just check a formatting h
+  [FAIL] rate=0/3 expected=True: what would a picky Go reviewer send back on a _test.go that 
+  [FAIL] rate=0/3 expected=True: we publish an Engine interface with two implementations and 
+  [FAIL] rate=1/3 expected=True: before i write a Go package that parses our config DSL, how 
+  [FAIL] rate=0/3 expected=True: here's the shape of my retry package: Do(ctx context.Context
+  [PASS] rate=0/3 expected=False: write godoc comments for a Go events package: the Publisher 
+  [FAIL] rate=0/3 expected=True: our intern wrote nine test funcs for one auth middleware, on
+  [PASS] rate=0/3 expected=False: draft a test plan document for our Q3 billing migration: sig
+  [PASS] rate=0/3 expected=False: my Go fuzz target found a panic in a URL parser. how do i wo
+  [PASS] rate=0/3 expected=False: go vet says printf: %d arg is a string in my Go program. how
+  [PASS] rate=0/3 expected=False: our cypress e2e login test times out about a third of the ti
+  [PASS] rate=0/3 expected=False: explain what testing/synctest does in go 1.25. the bubble co
+Test : 12/24 correct, precision=100% recall=0% accuracy=50% (0.0s)
+  [FAIL] rate=0/3 expected=True: my Go test spawns three goroutines then sleeps 200ms before 
+  [FAIL] rate=0/3 expected=True: what should i name a Go test that checks Close is safe to ca
+  [FAIL] rate=0/3 expected=True: i'm adding a WithTimeout option to a Go client package that 
+  [FAIL] rate=0/3 expected=True: the doc comment on ParseTimeout promises the default on empt
+  [PASS] rate=0/3 expected=False: write a github actions workflow that runs go test ./... -rac
+  [PASS] rate=0/3 expected=False: write pytest integration tests for a python ingest pipeline,
+  [PASS] rate=0/3 expected=False: rename a Go interface from Store to Repository across a whol
+  [PASS] rate=0/3 expected=False: my Go benchmark reports 412 ns/op and 3 allocs/op. how do i 
+
+Improving description...
+Proposed (25.7s): Go tests, at every stage: write or generate a package's `_test.go`; review or critique tests someone else wrote; rework a suite that tests one exported symbol at a time or pokes at internals; turn thin assertions into runnable Examples for pkgsite; build a conformance / `httptest`-style testing package so outside implementers can prove they conform; shape an API up front so its tests stay writable. Reach for it too when finishing any Go code, since committed code without contract tests is unfinished. Applies the maintainer's standard: tests state the package's contract with its users, drafted from the exported docs before the source, plain-English property names, one package-level suite over per-symbol tests, a mandatory representative example, typed errors over string matching, and a hard-to-write test read as a redesign signal. Not for non-Go suites, `go vet` or fuzz triage, test-plan documents, or explaining stdlib testing APIs.
+
+============================================================
+Iteration 3/3
+Description: Go tests, at every stage: write or generate a package's `_test.go`; review or critique tests someone else wrote; rework a suite that tests one exported symbol at a time or pokes at internals; turn thin assertions into runnable Examples for pkgsite; build a conformance / `httptest`-style testing package so outside implementers can prove they conform; shape an API up front so its tests stay writable. Reach for it too when finishing any Go code, since committed code without contract tests is unfinished. Applies the maintainer's standard: tests state the package's contract with its users, drafted from the exported docs before the source, plain-English property names, one package-level suite over per-symbol tests, a mandatory representative example, typed errors over string matching, and a hard-to-write test read as a redesign signal. Not for non-Go suites, `go vet` or fuzz triage, test-plan documents, or explaining stdlib testing APIs.
+============================================================
+Train: 20/36 correct, precision=100% recall=11% accuracy=56% (87.5s)
+  [FAIL] rate=0/3 expected=True: i have four one-line Go tests that just check a formatting h
+  [FAIL] rate=0/3 expected=True: what would a picky Go reviewer send back on a _test.go that 
+  [FAIL] rate=1/3 expected=True: we publish an Engine interface with two implementations and 
+  [FAIL] rate=1/3 expected=True: before i write a Go package that parses our config DSL, how 
+  [FAIL] rate=0/3 expected=True: here's the shape of my retry package: Do(ctx context.Context
+  [FAIL] rate=0/3 expected=True: our intern wrote nine test funcs for one auth middleware, on
+  [PASS] rate=0/3 expected=False: write godoc comments for a Go events package: the Publisher 
+  [PASS] rate=0/3 expected=False: draft a test plan document for our Q3 billing migration: sig
+  [PASS] rate=0/3 expected=False: my Go fuzz target found a panic in a URL parser. how do i wo
+  [PASS] rate=0/3 expected=False: go vet says printf: %d arg is a string in my Go program. how
+  [PASS] rate=0/3 expected=False: our cypress e2e login test times out about a third of the ti
+  [PASS] rate=0/3 expected=False: explain what testing/synctest does in go 1.25. the bubble co
+Test : 12/24 correct, precision=100% recall=0% accuracy=50% (0.0s)
+  [FAIL] rate=0/3 expected=True: what should i name a Go test that checks Close is safe to ca
+  [FAIL] rate=0/3 expected=True: the doc comment on ParseTimeout promises the default on empt
+  [FAIL] rate=0/3 expected=True: i'm adding a WithTimeout option to a Go client package that 
+  [PASS] rate=0/3 expected=False: write a github actions workflow that runs go test ./... -rac
+  [FAIL] rate=0/3 expected=True: my Go test spawns three goroutines then sleeps 200ms before 
+  [PASS] rate=0/3 expected=False: write pytest integration tests for a python ingest pipeline,
+  [PASS] rate=0/3 expected=False: rename a Go interface from Store to Repository across a whol
+  [PASS] rate=0/3 expected=False: my Go benchmark reports 412 ns/op and 3 allocs/op. how do i 
+
+Max iterations reached (3).
+
+Exit reason: max_iterations (3)
+Best score: 4/8 (iteration 1)
+
+Report: /var/folders/6m/9szgs6cx3k7f2qkckhjjfr240000gn/T/skill_description_report_skill-v4_20260725_130738.html
+Results saved to: /Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/trigger-tuning/2026-07-25_130739
+{
+  "exit_reason": "max_iterations (3)",
+  "original_description": "Sets the maintainer's standard for writing and reviewing committed Go tests (_test.go): the golden hierarchy of contract authority, go-doc-first design and review, Go-team snippets to imitate, references per scenario.",
+  "best_description": "Sets the maintainer's standard for writing and reviewing committed Go tests (_test.go): the golden hierarchy of contract authority, go-doc-first design and review, Go-team snippets to imitate, references per scenario.",
+  "best_score": "4/8",
+  "best_train_score": "6/12",
+  "best_test_score": "4/8",
+  "final_description": "Go tests, at every stage: write or generate a package's `_test.go`; review or critique tests someone else wrote; rework a suite that tests one exported symbol at a time or pokes at internals; turn thin assertions into runnable Examples for pkgsite; build a conformance / `httptest`-style testing package so outside implementers can prove they conform; shape an API up front so its tests stay writable. Reach for it too when finishing any Go code, since committed code without contract tests is unfinished. Applies the maintainer's standard: tests state the package's contract with its users, drafted from the exported docs before the source, plain-English property names, one package-level suite over per-symbol tests, a mandatory representative example, typed errors over string matching, and a hard-to-write test read as a redesign signal. Not for non-Go suites, `go vet` or fuzz triage, test-plan documents, or explaining stdlib testing APIs.",
+  "iterations_run": 3,
+  "holdout": 0.4,
+  "train_size": 12,
+  "test_size": 8,
+  "history": [
+    {
+      "iteration": 1,
+      "description": "Sets the maintainer's standard for writing and reviewing committed Go tests (_test.go): the golden hierarchy of contract authority, go-doc-first design and review, Go-team snippets to imitate, references per scenario.",
+      "train_passed": 6,
+      "train_failed": 6,
+      "train_total": 12,
+      "train_results": [
+        {
+          "query": "what would a picky Go reviewer send back on a _test.go that has TestNew, TestGet, TestSet and TestDelete, each three lines, no examples anywhere?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "i have four one-line Go tests that just check a formatting helper. turn them into runnable examples so they render on pkgsite",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "here's the shape of my retry package: Do(ctx context.Context, p Policy, fn func() error) error, with exponential backoff and jitter, and Policy{Max int; Base time.Duration}. write the committed tests for it, i'm opening the PR today",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "before i write a Go package that parses our config DSL, how should i shape the API so the tests don't turn into a nightmare later?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we publish an Engine interface with two implementations and a partner is writing a third. i want to ship them something like httptest so they can prove their impl conforms. how do i structure that testing package?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern wrote nine test funcs for one auth middleware, one per exported function, and three of them assert on unexported struct fields. suite is green. how should i rework it?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write godoc comments for a Go events package: the Publisher type, Subscription, and three sentinel error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan document for our Q3 billing migration: sign-offs per team, rollback criteria, comms timeline",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "go vet says printf: %d arg is a string in my Go program. how do i fix that class of error and keep vet quiet in CI?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go fuzz target found a panic in a URL parser. how do i work backwards from the saved corpus entry to the bug?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e login test times out about a third of the time waiting for the dashboard. how do i stabilize it?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "explain what testing/synctest does in go 1.25. the bubble concept and durably blocked never clicked for me",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "test_passed": 4,
+      "test_failed": 4,
+      "test_total": 8,
+      "test_results": [
+        {
+          "query": "my Go test spawns three goroutines then sleeps 200ms before asserting the connection count. passes locally, flakes on CI maybe 1 in 20. how should that test be written instead?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the doc comment on ParseTimeout promises the default on empty input but the implementation returns an error for it. i'm writing this package's tests right now, which behavior do i encode?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "what should i name a Go test that checks Close is safe to call twice AND that Get after Close returns ErrClosed? TestCloseTwiceAndGet feels wrong",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "i'm adding a WithTimeout option to a Go client package that already has a table-driven test covering the other options. does the new option get its own test func or another row in the table?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write a github actions workflow that runs go test ./... -race on every PR, with module caching and a 10 minute timeout",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "write pytest integration tests for a python ingest pipeline, with fixtures that fake the s3 bucket and a few parametrized cases",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "rename a Go interface from Store to Repository across a whole module and update every call site, test files included",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go benchmark reports 412 ns/op and 3 allocs/op. how do i find which line is allocating, using pprof?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "passed": 6,
+      "failed": 6,
+      "total": 12,
+      "results": [
+        {
+          "query": "what would a picky Go reviewer send back on a _test.go that has TestNew, TestGet, TestSet and TestDelete, each three lines, no examples anywhere?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "i have four one-line Go tests that just check a formatting helper. turn them into runnable examples so they render on pkgsite",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "here's the shape of my retry package: Do(ctx context.Context, p Policy, fn func() error) error, with exponential backoff and jitter, and Policy{Max int; Base time.Duration}. write the committed tests for it, i'm opening the PR today",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "before i write a Go package that parses our config DSL, how should i shape the API so the tests don't turn into a nightmare later?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we publish an Engine interface with two implementations and a partner is writing a third. i want to ship them something like httptest so they can prove their impl conforms. how do i structure that testing package?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern wrote nine test funcs for one auth middleware, one per exported function, and three of them assert on unexported struct fields. suite is green. how should i rework it?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write godoc comments for a Go events package: the Publisher type, Subscription, and three sentinel error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan document for our Q3 billing migration: sign-offs per team, rollback criteria, comms timeline",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "go vet says printf: %d arg is a string in my Go program. how do i fix that class of error and keep vet quiet in CI?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go fuzz target found a panic in a URL parser. how do i work backwards from the saved corpus entry to the bug?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e login test times out about a third of the time waiting for the dashboard. how do i stabilize it?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "explain what testing/synctest does in go 1.25. the bubble concept and durably blocked never clicked for me",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "iteration": 2,
+      "description": "Use when Go tests are in play: writing or generating `_test.go` files for a package, reviewing or critiquing someone's tests, reworking a bad suite, turning assertions into runnable examples for pkgsite, building a conformance/`httptest`-style testing package for third-party implementers, or shaping an API up front so it stays testable. Also load before finishing any Go code-writing task, since committed code needs contract tests. Applies the maintainer's standard: tests state the package's contract with its users, drafted from the exported docs first; one package-level unit rather than one test per exported symbol; plain-English property names; mandatory representative example; typed errors over string matching; a test that's hard to write means the API needs redesign. Not for non-Go test suites, CI flakiness in other stacks, `go vet`/fuzz triage, or test-plan documents.",
+      "train_passed": 6,
+      "train_failed": 6,
+      "train_total": 12,
+      "train_results": [
+        {
+          "query": "i have four one-line Go tests that just check a formatting helper. turn them into runnable examples so they render on pkgsite",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "what would a picky Go reviewer send back on a _test.go that has TestNew, TestGet, TestSet and TestDelete, each three lines, no examples anywhere?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we publish an Engine interface with two implementations and a partner is writing a third. i want to ship them something like httptest so they can prove their impl conforms. how do i structure that testing package?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "before i write a Go package that parses our config DSL, how should i shape the API so the tests don't turn into a nightmare later?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "here's the shape of my retry package: Do(ctx context.Context, p Policy, fn func() error) error, with exponential backoff and jitter, and Policy{Max int; Base time.Duration}. write the committed tests for it, i'm opening the PR today",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write godoc comments for a Go events package: the Publisher type, Subscription, and three sentinel error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our intern wrote nine test funcs for one auth middleware, one per exported function, and three of them assert on unexported struct fields. suite is green. how should i rework it?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "draft a test plan document for our Q3 billing migration: sign-offs per team, rollback criteria, comms timeline",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go fuzz target found a panic in a URL parser. how do i work backwards from the saved corpus entry to the bug?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "go vet says printf: %d arg is a string in my Go program. how do i fix that class of error and keep vet quiet in CI?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e login test times out about a third of the time waiting for the dashboard. how do i stabilize it?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "explain what testing/synctest does in go 1.25. the bubble concept and durably blocked never clicked for me",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "test_passed": 4,
+      "test_failed": 4,
+      "test_total": 8,
+      "test_results": [
+        {
+          "query": "my Go test spawns three goroutines then sleeps 200ms before asserting the connection count. passes locally, flakes on CI maybe 1 in 20. how should that test be written instead?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "what should i name a Go test that checks Close is safe to call twice AND that Get after Close returns ErrClosed? TestCloseTwiceAndGet feels wrong",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "i'm adding a WithTimeout option to a Go client package that already has a table-driven test covering the other options. does the new option get its own test func or another row in the table?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the doc comment on ParseTimeout promises the default on empty input but the implementation returns an error for it. i'm writing this package's tests right now, which behavior do i encode?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write a github actions workflow that runs go test ./... -race on every PR, with module caching and a 10 minute timeout",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "write pytest integration tests for a python ingest pipeline, with fixtures that fake the s3 bucket and a few parametrized cases",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "rename a Go interface from Store to Repository across a whole module and update every call site, test files included",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go benchmark reports 412 ns/op and 3 allocs/op. how do i find which line is allocating, using pprof?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "passed": 6,
+      "failed": 6,
+      "total": 12,
+      "results": [
+        {
+          "query": "i have four one-line Go tests that just check a formatting helper. turn them into runnable examples so they render on pkgsite",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "what would a picky Go reviewer send back on a _test.go that has TestNew, TestGet, TestSet and TestDelete, each three lines, no examples anywhere?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we publish an Engine interface with two implementations and a partner is writing a third. i want to ship them something like httptest so they can prove their impl conforms. how do i structure that testing package?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "before i write a Go package that parses our config DSL, how should i shape the API so the tests don't turn into a nightmare later?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "here's the shape of my retry package: Do(ctx context.Context, p Policy, fn func() error) error, with exponential backoff and jitter, and Policy{Max int; Base time.Duration}. write the committed tests for it, i'm opening the PR today",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write godoc comments for a Go events package: the Publisher type, Subscription, and three sentinel error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our intern wrote nine test funcs for one auth middleware, one per exported function, and three of them assert on unexported struct fields. suite is green. how should i rework it?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "draft a test plan document for our Q3 billing migration: sign-offs per team, rollback criteria, comms timeline",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go fuzz target found a panic in a URL parser. how do i work backwards from the saved corpus entry to the bug?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "go vet says printf: %d arg is a string in my Go program. how do i fix that class of error and keep vet quiet in CI?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e login test times out about a third of the time waiting for the dashboard. how do i stabilize it?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "explain what testing/synctest does in go 1.25. the bubble concept and durably blocked never clicked for me",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "iteration": 3,
+      "description": "Go tests, at every stage: write or generate a package's `_test.go`; review or critique tests someone else wrote; rework a suite that tests one exported symbol at a time or pokes at internals; turn thin assertions into runnable Examples for pkgsite; build a conformance / `httptest`-style testing package so outside implementers can prove they conform; shape an API up front so its tests stay writable. Reach for it too when finishing any Go code, since committed code without contract tests is unfinished. Applies the maintainer's standard: tests state the package's contract with its users, drafted from the exported docs before the source, plain-English property names, one package-level suite over per-symbol tests, a mandatory representative example, typed errors over string matching, and a hard-to-write test read as a redesign signal. Not for non-Go suites, `go vet` or fuzz triage, test-plan documents, or explaining stdlib testing APIs.",
+      "train_passed": 6,
+      "train_failed": 6,
+      "train_total": 12,
+      "train_results": [
+        {
+          "query": "i have four one-line Go tests that just check a formatting helper. turn them into runnable examples so they render on pkgsite",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "what would a picky Go reviewer send back on a _test.go that has TestNew, TestGet, TestSet and TestDelete, each three lines, no examples anywhere?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we publish an Engine interface with two implementations and a partner is writing a third. i want to ship them something like httptest so they can prove their impl conforms. how do i structure that testing package?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "before i write a Go package that parses our config DSL, how should i shape the API so the tests don't turn into a nightmare later?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "here's the shape of my retry package: Do(ctx context.Context, p Policy, fn func() error) error, with exponential backoff and jitter, and Policy{Max int; Base time.Duration}. write the committed tests for it, i'm opening the PR today",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern wrote nine test funcs for one auth middleware, one per exported function, and three of them assert on unexported struct fields. suite is green. how should i rework it?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write godoc comments for a Go events package: the Publisher type, Subscription, and three sentinel error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan document for our Q3 billing migration: sign-offs per team, rollback criteria, comms timeline",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go fuzz target found a panic in a URL parser. how do i work backwards from the saved corpus entry to the bug?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "go vet says printf: %d arg is a string in my Go program. how do i fix that class of error and keep vet quiet in CI?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e login test times out about a third of the time waiting for the dashboard. how do i stabilize it?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "explain what testing/synctest does in go 1.25. the bubble concept and durably blocked never clicked for me",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "test_passed": 4,
+      "test_failed": 4,
+      "test_total": 8,
+      "test_results": [
+        {
+          "query": "what should i name a Go test that checks Close is safe to call twice AND that Get after Close returns ErrClosed? TestCloseTwiceAndGet feels wrong",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the doc comment on ParseTimeout promises the default on empty input but the implementation returns an error for it. i'm writing this package's tests right now, which behavior do i encode?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "i'm adding a WithTimeout option to a Go client package that already has a table-driven test covering the other options. does the new option get its own test func or another row in the table?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write a github actions workflow that runs go test ./... -race on every PR, with module caching and a 10 minute timeout",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go test spawns three goroutines then sleeps 200ms before asserting the connection count. passes locally, flakes on CI maybe 1 in 20. how should that test be written instead?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write pytest integration tests for a python ingest pipeline, with fixtures that fake the s3 bucket and a few parametrized cases",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "rename a Go interface from Store to Repository across a whole module and update every call site, test files included",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go benchmark reports 412 ns/op and 3 allocs/op. how do i find which line is allocating, using pprof?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "passed": 6,
+      "failed": 6,
+      "total": 12,
+      "results": [
+        {
+          "query": "i have four one-line Go tests that just check a formatting helper. turn them into runnable examples so they render on pkgsite",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "what would a picky Go reviewer send back on a _test.go that has TestNew, TestGet, TestSet and TestDelete, each three lines, no examples anywhere?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we publish an Engine interface with two implementations and a partner is writing a third. i want to ship them something like httptest so they can prove their impl conforms. how do i structure that testing package?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "before i write a Go package that parses our config DSL, how should i shape the API so the tests don't turn into a nightmare later?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "here's the shape of my retry package: Do(ctx context.Context, p Policy, fn func() error) error, with exponential backoff and jitter, and Policy{Max int; Base time.Duration}. write the committed tests for it, i'm opening the PR today",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern wrote nine test funcs for one auth middleware, one per exported function, and three of them assert on unexported struct fields. suite is green. how should i rework it?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "write godoc comments for a Go events package: the Publisher type, Subscription, and three sentinel error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan document for our Q3 billing migration: sign-offs per team, rollback criteria, comms timeline",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "my Go fuzz target found a panic in a URL parser. how do i work backwards from the saved corpus entry to the bug?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "go vet says printf: %d arg is a string in my Go program. how do i fix that class of error and keep vet quiet in CI?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e login test times out about a third of the time waiting for the dashboard. how do i stabilize it?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "explain what testing/synctest does in go 1.25. the bubble concept and durably blocked never clicked for me",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ]
+    }
+  ]
+}

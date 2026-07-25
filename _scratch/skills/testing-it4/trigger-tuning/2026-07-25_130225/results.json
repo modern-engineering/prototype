@@ -1,0 +1,840 @@
+{
+  "exit_reason": "max_iterations (3)",
+  "original_description": "Sets the maintainer's standard for writing and reviewing committed Go tests (_test.go): the golden hierarchy of contract authority, go-doc-first design and review, Go-team snippets to imitate, references per scenario.",
+  "best_description": "Sets the maintainer's standard for writing and reviewing committed Go tests (_test.go): the golden hierarchy of contract authority, go-doc-first design and review, Go-team snippets to imitate, references per scenario.",
+  "best_score": "4/8",
+  "best_train_score": "6/12",
+  "best_test_score": "4/8",
+  "final_description": "Use for anything involving Go `_test.go` files. Triggers: write or add tests for a Go package or symbol; review, critique, clean up, or consolidate existing Go tests (including \"what would a reviewer say\", \"these tests smell\", \"too many test funcs\"); judge whether a suite is well-shaped; turn tests into runnable Examples for pkgsite; build a conformance/testing harness so other implementations can prove they satisfy an interface; design a new Go package's API so it stays testable before code exists; make a hard-to-test package testable. Also load whenever you finish writing or changing Go code \u2014 committed tests are part of done, so don't wait for the word \"test\". Guidance covers test naming, table tests and subtests, fakes, fixtures, examples, synctest, and committed-versus-throwaway. Skip for non-Go test frameworks, doc comments alone, `go vet`/CI tooling failures, fuzz-crash debugging, and test-plan process docs.",
+  "iterations_run": 3,
+  "holdout": 0.4,
+  "train_size": 12,
+  "test_size": 8,
+  "history": [
+    {
+      "iteration": 1,
+      "description": "Sets the maintainer's standard for writing and reviewing committed Go tests (_test.go): the golden hierarchy of contract authority, go-doc-first design and review, Go-team snippets to imitate, references per scenario.",
+      "train_passed": 6,
+      "train_failed": 6,
+      "train_total": 12,
+      "train_results": [
+        {
+          "query": "these four tests in units_test.go are one-liners that just check a format helper. can we turn them into runnable examples so they show up on pkgsite instead",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "starting a new pkg for parsing our config DSL (in ./dsl). before i write a line of it, how should i shape the API so it isn't a nightmare to test later?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "go through the _test.go files under ./storage and tell me what a picky Go reviewer would send back",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we ship an Engine interface and two implementations, and a partner is writing a third. i want to hand them something like httptest so they can prove their impl conforms. where do i start?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "just wrapped up the retry package in ./internal/retry (exponential backoff with jitter, a Do(ctx, fn) error and a Policy struct). can you write the tests before i open the PR?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern's tests for the auth middleware are green but something smells - 9 test funcs, one per exported function, and half of them poke at unexported struct fields. mind cleaning that up?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the events package has zero doc comments on its exported types. write proper godoc for Publisher, Subscription and the three error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "CI is red on go vet in cmd/relay, printf directive complaint about a %d with a string arg. patch it and push",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our fuzz target FuzzParseURL found a crash, here's the corpus file it saved. figure out why the parser panics on it",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan doc for the Q3 billing migration - which teams sign off on what, rollback criteria, the usual",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e suite is flaky on the login step, it times out waiting for the dashboard maybe a third of runs. stabilize it please",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "what exactly does testing/synctest do? saw it mentioned in the 1.25 notes and the bubble thing didn't click",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "test_passed": 4,
+      "test_failed": 4,
+      "test_total": 8,
+      "test_results": [
+        {
+          "query": "adding a WithTimeout option to the client package. how should i cover it, new test func or fold it into the existing table in client_test.go?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "TestServerShutdown passes locally but flakes maybe 1 in 20 on the github runner. it spawns 3 goroutines and sleeps 200ms before asserting the conn count. how do i make it deterministic",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "what should i call the test that checks Close is safe to call twice AND that Get after Close returns ErrClosed? currently TestCloseTwiceAndGet which feels bad",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "BenchmarkEncode says 412 ns/op and 3 allocs/op. i want to know which line is allocating - can you get me a pprof alloc profile and read it?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "the doc comment on ParseTimeout says an empty string yields the default, but the implementation returns an error for it. i'm writing the tests for this pkg right now - which one do i encode?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "set up a github actions workflow that runs go test ./... -race on every PR, with module cache restore and a 10 minute timeout",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "add integration tests for our python ingest pipeline, pytest with fixtures that fake the s3 bucket and a couple of parametrized cases",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "rename the Store interface to Repository everywhere in the module and fix all the call sites, including in the test files",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "passed": 6,
+      "failed": 6,
+      "total": 12,
+      "results": [
+        {
+          "query": "these four tests in units_test.go are one-liners that just check a format helper. can we turn them into runnable examples so they show up on pkgsite instead",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "starting a new pkg for parsing our config DSL (in ./dsl). before i write a line of it, how should i shape the API so it isn't a nightmare to test later?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "go through the _test.go files under ./storage and tell me what a picky Go reviewer would send back",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we ship an Engine interface and two implementations, and a partner is writing a third. i want to hand them something like httptest so they can prove their impl conforms. where do i start?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "just wrapped up the retry package in ./internal/retry (exponential backoff with jitter, a Do(ctx, fn) error and a Policy struct). can you write the tests before i open the PR?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern's tests for the auth middleware are green but something smells - 9 test funcs, one per exported function, and half of them poke at unexported struct fields. mind cleaning that up?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the events package has zero doc comments on its exported types. write proper godoc for Publisher, Subscription and the three error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "CI is red on go vet in cmd/relay, printf directive complaint about a %d with a string arg. patch it and push",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our fuzz target FuzzParseURL found a crash, here's the corpus file it saved. figure out why the parser panics on it",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan doc for the Q3 billing migration - which teams sign off on what, rollback criteria, the usual",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e suite is flaky on the login step, it times out waiting for the dashboard maybe a third of runs. stabilize it please",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "what exactly does testing/synctest do? saw it mentioned in the 1.25 notes and the bubble thing didn't click",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "iteration": 2,
+      "description": "Use when Go tests are the work: writing or adding tests for a package, reviewing or cleaning up existing `_test.go` files, judging whether a test suite is well-shaped, converting one-liner tests into runnable examples, building a conformance harness for an interface, or shaping a new package's API so it is testable before any code exists. Also load whenever you write or change Go code, since committed tests are part of finishing it \u2014 don't wait for the user to say \"test\". Covers test naming and structure, table tests and subtests, fakes and helpers, fixtures, examples, concurrency and time (synctest), and what belongs in a committed test versus a throwaway one. Not for non-Go test frameworks, CI/tooling failures unrelated to test design, standalone doc-comment writing, fuzz-crash triage, or process/test-plan documents.",
+      "train_passed": 6,
+      "train_failed": 6,
+      "train_total": 12,
+      "train_results": [
+        {
+          "query": "these four tests in units_test.go are one-liners that just check a format helper. can we turn them into runnable examples so they show up on pkgsite instead",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "go through the _test.go files under ./storage and tell me what a picky Go reviewer would send back",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "starting a new pkg for parsing our config DSL (in ./dsl). before i write a line of it, how should i shape the API so it isn't a nightmare to test later?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "just wrapped up the retry package in ./internal/retry (exponential backoff with jitter, a Do(ctx, fn) error and a Policy struct). can you write the tests before i open the PR?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern's tests for the auth middleware are green but something smells - 9 test funcs, one per exported function, and half of them poke at unexported struct fields. mind cleaning that up?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we ship an Engine interface and two implementations, and a partner is writing a third. i want to hand them something like httptest so they can prove their impl conforms. where do i start?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the events package has zero doc comments on its exported types. write proper godoc for Publisher, Subscription and the three error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our fuzz target FuzzParseURL found a crash, here's the corpus file it saved. figure out why the parser panics on it",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "CI is red on go vet in cmd/relay, printf directive complaint about a %d with a string arg. patch it and push",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e suite is flaky on the login step, it times out waiting for the dashboard maybe a third of runs. stabilize it please",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan doc for the Q3 billing migration - which teams sign off on what, rollback criteria, the usual",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "what exactly does testing/synctest do? saw it mentioned in the 1.25 notes and the bubble thing didn't click",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "test_passed": 4,
+      "test_failed": 4,
+      "test_total": 8,
+      "test_results": [
+        {
+          "query": "TestServerShutdown passes locally but flakes maybe 1 in 20 on the github runner. it spawns 3 goroutines and sleeps 200ms before asserting the conn count. how do i make it deterministic",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "what should i call the test that checks Close is safe to call twice AND that Get after Close returns ErrClosed? currently TestCloseTwiceAndGet which feels bad",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "adding a WithTimeout option to the client package. how should i cover it, new test func or fold it into the existing table in client_test.go?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the doc comment on ParseTimeout says an empty string yields the default, but the implementation returns an error for it. i'm writing the tests for this pkg right now - which one do i encode?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "BenchmarkEncode says 412 ns/op and 3 allocs/op. i want to know which line is allocating - can you get me a pprof alloc profile and read it?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "set up a github actions workflow that runs go test ./... -race on every PR, with module cache restore and a 10 minute timeout",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "add integration tests for our python ingest pipeline, pytest with fixtures that fake the s3 bucket and a couple of parametrized cases",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "rename the Store interface to Repository everywhere in the module and fix all the call sites, including in the test files",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "passed": 6,
+      "failed": 6,
+      "total": 12,
+      "results": [
+        {
+          "query": "these four tests in units_test.go are one-liners that just check a format helper. can we turn them into runnable examples so they show up on pkgsite instead",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "go through the _test.go files under ./storage and tell me what a picky Go reviewer would send back",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "starting a new pkg for parsing our config DSL (in ./dsl). before i write a line of it, how should i shape the API so it isn't a nightmare to test later?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "just wrapped up the retry package in ./internal/retry (exponential backoff with jitter, a Do(ctx, fn) error and a Policy struct). can you write the tests before i open the PR?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern's tests for the auth middleware are green but something smells - 9 test funcs, one per exported function, and half of them poke at unexported struct fields. mind cleaning that up?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we ship an Engine interface and two implementations, and a partner is writing a third. i want to hand them something like httptest so they can prove their impl conforms. where do i start?",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the events package has zero doc comments on its exported types. write proper godoc for Publisher, Subscription and the three error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our fuzz target FuzzParseURL found a crash, here's the corpus file it saved. figure out why the parser panics on it",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "CI is red on go vet in cmd/relay, printf directive complaint about a %d with a string arg. patch it and push",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e suite is flaky on the login step, it times out waiting for the dashboard maybe a third of runs. stabilize it please",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan doc for the Q3 billing migration - which teams sign off on what, rollback criteria, the usual",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "what exactly does testing/synctest do? saw it mentioned in the 1.25 notes and the bubble thing didn't click",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "iteration": 3,
+      "description": "Use for anything involving Go `_test.go` files. Triggers: write or add tests for a Go package or symbol; review, critique, clean up, or consolidate existing Go tests (including \"what would a reviewer say\", \"these tests smell\", \"too many test funcs\"); judge whether a suite is well-shaped; turn tests into runnable Examples for pkgsite; build a conformance/testing harness so other implementations can prove they satisfy an interface; design a new Go package's API so it stays testable before code exists; make a hard-to-test package testable. Also load whenever you finish writing or changing Go code \u2014 committed tests are part of done, so don't wait for the word \"test\". Guidance covers test naming, table tests and subtests, fakes, fixtures, examples, synctest, and committed-versus-throwaway. Skip for non-Go test frameworks, doc comments alone, `go vet`/CI tooling failures, fuzz-crash debugging, and test-plan process docs.",
+      "train_passed": 6,
+      "train_failed": 6,
+      "train_total": 12,
+      "train_results": [
+        {
+          "query": "go through the _test.go files under ./storage and tell me what a picky Go reviewer would send back",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "these four tests in units_test.go are one-liners that just check a format helper. can we turn them into runnable examples so they show up on pkgsite instead",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we ship an Engine interface and two implementations, and a partner is writing a third. i want to hand them something like httptest so they can prove their impl conforms. where do i start?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "starting a new pkg for parsing our config DSL (in ./dsl). before i write a line of it, how should i shape the API so it isn't a nightmare to test later?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "just wrapped up the retry package in ./internal/retry (exponential backoff with jitter, a Do(ctx, fn) error and a Policy struct). can you write the tests before i open the PR?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern's tests for the auth middleware are green but something smells - 9 test funcs, one per exported function, and half of them poke at unexported struct fields. mind cleaning that up?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the events package has zero doc comments on its exported types. write proper godoc for Publisher, Subscription and the three error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our fuzz target FuzzParseURL found a crash, here's the corpus file it saved. figure out why the parser panics on it",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "CI is red on go vet in cmd/relay, printf directive complaint about a %d with a string arg. patch it and push",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan doc for the Q3 billing migration - which teams sign off on what, rollback criteria, the usual",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e suite is flaky on the login step, it times out waiting for the dashboard maybe a third of runs. stabilize it please",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "what exactly does testing/synctest do? saw it mentioned in the 1.25 notes and the bubble thing didn't click",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "test_passed": 4,
+      "test_failed": 4,
+      "test_total": 8,
+      "test_results": [
+        {
+          "query": "what should i call the test that checks Close is safe to call twice AND that Get after Close returns ErrClosed? currently TestCloseTwiceAndGet which feels bad",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "TestServerShutdown passes locally but flakes maybe 1 in 20 on the github runner. it spawns 3 goroutines and sleeps 200ms before asserting the conn count. how do i make it deterministic",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "adding a WithTimeout option to the client package. how should i cover it, new test func or fold it into the existing table in client_test.go?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the doc comment on ParseTimeout says an empty string yields the default, but the implementation returns an error for it. i'm writing the tests for this pkg right now - which one do i encode?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "BenchmarkEncode says 412 ns/op and 3 allocs/op. i want to know which line is allocating - can you get me a pprof alloc profile and read it?",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "set up a github actions workflow that runs go test ./... -race on every PR, with module cache restore and a 10 minute timeout",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "add integration tests for our python ingest pipeline, pytest with fixtures that fake the s3 bucket and a couple of parametrized cases",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "rename the Store interface to Repository everywhere in the module and fix all the call sites, including in the test files",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ],
+      "passed": 6,
+      "failed": 6,
+      "total": 12,
+      "results": [
+        {
+          "query": "go through the _test.go files under ./storage and tell me what a picky Go reviewer would send back",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "these four tests in units_test.go are one-liners that just check a format helper. can we turn them into runnable examples so they show up on pkgsite instead",
+          "should_trigger": true,
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "we ship an Engine interface and two implementations, and a partner is writing a third. i want to hand them something like httptest so they can prove their impl conforms. where do i start?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "starting a new pkg for parsing our config DSL (in ./dsl). before i write a line of it, how should i shape the API so it isn't a nightmare to test later?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "just wrapped up the retry package in ./internal/retry (exponential backoff with jitter, a Do(ctx, fn) error and a Policy struct). can you write the tests before i open the PR?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "our intern's tests for the auth middleware are green but something smells - 9 test funcs, one per exported function, and half of them poke at unexported struct fields. mind cleaning that up?",
+          "should_trigger": true,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false
+        },
+        {
+          "query": "the events package has zero doc comments on its exported types. write proper godoc for Publisher, Subscription and the three error values",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our fuzz target FuzzParseURL found a crash, here's the corpus file it saved. figure out why the parser panics on it",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "CI is red on go vet in cmd/relay, printf directive complaint about a %d with a string arg. patch it and push",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "draft a test plan doc for the Q3 billing migration - which teams sign off on what, rollback criteria, the usual",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "our cypress e2e suite is flaky on the login step, it times out waiting for the dashboard maybe a third of runs. stabilize it please",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        },
+        {
+          "query": "what exactly does testing/synctest do? saw it mentioned in the 1.25 notes and the bubble thing didn't click",
+          "should_trigger": false,
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true
+        }
+      ]
+    }
+  ]
+}
