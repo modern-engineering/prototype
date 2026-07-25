@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "testing v4 final", "runs": [{"id": "cache-write-tests--looped-fable-FINAL-with_skill", "prompt": "wrote a small expiring-cache package for our session tokens (Set with a TTL, Get, background janitor goroutine, Close). mind writing the committed tests before this goes into the services repo?", "eval_id": 1, "outputs": [{"name": "cache.go", "type": "text", "content": "// Package cache provides an in-memory key-value store with per-entry\n// expiry, intended for short-lived values such as session tokens.\npackage cache\n\nimport (\n\t\"sync\"\n\t\"time\"\n)\n\n// entry pairs a value with its expiry deadline; zero means no expiry.\ntype entry struct {\n\tvalue    string\n\tdeadline time.Time\n}\n\n// Cache is an in-memory string store whose entries expire after a\n// per-entry TTL. A background janitor goroutine removes expired\n// entries, but expiry is enforced on read: an expired entry is\n// invisible to Get and Len even before the janitor removes it.\n//\n// All methods are safe for concurrent use by multiple goroutines.\ntype Cache struct {\n\tmu      sync.Mutex\n\tentries map[string]entry\n\tclosed  bool\n\tstop    chan struct{}\n}\n\n// New returns an empty Cache and starts its background janitor\n// goroutine, which removes expired entries every janitorInterval.\n// Callers must release the goroutine with Close. New panics if\n// janitorInterval is zero or negative.\nfunc New(janitorInterval time.Duration) *Cache {\n\tif janitorInterval <= 0 {\n\t\tpanic(\"cache: janitor interval must be positive\")\n\t}\n\tc := &Cache{entries: make(map[string]entry), stop: make(chan struct{})}\n\tgo c.janitor(janitorInterval)\n\treturn c\n}\n\n// janitor deletes expired entries every sweepEvery until Close.\nfunc (c *Cache) janitor(sweepEvery time.Duration) {\n\ttick := time.NewTicker(sweepEvery)\n\tdefer tick.Stop()\n\tfor {\n\t\tselect {\n\t\tcase <-c.stop:\n\t\t\treturn\n\t\tcase <-tick.C:\n\t\t\tnow := time.Now()\n\t\t\tc.mu.Lock()\n\t\t\tfor key, e := range c.entries {\n\t\t\t\tif expired(e, now) {\n\t\t\t\t\tdelete(c.entries, key)\n\t\t\t\t}\n\t\t\t}\n\t\t\tc.mu.Unlock()\n\t\t}\n\t}\n}\n\n// expired reports whether e's deadline has been reached as of now.\nfunc expired(e entry, now time.Time) bool {\n\treturn !e.deadline.IsZero() && !now.Before(e.deadline)\n}\n\n// Set stores value under key, replacing any existing entry. The entry\n// expires ttl from now; from then on Get misses it and Len does not\n// count it. If ttl is zero or negative, the entry is stored without\n// an expiry and lives until it is replaced or the cache is closed.\n// After Close, Set does nothing.\nfunc (c *Cache) Set(key, value string, ttl time.Duration) {\n\tc.mu.Lock()\n\tdefer c.mu.Unlock()\n\tif c.closed {\n\t\treturn\n\t}\n\te := entry{value: value}\n\tif ttl > 0 {\n\t\te.deadline = time.Now().Add(ttl)\n\t}\n\tc.entries[key] = e\n}\n\n// Get returns the value under key and whether key held a live entry.\n// Expired entries are misses even before the janitor removes them.\n// After Close, Get reports a miss for every key.\nfunc (c *Cache) Get(key string) (string, bool) {\n\tc.mu.Lock()\n\tdefer c.mu.Unlock()\n\te, ok := c.entries[key]\n\tif !ok || expired(e, time.Now()) {\n\t\treturn \"\", false\n\t}\n\treturn e.value, true\n}\n\n// Len returns the number of live entries. Expired entries are not\n// counted even before the janitor removes them.\nfunc (c *Cache) Len() int {\n\tc.mu.Lock()\n\tdefer c.mu.Unlock()\n\tn := 0\n\tnow := time.Now()\n\tfor _, e := range c.entries {\n\t\tif !expired(e, now) {\n\t\t\tn++\n\t\t}\n\t}\n\treturn n\n}\n\n// Close stops the janitor goroutine and discards all entries. Close\n// is idempotent: calling it again is safe and does nothing. After\n// Close, Set does nothing and Get reports a miss for every key.\nfunc (c *Cache) Close() {\n\tc.mu.Lock()\n\tdefer c.mu.Unlock()\n\tif c.closed {\n\t\treturn\n\t}\n\tc.closed = true\n\tc.entries = nil\n\tclose(c.stop)\n}\n"}, {"name": "cache_test.go", "type": "text", "content": "package cache_test\n\nimport (\n\t\"fmt\"\n\t\"sync\"\n\t\"testing\"\n\t\"testing/synctest\"\n\t\"time\"\n\n\t\"example.invalid/cache\"\n)\n\n// Session tokens are stored with a TTL; lookups report whether a live\n// token was found, so a miss covers both \"never stored\" and \"expired\".\nfunc ExampleCache() {\n\tc := cache.New(time.Minute)\n\tdefer c.Close()\n\n\tc.Set(\"session-alice\", \"token-123\", 30*time.Minute)\n\n\tif token, ok := c.Get(\"session-alice\"); ok {\n\t\tfmt.Println(\"alice:\", token)\n\t}\n\tif _, ok := c.Get(\"session-bob\"); !ok {\n\t\tfmt.Println(\"bob: no session\")\n\t}\n\n\t// After its TTL passes, a stored token reads exactly like one\n\t// that was never stored.\n\tc.Set(\"session-carol\", \"token-456\", time.Millisecond)\n\ttime.Sleep(10 * time.Millisecond)\n\tif _, ok := c.Get(\"session-carol\"); !ok {\n\t\tfmt.Println(\"carol: no session\")\n\t}\n\t// Output:\n\t// alice: token-123\n\t// bob: no session\n\t// carol: no session\n}\n\n// A session-token cache in ordinary use: tokens are stored with a TTL,\n// looked up while fresh, refreshed to extend their life, and gone once\n// the TTL passes. The janitor interval is an hour so it never fires\n// here: misses after expiry prove the read-side enforcement the docs\n// promise, not the sweep. Close empties the cache and turns every\n// later call into a no-op.\nfunc TestCache(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tc := cache.New(time.Hour)\n\t\tt.Cleanup(c.Close)\n\n\t\tc.Set(\"alice\", \"token-a\", 10*time.Minute)\n\t\tc.Set(\"bob\", \"token-b\", 10*time.Minute)\n\t\tif got, ok := c.Get(\"alice\"); !ok || got != \"token-a\" {\n\t\t\tt.Errorf(`Get(\"alice\") = %q, %t, want \"token-a\", true`, got, ok)\n\t\t}\n\t\tif got, ok := c.Get(\"carol\"); ok {\n\t\t\tt.Errorf(`Get(\"carol\") = %q, true, want a miss for a key never set`, got)\n\t\t}\n\t\tif n := c.Len(); n != 2 {\n\t\t\tt.Errorf(\"Len() = %d, want 2\", n)\n\t\t}\n\n\t\t// Refreshing a session is a plain Set: the replacement expires\n\t\t// ten minutes from now, not from the original Set.\n\t\ttime.Sleep(5 * time.Minute)\n\t\tc.Set(\"alice\", \"token-a2\", 10*time.Minute)\n\n\t\ttime.Sleep(6 * time.Minute) // alice has 4m left; bob expired 1m ago\n\t\tif got, ok := c.Get(\"alice\"); !ok || got != \"token-a2\" {\n\t\t\tt.Errorf(`Get(\"alice\") after refresh = %q, %t, want \"token-a2\", true`, got, ok)\n\t\t}\n\t\tif got, ok := c.Get(\"bob\"); ok {\n\t\t\tt.Errorf(`Get(\"bob\") = %q, true, want a miss 1m past its TTL`, got)\n\t\t}\n\t\tif n := c.Len(); n != 1 {\n\t\t\tt.Errorf(\"Len() = %d, want 1\", n)\n\t\t}\n\n\t\tc.Close()\n\t\tif got, ok := c.Get(\"alice\"); ok {\n\t\t\tt.Errorf(`Get(\"alice\") after Close = %q, true, want a miss`, got)\n\t\t}\n\t\tif n := c.Len(); n != 0 {\n\t\t\tt.Errorf(\"Len() after Close = %d, want 0\", n)\n\t\t}\n\t\tc.Set(\"dave\", \"token-d\", 10*time.Minute)\n\t\tif got, ok := c.Get(\"dave\"); ok {\n\t\t\tt.Errorf(`Get(\"dave\") = %q, true, want a miss for a Set made after Close`, got)\n\t\t}\n\t\tc.Close() // a second Close must be a safe no-op\n\t})\n}\n\n// Handler goroutines share one cache, each storing and looking up its\n// own session: the anticipated multi-goroutine flow behind the docs'\n// promise that all methods are safe for concurrent use.\nfunc TestConcurrentUse(t *testing.T) {\n\tc := cache.New(time.Hour)\n\tt.Cleanup(c.Close)\n\n\tvar wg sync.WaitGroup\n\tfor i := range 16 {\n\t\twg.Go(func() {\n\t\t\tkey := fmt.Sprintf(\"session-%d\", i)\n\t\t\ttoken := fmt.Sprintf(\"token-%d\", i)\n\t\t\tc.Set(key, token, time.Hour)\n\t\t\tif got, ok := c.Get(key); !ok || got != token {\n\t\t\t\tt.Errorf(\"Get(%q) = %q, %t, want %q, true\", key, got, ok, token)\n\t\t\t}\n\t\t})\n\t}\n\twg.Wait()\n\n\tif n := c.Len(); n != 16 {\n\t\tt.Errorf(\"Len() = %d, want 16\", n)\n\t}\n}\n\n// An entry stored with a zero or negative TTL has no expiry: it must\n// outlive any amount of time and any number of janitor sweeps, until\n// it is replaced or the cache is closed.\nfunc TestEntryWithoutTTLNeverExpires(t *testing.T) {\n\tsynctest.Test(t, func(t *testing.T) {\n\t\tc := cache.New(time.Minute)\n\t\tt.Cleanup(c.Close)\n\n\t\tc.Set(\"forever\", \"v\", 0)\n\t\tc.Set(\"negative\", \"v\", -time.Second)\n\n\t\ttime.Sleep(24 * time.Hour)\n\t\tif got, ok := c.Get(\"forever\"); !ok || got != \"v\" {\n\t\t\tt.Errorf(`Get(\"forever\") = %q, %t, want \"v\", true for an entry stored with ttl 0`, got, ok)\n\t\t}\n\t\tif got, ok := c.Get(\"negative\"); !ok || got != \"v\" {\n\t\t\tt.Errorf(`Get(\"negative\") = %q, %t, want \"v\", true for an entry stored with a negative ttl`, got, ok)\n\t\t}\n\t\tif n := c.Len(); n != 2 {\n\t\t\tt.Errorf(\"Len() = %d, want 2\", n)\n\t\t}\n\n\t\t// \"Until it is replaced\": a later Set with a TTL takes over,\n\t\t// and the entry expires like any other.\n\t\tc.Set(\"forever\", \"v2\", time.Minute)\n\t\ttime.Sleep(2 * time.Minute)\n\t\tif got, ok := c.Get(\"forever\"); ok {\n\t\t\tt.Errorf(`Get(\"forever\") = %q, true, want a miss after the entry was replaced with a 1m TTL`, got)\n\t\t}\n\t})\n}\n\nfunc TestNewRejectsNonPositiveJanitorInterval(t *testing.T) {\n\tfor _, interval := range []time.Duration{0, -time.Second} {\n\t\tt.Run(fmt.Sprint(interval), func(t *testing.T) {\n\t\t\tdefer func() {\n\t\t\t\tif recover() == nil {\n\t\t\t\t\tt.Errorf(\"New(%v) did not panic\", interval)\n\t\t\t\t}\n\t\t\t}()\n\t\t\tc := cache.New(interval)\n\t\t\tc.Close()\n\t\t})\n\t}\n}\n"}, {"name": "critique.md", "type": "text", "content": "# Critique \u2014 cache_test.go and report.md\n\nReviewed as the package maintainer, bound to skill v4: whole exemplar corpus\nread first, exported surface taken from `go doc -all`, no non-test source\nopened. Verified locally: `gofmt -l` clean, `go vet` clean, `go test` and\n`go test -race -count=1` pass on go 1.25.\n\nThe suite is flow-grained, go-doc-first, and honest \u2014 no per-symbol scan, no\nchange-detectors, no self-naming comments, bodies are straight-line hard-coded\ncode. The findings below are ranked; the first one matters, the rest are\npolish.\n\n## cache_test.go\n\n### 1. HIGH \u2014 the doc's one explicit concurrency promise is never exercised\n\nThe package doc promises outright: \"All methods are safe for concurrent use by\nmultiple goroutines.\" No test calls the API from more than one goroutine.\nWorse, the appearance of concurrency here is an illusion of virtual time:\n\n- `TestCache` parks the janitor on purpose (1h interval, ~11m of virtual\n  time) \u2014 its own comment says so.\n- `TestEntryWithoutTTLNeverExpires` rides 1440 sweeps, but synctest advances\n  virtual time only while every goroutine in the bubble is durably blocked.\n  Each sweep runs while the test goroutine is parked in `time.Sleep`. Janitor\n  and caller never overlap; the executions are strictly sequential.\n\nSo `-race` passing proves nothing about this promise \u2014 the detector was never\nshown two goroutines touching the cache. This is not a call for statistical\nrace-hunting (banned, and rightly): one realistic flow suffices. Several\nhandler goroutines each storing and looking up their own session, WaitGroup\nagainst leaks, assertions inside the goroutines (*testing.T is\nconcurrent-safe). That is the anticipated call pattern for a session-token\ncache \u2014 concurrent access is why the type carries the promise at all.\n\n### 2. MEDIUM \u2014 ExampleCache closes the file instead of opening it\n\nDoctrine: the file builds complexity as it reads \u2014 examples first (when not in\na standalone example_test.go), then the typical call patterns, the special\ncases and their machinery last. This file reads scenario \u2192 property test \u2192\npanic table \u2192 example. Move `ExampleCache` to the top of the file or into\n`example_test.go`; the panic table stays last either way.\n\n### 3. MEDIUM \u2014 the example's comment promises what its code never shows\n\nThe doc comment says \"a miss covers both 'never stored' and 'expired'\", but\nthe code demonstrates only the never-stored miss. Expiry is this package's\nentire reason to exist and it is absent from the one artifact users see on\npkgsite. Either demonstrate the expired miss (a short real TTL and a real\nsleep is the honest route; weigh the weak-runner flake risk) or cut the\n\"expired\" clause from the comment so it stops claiming coverage the code\ndoesn't have. A comment on the example must not out-promise the example.\n\n### 4. LOW \u2014 TestEntryWithoutTTLNeverExpires drops the values\n\nBoth `Get(\"forever\")` and `Get(\"negative\")` check only `ok`. Asserting the\nstored `\"v\"` costs nothing and would catch value corruption on the no-expiry\npath, which no other test crosses. Every other Get in the suite checks the\nvalue; these two should too.\n\n### 5. NIT \u2014 the panic table's failure message names the input, not the sin\n\n`New(%v) did not panic` identifies the case; the reference shape also wants\nthe specific invalidity stated from the case. With two self-explanatory\ndurations and the property in the test name, this is defensible \u2014 inline\nrecover over a mustPanic helper is the right call at this size. Noting for the\nrecord, not demanding a change.\n\n## report.md\n\n### 1. MEDIUM \u2014 \"exercised (and race-checked)\" overstates the janitor coverage\n\nThe report claims the sweep \"is exercised (and race-checked)\". Exercised, yes,\n1440 times. Race-checked, no: under virtual time the sweeps run only while the\nsole other goroutine is durably blocked (see finding 1). The sentence would\nlead a reader to believe the concurrency promise has evidence behind it. It\ndoes not.\n\n### For the record, done right\n\nThe boundary-instant question (expiry at exactly t+ttl) was deferred to the\nowner with the exact tradeoff stated instead of silently pinning\nimplementation behavior. That is the correct move, and the offer of a one-line\ncase on request is exactly the shape I want these reports to take. No drift\nfindings were missed: the tests hold every clause the prose actually makes,\nexcept the concurrent-use clause above.\n\n## Package smell (secondary goal)\n\nNone found. No test needed a translation comment for an API value; the\nTTL-in-durations surface reads directly. Nothing to flag for rethink.\n"}, {"name": "go.mod", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,bW9kdWxlIGV4YW1wbGUuaW52YWxpZC9jYWNoZQoKZ28gMS4yNQo="}, {"name": "report.md", "type": "text", "content": "# Cache test report\n\n`cache_test.go` is an external `package cache_test` suite, planned go-doc-first from the exported docs. The file builds complexity as it reads:\n\n- `ExampleCache` \u2014 the anticipated call pattern for pkgsite: store, hit, and both flavors of miss, never stored and expired. The expired miss uses a millisecond TTL and a real sleep; the deadline is fixed at Set time and `time.Sleep` only ever overshoots, so the miss cannot flake even on a weak runner.\n- `TestCache` \u2014 the whole-package session-token scenario under `testing/synctest`: store, hit, refresh resets the TTL, expiry visible to Get and Len before the janitor ever sweeps, Close discards and disables.\n- `TestConcurrentUse` \u2014 the docs promise all methods are safe for concurrent use, so sixteen handler goroutines each store and look up their own session, asserting inside the goroutines under a WaitGroup. This test is the suite's concurrency evidence: in the synctest tests the janitor and the caller never overlap, since virtual time advances only while every goroutine in the bubble is blocked.\n- `TestEntryWithoutTTLNeverExpires` \u2014 zero and negative TTLs ride 1440 janitor sweeps of virtual time with values intact, until a replacing Set gives the entry a real TTL and it expires like any other.\n- `TestNewRejectsNonPositiveJanitorInterval` \u2014 the documented panic, a two-case table.\n\nThe janitor's sweep is unobservable through the exported API (expiry is enforced on read), so the sweeps are exercised rather than asserted.\n\nNo doc/code drift found. One author call remains: the code expires an entry at exactly t+ttl (`!now.Before(deadline)`), and the prose (\"from then on\") only arguably promises the boundary instant, so I did not pin it \u2014 say the word and it becomes a one-line case.\n\nStatus: `gofmt`, `go vet`, and `go build ./...` clean; `go test ./...` and `go test -race -count=1 ./...` pass, every test function confirmed run under `-v`.\n"}], "grading": {"expectations": [{"text": "Tests live in package cache_test", "passed": true, "evidence": "cache_test.go line 1: `package cache_test`; all cache access goes through the imported `example.invalid/cache` API."}, {"text": "Time and the janitor run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops", "passed": false, "evidence": "TestCache and TestEntryWithoutTTLNeverExpires run under synctest.Test (lines 48, 124) and all their sleeps (lines 66, 69, 131, 145) sit inside bubbles; grep shows no polling loops (the only `for` statements are the `for i := range 16` fan-out and the panic case table). But ExampleCache contains `time.Sleep(10 * time.Millisecond)` at line 31 OUTSIDE any bubble, really sleeping past a 1ms TTL to demonstrate expiry. The sleep is deterministic (the deadline is fixed at Set time and Sleep only overshoots, so the miss cannot flake), but the assertion's literal clause 'any time.Sleep sits inside a bubble' is violated; the expiry story was already covered inside a bubble by TestCache, so the example did not need real time to pass. Same fact pattern as the r3 grading of this lineage, graded the same way for consistency."}, {"text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T", "passed": true, "evidence": "The only test-spawned goroutines are the 16 in TestConcurrentUse, where concurrency IS the job (exercising the documented concurrent-use promise). They run outside any bubble and are reaped via wg.Go/wg.Wait (lines 102-113); each asserts its own token round-trip inline with t.Errorf inside the goroutine (lines 108-110), no value collection or channels. The main goroutine does the post-wait Len audit itself (line 115). The package-internal janitor goroutine is released via t.Cleanup(c.Close)/defer c.Close() in every test and the example."}, {"text": "FLOWS over symbols: at least one test or example walks an anticipated user story (set a token with a TTL, read it, let it expire, miss, shutdown); no per-symbol test names; a whole-package scenario name is welcome", "passed": true, "evidence": "TestCache (lines 41-93) walks the full session-token story under synctest: store two tokens with TTLs, hit, never-set miss, refresh extends the deadline, expiry miss visible to Get and Len before any sweep, Close discards and disables, second Close no-op. ExampleCache walks store/hit/never-stored miss/expired miss. Names: TestCache is the welcomed whole-package scenario name; TestConcurrentUse, TestEntryWithoutTTLNeverExpires, and TestNewRejectsNonPositiveJanitorInterval claim properties; no TestSet/TestGet/TestLen/TestClose symbol scan (the panic test necessarily names New to claim its documented boundary, not to scan a symbol)."}, {"text": "Names claim package properties in plain English without receiver stutter", "passed": true, "evidence": "TestCache, TestConcurrentUse, TestEntryWithoutTTLNeverExpires, TestNewRejectsNonPositiveJanitorInterval all read as plain-English scenario/property claims; nothing like TestCacheGet or TestCacheSetSets, no receiver stutter. Panic sub-tests are named by their inputs (`0s`, `-1s`) via fmt.Sprint(interval)."}, {"text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified; no run-time arithmetic deriving expectations", "passed": true, "evidence": "TestCache is one straight-line timeline with hard-coded literals ('token-a', 'token-a2', Len wants 2/1/0) and authoring-time durations annotated on the timeline ('alice has 4m left; bob expired 1m ago', line 69). TestEntryWithoutTTLNeverExpires hard-codes 0/-time.Second TTLs and the 24h ride. TestConcurrentUse's fmt.Sprintf mirrors input construction per goroutine; the final Len want is the literal 16. No helper functions exist at all (the panic recovery is inlined in the two-case table), and no expectation is computed from the package's own logic."}, {"text": "File order builds complexity: examples first (or a separate example_test.go), typical patterns before edge orchestration, helpers after first use", "passed": true, "evidence": "Order in cache_test.go: ExampleCache (line 15) -> TestCache typical whole-package flow (line 47) -> TestConcurrentUse concurrent orchestration (line 98) -> TestEntryWithoutTTLNeverExpires boundary property (line 123) -> TestNewRejectsNonPositiveJanitorInterval panic edge (line 152). Examples open the file, the typical pattern precedes the orchestration and edges, and the helpers-after-first-use clause is vacuously satisfied (no helpers)."}, {"text": "A representative runnable example of the typical call pattern is present and follows the audience rules", "passed": true, "evidence": "ExampleCache is runnable (Output block, lines 35-38; confirmed passing under go test -v) and shows the anticipated pattern: New, defer Close, Set with a 30m TTL for a session, Get hit, never-stored miss, expired miss. The doc comment (lines 13-14) speaks to pkgsite users about the session-token scenario ('a miss covers both \"never stored\" and \"expired\"') without narrating code or addressing maintainers; the in-function comment (lines 28-29) restates the contract at the call site ('a stored token reads exactly like one that was never stored')."}, {"text": "Documented boundaries are exercised as documented: ttl <= 0 stores without expiry, Get hides expired entries before the janitor sweeps, Close idempotence, the documented panic on non-positive janitor interval", "passed": true, "evidence": "ttl<=0: TestEntryWithoutTTLNeverExpires stores ttl 0 and -time.Second, rides 24h of virtual time (1440 sweeps of the 1m janitor) with both values intact and Len==2, then confirms 'until replaced' by re-Setting with a 1m TTL and seeing it expire. Read-side expiry before the sweep: TestCache's janitor interval is one hour, so bob's miss at t=11m (expired t=10m) and Len==1 prove Get/Len hide expired entries the janitor has not touched. Close idempotence: explicit second Close at line 91 plus t.Cleanup(c.Close) makes a third; Set-after-Close no-op and Get-after-Close misses asserted (lines 81-90). Panic: TestNewRejectsNonPositiveJanitorInterval covers 0 and -time.Second with recover() (lines 152-164)."}, {"text": "The package's DOCUMENTED concurrency safety is tested as promised (this package explicitly promises concurrent use, so concurrent exercise is in-contract), without statistical race-hunting theatrics", "passed": true, "evidence": "Cache's doc promises 'All methods are safe for concurrent use'; TestConcurrentUse drives the anticipated flow named in its own doc comment: 16 handler goroutines each Set and Get their own session concurrently against one cache, asserting inline, with a final Len==16 lost-write audit. Single pass, no iteration-count loops hunting a race, no unrealistic access patterns; go test -race -count=5 passes."}, {"text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)", "passed": true, "evidence": "TestCache (lines 41-46), TestConcurrentUse (lines 95-97), and TestEntryWithoutTTLNeverExpires (lines 120-122) carry layman rationale docs (including why the 1h janitor interval isolates read-side enforcement); the trivial panic test carries none. No doc comment opens with its own function's name. grep -iE 'pin|conven|order|mechanic' over comments finds nothing; 'synctest' appears only as the import and the two Test calls, with no mechanics prose."}, {"text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites", "passed": true, "evidence": "ExampleCache's doc comment (lines 13-14) describes the session-token scenario in user terms, never mentioning the example function, code lines, or maintainers. The in-function comment before the expiry demonstration (lines 28-29) explains the contract behavior at the call site: an expired token is indistinguishable from one never stored. The inputs read naturally (durations as TTLs, 'session-alice'/'token-123' literals name themselves), so no further literal-explaining comments are owed."}, {"text": "Contexts (if any are needed) come from t.Context()", "passed": true, "evidence": "Vacuously satisfied: the cache API takes no contexts and grep finds no `context` usage anywhere in cache_test.go, so no context.Background()/TODO() violations exist."}, {"text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes", "passed": true, "evidence": "Ran in outputs/ with go1.26.5: `go test -count=30 ./...` -> ok example.invalid/cache 0.379s, exit 0; the -v log shows 181 '--- PASS' lines (30x each of the 4 tests + 2 panic sub-tests, plus the example's single run) and 0 '--- FAIL'. `go test -race -count=5 ./...` -> ok example.invalid/cache 1.261s. gofmt -l silent and go vet clean."}, {"text": "report.md exists with the run's findings, any quirk carrying author-context framing", "passed": true, "evidence": "report.md exists, walks the suite in file order with the design rationale (1h janitor isolating read-side enforcement; the concurrency test as the suite's real-parallelism evidence; the sweep being unobservable through the exported API so it is exercised rather than asserted). The one quirk carries author-context framing: the exact-boundary expiry instant (`!now.Before(deadline)`) versus the prose's 'from then on' is presented as 'one author call remains... say the word and it becomes a one-line case', deliberately left unpinned. Reported verification status matches what re-running confirms."}]}}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"metadata": {"skill_name": "testing (v4 final: canon exemplars + archetype routing)", "skill_path": "/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/skill-v4", "executor_model": "fable, write->critique->revise loop", "analyzer_model": "claude-fable-5", "timestamp": "2026-07-24T12:00:00Z", "evals_run": [1], "runs_per_configuration": 1}, "runs": [{"eval_id": 1, "eval_name": "cache-write-tests--looped-fable-FINAL", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 0.933, "passed": 14, "failed": 1, "total": 15, "time_seconds": 0, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Tests live in package cache_test", "passed": true, "evidence": "cache_test.go line 1: `package cache_test`; all cache access goes through the imported `example.invalid/cache` API."}, {"text": "Time and the janitor run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops", "passed": false, "evidence": "TestCache and TestEntryWithoutTTLNeverExpires run under synctest.Test (lines 48, 124) and all their sleeps (lines 66, 69, 131, 145) sit inside bubbles; grep shows no polling loops (the only `for` statements are the `for i := range 16` fan-out and the panic case table). But ExampleCache contains `time.Sleep(10 * time.Millisecond)` at line 31 OUTSIDE any bubble, really sleeping past a 1ms TTL to demonstrate expiry. The sleep is deterministic (the deadline is fixed at Set time and Sleep only overshoots, so the miss cannot flake), but the assertion's literal clause 'any time.Sleep sits inside a bubble' is violated; the expiry story was already covered inside a bubble by TestCache, so the example did not need real time to pass. Same fact pattern as the r3 grading of this lineage, graded the same way for consistency."}, {"text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T", "passed": true, "evidence": "The only test-spawned goroutines are the 16 in TestConcurrentUse, where concurrency IS the job (exercising the documented concurrent-use promise). They run outside any bubble and are reaped via wg.Go/wg.Wait (lines 102-113); each asserts its own token round-trip inline with t.Errorf inside the goroutine (lines 108-110), no value collection or channels. The main goroutine does the post-wait Len audit itself (line 115). The package-internal janitor goroutine is released via t.Cleanup(c.Close)/defer c.Close() in every test and the example."}, {"text": "FLOWS over symbols: at least one test or example walks an anticipated user story (set a token with a TTL, read it, let it expire, miss, shutdown); no per-symbol test names; a whole-package scenario name is welcome", "passed": true, "evidence": "TestCache (lines 41-93) walks the full session-token story under synctest: store two tokens with TTLs, hit, never-set miss, refresh extends the deadline, expiry miss visible to Get and Len before any sweep, Close discards and disables, second Close no-op. ExampleCache walks store/hit/never-stored miss/expired miss. Names: TestCache is the welcomed whole-package scenario name; TestConcurrentUse, TestEntryWithoutTTLNeverExpires, and TestNewRejectsNonPositiveJanitorInterval claim properties; no TestSet/TestGet/TestLen/TestClose symbol scan (the panic test necessarily names New to claim its documented boundary, not to scan a symbol)."}, {"text": "Names claim package properties in plain English without receiver stutter", "passed": true, "evidence": "TestCache, TestConcurrentUse, TestEntryWithoutTTLNeverExpires, TestNewRejectsNonPositiveJanitorInterval all read as plain-English scenario/property claims; nothing like TestCacheGet or TestCacheSetSets, no receiver stutter. Panic sub-tests are named by their inputs (`0s`, `-1s`) via fmt.Sprint(interval)."}, {"text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified; no run-time arithmetic deriving expectations", "passed": true, "evidence": "TestCache is one straight-line timeline with hard-coded literals ('token-a', 'token-a2', Len wants 2/1/0) and authoring-time durations annotated on the timeline ('alice has 4m left; bob expired 1m ago', line 69). TestEntryWithoutTTLNeverExpires hard-codes 0/-time.Second TTLs and the 24h ride. TestConcurrentUse's fmt.Sprintf mirrors input construction per goroutine; the final Len want is the literal 16. No helper functions exist at all (the panic recovery is inlined in the two-case table), and no expectation is computed from the package's own logic."}, {"text": "File order builds complexity: examples first (or a separate example_test.go), typical patterns before edge orchestration, helpers after first use", "passed": true, "evidence": "Order in cache_test.go: ExampleCache (line 15) -> TestCache typical whole-package flow (line 47) -> TestConcurrentUse concurrent orchestration (line 98) -> TestEntryWithoutTTLNeverExpires boundary property (line 123) -> TestNewRejectsNonPositiveJanitorInterval panic edge (line 152). Examples open the file, the typical pattern precedes the orchestration and edges, and the helpers-after-first-use clause is vacuously satisfied (no helpers)."}, {"text": "A representative runnable example of the typical call pattern is present and follows the audience rules", "passed": true, "evidence": "ExampleCache is runnable (Output block, lines 35-38; confirmed passing under go test -v) and shows the anticipated pattern: New, defer Close, Set with a 30m TTL for a session, Get hit, never-stored miss, expired miss. The doc comment (lines 13-14) speaks to pkgsite users about the session-token scenario ('a miss covers both \"never stored\" and \"expired\"') without narrating code or addressing maintainers; the in-function comment (lines 28-29) restates the contract at the call site ('a stored token reads exactly like one that was never stored')."}, {"text": "Documented boundaries are exercised as documented: ttl <= 0 stores without expiry, Get hides expired entries before the janitor sweeps, Close idempotence, the documented panic on non-positive janitor interval", "passed": true, "evidence": "ttl<=0: TestEntryWithoutTTLNeverExpires stores ttl 0 and -time.Second, rides 24h of virtual time (1440 sweeps of the 1m janitor) with both values intact and Len==2, then confirms 'until replaced' by re-Setting with a 1m TTL and seeing it expire. Read-side expiry before the sweep: TestCache's janitor interval is one hour, so bob's miss at t=11m (expired t=10m) and Len==1 prove Get/Len hide expired entries the janitor has not touched. Close idempotence: explicit second Close at line 91 plus t.Cleanup(c.Close) makes a third; Set-after-Close no-op and Get-after-Close misses asserted (lines 81-90). Panic: TestNewRejectsNonPositiveJanitorInterval covers 0 and -time.Second with recover() (lines 152-164)."}, {"text": "The package's DOCUMENTED concurrency safety is tested as promised (this package explicitly promises concurrent use, so concurrent exercise is in-contract), without statistical race-hunting theatrics", "passed": true, "evidence": "Cache's doc promises 'All methods are safe for concurrent use'; TestConcurrentUse drives the anticipated flow named in its own doc comment: 16 handler goroutines each Set and Get their own session concurrently against one cache, asserting inline, with a final Len==16 lost-write audit. Single pass, no iteration-count loops hunting a race, no unrealistic access patterns; go test -race -count=5 passes."}, {"text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)", "passed": true, "evidence": "TestCache (lines 41-46), TestConcurrentUse (lines 95-97), and TestEntryWithoutTTLNeverExpires (lines 120-122) carry layman rationale docs (including why the 1h janitor interval isolates read-side enforcement); the trivial panic test carries none. No doc comment opens with its own function's name. grep -iE 'pin|conven|order|mechanic' over comments finds nothing; 'synctest' appears only as the import and the two Test calls, with no mechanics prose."}, {"text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites", "passed": true, "evidence": "ExampleCache's doc comment (lines 13-14) describes the session-token scenario in user terms, never mentioning the example function, code lines, or maintainers. The in-function comment before the expiry demonstration (lines 28-29) explains the contract behavior at the call site: an expired token is indistinguishable from one never stored. The inputs read naturally (durations as TTLs, 'session-alice'/'token-123' literals name themselves), so no further literal-explaining comments are owed."}, {"text": "Contexts (if any are needed) come from t.Context()", "passed": true, "evidence": "Vacuously satisfied: the cache API takes no contexts and grep finds no `context` usage anywhere in cache_test.go, so no context.Background()/TODO() violations exist."}, {"text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes", "passed": true, "evidence": "Ran in outputs/ with go1.26.5: `go test -count=30 ./...` -> ok example.invalid/cache 0.379s, exit 0; the -v log shows 181 '--- PASS' lines (30x each of the 4 tests + 2 panic sub-tests, plus the example's single run) and 0 '--- FAIL'. `go test -race -count=5 ./...` -> ok example.invalid/cache 1.261s. gofmt -l silent and go vet clean."}, {"text": "report.md exists with the run's findings, any quirk carrying author-context framing", "passed": true, "evidence": "report.md exists, walks the suite in file order with the design rationale (1h janitor isolating read-side enforcement; the concurrency test as the suite's real-parallelism evidence; the sweep being unobservable through the exported API so it is exercised rather than asserted). The one quirk carries author-context framing: the exact-boundary expiry instant (`!now.Before(deadline)`) versus the prose's 'from then on' is presented as 'one author call remains... say the word and it becomes a one-line case', deliberately left unpinned. Reported verification status matches what re-running confirms."}], "notes": ["clean provenance end to end: canon-snippet exemplars, archetype routing, owner-only verified (fixture byte-identical)", "the single graded miss is a stale assertion, not a defect: the Example uses a safe-direction real sleep (overshoot-only, cannot flake) because examples cannot enter synctest bubbles - the exact discipline the surrogate recommended; assertion refinement queued"]}], "run_summary": {"with_skill": {"pass_rate": {"mean": 0.933, "stddev": 0, "min": 0, "max": 1}, "time_seconds": {"mean": 0, "stddev": 0, "min": 0, "max": 0}, "tokens": {"mean": 0, "stddev": 0, "min": 0, "max": 0}}, "without_skill": {"pass_rate": {"mean": 0, "stddev": 0, "min": 0, "max": 0}, "time_seconds": {"mean": 0, "stddev": 0, "min": 0, "max": 0}, "tokens": {"mean": 0, "stddev": 0, "min": 0, "max": 0}}, "delta": {"pass_rate": "n/a", "time_seconds": "n/a", "tokens": "n/a"}}, "notes": ["THE RUN: looped Fable on the cache eval under the final tree. The critique caught the virtual-time illusion (synctest janitor sweeps prove nothing about the concurrency promise); the revision answered with a 16-goroutine realistic flow outside the bubble, asserting via the concurrent-safe *testing.T under a WaitGroup; example moved to open the file; an out-promising example comment fixed honestly.", "A/B FINAL: looped beat plain in 8 of 9 original cells and every cache cell; the one loss was looped-sonnet editing owner code - now guarded by the owner-only rule in SKILL.md, held byte-verified in this run.", "Corpus: 8 canon-snippet files, 19 tagged samples, 8 archetypes, router README with verified extraction one-liners, zero license verbiage, zero synthetic code."]}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>

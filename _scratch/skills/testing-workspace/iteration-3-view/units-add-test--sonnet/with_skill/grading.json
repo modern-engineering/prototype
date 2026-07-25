@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "Coverage mimics the sibling precedent (rows/sub-cases in an existing suitable test, or a runnable Example like ExampleParseSizeOrDefault) — a standalone test named after the function fails",
+      "passed": true,
+      "evidence": "internal/units/units_test.go:66 adds runnable ExampleParseDurationOrDefault mirroring the ExampleParseSizeOrDefault precedent (doc comment + Output block); grep -rn TestParseDurationOrDefault in outputs/ finds no match."
+    },
+    {
+      "text": "The documented leniency is asserted: empty string AND garbage return def, no error",
+      "passed": true,
+      "evidence": "internal/units/units_test.go:68-69 call ParseDurationOrDefault(\"\", time.Second) and (\"not-a-duration\", time.Second), both asserted as 1s in the Output block (lines 72-73); the helper returns only time.Duration so no error path exists, and the example PASSes under go test -v."
+    },
+    {
+      "text": "Existing good-style tests and examples are preserved untouched",
+      "passed": true,
+      "evidence": "diff -ru against fixtures/units shows units.go byte-identical and units_test.go changed only by an added \"time\" import plus the appended ExampleParseDurationOrDefault; TestSizeRoundTrip, ExampleParseSize, and ExampleParseSizeOrDefault are byte-for-byte unchanged."
+    },
+    {
+      "text": "Every test and example function carries a doc comment giving the rationale or contract clause in plain terms (why this test / why this mechanism when non-trivial), and none opens with its own function name",
+      "passed": false,
+      "evidence": "ExampleParseSize (units_test.go:46) carries no doc comment, so 'every' does not hold for the final file; the three commented functions are fine and none opens with its own function name."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... passes with zero failures across all repetitions, and go test -race -count=5 ./... passes (flaky tests are contract failures)",
+      "passed": true,
+      "evidence": "Inside outputs/: go test -count=30 ./... exited 0 (ok, 0.228s) and go test -race -count=5 ./... exited 0 (ok, 1.344s); go vet ./... also clean."
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "Coverage mimics the sibling precedent (rows/sub-cases in an existing suitable test, or a runnable Example like ExampleParseSizeOrDefault) — a standalone test named after the function fails",
+      "passed": false,
+      "evidence": "Run added a new standalone TestParseDurationOrDefault (units_test.go:56) named after the function, instead of extending an existing test or adding a runnable Example like the ExampleParseSizeOrDefault precedent."
+    },
+    {
+      "text": "The documented leniency is asserted: empty string AND garbage return def, no error",
+      "passed": true,
+      "evidence": "Subtests 'empty string falls back' (\"\" -> def) and 'garbage falls back' (\"not-a-duration\" -> def) at units_test.go:67-68 assert def is returned; the helper has no error return."
+    },
+    {
+      "text": "Existing good-style tests and examples are preserved untouched",
+      "passed": true,
+      "evidence": "diff against fixtures/units shows only additions (time import + new test); TestSizeRoundTrip, ExampleParseSize, and ExampleParseSizeOrDefault are byte-identical to the baseline."
+    },
+    {
+      "text": "Every test and example function carries a doc comment giving the rationale or contract clause in plain terms (why this test / why this mechanism when non-trivial), and none opens with its own function name",
+      "passed": false,
+      "evidence": "ExampleParseSize (units_test.go:47) carries no doc comment; the new test's comment is fine ('A well-formed duration parses...'), but 'every' does not hold for the final file."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... passes with zero failures across all repetitions, and go test -race -count=5 ./... passes (flaky tests are contract failures)",
+      "passed": true,
+      "evidence": "go test -count=30 ./... exited 0 (ok, 0.231s) and go test -race -count=5 ./... exited 0 (ok, 1.337s) inside outputs/; go vet also clean."
+    }
+  ]
+}

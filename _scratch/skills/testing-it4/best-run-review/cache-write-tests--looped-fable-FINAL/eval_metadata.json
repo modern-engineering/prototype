@@ -1,0 +1,22 @@
+{
+ "eval_id": 1,
+ "eval_name": "cache-write-tests--looped-fable-FINAL",
+ "prompt": "wrote a small expiring-cache package for our session tokens (Set with a TTL, Get, background janitor goroutine, Close). mind writing the committed tests before this goes into the services repo?",
+ "assertions": [
+  "Tests live in package cache_test",
+  "Time and the janitor run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+  "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T",
+  "FLOWS over symbols: at least one test or example walks an anticipated user story (set a token with a TTL, read it, let it expire, miss, shutdown); no per-symbol test names; a whole-package scenario name is welcome",
+  "Names claim package properties in plain English without receiver stutter",
+  "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified; no run-time arithmetic deriving expectations",
+  "File order builds complexity: examples first (or a separate example_test.go), typical patterns before edge orchestration, helpers after first use",
+  "A representative runnable example of the typical call pattern is present and follows the audience rules",
+  "Documented boundaries are exercised as documented: ttl <= 0 stores without expiry, Get hides expired entries before the janitor sweeps, Close idempotence, the documented panic on non-positive janitor interval",
+  "The package's DOCUMENTED concurrency safety is tested as promised (this package explicitly promises concurrent use, so concurrent exercise is in-contract), without statistical race-hunting theatrics",
+  "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+  "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+  "Contexts (if any are needed) come from t.Context()",
+  "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+  "report.md exists with the run's findings, any quirk carrying author-context framing"
+ ]
+}

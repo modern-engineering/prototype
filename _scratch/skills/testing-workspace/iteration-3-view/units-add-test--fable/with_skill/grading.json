@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "Coverage mimics the sibling precedent (rows/sub-cases in an existing suitable test, or a runnable Example like ExampleParseSizeOrDefault) — a standalone test named after the function fails",
+      "passed": true,
+      "evidence": "units_test.go:67 adds runnable ExampleParseDurationOrDefault mirroring the sibling ExampleParseSizeOrDefault (doc comment + Output block); grep -rn TestParseDurationOrDefault outputs/ finds nothing (exit 1)."
+    },
+    {
+      "text": "The documented leniency is asserted: empty string AND garbage return def, no error",
+      "passed": true,
+      "evidence": "units_test.go:69-70 call ParseDurationOrDefault(\"\", time.Second) and (\"soon\", time.Second); the Output block asserts both print 1s (the default), and the helper's signature returns no error; example PASSes under go test -v."
+    },
+    {
+      "text": "Existing good-style tests and examples are preserved untouched",
+      "passed": true,
+      "evidence": "diff -ru against fixtures/units shows only additions to units_test.go (a time import and the appended ExampleParseDurationOrDefault); TestSizeRoundTrip, ExampleParseSize, ExampleParseSizeOrDefault, and units.go are byte-identical to the baseline."
+    },
+    {
+      "text": "Every test and example function carries a doc comment giving the rationale or contract clause in plain terms (why this test / why this mechanism when non-trivial), and none opens with its own function name",
+      "passed": false,
+      "evidence": "ExampleParseSize (units_test.go:46) carries no doc comment, so 'every' does not hold for the final file; the new example's comment is fine ('A well-formed duration parses...') and no comment opens with its function name."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... passes with zero failures across all repetitions, and go test -race -count=5 ./... passes (flaky tests are contract failures)",
+      "passed": true,
+      "evidence": "Inside outputs/: go test -count=30 ./... exited 0 (ok, 0.220s) and go test -race -count=5 ./... exited 0 (ok, 1.351s); go vet also clean."
+    }
+  ]
+}

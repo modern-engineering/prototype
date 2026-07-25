@@ -1,0 +1,165 @@
+{
+ "metadata": {
+  "skill_name": "testing (v4 final: canon exemplars + archetype routing)",
+  "skill_path": "/Users/danielorbach/Code/modern-engineering/prototype/.claude/worktrees/master-tests-orig/_scratch/skills/testing-it4/skill-v4",
+  "executor_model": "fable, write->critique->revise loop",
+  "analyzer_model": "claude-fable-5",
+  "timestamp": "2026-07-24T12:00:00Z",
+  "evals_run": [
+   1
+  ],
+  "runs_per_configuration": 1
+ },
+ "runs": [
+  {
+   "eval_id": 1,
+   "eval_name": "cache-write-tests--looped-fable-FINAL",
+   "configuration": "with_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.933,
+    "passed": 14,
+    "failed": 1,
+    "total": 15,
+    "time_seconds": 0,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Tests live in package cache_test",
+     "passed": true,
+     "evidence": "cache_test.go line 1: `package cache_test`; all cache access goes through the imported `example.invalid/cache` API."
+    },
+    {
+     "text": "Time and the janitor run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+     "passed": false,
+     "evidence": "TestCache and TestEntryWithoutTTLNeverExpires run under synctest.Test (lines 48, 124) and all their sleeps (lines 66, 69, 131, 145) sit inside bubbles; grep shows no polling loops (the only `for` statements are the `for i := range 16` fan-out and the panic case table). But ExampleCache contains `time.Sleep(10 * time.Millisecond)` at line 31 OUTSIDE any bubble, really sleeping past a 1ms TTL to demonstrate expiry. The sleep is deterministic (the deadline is fixed at Set time and Sleep only overshoots, so the miss cannot flake), but the assertion's literal clause 'any time.Sleep sits inside a bubble' is violated; the expiry story was already covered inside a bubble by TestCache, so the example did not need real time to pass. Same fact pattern as the r3 grading of this lineage, graded the same way for consistency."
+    },
+    {
+     "text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T",
+     "passed": true,
+     "evidence": "The only test-spawned goroutines are the 16 in TestConcurrentUse, where concurrency IS the job (exercising the documented concurrent-use promise). They run outside any bubble and are reaped via wg.Go/wg.Wait (lines 102-113); each asserts its own token round-trip inline with t.Errorf inside the goroutine (lines 108-110), no value collection or channels. The main goroutine does the post-wait Len audit itself (line 115). The package-internal janitor goroutine is released via t.Cleanup(c.Close)/defer c.Close() in every test and the example."
+    },
+    {
+     "text": "FLOWS over symbols: at least one test or example walks an anticipated user story (set a token with a TTL, read it, let it expire, miss, shutdown); no per-symbol test names; a whole-package scenario name is welcome",
+     "passed": true,
+     "evidence": "TestCache (lines 41-93) walks the full session-token story under synctest: store two tokens with TTLs, hit, never-set miss, refresh extends the deadline, expiry miss visible to Get and Len before any sweep, Close discards and disables, second Close no-op. ExampleCache walks store/hit/never-stored miss/expired miss. Names: TestCache is the welcomed whole-package scenario name; TestConcurrentUse, TestEntryWithoutTTLNeverExpires, and TestNewRejectsNonPositiveJanitorInterval claim properties; no TestSet/TestGet/TestLen/TestClose symbol scan (the panic test necessarily names New to claim its documented boundary, not to scan a symbol)."
+    },
+    {
+     "text": "Names claim package properties in plain English without receiver stutter",
+     "passed": true,
+     "evidence": "TestCache, TestConcurrentUse, TestEntryWithoutTTLNeverExpires, TestNewRejectsNonPositiveJanitorInterval all read as plain-English scenario/property claims; nothing like TestCacheGet or TestCacheSetSets, no receiver stutter. Panic sub-tests are named by their inputs (`0s`, `-1s`) via fmt.Sprint(interval)."
+    },
+    {
+     "text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified; no run-time arithmetic deriving expectations",
+     "passed": true,
+     "evidence": "TestCache is one straight-line timeline with hard-coded literals ('token-a', 'token-a2', Len wants 2/1/0) and authoring-time durations annotated on the timeline ('alice has 4m left; bob expired 1m ago', line 69). TestEntryWithoutTTLNeverExpires hard-codes 0/-time.Second TTLs and the 24h ride. TestConcurrentUse's fmt.Sprintf mirrors input construction per goroutine; the final Len want is the literal 16. No helper functions exist at all (the panic recovery is inlined in the two-case table), and no expectation is computed from the package's own logic."
+    },
+    {
+     "text": "File order builds complexity: examples first (or a separate example_test.go), typical patterns before edge orchestration, helpers after first use",
+     "passed": true,
+     "evidence": "Order in cache_test.go: ExampleCache (line 15) -> TestCache typical whole-package flow (line 47) -> TestConcurrentUse concurrent orchestration (line 98) -> TestEntryWithoutTTLNeverExpires boundary property (line 123) -> TestNewRejectsNonPositiveJanitorInterval panic edge (line 152). Examples open the file, the typical pattern precedes the orchestration and edges, and the helpers-after-first-use clause is vacuously satisfied (no helpers)."
+    },
+    {
+     "text": "A representative runnable example of the typical call pattern is present and follows the audience rules",
+     "passed": true,
+     "evidence": "ExampleCache is runnable (Output block, lines 35-38; confirmed passing under go test -v) and shows the anticipated pattern: New, defer Close, Set with a 30m TTL for a session, Get hit, never-stored miss, expired miss. The doc comment (lines 13-14) speaks to pkgsite users about the session-token scenario ('a miss covers both \"never stored\" and \"expired\"') without narrating code or addressing maintainers; the in-function comment (lines 28-29) restates the contract at the call site ('a stored token reads exactly like one that was never stored')."
+    },
+    {
+     "text": "Documented boundaries are exercised as documented: ttl <= 0 stores without expiry, Get hides expired entries before the janitor sweeps, Close idempotence, the documented panic on non-positive janitor interval",
+     "passed": true,
+     "evidence": "ttl<=0: TestEntryWithoutTTLNeverExpires stores ttl 0 and -time.Second, rides 24h of virtual time (1440 sweeps of the 1m janitor) with both values intact and Len==2, then confirms 'until replaced' by re-Setting with a 1m TTL and seeing it expire. Read-side expiry before the sweep: TestCache's janitor interval is one hour, so bob's miss at t=11m (expired t=10m) and Len==1 prove Get/Len hide expired entries the janitor has not touched. Close idempotence: explicit second Close at line 91 plus t.Cleanup(c.Close) makes a third; Set-after-Close no-op and Get-after-Close misses asserted (lines 81-90). Panic: TestNewRejectsNonPositiveJanitorInterval covers 0 and -time.Second with recover() (lines 152-164)."
+    },
+    {
+     "text": "The package's DOCUMENTED concurrency safety is tested as promised (this package explicitly promises concurrent use, so concurrent exercise is in-contract), without statistical race-hunting theatrics",
+     "passed": true,
+     "evidence": "Cache's doc promises 'All methods are safe for concurrent use'; TestConcurrentUse drives the anticipated flow named in its own doc comment: 16 handler goroutines each Set and Get their own session concurrently against one cache, asserting inline, with a final Len==16 lost-write audit. Single pass, no iteration-count loops hunting a race, no unrealistic access patterns; go test -race -count=5 passes."
+    },
+    {
+     "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+     "passed": true,
+     "evidence": "TestCache (lines 41-46), TestConcurrentUse (lines 95-97), and TestEntryWithoutTTLNeverExpires (lines 120-122) carry layman rationale docs (including why the 1h janitor interval isolates read-side enforcement); the trivial panic test carries none. No doc comment opens with its own function's name. grep -iE 'pin|conven|order|mechanic' over comments finds nothing; 'synctest' appears only as the import and the two Test calls, with no mechanics prose."
+    },
+    {
+     "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+     "passed": true,
+     "evidence": "ExampleCache's doc comment (lines 13-14) describes the session-token scenario in user terms, never mentioning the example function, code lines, or maintainers. The in-function comment before the expiry demonstration (lines 28-29) explains the contract behavior at the call site: an expired token is indistinguishable from one never stored. The inputs read naturally (durations as TTLs, 'session-alice'/'token-123' literals name themselves), so no further literal-explaining comments are owed."
+    },
+    {
+     "text": "Contexts (if any are needed) come from t.Context()",
+     "passed": true,
+     "evidence": "Vacuously satisfied: the cache API takes no contexts and grep finds no `context` usage anywhere in cache_test.go, so no context.Background()/TODO() violations exist."
+    },
+    {
+     "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+     "passed": true,
+     "evidence": "Ran in outputs/ with go1.26.5: `go test -count=30 ./...` -> ok example.invalid/cache 0.379s, exit 0; the -v log shows 181 '--- PASS' lines (30x each of the 4 tests + 2 panic sub-tests, plus the example's single run) and 0 '--- FAIL'. `go test -race -count=5 ./...` -> ok example.invalid/cache 1.261s. gofmt -l silent and go vet clean."
+    },
+    {
+     "text": "report.md exists with the run's findings, any quirk carrying author-context framing",
+     "passed": true,
+     "evidence": "report.md exists, walks the suite in file order with the design rationale (1h janitor isolating read-side enforcement; the concurrency test as the suite's real-parallelism evidence; the sweep being unobservable through the exported API so it is exercised rather than asserted). The one quirk carries author-context framing: the exact-boundary expiry instant (`!now.Before(deadline)`) versus the prose's 'from then on' is presented as 'one author call remains... say the word and it becomes a one-line case', deliberately left unpinned. Reported verification status matches what re-running confirms."
+    }
+   ],
+   "notes": [
+    "clean provenance end to end: canon-snippet exemplars, archetype routing, owner-only verified (fixture byte-identical)",
+    "the single graded miss is a stale assertion, not a defect: the Example uses a safe-direction real sleep (overshoot-only, cannot flake) because examples cannot enter synctest bubbles - the exact discipline the surrogate recommended; assertion refinement queued"
+   ]
+  }
+ ],
+ "run_summary": {
+  "with_skill": {
+   "pass_rate": {
+    "mean": 0.933,
+    "stddev": 0,
+    "min": 0,
+    "max": 1
+   },
+   "time_seconds": {
+    "mean": 0,
+    "stddev": 0,
+    "min": 0,
+    "max": 0
+   },
+   "tokens": {
+    "mean": 0,
+    "stddev": 0,
+    "min": 0,
+    "max": 0
+   }
+  },
+  "without_skill": {
+   "pass_rate": {
+    "mean": 0,
+    "stddev": 0,
+    "min": 0,
+    "max": 0
+   },
+   "time_seconds": {
+    "mean": 0,
+    "stddev": 0,
+    "min": 0,
+    "max": 0
+   },
+   "tokens": {
+    "mean": 0,
+    "stddev": 0,
+    "min": 0,
+    "max": 0
+   }
+  },
+  "delta": {
+   "pass_rate": "n/a",
+   "time_seconds": "n/a",
+   "tokens": "n/a"
+  }
+ },
+ "notes": [
+  "THE RUN: looped Fable on the cache eval under the final tree. The critique caught the virtual-time illusion (synctest janitor sweeps prove nothing about the concurrency promise); the revision answered with a 16-goroutine realistic flow outside the bubble, asserting via the concurrent-safe *testing.T under a WaitGroup; example moved to open the file; an out-promising example comment fixed honestly.",
+  "A/B FINAL: looped beat plain in 8 of 9 original cells and every cache cell; the one loss was looped-sonnet editing owner code - now guarded by the owner-only rule in SKILL.md, held byte-verified in this run.",
+  "Corpus: 8 canon-snippet files, 19 tagged samples, 8 archetypes, router README with verified extraction one-liners, zero license verbiage, zero synthetic code.",
+  "TOKEN FORENSICS (research/skill-token-forensics.md): skill context cost per agent, chars-of-tool-result/4. Final chain - writer ~5.4k tok (SKILL.md + router README + only database-sql.md + encoding-json.md full, strings#example-edge-case grep-extracted; 2/8 exemplar files, 34% of the critic's exemplar payload), reviser ~5.1k tok (same matched files), critic ~13.1k tok (all 8 exemplar + 3 refs, as REVIEWING mode orders), grader 0. Pre-routing __snippets writers read the whole corpus by order: ~10.1-11.7k tok; Jul-23 baseline writers on the old small exemplar: ~4.2-5.6k tok. Verdict: archetype routing works - post-routing writers pay roughly baseline price (+29%) for a 2.5x larger corpus and opened no unmatched exemplar file."
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "eval_id": 1,
+ "eval_name": "limiter-write-tests--sonnet",
+ "prompt": "I just finished writing this little rate-limiter package for our internal gateway (token bucket, refills on a ticker goroutine, has a Wait(ctx) and an Allow() and a Close()). Can you write the tests for it before I send the PR?",
+ "assertions": [
+  "Tests live in an external test package (package limiter_test)",
+  "Concurrency and timing run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+  "Minimal orchestration: no goroutine whose only job is something the main goroutine could do directly (e.g. spawning a goroutine just to call Wait and be waited on); no gratuitous synctest.Wait; a hang is accepted as a valid failure mode rather than contorted around",
+  "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes several exported symbols as a user would",
+  "Names claim package properties in plain English without symbol/receiver stutter",
+  "Bodies are straight-line with hard-coded authoring-time expectations; the ONE sanctioned exception is panic-rejection cases via a table plus a recover helper whose failure message names the inputs and why they are invalid; no other case-generating loops or sub-test ceremony",
+  "Every test and example function carries a doc comment giving the rationale or contract clause in plain terms (why this test / why this mechanism when non-trivial), and none opens with its own function name",
+  "At least one runnable Example whose comment tells the same story the example shows (typical use, e.g. gating requests with Allow/Wait and Close on shutdown)",
+  "Contexts in tests come from t.Context() (Go 1.24) unless a stated reason requires otherwise",
+  "STABILITY: go test -count=30 ./... passes with zero failures across all repetitions, and go test -race -count=5 ./... passes (flaky tests are contract failures)"
+ ]
+}

@@ -1,0 +1,16 @@
+{
+ "eval_id": 2,
+ "eval_name": "config-test-review--sonnet",
+ "prompt": "our new hire wrote tests for the config package and something feels off about them, can you review and fix? dont break anything, the suite is green",
+ "assertions": [
+  "The five per-symbol tests are consolidated into whole-package contract scenarios or runnable Examples (testing the package, not symbols)",
+  "TestDebugDump is deleted; the sleep-based concurrent-use smoke is DELETED (the package documents no concurrency contract); the internals-reaching assertion now goes through the exported surface",
+  "The benchmark uses b.Loop and meaningfully exercises Load",
+  "At least one runnable Example exists (package-level Example() welcome); its comment and any sample-config comments carry real information (the fixture file speaks: e.g. a comment DEMONSTRATING comment syntax rather than saying 'this is a comment')",
+  "Malformed-input cases either live in a readable external form (testdata/ file or minimal separated format whose per-case note explains why it should fail, surfaced on unexpected success) or remain a small justified inline set \u2014 and the review flags Load's string-only errors, recommending or introducing typed/sentinel errors (errors.Is/As); grade this from code AND the run's report.md",
+  "No third-party test dependency is introduced (no go-cmp etc.; the module had none)",
+  "Every test and example function carries a doc comment giving the rationale or contract clause in plain terms (why this test / why this mechanism when non-trivial), and none opens with its own function name",
+  "report.md in the run directory records the reviewer's findings and rationale",
+  "STABILITY: go test -count=30 ./... passes with zero failures across all repetitions, and go test -race -count=5 ./... passes (flaky tests are contract failures)"
+ ]
+}
