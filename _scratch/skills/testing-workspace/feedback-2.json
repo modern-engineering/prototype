@@ -1,0 +1,65 @@
+{
+  "reviews": [
+    {
+      "run_id": "limiter-write-tests-with_skill",
+      "feedback": "Example barely tells a story in its comment, and a one that doesn't fit the narrative showed in the example itself. Also, all test functions lack doc comments. While Go code is usually self-explanatory with proper naming, the **reasoning and rationale** of the author is not. I expect the test function's doc comments to explain the **why** this specific test is needed and/or **why** this specific testing mechanism, when non-trivial. That is, TestZeroBurst also demonstrates the way users are expected to use a non-trivial burst value of zero. Sometimes, the comment echoes/reiterates the prose contract mentioned by the package.\n\nBe stringent with code-line comments, these tend to explain the code without much context. Sometimes it's better to use a proper comment paragraph with grammar. Some grading for these:\n- TestBurstCapsStoredTokens: `time.Sleep(time.Second) // ten refills against a bucket that holds two` is good, explains what happens in that line of code, though it could also be stated in the function's doc explaining the test methodology in layman terms.\n- TestZeroBurst: `time.Sleep(time.Second) // refills arrive but none can be stored` is good, explains what happens in that line of code too.\n- TestWaitAfterClose: `l.Close() // Close is documented as idempotent` is weird, it has more to do with the lack of function doc comments.\n\nTestZeroBurst uses `context.Background()`, but there is also `t.Context()`. While I send you to research the release notes for this recent addition and explore the feature's discussions, I suspect it may be the better use of contexts inside tests. Please verify this and apply appropriately.\n\n TestWaitAfterClose lacks all supporting documentation: why is this specific test needed, what contract does it verify, why no synctest while all other do use it.\n\nTestWaitHonorsContext body is nice, still lacks any supporting documentation. I wonder if the better context has `time.Second - 1` timeout or not.\n\nTestWaitBlocksUntilRefill uses a zero burst, which is a special case. I believe it's worth its own test which is TestZeroBurst, so it should appear first - placement wise. That way we verify contracts that we can later use for more complex contracts / sophisticated ways to prove contracts.\n\nYou know yourself that TestInvalidNew is bad.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_opus",
+      "feedback": "Both TestWaitHonorsContextCancellation and TestWaitHonorsContextDeadline are classic sub-tests of a top-level `TestWaitHonorsContext`, if at all. That specific case is trivial enough that having two separate sub-tests is perhaps too much, we can just test them one after the other linearly. Even if the context-driven nature of these sub-tests still merits individual tests, the lesson about inlining sub-tests into the parent is a good idiom to remember. Simple tests in the sense that are easier to read and reason about are much better than those with structure that \"saves\" a few lines of code. We prefer more lines of code, if all these lines are meaningful and anticipated. When test code is cumbersome, convoluted, or tedious to read, we want to \"simplify\" even if that means many more repeated lines of code.\n\nWhile these tests all have docu comments, these are *Obviously terrible* test comments. They literally echo the function's name and begins with the test's name - no value added - wasted my time.\n\nTestNewRejectsInvalidArguments indeed covers the invalid parameters of `limiter.New`.\n\nTestCloseIsIdempotent does not cover enough, testing \"idempotency\" in a way that's not really meaningful. It lacks exercising how limiters behaves after any close. What does it prove, no panic? We can do that in an example test that both defers `Limiter.Close` and calls it explicitly before it exits.\n\nTestWaitAfterCloseReturnsErrClosed along with TestCloseIsIdempotent test too specific aspects of the contract that are linked in usage.\n\nOverall, the entire test suite feels crafted by an unskilled author that both doesn't think Go very well and haven't read tests of the standard library. Just the overall look and feel of it. Even with TestLimiter: the inner comments are classic what I'd expect to see in the test's story doc comment. Not that inside the function these are not useful, but they imply the rationale of the specific test and its methodology. Though I say \"methodology\", don't be posh about it, always explain in laymen terms. An LLM agent that feels presumptuous is the worst.\n\nI did not compare to the previous output because it's unreadable by humans, but I remember it was worse by far.\n\nAlso, the suite lacks example tests. The usage of this package is easy to show with string outputs, and while it's subtleties require concurrent control to test, the contract itself and what the user gets from the package is not about concurrency orchestration rather just concurrent-safe. So, runnable example tests are a classic fit here.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_sonnet",
+      "feedback": "TestInvalidNew names the inputs in the sub-test's name, so it is repeated in the logs which feels a waste. I guess I've have tested panics the best with a **table-driven test** and a **helper** to recover from panics, instead of a sub-test. Then, I'd name the inputs in the failure messages, and be able to name the specific invalidity of the inputs in the logged sentence (taken from the table's case struct).\n\nTestAllow is for noobs because it targets a symbol instead of a contract. Allow is part of a contract that is tied with multiple symbols, exercised by different call patterns.\n\nTestWaitReturnsErrClosedAfterClose and TestCloseIsIdempotent cover \"a contract\", but it is too narrow.\n\nTestZeroBurst anf TestWaitBlocksUntilRefill feel convoluted for no good reason. I'm no synctest expert yet, but I strongly believe this test can be simplified greatly without needing spawned goroutines. I mean, all the test's main goroutine is doing is to wait for that goroutine to terminate, which is exactly equivalent to calling `Limiter.Wait`. This relies on Wait respecting its context, which can be deadlined if the reason for this messy test is fearing a hanging test. Which leads me to a good lesson: hang is a valid test failure! While we prefer it be detected rather quickly (perhaps that's what `t.Context()` is for), a hang test means failure. Especially unit-tests that typically complete faster than humans notice, even a few seconds is a hang. There's a great lesson here, I just did not explain it too well, sorry.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "limiter-write-tests-without_skill",
+      "feedback": "I didn't even bother reading all the way through. It opens with helpers, that have no justification. No justification written in their docs, nor any reason to exist in the first place as they merely save repeating a few lines of code which is blessed in testing source code. Clarity over cleverness (it's a Go idiom).\n\nYou know all that's bad here. It tests too fine-grained behaviours, which is like testing in a vacuum. Instead, we want to simulate typical and/or expected usage patterns of the package.\n\nWhile the function is safe for concurrent use, the TestConcurrentUse is convoluted and didn't invite me to read it.\n\nEven the naming of functions tells me that the author thought about testing edge-cases/behaviours of functions instead of the package as a whole.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "config-test-review-with_skill",
+      "feedback": "I think we could have had more invalid configs to run through, but then I wouldn't use an inline table rather some `testdata/` dir or an archive like `txttar`.\n\nGiven the sample config file has some assumptions, I'd use the comments to make them explicit. Like, `name` is a string, `port` is a number, `timeout` is a duration, and `retries` is for fallbacks. Likewise, `missing` is omitted, maybe even better as commented out, so it always returns the fallback.\n\nAlso, I wouldn't use Google's `cmp.Diff` here for the slices, but it is worth mentioning for codebases that already require this module.\n\nAlso, a classic package to have *at least some* examples for.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "config-test-review-with_skill_opus",
+      "feedback": "Example is nice, the minimum that's passable as an example. We prefer to use the source-code to speak to maintainers/contributors and the docs to speak to users/consumers of the package. In this case, we have a unique lesson to learn: the input config file speaks too! It may contain comments which speak to both audiances. Avoid lines like \"This is a comment\", instead prefer \"Comments are the rest of the line following the # sign\". Use it creatively to convey more of the non-coded context. It may be stuff that editors should note because it breaks use-sites, like changing the `port` value to a non-integer (however I must be explicit here - there is **no need** to say it as a warning, trust the common-sense of contributors). It may also be stuff like explaining the format because it will show up in the Example on pkgsite.\n\nI expect some comment on `TestConfig` saying it exercises it all. It must not be too literal though, not to echo the code itself, which will drift.\n\nFor the malformed lines, I don't really care about the specific samples, and viewing multiline isn't meaningful. I would use an external file in some format (with as little scaffolding as possible) to have more readable invalid configs and a description of why they should fail. Perhaps a comment, perhaps the format is a `---` separated file with the first line being a comment explaining why it fails, which can be printed to the log when it does not fail. Do you catch my drift here? There's elegance to the most minimal use-case, dogfooding as much as possible and reusing existing mechanisms in creative ways.\n\nThese comments are tough to nail, I hope you're able to reproduce and apply them.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "config-test-review-with_skill_sonnet",
+      "feedback": "I don't see any outputs for this case.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "config-test-review-without_skill",
+      "feedback": "You know all that's bad already, didn't change from the previous case. The worst of all is that it Tests exported symbols instead of the package.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "units-add-test-with_skill",
+      "feedback": "No output for me to rate.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "units-add-test-with_skill_opus",
+      "feedback": "No output visible for me to rate.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "units-add-test-with_skill_sonnet",
+      "feedback": "No output for me to rate.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    },
+    {
+      "run_id": "units-add-test-without_skill",
+      "feedback": "No output for me to rate.",
+      "timestamp": "2026-07-22T16:17:44.876Z"
+    }
+  ],
+  "status": "complete"
+}
