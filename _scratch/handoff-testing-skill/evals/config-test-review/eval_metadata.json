@@ -1,0 +1,18 @@
+{
+  "eval_id": 2,
+  "eval_name": "config-test-review",
+  "prompt": "our new hire wrote tests for the config package and something feels off about them, can you review and fix? dont break anything, the suite is green",
+  "assertions": [
+    "Per-symbol tests are consolidated into whole-package contract scenarios and/or runnable examples (package-level Example() or a TestConfig-style scenario both welcome)",
+    "TestDebugDump deleted; the sleep-based concurrent smoke DELETED with the docs-promise-no-concurrency reasoning; the internals-reaching assertion goes through the exported surface",
+    "The benchmark uses b.Loop and meaningfully exercises Load",
+    "The review flags Load's string-only errors and recommends or introduces typed/sentinel errors (errors.Is/As or Go 1.26 errors.AsType); graded from code AND report.md",
+    "Malformed-input cases are named (not dumped as multiline strings into logs), reusing existing fixture fields where possible rather than inventing new ones",
+    "At least one runnable example exists and follows the audience rules; sample-config comments carry real information (demonstrate the syntax, explain a field's role), never filler",
+    "No new third-party test dependency",
+    "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+    "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+    "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+    "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 3,
+  "eval_name": "units-add-test",
+  "prompt": "add a test for the new ParseDurationOrDefault helper I added to internal/units (it falls back to the default on empty string, and on garbage too - documented leniency, not an error). quick one please, need to commit",
+  "assertions": [
+    "Coverage mimics the sibling precedent (ExampleParseSizeOrDefault): a runnable example or rows in an existing suitable test; no standalone test named after the function",
+    "The leniency contract is asserted or shown: empty AND garbage return def without error; showing a boundary non-fallback case (a parseable zero like '0s') with a distinct comment is a plus, not a requirement",
+    "Existing tests and examples are preserved untouched",
+    "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+    "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+    "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes"
+  ]
+}
