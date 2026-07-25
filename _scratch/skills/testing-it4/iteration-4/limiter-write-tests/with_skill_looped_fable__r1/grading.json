@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in package limiter_test",
+      "passed": true,
+      "evidence": "limiter_test.go line 1: `package limiter_test`; imports `example.invalid/limiter` and compiles (go build ./... passes)."
+    },
+    {
+      "text": "Concurrency and timing run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+      "passed": true,
+      "evidence": "Both timing tests wrap their bodies in synctest.Test (lines 53, 115). All three time.Sleep calls (lines 89, 103, 125) sit inside those bubbles. The only for loop in the file is the table iteration at line 157; grep finds no polling/retry loops. Example_gateway contains no sleeps; its single real-time Wait is deterministic and passed 30 consecutive runs."
+    },
+    {
+      "text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T rather than collecting values back",
+      "passed": true,
+      "evidence": "grep for `go func`/`sync.` in limiter_test.go returns nothing: the test file spawns zero goroutines, so there is nothing to reap and no values are collected back. All orchestration (blocking Wait, deadline expiry, refill timing) is done from the main test goroutine inside synctest bubbles."
+    },
+    {
+      "text": "FLOWS over symbols: at least one test or example exercises an anticipated user flow (e.g. gate with Allow, fall back to Wait when it returns false, Close on shutdown); no per-symbol test names (TestAllow etc.); a whole-package scenario name like TestLimiter is welcome",
+      "passed": true,
+      "evidence": "Example_gateway (lines 17-46) is exactly the named flow: gate with Allow, fall back to Wait when Allow returns false, Close on shutdown. TestLimiterLifecycle (line 52) is a whole-package scenario covering burst, timeout, refill-served wait, lull cap, and shutdown in one story. No TestAllow/TestWait/TestClose names exist; TestNewPanicsOnInvalidArguments names the property of the constructor guard (the expected panic-table shape), not a bare symbol scan."
+    },
+    {
+      "text": "Names claim package properties in plain English without receiver stutter",
+      "passed": true,
+      "evidence": "TestZeroBurstStoresNoTokens and TestNewPanicsOnInvalidArguments read as plain-English property claims. TestLimiterLifecycle is the welcomed whole-package scenario name. No Limiter.<Method> stutter names (no TestLimiterAllow/TestLimiterClose)."
+    },
+    {
+      "text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified (a panic table with a recover helper naming inputs and their invalidity is the expected shape here); no run-time arithmetic deriving expectations",
+      "passed": true,
+      "evidence": "All expectations are hard-coded literals derived at authoring time (900*time.Millisecond at line 83, 500*time.Millisecond at line 136, sleep lengths 4500/2600/3500ms with comments deriving the tick counts). time.Since(start) measures the actual, never the expectation. The sole helper is mustPanic (line 164), a recover helper whose `invalidity` parameter names what makes each input invalid: the exact expected shape."
+    },
+    {
+      "text": "File order builds complexity: examples first (or a separate example_test.go), typical call patterns before edge orchestration, any helper defined after its first use",
+      "passed": true,
+      "evidence": "Order is Example_gateway (17) -> TestLimiterLifecycle typical flow (52) -> TestZeroBurstStoresNoTokens edge (114) -> TestNewPanicsOnInvalidArguments panic table (142) -> mustPanic helper (164), defined after its first use at line 158."
+    },
+    {
+      "text": "A representative runnable example of the typical call pattern is present and follows the audience rules",
+      "passed": true,
+      "evidence": "Example_gateway is runnable (Output block, lines 42-45) and models the anticipated client pattern (Allow on the hot path, Wait on rejection, deferred plus explicit Close). It passed 30 consecutive runs. Doc comment speaks about the gateway scenario for pkgsite readers; in-function comments translate New(2, 2) and restate the contract at call sites."
+    },
+    {
+      "text": "Invalid-input coverage includes the zero-interval boundary: a rate large enough that the refill interval truncates to zero is exercised alongside the documented panic cases",
+      "passed": true,
+      "evidence": "Row {rate: 2_000_000_000, burst: 1, invalidity: \"rate beyond one token per nanosecond\"} at line 154 sits in the same table as the documented zero-rate, negative-rate, and negative-burst cases, and is genuinely exercised: running it crashes the binary with `panic: non-positive interval for NewTicker` from the refill goroutine, with a rationale comment on the row (lines 149-153)."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Both non-trivial tests carry layman rationale doc comments (lines 48-51, 111-113); the trivial panic table carries none, with the drift rationale on the row itself. No test/example doc comment opens with its function name (mustPanic's comment does, but it is an ordinary helper where Go convention requires the name, outside the test-function rule in TESTS.md). grep for pin/ordering/convention/bubble/virtual-time terms in the test file returns nothing; no synctest mechanics are explained."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at call sites",
+      "passed": true,
+      "evidence": "The doc comment (lines 14-16) describes the gateway scenario and call pattern for users; it neither steps through the code nor mentions maintainers, tests, or the example function itself. In-function comments translate the bare ints (\"Two tokens per second, and up to two held for a burst\", line 18), restate the contract at call sites (\"Always defer Close so the refill goroutine is released\", lines 20-21; \"The bucket starts full\", line 24), and put the idempotency promise on the explicit second l.Close() (lines 38-39)."
+    },
+    {
+      "text": "Contexts come from t.Context() unless a reason is stated",
+      "passed": true,
+      "evidence": "All test contexts derive from t.Context(): lines 70 (WithTimeout wrapping t.Context()), 80, 105, 133. The single context.Background() (line 31) is inside the runnable example, where no *testing.T exists and Background is what a real caller writes."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": false,
+      "evidence": "Both commands fail: `go test -count=30 ./...` exits 1 and `go test -race -count=5 ./...` exits 1, each crashing at the first repetition with `panic: non-positive interval for NewTicker` raised by the deliberately restored drift row (rate 2_000_000_000). The red is honest and confined: filtered runs excluding the panic table (`-run 'TestLimiterLifecycle|TestZeroBurstStoresNoTokens|Example_gateway'`) pass -count=30 and -race -count=5 with zero failures, and the report declares the red hand-off up front. But the assertion as written demands zero failures on ./..., and a green suite that still exercises the boundary was achievable (e.g. a subprocess crash-test), so this fails on the letter."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists. The doc/code drift finding ends with a decision for the author: \"Either guard the rate in New (and say so in the doc) or document a maximum rate.\" The API-smell finding proposes a concrete rethink (rate as a duration-shaped parameter). The concurrency and Allow-after-Close notes are framed as promise-or-forbid decisions (\"consider promising it in the doc\", \"promise or forbid it if callers will care\"), not bare observations."
+    }
+  ]
+}

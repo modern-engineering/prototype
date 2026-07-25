@@ -1,0 +1,5 @@
+# truncate package tests
+
+Wrote black-box tests (`truncate_test.go`, `example_test.go`) against the API the doc comments promise: table-driven Head/Tail coverage for ASCII, exact/over limits, empty input, zero and negative n, multibyte runes and emoji, plus UTF-8 validity checks and godoc examples. Heads-up on framing: the code is not at `./truncate` inside a utils module; it is a standalone module `example.invalid/truncate` with the package at its root, so tests live beside it.
+Finding for the author: Head's doc says negative n is treated as zero, but Head is missing Tail's `n <= 0` guard, so `Head(s, -1)` panics on `r[:n]`. `TestHeadNegative` deliberately asserts the documented contract and FAILS (it recovers the panic so the rest of the suite runs); it will pass once the two-line guard is added, or should be updated if the doc is amended instead. Please fix before shipping, since the docs are the public contract.
+Status: `go build ./...` passes; `go vet` and `gofmt` clean; `go test ./...` reports 1 expected failure (TestHeadNegative, reason above) and all 26 other subtests/examples pass.

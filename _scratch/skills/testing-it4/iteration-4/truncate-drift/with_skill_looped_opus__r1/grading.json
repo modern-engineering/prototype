@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Resolution taken is the failing prose-sided test with an honest report. report.md's 'Drift surfaced (deliberately red, not blessed)' section states the contradiction precisely ('Both functions document that a negative count is treated as zero and returns the empty string. Tail honors it; Head lacks Tail's n <= 0 guard, so Head(s, -1) slices r[:-1] and panics'), and TestNegativeCountYieldsEmptyString's doc comment (truncate_test.go:60-65) restates it prominently in the source ('Tail honors that promise; Head panics on the negative slice bound instead. The Head case is left red to surface that divergence... rather than bless it'). No test blesses the panic: the Head sub-test expects \"\" and converts the recovered panic into t.Fatalf, so it fails red (verified: go test fails only on TestNegativeCountYieldsEmptyString/Head). report.md's 'Status (honest)' section declares that exact failure. truncate.go is byte-identical to both the it4 and workspace fixtures (diff verified), so the drift was surfaced, not silently patched or absorbed."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1 is 'package truncate_test' and it imports example.invalid/truncate; it is the only test file in the module (find shows go.mod, truncate.go, truncate_test.go)."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The suite defines zero helpers (grep '^func': ExampleHead, ExampleTail, TestTruncatesOnRuneBoundaries, TestNegativeCountYieldsEmptyString only). The file opens with the two per-function stdlib-style examples with // Output: blocks, then builds to the table test and the drift test. The panic recovery is an inline deferred func literal inside the Head sub-test, not an extracted helper, so no indirection exists to misplace. The critique loop explicitly removed the earlier shared callWithoutPanic helper (report.md, findings 1 and 4)."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The single case struct has four fields {s, n, head, tail} and every one of the five literals uses named fields, e.g. '{s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"}' (truncate_test.go:44-48). The table loop uses no sub-tests at all (plain for-range with inputs printed in the failure message). The only sub-tests are t.Run(\"Tail\") and t.Run(\"Head\") in the drift test; both render as Go symbol names (TestNegativeCountYieldsEmptyString/Head), no spaces, no prose, and their bodies genuinely differ (direct assertion vs recover guard), so they are not the prose-named pattern the maintainer flagged on this package."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestTruncatesOnRuneBoundaries is exactly the maintainer's preferred merged case struct for mirrored functions ({s, n, head, tail}, cf. INTENT ruling 9's '{\"hello\", 3, \"hel\", \"llo\"}' example): one table of shared inputs, each row asserting Head and Tail as a pair in one loop. TestNegativeCountYieldsEmptyString pairs the two functions on the same negative-count contract, diverging only where the code genuinely diverges (Tail asserts directly, Head needs the recover). No duplicated parallel structures exist; the two examples share the same input string, mirroring first-4 against last-7 runes."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Both non-trivial tests carry layman rationale doc comments: the table test explains why one table drives both functions and why the multi-byte rows matter ('héllo is five runes across six bytes'); the drift test explains the doc promise, the divergence, and why the case is left red. No comment opens with its own function name: ExampleHead/ExampleTail open with the attributed symbols 'Head'/'Tail' (sanctioned by sibling precedent as the pkgsite convention, not the function name), the tests open with 'Head and Tail mirror...' and 'Both functions document...'. grep for pin/pins/convention/ordering/synctest across the test file and report.md: zero matches. The in-function comment at the recover ('A panic here is the documented contract going unmet, not a crashed binary, so recover and report it as an ordinary failure') is call-site rationale for maintainers, not convention narration."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "ExampleHead's doc speaks to users about Head's contract ('trims a label to a column width, counting runes so a multi-byte character is never split at the cut... a caller may pass a generous limit without measuring the input first'); ExampleTail's about Tail as Head's mirror. Neither narrates the code line-by-line, describes the example function itself, or addresses maintainers. In-function comments do the call-site work on the non-obvious inputs: 'first 4 runes: \"café\", which is 5 bytes' repeats the runes-not-bytes contract exactly where the literal 4 needs it (verified: café is 4 runes, 5 bytes), 'last 7 runes: \"münchen\"' decodes the 7, and 'width past the end: unchanged' restates the clamp contract at both overshoot calls. Both examples pass (go test -run Example: 2/2 PASS)."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (truncate-drift honest-red rule applied: the only permitted failure is the deliberate prose-sided drift test, deterministically)",
+      "passed": true,
+      "evidence": "Honest-red rule applied since the run chose the failing prose-sided test resolution. go test -v -count=30 ./...: TestNegativeCountYieldsEmptyString/Head failed exactly 30/30 and every failure carried the byte-identical message ('Head(\"héllo\", -1) panicked (runtime error: slice bounds out of range [:0] with capacity 32), want the empty string'); TestTruncatesOnRuneBoundaries passed 30/30, the Tail sub-test passed 30/30, ExampleHead and ExampleTail passed; no other FAIL line appeared. go test -race -v -count=5 ./...: the same single deliberate failure 5/5, zero 'DATA RACE' lines. The inline deferred recover keeps the panic from aborting the harness, so every other test and both examples complete in every run. gofmt -l clean, go vet ./... clean, go build ./... ok. The red matches report.md's 'Status (honest)' disclosure ('FAILs only on TestNegativeCountYieldsEmptyString/Head')."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with the findings, the drift write-up, an honest status section, and the critique disposition. The drift finding carries explicit author-context framing rather than a bare observation or a prescription: it lays out both live resolutions (add the n <= 0 guard vs amend Head's doc to drop the promise), states 'the choice is the author's, not the test's', and asks the author-intent question directly ('would the author promise no-panic for existing callers, or refuse to harden a case that never arises in the anticipated flows?'), locating that inference in the commit body per the maintainer's flows-over-pinning ruling."
+    }
+  ]
+}

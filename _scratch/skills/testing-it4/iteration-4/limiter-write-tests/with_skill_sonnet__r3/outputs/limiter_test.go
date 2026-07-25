@@ -1,0 +1,191 @@
+package limiter_test
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	"example.invalid/limiter"
+)
+
+// A bursty client is the typical caller: try Allow on the hot path, and
+// when the limiter runs dry fall back to Wait, which blocks until the
+// next refill frees a token.
+func Example_throttle() {
+	// Two tokens per second, and up to two held for a burst.
+	l := limiter.New(2, 2)
+	// Always defer Close so the refill goroutine is released even on an
+	// early return.
+	defer l.Close()
+
+	// The limiter starts full, so the opening burst is permitted at once.
+	fmt.Println(l.Allow())
+	fmt.Println(l.Allow())
+
+	// The burst is spent. Rather than drop the next request, block until
+	// a token arrives.
+	if !l.Allow() {
+		if err := l.Wait(context.Background()); err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Println("third request permitted after a refill")
+	}
+
+	// Closing again is safe: Close is idempotent, so the deferred Close
+	// above becomes a no-op.
+	l.Close()
+
+	// Output:
+	// true
+	// true
+	// third request permitted after a refill
+}
+
+// The typical client story end to end: a burst on arrival, an impatient
+// wait that times out, a patient wait served by the next refill, a lull
+// that restocks only up to burst, and a shutdown that turns away every
+// caller no matter how many tokens are left.
+func TestThrottleLifecycle(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 2) // one token per second, two to start
+		defer l.Close()
+
+		// The starting burst: exactly two tokens, then dry.
+		if !l.Allow() {
+			t.Error("Allow() #1 = false on a fresh limiter, want true")
+		}
+		if !l.Allow() {
+			t.Error("Allow() #2 = false, want true for burst 2")
+		}
+		if l.Allow() {
+			t.Error("Allow() #3 = true, want false once the burst is spent")
+		}
+
+		// An impatient caller: the 100ms deadline expires long before the
+		// first refill lands at the 1s mark.
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+		if err := l.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Wait() with a 100ms deadline = %v, want context.DeadlineExceeded", err)
+		}
+
+		// A patient caller: the timed-out wait above already burned 100ms
+		// of the first refill interval, so the token due at the 1s mark
+		// arrives 900ms from now.
+		start := time.Now()
+		if err := l.Wait(t.Context()); err != nil {
+			t.Fatalf("Wait() = %v, want nil once a refill lands", err)
+		}
+		if elapsed := time.Since(start); elapsed != 900*time.Millisecond {
+			t.Errorf("Wait() returned after %v, want exactly 900ms", elapsed)
+		}
+
+		// A lull: four refills arrive during the sleep, but the limiter
+		// keeps only burst of them.
+		time.Sleep(4500 * time.Millisecond)
+		if !l.Allow() {
+			t.Error("Allow() = false after the lull, want true")
+		}
+		if !l.Allow() {
+			t.Error("Allow() = false on the second restocked token, want true")
+		}
+		if l.Allow() {
+			t.Error("Allow() = true beyond burst, want false: extra refills must not pile up")
+		}
+
+		// Shutdown: two more refills land before Close, and ErrClosed
+		// still wins over the leftover tokens.
+		time.Sleep(2500 * time.Millisecond)
+		l.Close()
+		if err := l.Wait(t.Context()); !errors.Is(err, limiter.ErrClosed) {
+			t.Errorf("Wait() after Close = %v, want ErrClosed", err)
+		}
+	})
+}
+
+// A burst-0 limiter is the package's one documented special case: it
+// stores nothing, so Allow can never find a token sitting around, and
+// only a caller already parked in Wait can catch a refill as it passes
+// through.
+func TestZeroBurstDeliversOnlyToWaiters(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 0) // one token per second, nothing held back
+		defer l.Close()
+
+		if l.Allow() {
+			t.Error("Allow() = true on a fresh zero-burst limiter, want false")
+		}
+
+		go func() {
+			if err := l.Wait(t.Context()); err != nil {
+				t.Errorf("Wait() = %v, want nil: a refill arrives while this caller waits", err)
+			}
+		}()
+		synctest.Wait() // let the goroutine above park in Wait before the tick fires
+
+		if l.Allow() {
+			t.Error("Allow() = true while a waiter holds the rendezvous, want false")
+		}
+
+		time.Sleep(time.Second) // the one refill goes straight to the parked Wait above
+	})
+}
+
+func TestNewPanicsOnInvalidArguments(t *testing.T) {
+	cases := []struct {
+		rate, burst int
+		invalidity  string
+	}{
+		{rate: 0, burst: 1, invalidity: "zero rate"},
+		{rate: -1, burst: 1, invalidity: "negative rate"},
+		{rate: 1, burst: -1, invalidity: "negative burst"},
+	}
+	for _, c := range cases {
+		mustPanic(t, c.rate, c.burst, c.invalidity)
+	}
+}
+
+// mustPanic fails the test unless New(rate, burst) panics; invalidity
+// names what makes the arguments invalid in the failure message.
+func mustPanic(t *testing.T, rate, burst int, invalidity string) {
+	t.Helper()
+	defer func() {
+		if recover() == nil {
+			t.Errorf("New(%d, %d) did not panic on a %s", rate, burst, invalidity)
+		}
+	}()
+	l := limiter.New(rate, burst)
+	l.Close() // reached only if the guard is broken; stop the refill goroutine anyway
+}
+
+// New validates that rate is positive, but not that it is low enough for
+// the refill goroutine to serve: a rate at or above one token per
+// nanosecond floors time.Second/rate to a zero interval, and the
+// unrecovered panic that time.NewTicker raises for it belongs to the
+// refill goroutine, not to whoever called New, so it takes down the
+// whole process rather than failing the caller. The exec.Command dance
+// below contains that crash in a subprocess so the rest of this suite
+// keeps running; the sibling bucket package closes this exact gap with
+// an upper bound in New itself, and this failure asks limiter to do the
+// same, rather than recording it as accepted behavior.
+func TestNewRejectsARateItCannotServe(t *testing.T) {
+	if os.Getenv("LIMITER_SUBPROCESS_HIGH_RATE") == "1" {
+		l := limiter.New(2_000_000_000, 1) // 1 token/2s floors to a 0s interval
+		defer l.Close()
+		time.Sleep(100 * time.Millisecond)
+		os.Exit(0)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestNewRejectsARateItCannotServe$")
+	cmd.Env = append(os.Environ(), "LIMITER_SUBPROCESS_HIGH_RATE=1")
+	if err := cmd.Run(); err != nil {
+		t.Errorf("subprocess calling New(2_000_000_000, 1) crashed (%v), want New "+
+			"to reject a rate its refill goroutine cannot serve", err)
+	}
+}

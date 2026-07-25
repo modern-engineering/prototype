@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Resolution taken is the failing prose-sided test with an honest report. report.md line 4 states the contradiction explicitly ('both doc comments promise negative n is treated as zero; Tail honors it, but Head slices r[:n] unguarded and panics') and TestNegativeCountKeepsNothing's doc comment (truncate_test.go lines 49-55) restates it prominently, siding with the prose. No test asserts the panic as contract; the test expects \"\" and recovers the panic into t.Errorf. report.md line 5 honestly declares 'go test ./... fails on the one deliberate test above'. truncate.go is byte-identical to the fixture (verified by diff against without_skill), so the drift was surfaced, not silently patched or absorbed."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1 is 'package truncate_test' (grep '^package' confirms the only test file uses the external test package) and it imports example.invalid/truncate."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file opens with the runnable Example_ellipsis, followed by the merged table test, then the drift test. There are zero helper functions and no trivial indirection: assertions are inline t.Errorf calls with the inputs in the message, and the panic recovery is an inline defer within the one test that needs it."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The single case struct has four fields (s, n, head, tail) and all seven case literals use named fields, e.g. '{s: \"a\\U0001F642b\", n: 2, head: \"a\\U0001F642\", tail: \"\\U0001F642b\"}'. No sub-tests are used anywhere; the loop identifies failures via formatted inputs in t.Errorf, so no prose-named sub-tests exist to inline."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestTruncate uses one merged table where each case carries both a head and a tail expectation for the same cut ({s, n, head, tail}), asserting both functions per row; this is exactly the maintainer's merged-case-struct pattern for mirror functions (INTENT ruling 9). TestNegativeCountKeepsNothing likewise exercises both functions on the same negative input. No duplicated parallel structures exist."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Both test functions carry layman rationale doc comments (TestTruncate: why the table is merged; TestNegativeCountKeepsNothing: the full drift reasoning and why recover is used). No comment opens with its own function name (they open 'Head and Tail mirror...', 'Both doc comments promise...', 'Generated identifiers are commonly shortened...'). Nothing explains conventions, ordering, or synctest. Borderline noted: TestTruncate's comment says 'every case pins both sides of the same cut' - it uses the 'pins' verb, but in a content-bearing, test-specific sense (each row asserts both mirror functions), not the vacuous 'this test pins the contract' claim the anti-slop rule targets; the clause is not true of all tests, so it survives."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example_ellipsis's doc comment addresses pkgsite users about the elision scenario ('Generated identifiers are commonly shortened for display by keeping both ends...') and states the rune-counting contract point; it never narrates the code or mentions tests/maintainers. It is the mandatory representative call-pattern example (Head+Tail joined by an ellipsis, package-attributed via the underscore name). There are no in-function comments, but no non-obvious inputs remain unexplained: Head(id, 12) and Tail(id, 5) read self-explanatorily from the function names (the Every(time.Second) side of the maintainer's meaningful-literal line, not the New(1, 2) side), and the accented-input rationale is covered by the doc comment."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Graded under the eval's honest-red rule since the chosen drift resolution is a deliberately failing prose-sided test. go test -count=30 -v: TestTruncate passed 30/30, Example_ellipsis passed, TestNegativeCountKeepsNothing failed 30/30 - deterministically red on exactly the deliberate test, with the panic recovered into an ordinary failure each time. go test -race -count=5 -v: identical outcome (5/5 pass TestTruncate, 5/5 honest-red on the drift test), zero data races. report.md discloses the red honestly. go build, go vet, and gofmt -l are all clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists and records what was written plus the drift finding. The finding carries author-context inference, not a bare observation: 'Tail's guard plus the matching prose read as a deliberate promise, so Head's panic looks like an oversight' (a judgment about which side the author intended), and it directs the owner to a decision: 'the owner should either add Head's guard or amend both docs'."
+    }
+  ]
+}

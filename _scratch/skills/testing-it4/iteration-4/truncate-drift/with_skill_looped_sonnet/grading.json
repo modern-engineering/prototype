@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Took the failing prose-sided-test resolution. truncate.go is byte-identical to the fixture (diff clean), so no silent code fix. TestHeadAndTailTreatNegativeNAsZero (truncate_test.go:51-59) asserts the doc's promise (want \"\" for Head(\"hello\", -1)) and routes the call through callHead (lines 64-72), which recovers the panic and converts it to t.Errorf('Head(%q, %d) panicked: %v') — the panic is a failure, never blessed as the contract. The drift is stated prominently twice: the test's doc comment (lines 48-50: both docs promise negative-n-as-zero; 'Tail honors that promise; Head panics instead') and report.md's dedicated 'Finding (drift, not silently absorbed)' section naming the exact panic (slice bounds out of range [:-1]) and the missing guard. The report's Status section honestly declares go test ./... FAIL, deliberately, on exactly that one test."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go:1 declares 'package truncate_test' and imports 'example.invalid/truncate' (line 7); it is the only test file in the module, and truncate.go declares 'package truncate'."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file opens with the runnable Example_display, then the typical-call table test, then the drift test — complexity builds as ruled. The sole helper, callHead, is defined last (lines 64-72), after its only use at line 53, exactly the 'after first usage' placement the maintainer demanded when the fable run's 'call' helper opened the file. It is not trivial indirection: it is the single-purpose panic-recovery helper the corpus sanctions for trivial packages (INTENT ruling 2) and the same pattern the maintainer praised as 'the most elegant' (headRecovered, truncate-sonnet round-3 feedback). No generalized dispatch, no method-on-case machinery."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The one case struct has four fields {s, n, head, tail} and every literal names its fields ({s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"}, truncate_test.go:31-36). grep 't.Run' finds nothing: there are no sub-tests at all, so no prose-named sub-tests exist; each test is one continuous function, matching the maintainer's truncate ruling against prose-named sub-tests."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestHeadAndTailHonorLengthAndRuneBoundaries uses the exact merged-case pattern the maintainer proposed in round 3 ({\"hello\", 3, \"hel\", \"llo\"}-style): one struct carrying both head and tail expectations, one loop asserting both functions per case (lines 38-45). TestHeadAndTailTreatNegativeNAsZero pairs the Head and Tail assertions in a single body, and Example_display shows both calls on the same input. No duplicated per-function table structures anywhere."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": false,
+      "evidence": "One clear clause violation: Example_display's doc comment opens with its own function name — 'Example_display shows the package's motivating scenario...' (truncate_test.go:10). TESTS.md flags exactly this as a known agent BUG: 'the doc comments of all test functions (tests, bench, fuzz, example, runnable example) must never open with the function's name.' (callHead's name-first doc comment is fine — it is a classic Go function, the case TESTS.md explicitly contrasts.) The rest is clean: the non-trivial drift test carries a substantive layman rationale ('Tail honors that promise; Head panics instead'), the trivial table test carries none, nothing in the committed code explains conventions/ordering/synctest or says 'pins the contract' (that phrase appears only in report.md, not in source). But the name-opening defect is a literal hit on the assertion."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": false,
+      "evidence": "The in-function comments are the strong half: lines 14-15 explain the non-obvious input ('héllo' is five runes but six bytes; the é survives because Head counts runes) and lines 17-18 restate Tail's contract at the call site (last two runes, not bytes) — exactly the prime-real-estate use the doctrine demands. But the doc comment fails the audience clause: 'Example_display shows the package's motivating scenario, straight from its doc comment: ...' describes the example function itself rather than speaking to pkgsite users about the scenario — the exact anti-pattern INTENT ruling 4 names ('never describe the example function itself') and the maintainer called out verbatim on the opus truncate run ('the example comments speak about the example function itself instead of about the symbol they correlate to'). 'It shows X, straight from its doc comment' is also the report-leak framing the maintainer despised on the limiter Example ('Don't tell me that it shows that Close is idempotent'); a pkgsite reader gains nothing from being told the scenario's provenance."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Honest-red rule applied: this run chose the failing prose-sided-test resolution, so the deliberate drift test is the only permitted failure and must fire deterministically. go test -v -count=30 ./...: exactly 30 '--- FAIL' lines, all 30 being TestHeadAndTailTreatNegativeNAsZero (truncate_test.go:68: 'Head(\"hello\", -1) panicked: runtime error: slice bounds out of range [:-1]'); TestHeadAndTailHonorLengthAndRuneBoundaries passes 30/30 and Example_display passes. go test -race -v -count=5 ./...: 5/5 runs fail only the drift test, zero 'DATA RACE' reports. The recovered panic never aborts the harness, so the red is honest, isolated, and deterministic. go vet ./... clean, gofmt -l clean, go build ./... OK."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists and its Finding section carries exactly the demanded framing: it infers author intent ('Tail's explicit guard next to Head's bare if n > len(r) reads as an oversight, not a deliberate change'), sides with prose on that inference, and hands the decision back in the corpus's own promise-or-refuse-to-harden shape: 'This needs the package owner's call: promise it (add the guard) or refuse to harden and fix the doc comment instead.' The Status section honestly reports the deliberate red and why the panic is recovered so the rest of the suite still reports cleanly."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+Wrote committed tests go-doc-first, from the user's seat.
+
+`cache_test.go` (external `cache_test`) opens with `Example_sessionTokens`, the mandatory runnable example: a session server caches a short-TTL token, keeps two long-lived credentials, and reads a never-stored key back as a prompt to sign in. The two credentials cover both halves of the "ttl zero or negative -> no expiry" clause at the call site where users read it, one Set with `0` and one with a negative TTL. `TestExpiryLifecycle` tells the whole story on one synctest clock: a token re-issued at t=10m survives past its original t=15m deadline (proving Set refreshes the deadline on replace) and dies on read at t=26m, well before the hourly janitor could sweep, while the zero-TTL credential never expires; Close then discards everything and turns Set into a no-op. Its opening block asserts the starting state with `t.Fatalf`, since the timeline math downstream is meaningless if the entries were not stored as expected. `TestNewPanicsOnNonPositiveInterval` is a two-case panic table behind a recover helper.
+
+`janitor_test.go` (internal `cache`) is the suite's one peephole. Read-time expiry already hides an expired entry from Get and Len, so the janitor's real contribution, reclaiming the entry's memory, is invisible through the exported API; the test reaches into the backing map to confirm a sweep physically deletes.
+
+Drift: none. The prose promises read-time expiry, no-expiry on ttl<=0, deadline-refresh on replace, and post-Close no-op Set / miss Get, and the code delivers each. The tests hold you to those promises rather than mirroring the implementation.
+
+Two judgment calls worth your eye, the kind that belong in a commit body rather than the source:
+
+- Concurrency. `go doc` affirms "all methods are safe for concurrent use by multiple goroutines," and I committed no multi-caller race harness. That is deliberate, not an oversight: we don't hunt races statistically, and no anticipated client contends on this cache the way such a harness would. Be precise about what the suite does prove, though. In `janitor_test` the janitor goroutine and the caller both take `c.mu` to touch the map, so `go test -race` confirms the lock discipline holds across two real goroutines. It does not force a contended interleaving of concurrent callers, and in `TestExpiryLifecycle` the janitor is pinned to an hour and never fires, so only the caller touches the map there. Net: the affirmed promise is validated for lock discipline, not directly interleaved. If you want an explicit concurrent-Set/Get harness committed, say the word; my lean is that it would be race-hunting for a promise no real flow stresses.
+
+- The janitor peephole is a testability signal about the package, not just the test. The interval promise ("removes expired entries every janitorInterval") is the only reason that test can exist, and it is a promise no user can observe through the API. Worth a decision: keep it, because unbounded memory from never-swept expired entries is a real concern and the interval bounds it; or drop the cadence from the doc (users depend on "expired entries are misses," not on how often the sweep runs) and let the janitor be an unpromised implementation detail, perhaps exposed through a hook if we ever need to observe it. I kept both the test and the promise, on the memory-bound argument, but this is yours to ratify.
+
+Heads-up: the output dir held stale test files from an earlier run (the fixture ships only `cache.go` + `go.mod`); I removed them and authored fresh.
+
+Verified `TestExpiryLifecycle` bites by mutating `Set` to keep the original deadline on replace: it failed at the t=16m checkpoint as intended (`Get("session")` missed, `Len()` was 1), then I restored the source byte-identical (sha256 confirmed).
+
+Status: `go build ./...`, `go vet ./...`, `go test ./...`, `go test -race ./...` all pass; `gofmt -l` clean.

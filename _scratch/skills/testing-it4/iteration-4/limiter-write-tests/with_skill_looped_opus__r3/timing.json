@@ -1,0 +1,7 @@
+{
+  "total_duration_seconds": 643,
+  "durations_seconds": [
+    { "phase": "initial-write", "seconds": 283 },
+    { "phase": "review-apply", "seconds": 360 }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominently in code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Resolution taken is the first acceptable form: a failing prose-sided test with an honest report. report.md Findings states the contradiction precisely (identical doc promise in Head and Tail; Tail has the `if n <= 0` guard, Head falls through to r[:n] and panics). truncate_test.go:60-68 (TestHeadPanicsWhereDocPromisesZero) carries a prominent doc comment naming the drift and asserts the documented contract (want \"\"), so it fails via the panic. No recover() anywhere, no test asserts that the panic occurs, and truncate.go is byte-identical (md5 0a519b00ad2afc30f60ab0255278d969) to all 18 sibling runs, so the drift was neither absorbed nor silently patched."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "outputs/truncate_test.go line 1: `package truncate_test`; imports `example.invalid/truncate` and calls truncate.Head/truncate.Tail through the exported API only."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file contains no helpers at all: it opens with Example_preview (line 13), followed by three test functions that call truncate.Head/Tail directly. grep for t.Run and for any non-Test/Example function declaration finds nothing; there is zero indirection to inline."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The single case struct (truncate_test.go:30-34) has four fields (s, n, head, tail) and every literal uses named fields, e.g. `{s: \"hello\", n: 3, head: \"hel\", tail: \"llo\"}`. grep 't.Run(' over outputs/ returns no matches: there are no sub-tests, hence no prose-named ones."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestTruncate (truncate_test.go:29-50) is one merged table whose cases carry paired head/tail expectations ({s, n, head, tail}) driven through one loop with paired assertions on both functions — the exact merged-case-struct pattern the maintainer suggested. The suite departs from the shared table only where the functions genuinely diverge (negative n), splitting into TestTailTreatsNegativeNAsZero and TestHeadPanicsWhereDocPromisesZero because the outcomes differ in kind (value vs panic)."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "The non-trivial tests carry layman rationale: TestTruncate's comment grounds the merged table in the identically-worded doc comments; TestHeadPanicsWhereDocPromisesZero's comment explains the missing guard and why the test is left failing. No comment opens with its own function name (openers: 'A caller...', 'The doc comments for Head and Tail...', 'Tail's doc comment...', 'Head's doc comment...'). grep for 'pins|pin the|convention|synctest|ordering|comes first|later tests' in truncate_test.go returns nothing; no comment explains file order or harness mechanics."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example_preview's doc comment (truncate_test.go:10-12) describes the user scenario (shortening a label for a narrow column) and the contract point ('café' stays intact because Head counts runes, not bytes) without narrating statements or addressing maintainers. The in-function comment (lines 15-17) explains the non-obvious guard at its call site: Head returns the input unchanged when already short, so the ellipsis is only appended after a real cut. The example is runnable and passes: `go test -run Example_preview` -> PASS."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (truncate-drift honest-red rule applied: the declared prose-sided drift failure is the only red and it is deterministic)",
+      "passed": true,
+      "evidence": "Honest-red rule applied per eval design. go vet clean, gofmt clean. Full suite run 30 times: 30/30 runs fail at exactly TestHeadPanicsWhereDocPromisesZero with the identical panic (slice bounds out of range at truncate.go:23), matching the failure report.md declares; TestTruncate and TestTailTreatsNegativeNAsZero PASS first in every run. Full suite under -race run 5 times: same single deterministic failure, no race reports. The green subset plus Example_preview passes `go test -run 'TestTruncate|TestTailTreatsNegativeNAsZero|Example_preview' -count=30` (ok) and `-race -count=5` (ok) with zero failures. No flakiness anywhere; the only red is the honest drift failure."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with a Findings section that goes beyond observation to an explicit author-context inference: 'this reads as an oversight, not a deliberate contract change', reasoned from the identically-worded doc comments and Tail already carrying the exact guard the docs describe; it sides with prose per the authority order, names the one-line fix (mirror Tail's guard), and explains why the fix was flagged rather than applied (ask was for tests). It also surfaces a second-order consequence honestly: the unrecovered panic keeps Example_preview out of default `go test ./...` runs until Head is fixed."
+    }
+  ]
+}

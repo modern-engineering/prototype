@@ -1,0 +1,94 @@
+{
+  "reviews": [
+    {
+      "run_id": "cache-write-tests-with_skill_fable__r1",
+      "rating": 8,
+      "review": "I ran the suite myself: -count=30 and -race -count=5, clean. The shape is right. Example_sessionTokens tells the story that matters - the token dies and the user logs in again - and the call-site comments speak to pkgsite readers, not to me. The lifecycle reads like a service's day, hard-coded sleeps with the math done at authoring time, and the panic table with mustPanic naming the invalidity in the failure line is exactly how I'd write it, helper after first use. Two notes. The example is the suite's only wall-clock dependency; a 200ms window between Set and the first Get is livable, but this is precisely what flakes on a starved runner, so these margins are the floor, never tighter. And the docs promise concurrent use; the anticipated caller is a fleet of request handlers and nobody plays that here. I don't want a statistical hammer - I want the natural burst, handlers minting and reading their own tokens, WaitGroup, asserting on t inside the goroutines. The report's excuse that the scenario 'runs against the live janitor' is thinner than it sounds when your janitor is parked an hour away the whole time. The report's two questions (the deadline instant, the unobservable janitor) are the right questions to ask me."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_fable__r2",
+      "rating": 7,
+      "review": "Clean, and it passes everything I threw at it (-count=30, -race -count=5), but the example never lets a token die. Expiry is this package's whole reason to exist; the pkgsite reader sees login, refresh, and a never-issued session - not the one behavior they came to understand. Don't cheap out on the example's story. The lifecycle itself is good: exact-deadline miss pinned, a day of sweeps that only the pinned entries survive, Close turning Set into a no-op, and the report asks me about the boundary instead of deciding silently - right move. Same gap as its sibling: 'safe for concurrent use' is in my prose and no test sits in that seat. The janitor-out-of-frame trick proves read-enforcement nicely, but it also means the report's 'the scenario exercises concurrency' line is mostly wishful."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_fable__r3",
+      "rating": 8,
+      "review": "The nanosecond bracket is the cleanest boundary proof in the batch: live one nanosecond before the deadline, gone at the instant, Len down on read with the sweep still 50 minutes out. That is how you pin an instant. Negative-TTL refresh ending in no expiry, five sweeps survived, Close discarding the immortals - the story holds together and every line is anticipated. Two familiar notes: the example again dodges expiry (refresh and a stranger's miss, but no death), and the concurrency promise in my own doc comment goes unexercised - the report's 'synctest plus -race covers it' is the same thin argument as its siblings, thinner still with the janitor parked an hour out. Verified: -count=30 and -race -count=5 both clean."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_opus__r1",
+      "rating": 8,
+      "review": "The only plain run where the janitor actually lives through the story - sweeping every second while tokens are minted, re-issued, and die - and the read-enforcement beat is still isolated properly at 50/100ms, ahead of the first tick. Good instincts. The expired-but-uncounted Len check right after is the exact contract line. Nits: the lifecycle's doc comment runs a breath long and edges into methodology ('in a single pass on virtual time' - I know what a bubble is), and the example, while a fine front door, shows neither expiry nor Len. Same hole as the rest of the plain runs: the concurrency promise is quoted in the report and exercised nowhere. Suite verified clean under -count=30 and -race -count=5."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_opus__r2",
+      "rating": 7,
+      "review": "'Virtual time keeps all of this exact and instant; running in a bubble also proves the janitor is released' - you are explaining synctest to me inside a doc comment again. Maintainers know how the bubble works; that sentence is notes leaking into the source. The why field is back too, and in a panic table it still reads as 'why it panics' when the cell says 'zero interval'. And the report leads with 'pins the contract's sharpest promise' - the pinning talk that makes suites go mechanical. The test underneath is actually fine: 29s/1s bracketing of the deadline, the hour-long survival, post-Close inertness, and the example showing Len is a nice touch. But comments are where authors live, and these needed one more pass. No concurrency exercise, same as the other plain runs. Runs clean, verified (-count=30, -race -count=5)."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_opus__r3",
+      "rating": 8,
+      "review": "The OTP beat in the example is clever: the only direction that depends on the wall clock is the already-expired one, so a slow runner can't flip the output - that's how you buy a real expiry demonstration for 20ms. The internal janitor peephole earns its keep and says why it exists (a janitor that never deletes would pass every external test) - the peephole exception used as intended, and the report flags it instead of slipping it past me. One wart: the synctest.Wait after a sleep that already carried you past the sweep is dead weight - I have flagged unnecessary Waits before. And still no handlers-in-parallel for a promise my prose makes outright. Verified clean at -count=30 and -race -count=5."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_sonnet__r1",
+      "rating": 5,
+      "review": "The lifecycle's doc comment claims the TTL 'expires it on read before the janitor ever runs' - with a one-second sweeper and a ninety-second sleep? The janitor ran ninety times before you looked. The comment is false, the report repeats the claim, and the read-enforcement clause - the one my prose actually promises - is never isolated anywhere in the external suite. That is drift manufactured by the test's own author, and it's the kind of thing I bounce reviews for. The internal peephole is fine and honestly argued, ironically making it the only place the janitor is handled correctly. The example is the thinnest of the batch: set, get, done - no miss, no expiry, an ExampleLoad-that-calls-Load. Mechanically everything passes (-count=30, -race -count=5, verified), but passing was never the bar."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_sonnet__r2",
+      "rating": 7,
+      "review": "The lifecycle isolates read-enforcement properly (100ms TTL against a minute-long sweeper) and walks permanent entries, re-auth replacement, and post-Close inertness without wasted lines. The peephole is justified in its comment and lands between sweeps without a stray Wait - good. The example shows a token dying, which I want on pkgsite, but it gives itself a 20ms window between Set and the first Get; that's one GC pause on a loaded box away from a flaky output, and 'passes on my machine' is not the contract. Widen it. No concurrent-callers flow for a promise the type doc makes explicitly. Verified clean under -count=30 and -race -count=5."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_sonnet__r3",
+      "rating": 7,
+      "review": "An example that defers Close and also calls it explicitly, so the reader sees idempotence instead of being told about it - that is the exact move I once asked for, good. Read-enforcement is isolated, the replacement arming a deadline on a permanent entry is a beat most others missed, and the report explains the no-peephole judgment call cleanly instead of pretending the janitor is covered. But read this back: 'it must not extend the original 500ms deadline that b never had in the first place' - 500ms was a's TTL; the sentence contradicts itself mid-clause. Comments that confuse are worse than no comments. No concurrency exercise, and the example shows no expiry. Clean under -count=30 and -race -count=5, verified."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_looped_fable__r1",
+      "rating": 9,
+      "review": "First run in the batch to put the package in its anticipated seat: eight handlers, WaitGroup, assertions on the concurrent-safe t inside the goroutines, and a Len tally so a lost write shows up as a number - no hammering, no theater, exactly the load my 'safe for concurrent use' line exists for. The boundary question lives as a comment at the assertion ('Asserted as read, pending the owner's word') where the next maintainer trips over it, not buried in a report - that's professional. The example front-loads the zero-TTL lesson at its call site. The lifecycle prose gets florid in spots ('a death at the very instant of the refreshed one' - easy, tiger), but every beat is real and the clock arithmetic is done for me at authoring time. Verified: -count=30 and -race -count=5, clean. This one merges."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_looped_fable__r2",
+      "rating": 9,
+      "review": "The login rush embedded in the story is the elegant version of the concurrency test - three handlers as one beat of the day rather than a separate ceremony, asserting inside their goroutines, tallied by Len. Replacement crossing the expiry classes in both directions (remember-me clearing a live deadline, a TTL putting the immortal archive on the clock) is contract coverage every other run got only half of. The example ends with a logout and names the deferred Close going no-op. And the report tells me plainly what the burst does not prove - a race needing adversarial interleavings escapes it by design - which is the coverage honesty I want landing in a commit body. Long file, but I never stopped wanting to read, and that is the actual test. Verified clean, -count=30 and -race -count=5."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_looped_fable__r3",
+      "rating": 9,
+      "review": "The example shows a token actually dying and only the safe direction depends on the wall clock; the sweep-interval comment ('a coarse sweep interval only bounds memory') teaches the API's one non-obvious knob right where users meet it. wg.Go for the burst, two-way expiry-class crossing, and the report's boundary reasoning - no real-time caller can observe the exact instant, so assert strictly past it and ask me to promise the boundary if I want it held - is the most defensible reading of my own prose in the batch. Small things: the helper's doc comment dropped its own name (helpers are ordinary functions; godoc convention applies to them), and the second lookup inside each concurrent goroutine adds nothing. Clean under -count=30 and -race -count=5, verified."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_looped_opus__r1",
+      "rating": 8,
+      "review": "TestConcurrentCallers is the promise exercised as the flow it describes, and the janitor peephole discussion is the best-argued judgment call here: len(entries) named as a proxy coupled to today's map, the instruction to land it as its own commit with the choice in the body, and two API-shaped exits if I'd rather demote the prose. That is author-context, not narration. Two warts keep it from the top: synctest.Wait twice after sleeps that already carried the bubble past the tick - dead weight I have flagged before - and the report's claim that bubble goroutines 'never touch the map at the same instant' wants checking; bubbles virtualize time, they don't serialize your goroutines. The conclusion (run the burst outside) is fine either way. Verified clean at -count=30 and -race -count=5, consistent with the report's own -count=50 claim."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_looped_opus__r2",
+      "rating": 8,
+      "review": "'Needing a peephole to observe a documented behavior is itself the signal: that behavior sits at the wrong altitude in user-facing prose' - that is the design-signal thinking I keep asking for, two resolutions offered, neither silently picked, the rationale routed to a fine-grained commit body, and the sweep test held at -count=500. Excellent report. The code has one dishonest clause: the lifecycle's doc comment sells 'a read-time miss once the restarted TTL lapses' while a one-second sweeper has swept five times before you look - your Example is what actually demonstrates read-enforcement, and the comment misattributes the mechanism. Comments must survive the same scrutiny as my prose. Skipping the concurrent-callers flow on the 'janitor interleaves throughout' argument has more substance here than in the plain runs (sixty sweeps do interleave), but the promise's anticipated seat is request handlers and one natural burst would not have been a hunt. Verified clean, -count=30 and -race -count=5."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_looped_opus__r3",
+      "rating": 8,
+      "review": "You mutated Set to prove the lifecycle bites, watched it fail at the right checkpoint, and restored the source byte-identical with a hash - that is the discipline I once hoped for out loud. The example covers both halves of the ttl<=0 clause at the call sites where pkgsite readers meet them, though a bare -1 as a Duration is one nanosecond; write -time.Second or don't make me squint. The peephole is clean, no stray Wait, expiry parked well before the sweep. The one real gap: you argued yourself out of the concurrent-callers flow for a package whose anticipated caller is many request handlers at once - that is not race-hunting, that is the flow - but you asked for my ruling instead of deciding silently, which is the professional move. The answer is: add it. Verified clean under -count=30 and -race -count=5."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_looped_sonnet__r1",
+      "rating": 6,
+      "review": "Whatever the critique pass was meant to add, it didn't land here: no concurrency exercise, no boundary work, no peephole (noted in the report, fairly), and the smallest suite of the batch. Then the example: 'The session outlives its TTL well before the janitor's next sweep' - read it aloud; the session is the thing dying, and this sentence renders on pkgsite. The 20ms window between Set and the first Get is a flake waiting for a busy runner. On the plus side, the lifecycle isolates read-enforcement correctly, the replacement-shortens-deadline beat is there, and 'inert rather than a write into a discarded map' shows someone thought about what Close must survive - though 'nil map' talk is implementation leaking into a black-box file. Competent and correct (verified: -count=30, -race -count=5), but ordinary."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_looped_sonnet__r2",
+      "rating": 9,
+      "review": "This is what I want the loop to do. The report catches its own example being machine-mood-dependent (50ms TTL, 100ms sleep) and widens it to 200ms/1s with the reasoning written down; it catches eight-disjoint-keys 'concurrency' as merely polishing the mutex and adds two refreshes racing the same session - the case the promise actually exists for - asserting one writer's value and never a miss. The negative-TTL branch gets its own entry, the example shows idempotent Close by doing it, and the mustPanic self-naming is defended by scoping TESTS.md's rule to test functions, which is the correct reading. Running-total comments do the clock arithmetic for me instead of making me do it. Verified: -count=30 and -race -count=5 clean, matching the report's own -count=30 and -race -count=10 claims. Merge it."
+    },
+    {
+      "run_id": "cache-write-tests-with_skill_looped_sonnet__r3",
+      "rating": 7,
+      "review": "The concurrency test drifts into hammering: a hundred reads of your own key in a tight loop is nobody's request pattern, and the bare c.Len() with its result thrown away is contention theater - the natural burst alone was the honest version. The example gives itself the same 20ms first-Get window I keep dinging. The lifecycle is good work though: the replacement checked both short of and past its own deadline, the 3599ms/2ms steps honestly hard-coded with the running clock annotated in the failure strings, and the report explains why only the zero branch of ttl<=0 appears in the lifecycle while New's guard covers both - a real reason, not a shrug. golangci-lint in the status shows thoroughness. The helper doc dropped its name again. Verified clean under -count=30 and -race -count=5."
+    }
+  ]
+}

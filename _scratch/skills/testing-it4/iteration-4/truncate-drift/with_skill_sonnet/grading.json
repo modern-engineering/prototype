@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Took the failing-prose-sided-test resolution. truncate.go is byte-identical to the fixture (diff clean), so no code fix; TestNegativeNIsTreatedAsZero (truncate_test.go:69-82) asserts the doc's promise (want \"\" for Head(\"hello\", -1)), recovers the panic and converts it to t.Errorf('panicked ... want \"\" per package doc') — the panic is treated as a failure, never blessed. The drift is stated both in the test's doc comment (lines 63-66: doc promises negative-n-as-zero, Tail honors it, Head slices raw n and panics) and in report.md's dedicated 'Finding: Head does not honor its own doc for negative n' section. report.md's status section honestly reports 3 of 4 tests passing with TestNegativeNIsTreatedAsZero failing by design until the drift is resolved."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go:1 declares 'package truncate_test' and imports 'example.invalid/truncate'; the only other file, truncate.go, declares 'package truncate'. It is the sole test file in the module."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The suite defines zero helpers: the only functions are Example, TestCutsExactlyNRunes, TestGenerousLimitReturnsInputUnchanged, TestNegativeNIsTreatedAsZero (grep '^func'). The file opens with the runnable Example, then builds from the core promise to the drift case. The panic recovery is inlined as a defer inside the one test that needs it rather than extracted into an indirection."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The four-field case struct in TestCutsExactlyNRunes uses named fields throughout ({s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"}, lines 28-30); even the two-field struct in TestGenerousLimitReturnsInputUnchanged names its fields. There are no t.Run calls at all (grep 't.Run' empty): every test is one continuous function, so no prose-named sub-tests exist to inline."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestCutsExactlyNRunes uses a single merged case struct {s, n, head, tail} and one loop asserting both functions per case (lines 23-39) — the exact {\"hello\", 3, \"hel\", \"llo\"} merged-case pattern the maintainer suggested in round-3 feedback. TestGenerousLimitReturnsInputUnchanged shares one case slice with paired Head/Tail assertions per case, and TestNegativeNIsTreatedAsZero covers both functions in one body. No duplicated per-function table structures anywhere."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": false,
+      "evidence": "Mostly clean — no comment opens with its own function name, nothing says 'pins the contract', no ordering or synctest talk, and the non-trivial drift test carries a substantive layman's rationale. But that same doc comment (truncate_test.go:65) justifies the test 'per the maintainer's drift policy' — a guideline citation leaking into the committed source file. The maintainer's corpus bans exactly this class: 'guidelines that should never make it to the source file', likened to commenting 'because of conventions', 'a loser tell-sign of an LLM agent leaking its prompt' (feedback-3 limiter review; INTENT ruling 5). A repo reader has no referent for 'the maintainer's drift policy'; the comment reads identically well without the clause. Stating the drift itself is sanctioned; citing the policy is not."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "The package-level Example's doc comment ('A narrow status line keeps a recognizable prefix and suffix of a long identifier instead of measuring runes by hand at the call site') is scenario-voiced for pkgsite users: it motivates the call pattern, never narrates the code, never mentions the example function itself or maintainers. Inside the function there are no comments, but nothing demands one: the input is a named var (id) whose content is visible, the printed // Output line shows the cut directly, and the n arguments' meaning (rune counts kept) is unambiguous from the documented signatures — unlike the without_skill run's uncommented Head(\"héllo\", 2), no rune-vs-byte subtlety is in play at these ASCII call sites. Borderline: call-site comments motivating 12/8 would strengthen it, and per-function examples would too, but the assertion makes those welcome, not required."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (honest-red rule applied: the only permitted failure is the deliberate prose-sided drift test, deterministically)",
+      "passed": true,
+      "evidence": "Honest-red rule applied since the run chose the failing prose-sided test resolution. go test -v -count=30 ./...: exactly 30 '--- FAIL: TestNegativeNIsTreatedAsZero' lines and 30 total '--- FAIL' lines — the honest red fires deterministically every run and no other test fails once. go test -race -v -count=5 ./...: 5/5 runs fail only TestNegativeNIsTreatedAsZero, 0 'DATA RACE' reports. The deferred recover keeps the panic from aborting the harness, so TestCutsExactlyNRunes, TestGenerousLimitReturnsInputUnchanged, and Example pass in every run. go vet ./... clean, gofmt -l clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with the test plan and the Head negative-n finding. The finding carries explicit author-context framing under 'Author-context read': it infers intent ('this reads as an oversight, not a deliberate choice'), reconstructs the likely history ('Tail's guard was dropped when Head was adapted from it'), notes nothing suggests deliberate code movement with lagging prose, and recommends a resolution with contract-level reasoning ('recommend adding the same one-line guard Tail uses... rather than walking back the doc's negative-n promise: a panic on this input contradicts the whole point of a generous-limit API'). The final status honestly reports the deliberate red."
+    }
+  ]
+}

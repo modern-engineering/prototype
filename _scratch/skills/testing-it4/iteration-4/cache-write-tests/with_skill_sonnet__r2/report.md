@@ -1,0 +1,4 @@
+Added `cache_test.go` (external, black-box): a runnable `Example` of the session-token pattern, a `TestSessionLifecycle` covering Set/TTL/Get/Len/replace/Close via `synctest` virtual time, and a table+recover-helper test for `New`'s two documented panic cases (zero/negative interval).
+Added `cache_internal_test.go` (white-box, one peephole): the package doc promises the janitor itself removes expired entries, but `Get`/`Len` already hide expiry on read regardless of whether the janitor ran, so only a look at the unexported `entries` map after a sweep can catch a janitor that silently stopped — this could not be checked from outside the package.
+No bugs found and no drift between doc comments and behavior; the implementation matches its promises as written, so no prose changes were needed.
+`go build ./...`: pass. `go vet ./...`: clean. `go test ./...` (also re-verified with `-race`): pass, 4/4 tests green.

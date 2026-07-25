@@ -1,0 +1,4 @@
+Wrote committed external tests (`outputs/truncate_test.go`): runnable `Example_fitColumn`, table `TestHeadAndTail` (multi-byte rune kept whole; exact/over length returns input unchanged; zero → empty, from both ends), and drift-pinning `TestNegativeCountYieldsEmptyString`.
+Finding (author-context): `Head`'s doc promises "a negative n is treated as zero: Head returns the empty string," but `Head` lacks `Tail`'s `n <= 0` guard and slices `r[:n]` with a negative bound, so it panics; `Tail` honors the same promise.
+I sided with the prose (golden over code) and left `truncate.go` untouched — did you mean negative-n safety on `Head` (add the guard) or should that sentence drop from its doc?
+Status: `go build ./...` and `go vet ./...` pass; `go test ./...` FAILs only on the deliberate drift test, which recovers the panic into a clean stated failure so the example and table still validate.

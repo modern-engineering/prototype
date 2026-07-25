@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in package limiter_test",
+      "passed": false,
+      "evidence": "limiter_test.go line 1 declares `package limiter` (internal test package), verified by grep '^package'. Not limiter_test."
+    },
+    {
+      "text": "Concurrency and timing run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+      "passed": false,
+      "evidence": "grep 'synctest' limiter_test.go returns 0 matches; no synctest.Test anywhere. Five real-time time.Sleep calls outside any bubble (lines 57, 149, 183, 194, 231). TestRefillRestoresTokens (lines 178-184) is an explicit polling loop: deadline := time.Now().Add(3s); for time.Now().Before(deadline) { if l.Allow() { return }; time.Sleep(5ms) }, with a comment advertising the poll."
+    },
+    {
+      "text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T rather than collecting values back",
+      "passed": false,
+      "evidence": "TestWaitContextCancelled (line 107) and TestCloseUnblocksWaiter (line 146) each spawn `go func() { errc <- l.Wait(...) }()`: the error is collected back through a channel and asserted in the main goroutine, and neither goroutine is reaped by a sync.WaitGroup (the time.After(2s) select arms can leave them leaked on failure). In TestConcurrentUse the closer goroutine (lines 229-234, sleep 20ms then Close) does work the main goroutine could do directly. Only TestConcurrentUse uses a WaitGroup."
+    },
+    {
+      "text": "FLOWS over symbols: at least one test or example exercises an anticipated user flow (e.g. gate with Allow, fall back to Wait when it returns false, Close on shutdown); no per-symbol test names (TestAllow etc.); a whole-package scenario name like TestLimiter is welcome",
+      "passed": false,
+      "evidence": "The suite is symbol-scanning: 11 of 14 names are per-symbol prefixed (TestNewPanics, TestAllowZeroBurst, TestWaitReturnsImmediatelyWhenTokenAvailable, TestWaitConsumesToken, TestWaitBlocksUntilRefill, TestWaitContextCancelled, TestWaitContextDeadlineExceeded, TestWaitAfterClose, TestCloseUnblocksWaiter, TestCloseIdempotent, plus TestRefill*). No test or example exercises the anticipated user flow: TestConcurrentUse calls Allow then Wait in a loop (lines 221-224) but discards Allow's result as race-detector stress, never gating on it or falling back to Wait when it returns false. No example functions exist (grep '^func Example' = 0)."
+    },
+    {
+      "text": "Names claim package properties in plain English without receiver stutter",
+      "passed": false,
+      "evidence": "No receiver stutter, and several names do claim properties (TestBucketStartsFull, TestWaitConsumesToken, TestCloseUnblocksWaiter, TestRefillCappedAtBurst). But five names are topic fragments that claim nothing: TestAllowZeroBurst, TestWaitContextCancelled, TestWaitContextDeadlineExceeded, TestWaitAfterClose, TestConcurrentUse (lines 51, 101, 120, 131, 208) read as noun phrases, not plain-English claims about what the package does."
+    },
+    {
+      "text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified (a panic table with a recover helper naming inputs and their invalidity is the expected shape here); no run-time arithmetic deriving expectations",
+      "passed": false,
+      "evidence": "Values are hard-coded and no run-time arithmetic derives expectations, and the panic table (TestNewPanics, lines 15-34) names its inputs' invalidity. But bodies are not straight-line: TestRefillRestoresTokens (lines 178-184) is a deadline polling loop, TestRefillCappedAtBurst (lines 196-205) drains via a counting loop with a break guard (`for l.Allow() { got++; if got > burst { break } }`), and TestBucketStartsFull/TestAllowZeroBurst use `for i := range` loops where a 2-token bucket unwound manually was the expected shape."
+    },
+    {
+      "text": "File order builds complexity: examples first (or a separate example_test.go), typical call patterns before edge orchestration, any helper defined after its first use",
+      "passed": false,
+      "evidence": "No examples exist anywhere (grep '^func Example' = 0, no example_test.go). The file opens with the invalid-input panic table TestNewPanics (line 15) before any typical call pattern; the first typical use (TestBucketStartsFull) only appears at line 36. No helper functions exist to misplace."
+    },
+    {
+      "text": "A representative runnable example of the typical call pattern is present and follows the audience rules",
+      "passed": false,
+      "evidence": "grep '^func Example' limiter_test.go returns 0 matches; the module contains only limiter.go and limiter_test.go. No runnable example of any call pattern is present."
+    },
+    {
+      "text": "Invalid-input coverage includes the zero-interval boundary: a rate large enough that the refill interval truncates to zero is exercised alongside the documented panic cases",
+      "passed": false,
+      "evidence": "The TestNewPanics table (lines 20-22) covers only {rate:0}, {rate:-1}, {burst:-1}; the largest rate used anywhere in the suite is 1000 (1ms interval). The zero-interval boundary (rate > 1e9) is never exercised. report.md finding 2 acknowledges the boundary exists ('New with rate > 1e9 yields a zero interval and time.NewTicker panics') but explicitly leaves it untested."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Zero anti-slop violations: grep finds no comment opening with its test's name, none explaining conventions, ordering, or synctest, and no 'pins the contract' phrasing. The non-trivial tests carry layman rationales (TestWaitBlocksUntilRefill lines 89-90 'Wait can only succeed by rendezvousing with the refill goroutine'; TestConcurrentUse lines 209-210; TestWaitAfterClose lines 135-136; TestAllowZeroBurst lines 55-56); trivial ones (TestWaitConsumesToken, TestCloseIdempotent) carry none beyond a terse 'must not panic'. Caveat: the rationales sit as first-line body comments rather than doc comments above the functions, but the substance the discipline demands is present and slop-free."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": false,
+      "evidence": "There are no runnable examples at all (grep '^func Example' = 0), so nothing in the suite speaks to pkgsite users; the mandatory audience-facing artifact this assertion governs is absent."
+    },
+    {
+      "text": "Contexts come from t.Context() unless a reason is stated",
+      "passed": false,
+      "evidence": "grep 't.Context()' returns 0 matches; context.Background() appears 9 times (lines 69, 80, 94, 105, 124, 137, 146, 218, 237), with no comment anywhere stating a reason for avoiding t.Context()."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Ran both in the outputs module with go1.26.5: `go test -count=30 ./...` -> ok example.invalid/limiter 30.211s, exit 0, zero failures; `go test -race -count=5 ./...` -> ok example.invalid/limiter 6.351s, exit 0. go vet ./... also clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": false,
+      "evidence": "report.md exists with three genuine quirk findings, but none carries the author-context framing. Finding 1 notes Wait can succeed with an already-cancelled context and cites x/time/rate; finding 3 notes 'Allow still hands out buffered tokens after Close, which is inconsistent with Wait's ErrClosed but not forbidden by its doc'. Both stop at contextualized observation: no finding asks whether the behavior should be promised or whether promising would harden the contract, and finding 2 (zero-interval ticker panic) is stated as a bare bug report ('untestable via recover')."
+    }
+  ]
+}

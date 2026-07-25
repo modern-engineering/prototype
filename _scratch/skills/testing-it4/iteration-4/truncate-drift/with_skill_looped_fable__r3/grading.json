@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Run chose the failing-prose-sided-test route. report.md 'Finding (doc/code drift)' states the contradiction and records the observed panic verbatim; verified: go test panics with 'slice bounds out of range [:0] with capacity 32' at truncate.go:23, exactly as reported. TestNegativeCountMeansEmpty's doc comment states 'Tail keeps that promise; Head panics instead' and the test asserts the documented empty-string contract for both, so it is red. grep for recover/panic-expectation in truncate_test.go: no test expects or blesses the panic (only the doc-comment mention). truncate.go left unmodified (Head still lacks the n<=0 guard Tail has), consistent with the report's 'Owner call needed'."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "head -1 truncate_test.go: 'package truncate_test'. Only test file in the module."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file contains no helpers at all; it opens with ExampleHead, then ExampleTail, Example_display, then the two tests, building from simplest to the red drift test. Per-function stdlib-style examples present for both exported symbols."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "TestRunesNotBytes' four-field case struct uses named fields in every literal, e.g. {s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"}. grep 't.Run' truncate_test.go: no matches; no sub-tests exist, so no prose-named sub-tests."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestRunesNotBytes uses a single merged case struct {s, n, head, tail} and one loop making paired Head and Tail assertions per case — the exact merged-struct pattern the maintainer's round-3 feedback proposed ({\"hello\", 3, \"hel\", \"llo\"}). TestNegativeCountMeansEmpty also pairs both functions on the same input."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "The non-trivial deliberately-red TestNegativeCountMeansEmpty carries a layman rationale doc comment (docs' promise, observed divergence, owner question). TestRunesNotBytes is a plain table whose name states the property; it carries none, which the non-trivial-only rule permits, with inline comments annotating tricky rows. No comment opens with its own function name (ExampleHead's doc opens with the attributed symbol 'Head', which is the pkgsite convention, not the function name). grep for pins/pinn/convention/synctest/ordering/comes first: no matches."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "ExampleHead doc speaks about Head ('shortens text to its first runes... keeps the cut clean in accented text'); ExampleTail about Tail; Example_display about the display-truncation scenario. None narrates code lines, describes the example function itself, or addresses maintainers. In-function comments explain non-obvious inputs and contract at call sites: '\"hé\": two runes, three bytes', 'the é spans bytes 1-2, so a byte-based cut at index 2 would split it' (verified correct: é is bytes 1-2 of \"héllo, wörld\"), and the unchanged-when-short promise. All three examples pass (go test -v -run Example: 3/3 PASS)."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Honest-red rule applied: the suite contains one deliberate, honestly-reported red test (TestNegativeCountMeansEmpty, prose-sided against the Head panic). go test -count=30 -skip TestNegativeCountMeansEmpty ./... : ok, zero failures. go test -race -count=5 -skip TestNegativeCountMeansEmpty ./... : ok. The drift test itself failed 10/10 separate invocations with the identical panic, so the red is deterministic, not flaky. go vet clean; gofmt -l clean. Minor nuance: the report's claim that placing the test last means 'its panic cannot mask the other results' is imprecise (examples execute after tests in the binary, so a full run's panic precedes them), but the underlying pass claims are true when verified independently."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with the drift finding, the verbatim observed panic, and author-context framing: 'Tail carries an explicit n <= 0 guard that Head lacks, which suggests the author intended the promise package-wide and dropped the check in Head' and 'Owner call needed: add the guard to Head, or amend the prose.' It also notes the inference belongs in the report and eventual commit body, not the committed test file."
+    }
+  ]
+}

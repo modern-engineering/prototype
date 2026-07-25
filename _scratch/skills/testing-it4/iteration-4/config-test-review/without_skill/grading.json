@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Per-symbol tests are consolidated into whole-package contract scenarios and/or runnable examples (package-level Example() or a TestConfig-style scenario both welcome)",
+      "passed": false,
+      "evidence": "config_test.go retains the per-symbol shape: TestLoad, TestLoadErrors, TestString, TestInt, TestDuration, TestKeys each target one exported symbol. No TestConfig-style whole-package scenario and no Example function exists (grep 'Example' config_test.go returns no matches). This is the mechanical symbol-scanning suite the maintainer's flows-over-pinning ruling condemns."
+    },
+    {
+      "text": "TestDebugDump deleted; the sleep-based concurrent smoke DELETED with the docs-promise-no-concurrency reasoning; the internals-reaching assertion goes through the exported surface",
+      "passed": false,
+      "evidence": "Two of three parts hold: grep finds no TestDebugDump and no time.Sleep, and the external 'package config_test' forces all assertions through the exported surface. But the concurrent smoke was rewritten as TestConcurrentReads (config_test.go:128-145, WaitGroup + 8 goroutines) rather than deleted, and report.md justifies it as 'a real data race that go test -race flags' with no docs-promise-no-concurrency reasoning. The maintainer's round-3 ruling on this exact eval: a race 'shouldn't exist because functions only read'."
+    },
+    {
+      "text": "The benchmark uses b.Loop and meaningfully exercises Load",
+      "passed": true,
+      "evidence": "BenchmarkLoad (config_test.go:148-154) uses 'for b.Loop()' and calls config.Load(strings.NewReader(sample)) with an error check on each iteration. Verified: go test -bench=. -benchtime=10x runs it successfully (BenchmarkLoad-14, ~3167 ns/op)."
+    },
+    {
+      "text": "The review flags Load's string-only errors and recommends or introduces typed/sentinel errors (errors.Is/As or Go 1.26 errors.AsType); graded from code AND report.md",
+      "passed": false,
+      "evidence": "config.go still returns fmt.Errorf string errors (lines 39, 43); TestLoadErrors asserts err.Error() string equality verbatim (config_test.go:69). grep -i 'typed|sentinel|ParseError|errors.Is|errors.As' over report.md returns nothing. Neither code nor report flags or recommends typed errors."
+    },
+    {
+      "text": "Malformed-input cases are named (not dumped as multiline strings into logs), reusing existing fixture fields where possible rather than inventing new ones",
+      "passed": true,
+      "evidence": "TestLoadErrors names its cases via subtests ('missing equals', 'empty key') with short inputs rendered single-line via %q, not multiline dumps. Mis-typed value coverage reuses the sample fixture rather than inventing fields: cfg.Int(\"name\", 42) reuses name='app' (config_test.go:97) and cfg.Duration(\"port\", ...) reuses port='8080' (config_test.go:112)."
+    },
+    {
+      "text": "At least one runnable example exists and follows the audience rules; sample-config comments carry real information (demonstrate the syntax, explain a field's role), never filler",
+      "passed": false,
+      "evidence": "No Example function exists anywhere in the module (grep 'Example' config_test.go exits 1). With zero runnable examples the assertion cannot be met; the sample-comment quality question is moot."
+    },
+    {
+      "text": "No new third-party test dependency",
+      "passed": true,
+      "evidence": "go.mod contains only the module and go directives (no require block); config_test.go imports only stdlib packages plus example.invalid/config. grep for testify/require/github.com in go.mod and config_test.go returns zero hits."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": false,
+      "evidence": "Every test and benchmark doc comment opens with its own function name, violating the rule eight times: 'TestLoad verifies...' (line 31), 'TestLoadErrors verifies...' (52), 'TestString verifies...' (76), 'TestInt verifies...' (87), 'TestDuration verifies...' (102), 'TestKeys verifies...' (117), 'TestConcurrentReads verifies...' (126), 'BenchmarkLoad measures...' (147). Trivial tests carry name-restating filler comments, and TestConcurrentReads' comment explains test mechanics ('Run with -race to make this meaningful')."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": false,
+      "evidence": "There are no runnable examples in the module, so the audience rules are unsatisfied by absence."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Ran both with go1.26.5: 'go test -count=30 ./...' -> ok example.invalid/config 0.233s (zero failures); 'go test -race -count=5 ./...' -> ok example.invalid/config 1.248s. go vet is also clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists and records the run's findings: the sleep-synchronized racy test, the assertion-free TestDebugDump, internals-poking assertions, the rewrite, added error-path coverage, and final verification status. It contains no package quirk/drift findings, so the author-context-framing clause is vacuously satisfied (the missing typed-errors quirk is penalized under its own assertion)."
+    }
+  ]
+}

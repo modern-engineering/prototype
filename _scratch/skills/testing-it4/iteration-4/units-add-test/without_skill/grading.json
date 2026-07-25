@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "Coverage mimics the sibling precedent (ExampleParseSizeOrDefault): a runnable example or rows in an existing suitable test; no standalone test named after the function",
+      "passed": false,
+      "evidence": "grep '^func' units_test.go: no ExampleParseDurationOrDefault exists and no rows were added to an existing test; instead a standalone table test named exactly after the function, TestParseDurationOrDefault (line 50), was added -- the precise shape the assertion forbids. The sibling ParseSizeOrDefault is covered by a runnable example, not a Test function."
+    },
+    {
+      "text": "The leniency contract is asserted or shown: empty AND garbage return def without error; showing a boundary non-fallback case (a parseable zero like '0s') with a distinct comment is a plus, not a requirement",
+      "passed": true,
+      "evidence": "Table rows in TestParseDurationOrDefault: {\"empty string falls back\", \"\", def}, {\"garbage falls back\", \"soon\", def}, and {\"bare number falls back\", \"10\", def} all assert def is returned (the function signature has no error). Bonus boundary present: {\"zero duration is honored\", \"0s\", 0} distinguishes a parseable zero from fallback via its case name, and report.md flags it explicitly for the author."
+    },
+    {
+      "text": "Existing tests and examples are preserved untouched",
+      "passed": true,
+      "evidence": "diff -u against fixtures/units baseline: the only changes to units_test.go are the added \"time\" import and the new TestParseDurationOrDefault block; TestSizeRoundTrip, ExampleParseSize, and ExampleParseSizeOrDefault are byte-identical. units.go and go.mod are identical to the baseline."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "The new non-trivial test carries a layman rationale doc comment ('the leniency is deliberate, so a stray configuration value degrades gracefully instead of turning into an error at this layer'). grep -inE 'pins?( the)? (contract|behav)|convention|synctest|test order|table-driven|this test' finds nothing in units_test.go; grep '^// (Test|Example)' finds no comment opening with its own function name."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "The run added no new runnable examples; the two pre-existing fixture examples are unchanged and compliant: ExampleParseSizeOrDefault's doc comment describes the symbol's fallback behavior for users without narrating code or addressing maintainers, and ExampleParseSize is trivial with no comment. (The absence of an example for the new helper is penalized under the coverage-shape assertion, not here.)"
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Ran in outputs/: 'go test -count=30 ./...' -> ok example.invalid/units/internal/units 0.224s, exit 0; 'go test -race -count=5 ./...' -> ok 1.363s, exit 0. go vet clean, gofmt -l clean."
+    }
+  ]
+}

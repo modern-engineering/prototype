@@ -1,0 +1,79 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in package cache_test",
+      "passed": true,
+      "evidence": "cache_test.go line 1: `package cache_test`. All access goes through the exported API via the `example.invalid/cache` import."
+    },
+    {
+      "text": "Time and the janitor run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+      "passed": true,
+      "evidence": "TestCacheLifecycle wraps its body in synctest.Test (line 40); the cache (and thus the janitor goroutine) is created inside the bubble. Both time.Sleep calls (lines 56, 70) are inside the bubble. grep shows the only `for` in the test file is the case-range loop at line 96; no polling loops. The Example creates a janitor outside synctest but never depends on time passing and reaps it via Close."
+    },
+    {
+      "text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T",
+      "passed": true,
+      "evidence": "grep for `go func`/`go ` in cache_test.go returns zero hits: the tests spawn no goroutines at all, so there is nothing to over-orchestrate, no WaitGroup needed, and no cross-goroutine value collection. Satisfied by absence of orchestration."
+    },
+    {
+      "text": "FLOWS over symbols: at least one test or example walks an anticipated user story (set a token with a TTL, read it, let it expire, miss, shutdown); no per-symbol test names; a whole-package scenario name is welcome",
+      "passed": true,
+      "evidence": "TestCacheLifecycle (lines 39-86) walks the full story: Set with 500ms TTL, Get hit, expire via sleep, miss, permanent entry survives, replacement resets TTL, Close makes everything a miss, idempotent re-Close. Example_sessionStore is a whole-package scenario name. The only other test is the documented-panic boundary (TestNewPanicsOnInvalidJanitorInterval), which claims a property rather than scanning a symbol; there is no per-symbol TestSet/TestGet/TestClose suite."
+    },
+    {
+      "text": "Names claim package properties in plain English without receiver stutter",
+      "passed": true,
+      "evidence": "TestNewPanicsOnInvalidJanitorInterval reads as a plain-English property claim. TestCacheLifecycle is the whole-package scenario name the flows assertion welcomes. No Cache.CacheX-style receiver stutter and no per-method names."
+    },
+    {
+      "text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified; no run-time arithmetic deriving expectations",
+      "passed": true,
+      "evidence": "TestCacheLifecycle is one straight line of hard-coded literals (500ms/600ms/200ms/300ms inputs; expectations \"1\", 2, 1, \"2\", 0 written verbatim). No expectation is computed at run time. The single helper, mustPanic (line 103), is the panic-recovery helper that the intent corpus says is the one helper a trivial package earns."
+    },
+    {
+      "text": "File order builds complexity: examples first (or a separate example_test.go), typical patterns before edge orchestration, helpers after first use",
+      "passed": true,
+      "evidence": "Order is Example_sessionStore (line 14) -> TestCacheLifecycle typical flow (line 39) -> TestNewPanicsOnInvalidJanitorInterval edge (line 88) -> mustPanic helper (line 103) after its first use at line 97."
+    },
+    {
+      "text": "A representative runnable example of the typical call pattern is present and follows the audience rules",
+      "passed": true,
+      "evidence": "Example_sessionStore is runnable (// Output: at line 29) and representative: New with janitor interval, defer Close, Set a session token with a TTL, Get, Len, Close, post-Close miss. Its doc comment speaks to pkgsite users about the session-store scenario ('A session store needs no reaper of its own...') and neither narrates the code nor addresses maintainers. The missing in-function call-site comments are graded under the dedicated example-comment assertion below."
+    },
+    {
+      "text": "Documented boundaries are exercised as documented: ttl <= 0 stores without expiry, Get hides expired entries before the janitor sweeps, Close idempotence, the documented panic on non-positive janitor interval",
+      "passed": true,
+      "evidence": "ttl<=0: Set(\"b\", \"2\", 0) at line 45 is verified alive at line 63 after 600ms of fake time (only the zero boundary value is exercised, not a negative ttl, but zero is the documented boundary). Expiry-before-sweep: lines 54-58, \"a\" expires at 500ms against a 1s janitor with a comment pinning why the miss must come from the read-time check. Close idempotence: explicit Close at line 75, second Close at line 84 plus the deferred one; the Example also double-Closes. Panic: table covers interval 0 and -1s (lines 93-94)."
+    },
+    {
+      "text": "The package's DOCUMENTED concurrency safety is tested as promised (this package explicitly promises concurrent use, so concurrent exercise is in-contract), without statistical race-hunting theatrics",
+      "passed": false,
+      "evidence": "cache.go line 21 documents 'All methods are safe for concurrent use by multiple goroutines', so concurrent exercise is in-contract, yet grep shows zero goroutines spawned anywhere in cache_test.go: no test ever calls Set/Get/Len/Close from more than one goroutine. Even the janitor never sweeps concurrently against the test, because fake time advances only 900ms total against the 1s ticker, so the sweep body never runs in any test. The suite avoids race-hunting theatrics only by containing no concurrent exercise at all, and report.md does not mention the promise; -race passes vacuously."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "TestCacheLifecycle (non-trivial) carries a layman's rationale doc comment ('The typical client story end to end...'); trivial TestNewPanicsOnInvalidJanitorInterval carries none. No test or example doc comment opens with its function name (mustPanic's does, but it is a plain helper where godoc convention requires the name, and TESTS.md scopes the rule to test functions). grep for pins/convention/ordering/bubble finds nothing; no comment explains synctest mechanics or file order."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": false,
+      "evidence": "The doc-comment clause holds, but the in-function clause fails: Example_sessionStore's body (lines 15-27) contains zero comments. cache.New(time.Minute) leaves the non-obvious janitor-interval argument unexplained, Set's third argument (the TTL) is unlabeled, and the explicit sessions.Close() alongside the deferred Close carries no comment that the double close is safe, which is the exact call-site comment the round-3 feedback demanded for this pattern."
+    },
+    {
+      "text": "Contexts (if any are needed) come from t.Context()",
+      "passed": true,
+      "evidence": "grep finds no context usage in the test file; the cache API takes no contexts, so none are needed. Vacuously satisfied."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Ran both in outputs/ with go1.26.5: `go test -count=30 ./...` -> ok example.invalid/cache 0.224s; `go test -race -count=5 ./...` -> ok example.invalid/cache 1.251s. go vet ./... is also clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, any quirk carrying author-context framing",
+      "passed": true,
+      "evidence": "report.md exists with findings: what was added, a doc/code agreement check ('no drift to flag back to the author'), and one judgment call framed in author-context terms (declined to observe the janitor deleting entries because the docs don't expose it and Get/Len already promise expiry-on-read), plus build/test status."
+    }
+  ]
+}

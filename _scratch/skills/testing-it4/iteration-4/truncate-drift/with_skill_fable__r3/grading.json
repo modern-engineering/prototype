@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "report.md line 4 states the drift precisely ('both doc comments promise \"a negative n is treated as zero\" returning \"\"; Tail guards n <= 0, but Head slices r[:n] unguarded and panics on negative n') and adds the intent inference that Tail's parallel guard makes the prose look right. The same contradiction is stated prominently in TestNegativeCountMeansEmptyString's doc comment (truncate_test.go:55-60). No test blesses the panic: the drift test asserts Head(\"hello\", -1) == \"\" (the documented behavior) and fails via the panic; there is no recover-and-expect-panic anywhere (grep for 'recover' finds nothing). Resolution taken is the sanctioned failing prose-sided test with an honest report: report.md line 6 discloses 'go test ./... FAIL, solely the deliberate drift test above', and the source was deliberately left unpatched ('that call is the owner's')."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1 is 'package truncate_test'; it imports 'example.invalid/truncate' and calls truncate.Head/truncate.Tail through the exported surface only. go build ./... and go vet ./... both pass clean."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file contains zero helpers: it opens with the runnable Example (line 13), then the merged table TestTruncate (line 30), then the drift test (line 61). All assertions are direct if-got-want t.Errorf calls inside the tests; there is no indirection to inline and nothing convoluted anywhere. One package-level Example stands in for per-function examples, which the assertion phrases as welcome rather than required."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The single case struct has four fields (s, n, head, tail) and every one of the eight cases uses named fields, e.g. '{s: \"hello\", n: 3, head: \"hel\", tail: \"llo\"}' (truncate_test.go:36-43). grep 't.Run' finds no sub-tests at all: the table runs as one continuous loop and the drift test is two inlined assertions, exactly the inline-over-prose-named-subtests shape the assertion asks for."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestTruncate is a single merged table whose case struct carries both expected values ({s, n, head, tail}) and one loop drives Head and Tail from the same inputs (truncate_test.go:45-52), the exact '{\"hello\", 3, \"hel\", \"llo\"}' pattern the maintainer suggested. Its doc comment names the rationale ('Head and Tail share one contract, differing only in which end of the string survives'). The drift test also pairs both functions on the same input, and the Example exercises Head and Tail side by side."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Both non-trivial constructs carry layman rationale: TestTruncate explains why one table drives both functions, and the drift test's comment walks the prose-vs-code conflict and why it sides with the docs ('fails, loudly, until Head gains the guard or the owner rules that the docs should promise less'). No comment opens with its own function name (they open 'A terminal column...', 'Head and Tail share...', 'Both doc comments promise...'). grep finds no 'pins', no ordering talk, no convention or synctest explanation in the source; the placement rationale ('sits last in the file') lives only in report.md where it belongs. Inline case comments explain non-obvious inputs ('a four-byte rune survives the cut', 'the package doc's own example: two runes, three bytes')."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at call sites",
+      "passed": true,
+      "evidence": "Example's doc comment (truncate_test.go:10-12) sets a user scenario, an eight-character terminal column, and speaks about the package's promise ('Head counts runes, so the cut always lands between characters'); it never says 'this example shows' and never addresses maintainers. In-function comments repeat contract at call sites: the Tail call carries 'Tail keeps the end instead, handy for the interesting suffix of a long identifier' and the Head(greeting, 80) call carries 'A generous limit is safe: shorter inputs come back unchanged, so there is no need to measure first', which also explains the otherwise-arbitrary 80. The doc comment's 'eight characters wide' explains the 8. go test -run Example passes, so the // Output block is verified."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (honest-red rule applied: the only permitted failure is the deliberate prose-sided drift test, deterministically)",
+      "passed": true,
+      "evidence": "Honest-red rule applied since the run chose the failing prose-sided test resolution. go test -count=30 ./...: exactly 1 '--- FAIL' line and it is TestNegativeCountMeansEmptyString; the test does not recover the panic, so the binary aborts on iteration 1 (the maintainer's rulings hold unrecovered panics as valid failure shapes and recovery as usually futile). go test -race -count=5 ./...: same single permitted failure, zero 'DATA RACE' lines. Determinism: 10 consecutive full-suite runs produce the identical single FAIL, nothing else, every time; TestTruncate passes before the drift test in every run. Everything else proven stable in isolation: go test -count=30 -skip TestNegativeCountMeansEmptyString gives 31 PASS / ok, and go test -race -count=5 -skip likewise ends ok with zero races. Caveat recorded for the maintainer: because tests run before examples and the panic kills the binary, Example never executes in a full-suite invocation (it passes under -run 'Example'); report.md's 'the rest of the suite reports first' is accurate for tests but not for the Example. gofmt -l, go vet, go build all clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with the plan, the drift finding, and the status. The drift finding is framed in author context, not as a bare observation: it infers intent ('Tail's parallel guard reads as one intent, so the prose looks right and Head is missing its guard'), names the owner's decision fork ('until the guard lands or the docs are weakened'), and explains why the source was left untouched ('the package is about to ship and that call is the owner's'). It also flags the module-path quirk (example.invalid/truncate vs the promised utils module) with the mechanical consequence for the import path at move time. The status line honestly discloses the deliberate red."
+    }
+  ]
+}

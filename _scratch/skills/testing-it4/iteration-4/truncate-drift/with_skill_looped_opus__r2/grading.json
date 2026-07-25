@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "report.md states the drift explicitly ('Head lacks Tail's n <= 0 guard and hits a negative slice bound, so Head(s, n<0) panics') and declares the prose-sided choice with an honest status ('go test ./... FAIL — exactly one assertion, the negative-limit Head row, by design'). truncate_test.go lines 50-54 carry a prominent comment: 'Head has none and reaches a negative slice bound, so Head(s, n<0) panics. That row's Head assertion therefore fails today, holding Head to its published contract rather than ratifying the panic.' The {\"café\", -5, \"\", \"\"} row expects the documented empty string, and headRecovered converts the panic into a reported failure (t.Errorf ... want \"\") — nothing blesses the panic. Verified: go test -v fails with exactly 'Head(\"café\", -5) panicked (runtime error: slice bounds out of range [:-5]), want \"\"'. This matches the first acceptable resolution: failing prose-sided test with an honest report."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1: 'package truncate_test'; imports 'example.invalid/truncate' and calls truncate.Head/truncate.Tail through the exported surface. Verified by grep and by go vet passing."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file opens with Example (line 10), then ExampleHead (line 22) and ExampleTail (line 34) in stdlib style, then the single table test (line 55). The only helper, headRecovered, is defined at line 85, after its first use at line 72. It is not trivial indirection: it exists solely for panic recovery on the drifting Head call (the one case the intent corpus says earns a helper in a trivial package), calls truncate.Head directly, and Tail is compared inline without any wrapper."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": false,
+      "evidence": "The case struct has four fields (s string; n int; head, tail string) but every composite literal is positional: {\"hello\", 3, \"hel\", \"llo\"}, {\"héllo\", 2, \"hé\", \"lo\"}, ... {\"café\", -5, \"\", \"\"} (truncate_test.go lines 61-69). Grep confirms no keyed literals (no 's:', 'n:', 'head:', 'tail:' in any row). The maintainer's rule grants leniency only for one or two fields; at four fields the literals must be named. The sub-test half is satisfied (no t.Run at all; one continuous loop with Head(%q,%d)/Tail(%q,%d) failure messages), but the named-fields requirement fails."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "A single merged table (truncate_test.go lines 56-70) states both expectations per input — the exact {\"hello\", 3, \"hel\", \"llo\"} shape the maintainer asked for — and one loop makes paired assertions against Head and Tail for every row (lines 71-78). ExampleHead and ExampleTail mirror each other's two-call structure (rune-safety, then over-generous-limit). No duplicated per-function tables exist."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "The one non-trivial test carries a layman's rationale doc comment (lines 44-54: 'a multi-byte glyph must survive the cut whole... The final row exercises the shared promise that a negative limit behaves like zero'). It opens with 'The package earns its name...', not the function name; the example functions carry no doc comments at all. Grep finds no 'pins/pinning', no convention or ordering talk, no synctest mentions. The headRecovered doc comment opens with its name, which is correct godoc form for an ordinary helper — the corpus rule (TESTS.md: 'doc comments of all test functions... must never open with the function's name') is scoped to test functions."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "None of the three examples has a doc comment, so nothing narrates code or addresses maintainers. In-function comments do the pkgsite work: Example explains the breadcrumb scenario and the non-obvious 4/5 literals ('Four runes spans the first segment \"café\"; five spans the last \"señor\"'); ExampleHead restates the contract at each call site ('Head counts runes, not bytes'; 'a limit past the end returns the input unchanged, so a caller may pass a generous bound without measuring'); ExampleTail speaks about Tail ('Tail counts from the other end'). All comments are about the attributed symbols and user-facing behavior; none mention the example function itself or maintainers. All three examples pass under go test."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (honest-red rule applied: the only permitted failure is the deterministic prose-sided drift assertion)",
+      "passed": true,
+      "evidence": "Honest-red rule applied per grading instructions, since report.md declares the designed failure. go test -count=30 -v: TestHeadAndTailCountRunes failed exactly 30/30 times with the identical single message 'Head(\"café\", -5) panicked (runtime error: slice bounds out of range [:-5]), want \"\"' (uniq -c shows one distinct failure line, count 30); Example, ExampleHead, ExampleTail all PASS. go test -race -count=5 -v: same single failure 5/5 with identical text, zero 'DATA RACE' occurrences, examples PASS. The red is deterministic, confined to the declared drift row, and matches report.md's claim of 'exactly one assertion... by design'. gofmt -l clean; go vet clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with structure, drift finding, critique-application log, and an honest status line. The drift finding carries author-context inference rather than a bare observation: 'I sided with the prose (Head/Tail symmetry says the guard was forgotten): the negative row holds Head to its promise and fails today', and defers the decision to the author ('Production code left untouched for the owner'). It also documents a reasoned rejection of one critique point (a negative-n example would panic, and examples can only assert passing behavior)."
+    }
+  ]
+}

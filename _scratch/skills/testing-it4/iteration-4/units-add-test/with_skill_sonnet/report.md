@@ -1,0 +1,5 @@
+Added `ExampleParseDurationOrDefault` to `internal/units/units_test.go`, mirroring the sibling `ExampleParseSizeOrDefault`: it prints a well-formed duration, then the empty-string and garbage-string fallbacks, matching the doc comment's documented leniency (empty/malformed both return `def`, never an error, by design).
+No error-path assertions were added — the doc explicitly promises fallback-not-failure, so testing for an error would contradict the author's own stated contract.
+`go build ./...` and `go test ./...` both pass in `outputs/` (copied fixture module `example.invalid/units`).
+No commit was made: `outputs/` was copied without its own `git init` and lives inside the shared prototype worktree, so a `git commit` here would land scratch test-fixture artifacts on that worktree's branch rather than in the module's own history — flagging this back to the teammate rather than assuming.
+Final status: test added and green; commit intentionally deferred pending teammate confirmation of where this module's history actually lives.

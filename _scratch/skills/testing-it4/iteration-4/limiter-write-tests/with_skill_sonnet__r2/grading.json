@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in package limiter_test",
+      "passed": true,
+      "evidence": "limiter_test.go line 1: `package limiter_test`. All access goes through the imported `example.invalid/limiter` API."
+    },
+    {
+      "text": "Concurrency and timing run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+      "passed": true,
+      "evidence": "Both timing tests wrap their bodies in synctest.Test (lines 53, 114). The only two time.Sleep calls (lines 89, 102) sit inside the TestThrottleLifecycle bubble. The only for-loop in the file is the panic-table range at line 141; grep finds no polling loops."
+    },
+    {
+      "text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T rather than collecting values back",
+      "passed": true,
+      "evidence": "grep finds no `go func` and no sync.WaitGroup in limiter_test.go: the suite spawns zero goroutines. Blocking calls like l.Wait(t.Context()) run directly on the main test goroutine inside the synctest bubble (lines 80, 104, 122), which is exactly the minimal-orchestration shape; the WaitGroup/in-goroutine-assert clauses are satisfied vacuously."
+    },
+    {
+      "text": "FLOWS over symbols: at least one test or example exercises an anticipated user flow (e.g. gate with Allow, fall back to Wait when it returns false, Close on shutdown); no per-symbol test names (TestAllow etc.); a whole-package scenario name like TestLimiter is welcome",
+      "passed": true,
+      "evidence": "Example_throttle exercises the exact anticipated flow: gate with Allow, fall back to Wait when Allow returns false, Close on shutdown (lines 17-46). TestThrottleLifecycle walks one whole-package scenario (burst, timed-out wait, patient wait, lull capped at burst, shutdown). Test names are TestThrottleLifecycle, TestZeroBurstServesOnlyAWaitingCaller, TestNewPanicsOnInvalidArguments; no bare per-symbol names like TestAllow/TestWait/TestClose."
+    },
+    {
+      "text": "Names claim package properties in plain English without receiver stutter",
+      "passed": true,
+      "evidence": "TestZeroBurstServesOnlyAWaitingCaller and TestNewPanicsOnInvalidArguments each claim a property in plain English; TestThrottleLifecycle names the scenario. No name stutters the Limiter receiver (no TestLimiterAllow-style names)."
+    },
+    {
+      "text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified (a panic table with a recover helper naming inputs and their invalidity is the expected shape here); no run-time arithmetic deriving expectations",
+      "passed": true,
+      "evidence": "All bodies are straight-line; the burst is unwound manually (lines 58-66) instead of looped. Expectations are hard-coded literals: 100ms deadline, exact 900ms elapsed (line 83), 4500ms/2500ms sleeps. The sole helper is mustPanic (line 148), a recover helper whose `invalidity` parameter names what makes each input invalid, matching the expected shape. No arithmetic derives an expected value at run time."
+    },
+    {
+      "text": "File order builds complexity: examples first (or a separate example_test.go), typical call patterns before edge orchestration, any helper defined after its first use",
+      "passed": true,
+      "evidence": "Order is Example_throttle (line 17) -> TestThrottleLifecycle typical scenario (line 52) -> TestZeroBurstServesOnlyAWaitingCaller degenerate case (line 113) -> TestNewPanicsOnInvalidArguments (line 132). mustPanic is defined at line 148, after its first use at line 142."
+    },
+    {
+      "text": "A representative runnable example of the typical call pattern is present and follows the audience rules",
+      "passed": true,
+      "evidence": "Example_throttle is runnable (Output block, lines 42-45; `go test -run Example -v` passes in 0.50s) and shows the Allow-then-fall-back-to-Wait pattern with Close on shutdown. Its doc comment speaks about the bursty-client scenario to pkgsite readers, and in-function comments explain the New(2, 2) literals, the deferred Close, and the idempotent second Close at their call sites."
+    },
+    {
+      "text": "Invalid-input coverage includes the zero-interval boundary: a rate large enough that the refill interval truncates to zero is exercised alongside the documented panic cases",
+      "passed": false,
+      "evidence": "grep for a large rate (1e9, 2_000_000_000, etc.) in limiter_test.go finds nothing; the panic table (lines 137-139) covers only zero rate, negative rate, and negative burst. The zero-interval boundary is discussed in report.md (with a defensible argument that the resulting time.NewTicker(0) panic lands on an unrecoverable background goroutine) but it is not exercised, nor even left as a commented-out table row, in the committed suite. Grading what IS: the assertion requires it exercised alongside the panic cases, and it is not."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Non-trivial tests carry layman rationale docs ('The typical client story end to end...', 'A limiter built with burst 0 is the documented degenerate case...'); trivial TestNewPanicsOnInvalidArguments carries none. No test or example doc comment opens with its own function name (mustPanic's does, but it is a plain helper where standard Go doc convention requires the name; the corpus rule in TESTS.md is scoped to test functions). grep for 'pins/pinning/convention/ordering/bubble/synctest' in comments finds nothing: no convention, ordering, or synctest-mechanics explanations."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example_throttle's doc comment describes the throttle scenario from the caller's viewpoint ('A bursty client is the typical caller...') without narrating the code or addressing maintainers. In-function comments explain the non-meaningful New(2, 2) inputs ('Two tokens per second, and up to two held for a burst'), the always-defer-Close contract, the starts-full contract, and Close idempotence at the explicit second Close call site (lines 18, 20-21, 24, 38-39)."
+    },
+    {
+      "text": "Contexts come from t.Context() unless a reason is stated",
+      "passed": true,
+      "evidence": "All test contexts derive from t.Context(): context.WithTimeout(t.Context(), ...) at line 70, l.Wait(t.Context()) at lines 80, 104, 122. The only context.Background() is in Example_throttle (line 31), where no *testing.T exists."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Ran both against outputs/ with go1.26.5: `go test -count=30 ./...` -> ok in 2.416s, zero failures; `go test -race -count=5 ./...` -> ok in 1.745s. go vet ./... is also clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists and its one finding (huge rate truncates the refill interval to zero, so time.NewTicker(0) panics on the background goroutine and crashes the process) is framed for the author: 'either promise a bound the same way the sibling limiter does (one more panic branch, cheap), or document explicitly that callers own the sane-rate contract', plus the doc-is-silent observation and a production consequence. Not a bare observation."
+    }
+  ]
+}

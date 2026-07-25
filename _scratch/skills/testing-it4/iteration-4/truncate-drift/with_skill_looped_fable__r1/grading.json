@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "The run chose the sanctioned failing prose-sided test with an honest report. report.md line 5 states the drift precisely ('the docs promise \"a negative n is treated as zero\" for both functions; Tail guards n <= 0, but Head is missing the same guard and panics (r[:n], truncate.go:23)') and the same contradiction is stated prominently in TestNegativeCountActsAsZero's doc comment (truncate_test.go:64-71: 'Today Tail keeps that promise but Head panics on the negative slice bound... this test sides with the docs and fails until the owner either gives Head the guard Tail has or amends Head's doc comment'). No test blesses the panic: the deferred recover in both sub-tests converts any panic into t.Errorf (truncate_test.go:74-78), i.e. panic is always a failure, never an expected outcome; grep finds no want-panic assertion. truncate.go is byte-identical to the untouched fixture (diff against without_skill's copy: identical), so the drift was not silently patched away either. report.md line 7 honestly discloses the deliberate red: 'go test ./... fails exactly one sub-test, deliberately: TestNegativeCountActsAsZero/Head'."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1 is 'package truncate_test' and the tests import 'example.invalid/truncate' and call truncate.Head/truncate.Tail through the exported surface. It is the only test file in the module."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file opens with Example_display (truncate_test.go:10-25), then the typical table test, then the drift test: complexity builds as the file is read. There are no helper functions at all; the panic-recovery is inlined as a defer directly inside each sub-test (truncate_test.go:74-78, 84-88), so truncate.Head(...)/truncate.Tail(...) appear visibly in the test bodies with no name-string or func-valued indirection. The report (lines 15) records that the earlier emptyOnNegative helper was removed in favor of inlining."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The single case struct has four fields (s, n, head, tail) and every case literal uses named fields, e.g. '{s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"}' (truncate_test.go:36-52). The only sub-tests are t.Run(\"Head\", ...) and t.Run(\"Tail\", ...) (truncate_test.go:73, 83), names that read as Go symbol names; no prose-named sub-tests exist anywhere (TestTruncate runs one continuous loop with no t.Run)."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestTruncate uses the exact merged-case shape the maintainer suggested: one table with both expectations per input ({s, n, head, tail}) and one loop making paired Head and Tail assertions on the same case (truncate_test.go:54-61). The negative-count test mirrors the pair as two structurally identical Head/Tail sub-tests under one function rather than two duplicated top-level tests. No structure is duplicated blindly."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Both non-trivial tests carry layman rationale: TestTruncate's doc comment gives the why ('An implementation that slices by byte index fails the multi-byte cases outright instead of silently mangling the cut', truncate_test.go:27-28) without narrating structure; TestNegativeCountActsAsZero's doc comment explains why a caller hits negative n (width arithmetic), why a panic would hurt, and why the test sides with the docs (truncate_test.go:64-71). No doc comment opens with its own function name (they open 'Fixed-width displays...', 'An implementation...', 'A negative budget...'). grep -i 'pin|convention|ordering|synctest' over truncate_test.go returns nothing; table line comments explain the inputs (e.g. 'A four-byte emoji straddling the cut point'), not conventions. The one mechanics sentence ('The recover turns the panic into a readable failure instead of an aborted run') is rationale for a non-obvious construct addressed to maintainers, not convention/ordering slop."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at call sites",
+      "passed": true,
+      "evidence": "Example_display's doc comment speaks about the display scenario in user terms ('Fixed-width displays cut long values at a character budget: keep the start of a title, keep the end of a path, and never split a rune', truncate_test.go:10-11) with no code narration, no 'this example shows', and no maintainer address. Each of the three call sites carries a user-facing contract comment: the rune-not-byte budget with the concrete two-byte é (line 13-14), the keep-the-end-of-a-path scenario for Tail (line 16), and the generous-limit pass-through affordance (lines 18-19). The example is runnable with an Output block and passes."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (truncate-drift honest-red rule applied: the only permitted failure is the deliberate prose-sided drift test, deterministically)",
+      "passed": true,
+      "evidence": "Honest-red rule applied since the run chose the failing prose-sided test resolution. go test -v -count=30 ./...: TestNegativeCountActsAsZero/Head failed exactly 30/30 with the identical slice-bounds message; TestNegativeCountActsAsZero/Tail passed 30/30, TestTruncate passed 30/30, Example_display passed; no other FAIL line appeared. go test -race -v -count=5 ./...: the same single deliberate failure 5/5, zero 'DATA RACE' lines. The recover keeps the panic from aborting the harness, so every other test and the example complete in every run. gofmt -l clean, go vet ./... clean, go build ./... clean. The red matches report.md line 7's disclosure exactly, down to the panic message."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with what was written, the drift finding, and an honest status line. The drift finding is framed for the author, not barely observed: it infers intent ('The asymmetry looks like an accidental omission rather than a deliberate contract change, so the test sides with the prose'), poses the owner's decision fork ('Owner's call: add Tail's guard to Head (one line) or amend Head's doc'), and routes the rationale toward the landing commit body ('whoever lands this should carry the same rationale into the commit body'). The status section (line 7) matches the verified test behavior exactly. Minor nit outside this assertion's terms: line 5 uses 'pins' once in the report prose."
+    }
+  ]
+}

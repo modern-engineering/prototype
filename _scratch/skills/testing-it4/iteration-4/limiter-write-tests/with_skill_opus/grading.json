@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in package limiter_test",
+      "passed": true,
+      "evidence": "limiter_test.go line 1 is `package limiter_test`; the only import of the package under test is `example.invalid/limiter`."
+    },
+    {
+      "text": "Concurrency and timing run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+      "passed": true,
+      "evidence": "Both timing tests wrap their bodies in synctest.Test (lines 53, 115). All three time.Sleep calls (lines 89, 102, 126) sit inside those bubbles. grep finds no bare for-loops, no time.After polling, no retry loops; the only loop is the range over the panic table. Example_throttle blocks on Wait in real time (0.5s) by necessity: examples cannot take *testing.T, and the maintainer mandates a runnable Wait-after-Allow-false example; it asserts no elapsed time and held over 30 runs."
+    },
+    {
+      "text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T rather than collecting values back",
+      "passed": true,
+      "evidence": "grep for `go func`/`go l.` finds zero goroutines spawned by the tests; blocking Wait calls are exercised directly on the main test goroutine with synctest advancing the fake clock. With no test goroutines there is nothing to reap and nothing collected back; orchestration is maximally minimal."
+    },
+    {
+      "text": "FLOWS over symbols: at least one test or example exercises an anticipated user flow (e.g. gate with Allow, fall back to Wait when it returns false, Close on shutdown); no per-symbol test names (TestAllow etc.); a whole-package scenario name like TestLimiter is welcome",
+      "passed": true,
+      "evidence": "Example_throttle is exactly the anticipated flow: Allow on the hot path, Wait when Allow returns false, deferred Close. TestThrottleLifecycle runs the whole client story (burst, impatient timeout, patient refill-served Wait, lull capped at burst, Close turning callers away). Function names are TestThrottleLifecycle, TestBurstZeroHoldsNoTokens, TestNewPanicsOnInvalidArguments; no bare per-symbol TestAllow/TestWait/TestClose names exist."
+    },
+    {
+      "text": "Names claim package properties in plain English without receiver stutter",
+      "passed": true,
+      "evidence": "TestBurstZeroHoldsNoTokens and TestNewPanicsOnInvalidArguments read as plain-English property claims; TestThrottleLifecycle names the scenario. No name stutters the receiver (no TestLimiterAllow-style names)."
+    },
+    {
+      "text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified (a panic table with a recover helper naming inputs and their invalidity is the expected shape here); no run-time arithmetic deriving expectations",
+      "passed": true,
+      "evidence": "All bodies are straight-line sequences of calls and assertions. Expectations are literals (900*time.Millisecond at line 83, 500*time.Millisecond at line 137) with the authoring-time derivation recorded in comments ('the timed-out wait above already burned 100ms... arrives 900ms from now'). The sole helper is mustPanic(t, rate, burst, invalidity) (line 167), precisely the recover-helper-naming-inputs-and-invalidity shape the assertion expects; no expectation is computed at run time."
+    },
+    {
+      "text": "File order builds complexity: examples first (or a separate example_test.go), typical call patterns before edge orchestration, any helper defined after its first use",
+      "passed": true,
+      "evidence": "Order is Example_throttle (line 17), TestThrottleLifecycle typical flow (line 52), TestBurstZeroHoldsNoTokens degenerate edge (line 114), TestNewPanicsOnInvalidArguments (line 143), and mustPanic defined at line 167, after its first use at line 161."
+    },
+    {
+      "text": "A representative runnable example of the typical call pattern is present and follows the audience rules",
+      "passed": true,
+      "evidence": "Example_throttle is runnable with an // Output: block and passes (go test -run Example -v: PASS). It models the mandated pattern (Allow, fall back to Wait on false, Close). Doc comment speaks to users about the bursty-client scenario; in-function comments explain the non-meaningful New(2, 2) literals ('Two tokens per second, and up to two held for a burst'), the defer-Close obligation, and Close idempotence at the explicit second Close call site."
+    },
+    {
+      "text": "Invalid-input coverage includes the zero-interval boundary: a rate large enough that the refill interval truncates to zero is exercised alongside the documented panic cases",
+      "passed": true,
+      "evidence": "Graded under the truncate-drift honest-red rule per grader instructions. A live case is impossible to run green: New(2e9, 1) floors time.Second/rate to 0 and time.NewTicker(0) panics on the refill goroutine, an unrecoverable crash that takes the whole binary down, so this assertion and the STABILITY assertion cannot both hold literally. The output takes the sanctioned honest-red shape: the case {rate: 2_000_000_000, burst: 1, invalidity: 'rate beyond one token per nanosecond'} sits in the panic table (line 158) commented out with an explanatory comment stating the doc-vs-code conflict and pointing to report.md, and report.md asks the author to guard New or document rate <= 1e9 and promises to uncomment the case. This matches INTENT.md ruling 8 (comment out a blocking bug-panic) and the honest-red rule's 'commented-out conflicted cases with an explanatory comment'; no committed test blesses the crash."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "TestThrottleLifecycle and TestBurstZeroHoldsNoTokens carry layman rationale docs ('The typical client story end to end...', 'Burst zero is the degenerate bucket the package doc calls out...'); the trivial panic table carries none. No test or example doc comment opens with its own function name (the mustPanic helper doc opens with its name, which is standard godoc convention for non-test functions; TESTS.md scopes the never-open-with-name rule to test functions). grep finds no 'pin', no ordering or convention explanations, and no synctest-mechanics narration."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example_throttle's doc comment describes the throttle scenario from the user's seat ('A bursty client is the typical caller: try Allow on the hot path...') without narrating the code or mentioning the example or maintainers. In-function comments do the call-site work the maintainer demanded: New(2, 2) literals explained, 'Always defer Close so the refill goroutine is released', bucket-starts-full contract, and Close idempotence stated on the explicit non-deferred Close call."
+    },
+    {
+      "text": "Contexts come from t.Context() unless a reason is stated",
+      "passed": true,
+      "evidence": "Every test context derives from t.Context() (lines 70, 80, 104, 134). context.Background() appears only inside Example_throttle (line 31), where no *testing.T exists so t.Context() is unavailable; example code models real client usage by design."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Ran both in outputs/ with go1.26.5: `go test -count=30 ./...` -> ok example.invalid/limiter 0.737s (zero failures); `go test -race -count=5 ./...` -> ok example.invalid/limiter 1.752s. gofmt -l clean and go vet ./... clean as well."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists and states what was written plus the run's one drift finding: New accepts rate > 1e9, flooring the interval to 0 so the refill goroutine panics and takes the process down while the doc promises panics only for non-positive rate. The finding is framed as an author decision, not a bare observation: 'please either guard it in New like the interval-zero case demands, or document that callers must keep rate <= 1e9, then I'll uncomment it.'"
+    }
+  ]
+}

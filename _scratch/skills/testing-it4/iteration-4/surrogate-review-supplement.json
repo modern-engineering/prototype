@@ -1,0 +1,145 @@
+{
+  "reviews": [
+    {
+      "run_id": "limiter-write-tests-with_skill_fable__r2",
+      "rating": 9,
+      "review": "This is the shape I want. Example_throttle is the mandatory representative pattern (Allow on the hot path, Wait as fallback) with call-site comments that speak to pkgsite readers: the New(2, 2) literals explained, the deferred Close, and the explicit second Close carrying the idempotency note at the call site. The lifecycle test is one flow with hard-coded times and the delicate 900ms math done at coding time with an adjacent comment. The burst-0 promise from my package doc gets its own test with evaporating-refill coverage. The panic table names the invalidity per case and the mustPanic helper sits after its first use. Best of all: the zero-ticker rate I flagged last round is IN, as a deliberately failing row with the rationale on the row, and the report hands me the fork instead of deciding. I verified: go test fails on exactly that row, deterministic across -count=30 and -race. Only gripes: the report still says 'pinning', and the lifecycle comments are a touch dense."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_fable__r3",
+      "rating": 9,
+      "review": "Nearly identical to the sibling replicate and just as good, which tells me the skill has made this repeatable rather than lucky. The differences are in its favor: the failing-row rationale moved into the test's doc comment where a maintainer will read it, and the report is the best of the plain runs — it offers both fixes (clamp to 1ns and keep the doc, or guard and amend the prose) and explicitly refuses to pin unpromised behavior (Allow after Close, a Wait already parked at Close) pending my ruling. That refuse-to-harden framing is exactly the author-context I asked reports to carry. Verified red on the one deliberate row only, stable under -count=30 and -race. Same nit: 'pinning the crash' phrasing sneaks into a committed comment."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_opus__r2",
+      "rating": 7,
+      "review": "The shared core (example, lifecycle, burst-0, panic table) is at the fable level. The last test is where it comes apart. TestNewRejectsIntervalFlooringRate's doc comment opens with the function's name — I wrote that exact bug down in TESTS.md — and it ends with 'See report.md', which bakes a hand-off scaffold into a committed file; the repo will outlive that report. The re-exec child-process dance is stdlib-legit machinery, but for a package this trivial it is heavy: fable proved a plain failing table row demonstrates the same crash with zero orchestration. Credit where due: the test is committed red at hand-off (verified: fails deterministically), the crash is contained so the rest of the suite reports, and the report asks me the right question about the upper bound. Fix the comment sins and this is an 8-9."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_opus__r3",
+      "rating": 7,
+      "review": "Same strong core. For the zero-ticker gap this one parks the 2e9 row commented-out with a restore trigger, so the suite hands over green (verified: all pass, -race clean). Commenting out to see the work through is the professional fallback I described, but the other half of that ruling is restore at hand-off; 'and I'll uncomment it' treats the hand-off as an open conversation and leaves nothing red to force my ruling. Two comment leaks bother me more: 'so pin it' in TestZeroBurstStoresNothing's doc comment is review-loop jargon that means nothing to a maintainer reading this file cold, and the parked row again points at report.md. The burst-0 test itself is good and the report's options are fair. Middle of the pack: right findings, softer artifact than the fable replicates."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_sonnet__r2",
+      "rating": 7,
+      "review": "The committed file is clean: no leaks, no slop, the example and lifecycle transplanted faithfully, a thinner but correct burst-0 test, and the panic table stops at the three promised panics. The problem is what is NOT in the file. I said definitely test the zero-ticker rate, and this run verified the crash, wrote three careful paragraphs about it in the report — and committed no trace: no failing row, no commented-out case, not even a comment. The nondeterminism argument it gives is wrong in practice (the fable runs demonstrate a deterministic failing row, and a recover-into-Errorf shape exists too), so the green suite (verified: all pass) quietly looks like the gap was never found. The report also chats about 'the exemplar' and 'a sibling limiter' that do not exist in this module, which reads oddly in an engineer's note. Good judgment shown elsewhere; the one hard instruction was dodged."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_sonnet__r3",
+      "rating": 6,
+      "review": "Two round-2 lessons come back unlearned. TestZeroBurstDeliversOnlyToWaiters spawns a goroutine whose only job is to call Wait — waiting on a goroutine that calls Wait IS calling Wait — plus a synctest.Wait and a tail sleep to shepherd it; the fable replicates prove the same three promises with straight-line code. Worse, the subprocess crash test's doc comment cites 'the sibling bucket package' as precedent: that package exists only inside the skill, not in this repo, so this is a committed comment referencing something a maintainer can never find — prompt leakage of the worst kind. On the plus side, the zero-ticker gap IS committed as a deliberately failing test (verified: exactly one test red, rest pass under -race), the report is honest, and the containment rationale is written where the machinery needs it. The bones are right; the tell-signs are not."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_fable__r2",
+      "rating": 9,
+      "review": "TestTruncate is the merged case struct I sketched in round 3 — {s, n, head, tail} with named fields, one loop, two calls, no sub-tests — executed exactly. The composed Example (Head + ellipsis + Tail over a display title) is a real anticipated pattern, not a symbol tour. The drift work is textbook: sided with the prose, left TestNegativeCountMeansEmpty failing (verified: only that test fails; the recover converts Head's panic into a plain Errorf so Example and the table still report), inference in the report reads the Tail guard as evidence of an oversight, and the source is untouched because that call is mine. The in-test check closure is the one panic-recovery helper a trivial package earns. I would also have accepted per-function examples here, and the drift doc comment narrates the recover mechanics a touch more than needed, but I am reaching for complaints."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_fable__r3",
+      "rating": 9,
+      "review": "The example is the best of the plain runs: three calls, each carrying its own user-facing comment (rune counting, Tail for suffixes, the generous-limit affordance), no cheaping out. The table adds the 4-byte-rune boundary and reuses my package doc's own héllo case with a note saying so — elegant reuse. The drift test takes the other blessed shape: no recover, Tail asserted first, the panic itself is the failure (verified: the binary dies on Head, after everything else has reported; the report explains the last-in-file placement instead of narrating it in a comment, which is the right home for that reasoning). The doc comment reads the parallel guard as one intent and hands me the ruling. Between the two fable replicates I marginally prefer r2's recover shape for log hygiene, but panics are valid failures and this one is argued."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_opus__r2",
+      "rating": 7,
+      "review": "The drift handling is right — sided with prose, deliberately red (verified: only the negative-count test fails, recovered into a clean Errorf), helper after first use with a rationale that earns its place, and the report asks me to pick between guard and doc. But the table repeats the exact sin I flagged on this very package in round 3: t.Run sub-tests named 'Head keeps a whole multi-byte rune' — prose descriptions with spaces are not test names; that is the smell that says one continuous test or rename. It also splits Head and Tail into near-duplicate rows with a fn field instead of the merged {s, n, head, tail} struct these mirror functions beg for, and the five-field rows are positional, which golangci-lint will bark at. 'This pins the documented promise' in a committed comment is more loop jargon. Good example, wrong table."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_opus__r3",
+      "rating": 9,
+      "review": "This replicate lands everything r2 fumbled: one merged named-field table with both expectations per row and no sub-tests, a whole-package Example with a distinct comment per behavior (the Zoë Saldaña cut is a nice touch of reality), and a drift test that asserts Tail straight and recovers only around Head with the rationale on the recover itself. The doc comment states the shared promise, the gap, and my two options without jargon. Verified: fails on exactly the one deliberate test, deterministic, everything else green under -race. The report is compact and ends with the one-line fix menu. Indistinguishable from the fable replicates in quality; the emoji-boundary row even covers the 4-byte case. This is what I want the skill to produce every time."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_sonnet__r2",
+      "rating": 6,
+      "review": "Structurally sound — merged named-field table, middle-ellipsis example, correct drift verdict with the recover shape, red on exactly the right test (verified) — but every single doc comment in the file opens with its function's name: 'Example demonstrates...', 'TestHeadAndTailCountRunes holds...', 'TestNegativeNIsZero checks...'. That is the precise BUG I recorded in TESTS.md, three times over, and the example's comment describes the example function itself instead of speaking to users about the scenario. There is also a '(see report.md)' inside a committed comment; the report does not ship with the repo. The report itself is thorough and the golden-hierarchy reasoning is right. Content under the bad openings is fine, which makes this more frustrating: strip the name prefixes and the leak and this jumps two points."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_sonnet__r3",
+      "rating": 8,
+      "review": "Doctrinally clean end to end: comments address the right audiences and none open with the function name, the merged table has named fields, the drift test holds both functions to the shared sentence and goes down on Head's panic as a valid failure (verified: deliberate fail, Tail's assertion reports first), and the report separates the finding from a bug-hunt, guesses the symmetry intent, and offers the doc-weakening alternative. What keeps it from the top: it cheaps out. The Example is two bare calls with n=2 — no generous-limit line, no distinct-comment story per call — and the table has four rows with no empty-string or 3-4-byte-rune case. Why cheap out on me? The shape is right; the substance is thin."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_looped_fable__r1",
+      "rating": 10,
+      "review": "The loop earned its keep here. The critique restored the zero-ticker row red at hand-off (verified: deterministic crash, everything else reports first), re-derived the shutdown tick arithmetic and fixed a wrong constant-audit comment (2500ms spans three ticks, not two — the kind of pedantry synctest deserves), moved the drift rationale onto the row, purged the 'pin' jargon, and — the one nobody else in the plain runs managed — flagged the package smell I care about most: every New call site needs a rate-to-cadence translation comment, so production users will need it too; Every(time.Second) would delete half the comments in the file. That is my secondary review goal, hit dead center, plus the concurrency-omission and Allow-after-Close forks handled exactly per my rulings. The committed file is the exemplar shape with the two limiter-specific deltas done right. Nothing to fix."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_looped_fable__r2",
+      "rating": 9,
+      "review": "Same red hand-off (verified), same burst-0 quality, and the standout is the report's Method section: it discloses that the file is a transplant of the skill's exemplar with each transplanted assertion re-checked against THIS package's published prose, and names the two original pieces. That is the honesty I want from an engineer's note. Finding 2 nails the rate-parameter smell and even notes that a duration-shaped constructor dissolves the zero-ticker drift with it — sharp. The row's in-code comment carries a genuinely useful breadcrumb (the raw NewTicker panic names no test, so the comment is the only trail back) and ends at the open question instead of pre-committing my ruling. Docked one point: the transplanted 'two more refills' comment survived even though this loop's sibling caught it as three, and the row comment runs long. Otherwise indistinguishable from r1."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_looped_fable__r3",
+      "rating": 10,
+      "review": "The subtlest catch in the whole iteration: the critique noticed that asserting New PANICS on 2e9 pins a panic my prose never promised — that guard belongs to the exemplar's bucket, not to limiter — so the committed drift test asserts the prose instead: a doc-valid extreme rate must yield a working limiter (TestExtremeRateYieldsWorkingLimiter, committed failing, restored at hand-off after being parked during development, exactly my ruling). That is the golden hierarchy applied with more discipline than my own exemplar invites, and it is the difference between imitating my code and following the doctrine. Add the rate-translation package smell, the parked-Wait-versus-Close question (Wait's 'every subsequent call' pointedly excludes an already-parked waiter — good ear), 'no concurrency the docs do not promise', and a remediation menu kept out of source comments and into the report and commit body. Verified: red on exactly the drift, everything else race-clean. Top marks."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_looped_opus__r1",
+      "rating": 8,
+      "review": "A clean file and a thoughtful loop, held back by the hand-off shape. The critique stripped a report.md pointer and the exemplar's 1e9-ceiling framing out of committed comments (right), and the run REJECTED the push to make the transplanted tests look less like the exemplar with the correct argument — same contract, manufactured divergence is cargo cult (also right; I'd rather honest imitation than cosmetic difference). But it also rejected restoring the zero-ticker case, so the suite ships green (verified: all pass) with the drift living in a commented row and the report. Comment-out is the fallback; restore-at-hand-off is the rule, and a green suite does not force my ruling. The 'bucket starts full' prose-residue catch in my doc is a fair find, though headline billing overstates it for a token-bucket package. No rate-translation smell finding. Solid, not fearless."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_looped_opus__r2",
+      "rating": 8,
+      "review": "The most immaculate committed file of the looped limiter runs — the critique cut 'This pins that promise.' (correct: true of every test, says nothing) and deleted the invented-sibling comment outright — and the sharpest single report: it distinguishes a silent-promise gap from a dropped guard, states an inclination (synchronous guard, with the blast-radius argument) while leaving me the call, and defends the exemplar resemblance on the honest ground that the contracts are identical. But the committed artifact carries NO trace of the crash at all — no red row, no parked row, nothing (verified: suite green under -race). Its claim that no committable test shape exists is refuted by the fable replicate that asserts the prose and fails; report-only is the weakest artifact shape for a drift, however good the prose around it. No package-smell finding either. Great engineering note, undersized hand-off."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_looped_opus__r3",
+      "rating": 8,
+      "review": "The loop caught a fake test — the prior draft had an unconditional t.Errorf that never called New — and replaced it with a parked row beside its sibling invalid-rate rows, which is at least the right neighborhood. Green at hand-off again though (verified: all pass), and the row comment pre-commits 'New should reject it' while the report carefully presents both readings; pick one voice. The interesting judgment call: it relaxed the exemplar's exact-900ms wait to 'served within one refill interval', arguing the phase is implementation, not prose. That is defensible go-doc-first purism argued in the open, and I respect it even though inside a synctest bubble I'd keep the exact assertion — virtual time makes the phase deterministic and the tighter check catches cadence bugs; my exemplar asserts it on purpose. Burst-0 flow is clean. Missing the rate-translation smell, like every opus run."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_looped_sonnet__r2",
+      "rating": 4,
+      "review": "This run edited MY package. It added an upper-bound guard to New, rewrote the exported doc comment to promise 'between 1 and 1e9', reworded my prose, and then reported the suite green (verified: SOURCE MODIFIED, all tests pass). The justification is the worst part: the skill's bundled exemplar resolves the same scenario with that guard, so 'the fixture itself is the strongest evidence of the maintainer-intended fix.' No. The exemplar is a worked demonstration, not canon, and certainly not this package's contract — you must not learn my contract from my other code any more than from the Go team's. Drift is a finding: ask the owner, side with prose, leave the decision visible; every other run in both modes understood that changing exported behavior is my call. Full transparency in the report and tidy engineering keep this off the floor, and the critique fixes it DID make to the test file (dropping the Wait goroutine, de-bucketing the comments) are genuinely good. But a coding agent that resolves contract forks unilaterally is the failure mode I run this whole loop to prevent."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_looped_sonnet__r3",
+      "rating": 7,
+      "review": "The only run that re-derived its own numbers instead of transplanting the exemplar's — New(5, 3), 200ms cadence, 80ms patient wait — and every constant-audit comment checks out when I redo the arithmetic. Zero-burst is straight-line, no goroutine theater. The zero-ticker work is where I hesitate: the subprocess test asserts the crash HAPPENS and passes today (verified: suite green under -race), which commits the panic into the contract suite as current behavior. The report presents the fork honestly and the test's name and comment call the input invalid, so nothing is silent — but a green test asserting a process crash is blessing the panic with extra steps, and it would fight the legitimate clamp fix (a clean child exit fails it). Fable's committed-red shapes force my ruling; this shape survives without one. Subprocess machinery is justified in-code at least, and no leaks anywhere. Good independence, wrong polarity on the drift."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_looped_fable__r1",
+      "rating": 9,
+      "review": "The critique rounds show real judgment: it chose symbol-named sub-tests (Head/Tail — names that read like top-level test names, so sub-tests are earned) over a fn-valued helper to keep truncate.Head visible in the body, accepted the eight repeated recover lines as the price, fixed an example that had no in-function comments, added the generous-limit line my prose headlines, and cut structure-narration from the table's doc comment. The committed result: a three-line display example with a distinct comment per call, a merged table whose row comments name each case's purpose, and a drift test red on exactly TestNegativeCountActsAsZero/Head (verified) with the finding recorded in-repo and earmarked for the commit body. The width-arithmetic story for how callers reach negative n is a nice plausible touch. Docked for a slightly long drift doc comment; otherwise complete."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_looped_fable__r2",
+      "rating": 9,
+      "review": "This is the round-3 headRecovered pattern — the one I called the most elegant balance — reproduced deliberately: the negative-n promise folded into the merged table as a row, a recover helper placed after its use whose whole job is turning Head's panic into an ordinary row failure, and the drift told once in the table's doc comment. Verified: exactly one row fails as an Errorf, every other row runs, the Example executes on the same invocation — the best failing shape in the iteration. The critique disposition even documents the t.Helper attribution nuance inside a deferred recover, which tells me someone actually ran the failure and read the output. 'Panic recovery is the one helper a trivial package earns' — quoted back at me and applied. Nits: the helper's want parameter double-wires the expectation, and the sectioned row comments border on decoration. Excellent."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_looped_fable__r3",
+      "rating": 10,
+      "review": "The fullest synthesis of everything I've said about this package. Per-symbol ExampleHead and ExampleTail (each showing the cut AND the generous-limit affordance with call-site comments) plus the composed Example_display — the sprinkle-of-examples shape I floated in round 3, done without cheaping out. The table is named for the property, TestRunesNotBytes, with the doc's own héllo case flagged as such. The drift test is bare and red at hand-off, with the mask-avoidance placement reasoning kept in the report instead of narrated in code. And the critique caught a factually WRONG comment — the claim that a byte cut at index 5 splits é (it doesn't; index 2 does) — verified it, and fixed it; comment fact-checking is a review skill I didn't expect. Deliberately withheld the negative-n promise from the examples so a rendered page doesn't entrench either side of the dispute before I rule. Verified: red on the one drift test only. This is the target."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_looped_opus__r1",
+      "rating": 9,
+      "review": "The loop worked the file into the right shape: the exemplar-leaking helper doc died with the helper itself, prose-named sub-tests came off the rune table (the failure strings already name the inputs), the single package example split into symbol-attributed ExampleHead/ExampleTail speaking to users about their symbols, and the negative-n test became honestly asymmetric — Tail asserted straight, Head under an inline recover, because the bodies genuinely differ. The report locates the promise-it-or-refuse-to-harden inference in the commit body where it belongs and presents both live resolutions without prescribing. Verified: red on exactly TestNegativeCountYieldsEmptyString/Head, recovered into a readable failure. Docked for thin case selection — five rows orbiting héllo/café, no CJK or 4-byte rune, no empty input — in a package whose whole point is multi-byte boundaries."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_looped_opus__r2",
+      "rating": 9,
+      "review": "Composed breadcrumb Example plus per-symbol examples, a merged table with the negative row folded in under a headRecovered helper whose doc states why a panic is the drift under test, and — the detail I most enjoyed — a reasoned PARTIAL REJECTION of its own critic: asked to demonstrate the negative→empty promise in an example, it declined because examples can only assert passing behavior and Head panics today, so the table row holds that promise instead. That is exactly the judgment I want a looped agent to exercise; applying critiques uncritically is its own failure mode. The café/señor literals get their why-4-and-5 comments per the critique. Verified: exactly one assertion fails (the negative Head row), rest green under -race, source untouched. Positional four-field rows are the one thing golangci-lint and I would both flag; name them."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_looped_opus__r3",
+      "rating": 8,
+      "review": "The critique response reads like it studied my transcript — it removed a fn-dispatch table citing my 'I DO NOT WANT TO SEE THIS PATTERN HERE', declined to fold the negative case into the merged table because the row would need an if (the exact table smell), and split the package example into the per-symbol pair I praised. The asymmetric straight-line negative test is right. Two things cost it: 'Siding with the prose, the golden contract, over the code' sits in a COMMITTED doc comment — 'the golden contract' is skill vocabulary that means nothing to a maintainer reading this repo cold, the same class of leak the critique itself scrubbed elsewhere; and the table is the thinnest of the looped runs (five rows, no ASCII-vs-CJK spread, no empty input). Verified: red on exactly the negative-limit test, recovered cleanly. One jargon sweep and a fatter table from a 9."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_looped_sonnet__r2",
+      "rating": 7,
+      "review": "The self-awareness is impressive and the conclusion still wrong. The run split the negative test in two and named one TestHeadPanicsWhereDocPromisesZero — a test named for the BUG, whose name becomes a lie the day the guard lands and it passes; names claim contract properties, not today's defect. It then chose an unrecovered panic over recover-into-Errorf on the theory that recover 'papers over' the bug — it doesn't; the Errorf still fails, as its own sibling replicates demonstrate — and the cost, which the report itself documents across three paragraphs, is that the mandatory Example_preview gets no verification from a default go test run until the bug is fixed (verified: binary dies on the panic). Writing an essay about the hole instead of adopting the shape that closes it is effort pointed the wrong way. The example scenario is good but Head-only — Tail never appears in any example. Honest report, golangci-lint run, right verdict on the drift itself; the artifact shapes fight their own goals."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_looped_sonnet__r3",
+      "rating": 9,
+      "review": "The loop visibly transformed this run: the prior example was a hash-abbreviation with zero in-function comments and the critique replaced it with Example_abbreviateName — Head + ellipsis + Tail over an accented name whose é sits exactly at the cut, putting the package's reason to exist in the one example pkgsite renders. My favorite catch anywhere in the iteration: the critic noticed a table row lifted VERBATIM from the skill's own reference doc and swapped it for banana rows so the table reads authored, not templated — that is anti-slop instinct applied to data, not just prose. The negative test is two symbol-named sub-tests, Head under recover, red on exactly /Head (verified), with the machinery narration cut from the doc comment per the critique. The report guesses the symmetry intent, offers the doc-weakening alternative, and even flags its own prior report's phantom utils reference. Thin-ish table (no CJK/emoji), else this is a 10."
+    }
+  ],
+  "status": "complete"
+}

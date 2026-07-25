@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Resolution taken is the failing prose-sided test with an honest report. report.md line 2 states the contradiction precisely ('Head's doc promises \"a negative n is treated as zero...\" but Head lacks Tail's n <= 0 guard and slices r[:n] with a negative bound, so it panics; Tail honors the same promise') and TestNegativeCountYieldsEmptyString's doc comment (truncate_test.go:65-70) restates it prominently in the source. The test expects \"\" and converts the panic into t.Errorf, so no committed test blesses the panic as contract. report.md line 4 honestly declares 'go test ./... FAILs only on the deliberate drift test'. truncate.go is byte-identical to the workspace fixture (diff verified), so the drift was surfaced, not silently patched or absorbed."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1 is 'package truncate_test' and it imports example.invalid/truncate; find shows it is the only test file in the module."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file opens with the runnable Example_fitColumn (line 14), then the table test, then the drift test. The only helper, emptyOnNegative (line 79), is defined AFTER its first use (lines 72-73) at the bottom of the file, and it is panic-recovery -- the one helper category the maintainer's rulings sanction for trivial packages (INTENT ruling 2; the sonnet run's analogous 'headRecovered' was praised as 'the most elegant'). Recovery via defer cannot be inlined into a shared call without a function boundary, so it is not trivial indirection."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": false,
+      "evidence": "Double violation. The case struct in TestHeadAndTail has FIVE fields (name, fn, s, n, want) yet every literal is positional: '{\"Head keeps a whole multi-byte rune\", truncate.Head, \"héllo\", 2, \"hé\"}' (truncate_test.go:47-54) -- the named-fields clause applies at three or more fields. And t.Run(c.name, ...) runs prose sub-test names with spaces ('Head at exact length returns the input', 'Tail with zero count returns empty') that render as Head_at_exact_length_returns_the_input; these read as prose descriptions, not Go test names, and are not Field=Value style. The maintainer ruled on this exact package that such descriptions 'don't fit as test names' and should be one continuous test (feedback-3, truncate baseline); the without_skill sibling was failed on the same pattern."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestHeadAndTail uses a single fn-parameterized table: one struct type, one loop, and mirrored scenario rows for both functions (keep-a-rune, exact length, over length, zero), with the doc comment stating the intent ('One table drives both helpers so the front and the back cannot drift apart'). TestNegativeCountYieldsEmptyString pairs both functions through the same emptyOnNegative assertion. No duplicated parallel test structures exist. Noted but not failing: the rows are per-function rather than the maintainer's preferred merged {s, n, head, tail} case, so inputs are not literally shared across the pair (Head rows use n=2/5/40/0, Tail rows n=4/5/40/0)."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": false,
+      "evidence": "TestNegativeCountYieldsEmptyString's doc comment (truncate_test.go:69) says 'This pins the documented promise: ...' -- the test-pins-the-contract phrasing this assertion names as anti-slop (a documented promise IS the contract). Sibling precedent is categorical: without_skill was failed for 'pins the documented contract' and with_skill_opus for 'one table pins both', per the maintainer's ruling 'DO NOT tell maintainers that the test pins some contract because that's true for all tests'. Everything else is clean: both non-trivial tests carry layman rationale comments, no test or example comment opens with its own function name (emptyOnNegative's godoc opening with its name is idiomatic for a helper, per the with_skill_opus precedent), and nothing explains conventions, ordering, or synctest."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example_fitColumn's doc comment speaks to users about the fit-a-narrow-column scenario ('A display layer trims a label to fit a narrow column. Counting runes rather than bytes keeps the trimmed label valid UTF-8...') and states contract, never 'this example shows' narration and never maintainer talk. In-function comments do the prime-real-estate work: the non-obvious input is explained ('five runes, six bytes: é takes two bytes'), the Head call site contrasts against the byte-slice pitfall ('A byte slice label[:2] would split é and leave a mangled character; Head counts runes and stops cleanly'), and the generous-limit call repeats the returned-unchanged contract at the call site."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (honest-red rule applied: the only permitted failure is the deliberate prose-sided drift test, deterministically)",
+      "passed": true,
+      "evidence": "Honest-red rule applied since the run chose the failing prose-sided test resolution. go test -v -count=30 ./...: exactly 30 '--- FAIL: TestNegativeCountYieldsEmptyString' lines and zero other FAILs; TestHeadAndTail passed 30/30 with all sub-tests and Example_fitColumn passed. Every failure carries the identical message ('Head(\"héllo\", -1) panicked (runtime error: slice bounds out of range [:-1]), want \"\"'), so the red is deterministic. go test -race -v -count=5 ./...: 5/5 runs fail only the drift test, TestHeadAndTail passes 5/5, 0 'DATA RACE' lines. The deferred recover in emptyOnNegative keeps the panic from aborting the harness. go build ./..., go vet ./..., and gofmt -l are all clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists and its finding is explicitly labeled 'Finding (author-context)': it states the doc promise, the missing guard, and that Tail honors the same promise, then frames the decision for the author -- 'I sided with the prose (golden over code) and left truncate.go untouched -- did you mean negative-n safety on Head (add the guard) or should that sentence drop from its doc?' That is a direct author-intent question, not a bare observation, and the report also honestly discloses the deliberate red."
+    }
+  ]
+}

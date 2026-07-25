@@ -1,0 +1,79 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in package cache_test",
+      "passed": true,
+      "evidence": "cache_test.go:1 declares `package cache_test` and imports `example.invalid/cache`; every call goes through the exported surface. No internal test file exists."
+    },
+    {
+      "text": "Time and the janitor run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+      "passed": true,
+      "evidence": "All five tests that construct a Cache wrap their bodies in synctest.Test (lines 35, 82, 111, 136, 161), so the janitor goroutine always lives inside a bubble. Every time.Sleep (lines 58, 70, 89, 95, 101, 118) is inside a bubble on virtual time (the 7-day sleep at line 118 completes in 0.00s). No polling loop or wall-clock wait anywhere. TestNewRejectsNonPositiveInterval has no bubble but New panics before the goroutine starts, so no time or janitor runs there."
+    },
+    {
+      "text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T",
+      "passed": true,
+      "evidence": "The only test-spawned goroutines are the 8 clients in TestConcurrentClients (lines 141-149), whose entire purpose is concurrent exercise; nothing else in the suite forks. They assert inside the goroutine via t.Errorf (line 146) rather than collecting values, and being bubble goroutines they are reaped by synctest.Wait() (line 150) plus the bubble-exit guarantee; the WaitGroup clause is satisfied vacuously since no non-bubble goroutines exist."
+    },
+    {
+      "text": "FLOWS over symbols: at least one test or example walks an anticipated user story (set a token with a TTL, read it, let it expire, miss, shutdown); no per-symbol test names; a whole-package scenario name is welcome",
+      "passed": true,
+      "evidence": "TestCache (line 34) is the whole-package scenario: miss on the empty cache, Set two session tokens with different TTLs, read them back, sleep to the first deadline, observe the miss while the second survives, sleep past every TTL, Len drains to 0, deferred Close shuts down. The package Example (line 14) walks the store/lookup/unknown-session story. Names are property sentences (TestSetReplacesValueAndTTL, TestCloseIsFinal, TestNonPositiveTTLNeverExpires), never bare symbol pointers like TestSet/TestGet."
+    },
+    {
+      "text": "Names claim package properties in plain English without receiver stutter",
+      "passed": true,
+      "evidence": "No name repeats the Cache receiver (no TestCacheGet/TestCacheClose). Each reads as a plain-English claim: TestSetReplacesValueAndTTL, TestNonPositiveTTLNeverExpires, TestConcurrentClients, TestCloseIsFinal, TestNewRejectsNonPositiveInterval. TestCache is the whole-package scenario name the assertion set explicitly welcomes."
+    },
+    {
+      "text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified; no run-time arithmetic deriving expectations",
+      "passed": true,
+      "evidence": "Bodies are linear set/sleep/assert sequences with literal durations (10*time.Minute, 40*time.Minute, 7*24*time.Hour: constant authoring-time arithmetic) and literal expected strings (\"alpha\", \"beta\", \"long\", \"forever\"). The single helper is mustPanic (line 194), the panic-recovery helper that a trivial package legitimately earns; nothing else is factored out. TestConcurrentClients builds \"token-\"+key per goroutine, but that is the input echoed back as a round-trip check, not an expectation derived by arithmetic mirroring the implementation."
+    },
+    {
+      "text": "File order builds complexity: examples first (or a separate example_test.go), typical patterns before edge orchestration, helpers after first use",
+      "passed": true,
+      "evidence": "Order is Example (line 14) -> whole-package typical flow TestCache (34) -> replacement semantics (81) -> no-expiry boundary (110) -> concurrent orchestration (135) -> Close lifecycle (160) -> constructor panic edge (184). mustPanic is defined at line 194, after its only caller at line 186. No convoluted helper opens the file."
+    },
+    {
+      "text": "A representative runnable example of the typical call pattern is present and follows the audience rules",
+      "passed": true,
+      "evidence": "Example() (lines 14-29) is the anticipated session-token pattern: New, deferred Close, Set with a TTL, Get hit printing the token, Get miss for an unknown session, with a real // Output: block (it executes and passes under go test -v). The doc comment describes the scenario for pkgsite users and never names the function or narrates code."
+    },
+    {
+      "text": "Documented boundaries are exercised as documented: ttl <= 0 stores without expiry, Get hides expired entries before the janitor sweeps, Close idempotence, the documented panic on non-positive janitor interval",
+      "passed": true,
+      "evidence": "ttl <= 0: TestNonPositiveTTLNeverExpires stores with 0 and -time.Minute and both survive a week of hourly sweeps. Read-side expiry before the janitor: TestCache deliberately uses a 1h janitor interval exceeding every TTL (10m/30m) so the misses at line 60 can only come from Get/Len, as its doc comment states; the in-body comment at lines 56-57 even pins the deadline-instant boundary (`!now.Before(deadline)` in cache.go:65). Close idempotence: TestCloseIsFinal calls Close twice (lines 164, 178) plus post-Close Get-miss and Set-no-op. Panic: TestNewRejectsNonPositiveInterval covers 0 and negative intervals via mustPanic."
+    },
+    {
+      "text": "The package's DOCUMENTED concurrency safety is tested as promised (this package explicitly promises concurrent use, so concurrent exercise is in-contract), without statistical race-hunting theatrics",
+      "passed": true,
+      "evidence": "cache.go:21 promises \"All methods are safe for concurrent use\"; TestConcurrentClients runs 8 realistic client goroutines doing Set+Get while the janitor runs, inside a synctest bubble, then checks Len. No thousand-iteration hammering or unrealistic interleaving patterns; the -race stability run (5 counts, pass) backs it."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Every doc comment is a layman-readable contract claim opening with the subject, not the function name (\"A session token is visible exactly until its TTL elapses...\", \"Overwriting a key adopts the new value and the new TTL...\", \"After Close the cache stays empty and inert...\"). TestCache's comment carries genuine rationale (janitor interval exceeds every TTL so misses prove read-side expiry). Zero comments about conventions, ordering, synctest mechanics, or 'pins the contract'; the only in-body comment (lines 56-57) explains the deadline-instant boundary, which is contract, not narration."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "The Example doc comment (\"This example stores a session token under its session ID and looks it up on a later request.\") addresses users about the scenario in the encoding/json style; no maintainer talk, no code narration. In-function comments are absent but no input is a bare magic literal (New(1,2) grade): the strings are self-descriptive session IDs/tokens and the durations are typed; the explicit per-entry TTL on Set disambiguates New's argument as something other than a TTL. Borderline observation: a call-site note on New(time.Minute) being the janitor sweep interval would have been prime real estate, but nothing here violates the audience rules."
+    },
+    {
+      "text": "Contexts (if any are needed) come from t.Context()",
+      "passed": true,
+      "evidence": "Vacuously satisfied: the Cache API takes no contexts and the suite creates none (no context import in cache_test.go), so there is no context to source incorrectly."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Grader ran both in outputs/ with go1.26.5 darwin/arm64: `go test -count=30 ./...` -> `ok example.invalid/cache 0.336s` (zero failures) and `go test -race -count=5 ./...` -> `ok example.invalid/cache 1.249s`. go vet was also clean. A verbose -count=1 run shows all 6 tests plus the Example passing."
+    },
+    {
+      "text": "report.md exists with the run's findings, any quirk carrying author-context framing",
+      "passed": true,
+      "evidence": "report.md exists (5 content lines): states the go-doc-first blind method and that no prose/code drift was found including the deadline-instant boundary; the one quirk (janitor sweeps unobservable through the API, covered only via lifecycle and leave-live-entries-alone checks) is framed with author context: \"worth noting if sweep metrics are ever wanted\". Status line records build/vet/race runs."
+    }
+  ]
+}

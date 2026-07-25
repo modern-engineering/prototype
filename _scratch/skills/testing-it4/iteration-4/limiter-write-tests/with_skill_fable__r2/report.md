@@ -1,0 +1,5 @@
+# limiter tests — engineer's note
+
+Wrote `limiter_test.go` (external `package limiter_test`) from the go-docs: a runnable `Example_throttle` showing the Allow-then-Wait gateway pattern, a synctest whole-lifecycle scenario (burst, deadline-exceeded wait, exact 900ms refill wait, lull capped at burst, ErrClosed winning over leftover tokens after Close), a burst-0 test pinning the package doc's pure-pacing promise, and a panic table for New.
+Finding before the PR: New's doc bounds rate only below ("not positive"), but any rate above 1e9 floors the refill interval to zero and NewTicker(0) panics inside the refill goroutine, crashing the whole process where no caller can recover — I assume you meant to reject it in New (or bound rate in the doc); I left a deliberately failing table row (rate: 2_000_000_000) in TestNewPanicsOnInvalidArguments with a comment so it isn't dropped silently.
+Status: `go build ./...` clean; `go test ./...` FAILS solely from that row (binary dies with "panic: non-positive interval for NewTicker"); excluding it, everything passes under `-race`.

@@ -1,0 +1,4 @@
+Added `cache_test.go`: a session-store `Example`, a synctest-driven `TestCacheLifecycle` covering ttl expiry-on-read ahead of the janitor sweep, permanent entries, ttl-reset on replacement, and post-Close no-op/miss semantics, plus a table test for `New`'s panic on a non-positive janitor interval.
+Doc comments and code agree on every point tested (ttl<=0 is permanent, expiry is enforced on read before the janitor runs, Close is idempotent and terminal) — no drift to flag back to the author.
+One judgment call: didn't try to observe the janitor goroutine actually deleting map entries, since that's an internal detail the docs don't expose (`Get`/`Len` already promise expiry-on-read regardless of the janitor); testing it would mean peeking at unexported state.
+`go build ./...` and `go test ./...` (plus `-race`) all pass; no changes needed to `cache.go`.

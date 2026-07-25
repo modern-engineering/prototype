@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominently in code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "report.md 'Finding' section states the drift precisely: Head's doc promises 'A negative n is treated as zero' but only Tail has the n <= 0 guard, so Head(s, negative) panics. Resolution is the enumerated failing-prose-sided-test option: TestNegativeNIsTreatedAsZero asserts Head(\"hello\", -3) == \"\" and report.md declares it 'a deliberate failing test with a stated reason, not an oversight'. Verified: go test ./... fails exactly there (panic at truncate_test.go:53 from truncate.go:23 slice bounds). grep shows no recover() and no test expecting a panic, so nothing blesses the panic. The test's doc comment also flags that Tail 'is the only one of the two that actually special-cases n <= 0'."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1: 'package truncate_test'; imports 'example.invalid/truncate' and calls truncate.Head/truncate.Tail through the exported surface. go vet and go build pass."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file contains exactly three functions (grep -c 'func ' = 3): Example(), TestHeadAndTailStayRuneSafe, TestNegativeNIsTreatedAsZero. Zero helpers, zero indirection; the file opens with the runnable Example. All assertions are direct calls compared inline."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The one case struct has four fields (s, head, tail, n) and every literal uses named fields, e.g. {s: \"héllo\", n: 3, head: \"hél\", tail: \"llo\"} (truncate_test.go:30-33). grep finds no t.Run anywhere: no sub-tests, so no prose-named sub-test violations."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestHeadAndTailStayRuneSafe uses a single merged case struct carrying both expectations ({s, n, head, tail}) with paired Head and Tail assertions in one loop, the exact pattern the maintainer suggested ({\"hello\", 3, \"hel\", \"llo\"}). TestNegativeNIsTreatedAsZero likewise holds both functions to the shared negative-n promise in one function. No duplicated parallel test structures exist."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "The non-trivial deliberately-failing TestNegativeNIsTreatedAsZero carries a layman rationale (both docs promise the same words, so both are held to the promise rather than to Tail's code). TestHeadAndTailStayRuneSafe's comment states the mirrored contract being exercised. Comments open with the symbols under test ('Head and Tail...'), never with the test function's own name. grep -Ei 'pin|synctest|conventi|orderin|comes first' over truncate_test.go returns no matches."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example()'s doc comment speaks to users about the scenario ('Shortening a UI label to a display budget is the anticipated call... a multi-byte character sitting at the cut point comes through whole instead of as a mangled trailing byte'); it never narrates the fmt.Println lines nor addresses maintainers. The example body has no in-function comments, but the only non-obvious aspect of the inputs (the multi-byte é at the cut point of Head(\"héllo\", 2)) is explained coherently in the doc comment directly above the two calls, a placement the maintainer explicitly accepted in the units-run feedback ('the way it is phrased actually makes more coherent sense together'). Caveat: the example is thin (two calls, no pass-through or negative-n line), so it satisfies the assertion but does not showcase the full contract."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (truncate-drift honest-red rule applied)",
+      "passed": true,
+      "evidence": "Honest-red rule applied: the only failure in go test ./... is the deliberate prose-sided TestNegativeNIsTreatedAsZero (panic in Head at truncate_test.go:53, exactly as report.md documents; the Tail half emits no error before the panic). Excluding that one test: go test -count=30 -run '^(TestHeadAndTailStayRuneSafe|Example)$' ./... passed (ok, 0.215s) and go test -race -count=5 -run '^(TestHeadAndTailStayRuneSafe|Example)$' ./... passed (ok, 1.342s). Zero non-deliberate failures."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with a dedicated 'Finding (author-context framing)' section. The drift finding is framed as an owner decision, not a bare observation: 'Before this ships in utils, the owner should pick one fix: add the same n <= 0 guard to Head that Tail already has, or soften Head's doc comment.' It also explains why prose was sided with (doc outranks implementation) and why the code was not patched (task scoped to tests), and the Final status section honestly reports the failing test."
+    }
+  ]
+}

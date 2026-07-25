@@ -1,0 +1,3 @@
+Added cache_test.go: one representative ExampleCache, a synctest-driven scenario proving Get/Len enforce expiry on read before the janitor ever sweeps, a synctest-driven Close test whose deadlock detection doubles as the janitor-goroutine-leak check, and a table+recover test for New's non-positive-interval panic.
+Sanity-checked the Close test by deleting close(c.stop) locally: it failed with a synctest deadlock panic as designed, then restored the original cache.go (verified byte-identical, 3335 bytes) before finishing.
+go build ./..., go vet ./..., go test ./..., and go test -race ./... all pass honestly; gofmt -l . reports no diffs.

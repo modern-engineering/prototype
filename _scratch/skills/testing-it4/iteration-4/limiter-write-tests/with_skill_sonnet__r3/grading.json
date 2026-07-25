@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in package limiter_test",
+      "passed": true,
+      "evidence": "limiter_test.go line 1 declares `package limiter_test`; the module is exercised through its exported API only (import \"example.invalid/limiter\", line 13)."
+    },
+    {
+      "text": "Concurrency and timing run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+      "passed": false,
+      "evidence": "TestThrottleLifecycle and TestZeroBurstDeliversOnlyToWaiters run under synctest.Test with in-bubble sleeps (lines 91, 104, 136) and no polling loops anywhere. But line 181 `time.Sleep(100 * time.Millisecond)` in TestNewRejectsARateItCannotServe's subprocess branch is a wall-clock sleep outside any bubble, and it is load-bearing: it is the grace period for the refill goroutine's async panic to fire before os.Exit(0); if the panic took longer the test outcome would flip. The assertion says any time.Sleep sits inside a bubble; this one does not."
+    },
+    {
+      "text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T rather than collecting values back",
+      "passed": true,
+      "evidence": "Exactly one spawned goroutine (line 125), inside the synctest bubble, and it is necessary: a caller must be parked in Wait while the main goroutine asserts Allow. It asserts inside via t.Errorf (line 127) rather than sending values back; no channels collect results. No non-bubble goroutines exist, so no WaitGroup is required. (Note: this orchestration harbors the flake recorded under STABILITY, but the shape itself matches the assertion.)"
+    },
+    {
+      "text": "FLOWS over symbols: at least one test or example exercises an anticipated user flow (e.g. gate with Allow, fall back to Wait when it returns false, Close on shutdown); no per-symbol test names (TestAllow etc.); a whole-package scenario name like TestLimiter is welcome",
+      "passed": true,
+      "evidence": "Example_throttle is exactly the anticipated flow: gate with Allow, fall back to Wait when Allow returns false (lines 32-38), Close on shutdown. TestThrottleLifecycle walks a whole client story (burst, timeout, patient wait, lull, shutdown). Names are property/scenario claims (TestZeroBurstDeliversOnlyToWaiters, TestNewPanicsOnInvalidArguments); grep finds no bare per-symbol names like TestAllow/TestWait/TestClose."
+    },
+    {
+      "text": "Names claim package properties in plain English without receiver stutter",
+      "passed": true,
+      "evidence": "TestThrottleLifecycle, TestZeroBurstDeliversOnlyToWaiters, TestNewPanicsOnInvalidArguments, TestNewRejectsARateItCannotServe: each reads as a plain-English property or scenario claim; none stutters the Limiter receiver (no TestLimiterAllow-style names)."
+    },
+    {
+      "text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified (a panic table with a recover helper naming inputs and their invalidity is the expected shape here); no run-time arithmetic deriving expectations",
+      "passed": true,
+      "evidence": "Bodies are straight-line with hard-coded expectations (exact 900ms wait at line 85, literal sleeps 4500ms/2500ms, hard-coded token counts). The only helper is mustPanic (line 156), precisely the expected shape: recover helper whose parameters name the inputs and an `invalidity` string naming what makes them invalid. No expectation is derived by run-time arithmetic; the 900ms figure is justified in prose (lines 78-80), not computed."
+    },
+    {
+      "text": "File order builds complexity: examples first (or a separate example_test.go), typical call patterns before edge orchestration, any helper defined after its first use",
+      "passed": true,
+      "evidence": "Order: Example_throttle (line 19) -> TestThrottleLifecycle typical flow (54) -> TestZeroBurstDeliversOnlyToWaiters edge (116) -> TestNewPanicsOnInvalidArguments table (140) -> mustPanic helper defined at line 156, after its first use at line 150 -> the most complex orchestration, the subprocess crash test, closes the file (177)."
+    },
+    {
+      "text": "A representative runnable example of the typical call pattern is present and follows the audience rules",
+      "passed": true,
+      "evidence": "Example_throttle is runnable (// Output: block, lines 44-47) and captures the Allow-then-Wait-fallback pattern the maintainer named as mandatory. Doc comment speaks about the bursty-client scenario for pkgsite readers; in-function comments explain the non-obvious New(2, 2) literals (line 20) and repeat the contract at call sites (defer Close, line 22; Close idempotence at the explicit second Close, lines 40-41)."
+    },
+    {
+      "text": "Invalid-input coverage includes the zero-interval boundary: a rate large enough that the refill interval truncates to zero is exercised alongside the documented panic cases",
+      "passed": true,
+      "evidence": "TestNewPanicsOnInvalidArguments covers the documented panics (zero rate, negative rate, negative burst). TestNewRejectsARateItCannotServe exercises New(2_000_000_000, 1), whose time.Second/rate floors to a zero interval, contained in a subprocess because the resulting time.NewTicker panic crashes the process from the refill goroutine. The boundary is genuinely exercised; go test confirms the subprocess crashes with exit status 2."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "The three non-trivial tests carry layman rationale doc comments; the trivial panic table carries none. No test/example doc comment opens with its own name (mustPanic's godoc-style opener is a plain helper, where that convention is correct). grep finds no 'pin', no ordering talk, no convention talk, no synctest-mechanics explanations (line 130's comment states test intent, not bubble mechanics). Caveat outside the assertion's enumerated categories: lines 173-175 cite 'the sibling bucket package' which does not exist in this module; it is the skill's bundled exemplar (skill-v4/exemplar/bucket.go) leaking into a maintainer-facing comment as a fabricated codebase fact."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example_throttle's doc comment describes the throttle scenario from the user's seat ('A bursty client is the typical caller...') without narrating statements or addressing maintainers. In-function comments explain the non-obvious New(2, 2) inputs, why Close is deferred, that the bucket starts full, and that the explicit second Close is safe because Close is idempotent, each at its call site."
+    },
+    {
+      "text": "Contexts come from t.Context() unless a reason is stated",
+      "passed": true,
+      "evidence": "All test contexts derive from t.Context(): lines 72 (WithTimeout over t.Context()), 82, 106, 126. context.Background() appears only inside the runnable example (line 33), where no *testing.T exists and pkgsite readers expect a plain context."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": false,
+      "evidence": "Ran both. go test -count=30 ./...: FAIL on two independent grounds. (1) TestNewRejectsARateItCannotServe fails deterministically every run by design (deliberate honest-red asking New to guard the zero-interval rate); the honest-red allowance applies to the truncate-drift eval, not here. (2) TestZeroBurstDeliversOnlyToWaiters flakes: in every -count=30 batch (3/3, and reproducible in isolation with -run) the binary aborts with 'panic: Fail in goroutine after TestZeroBurstDeliversOnlyToWaiters has completed' from the waiter's t.Errorf at line 127. Mechanism: the 1s Sleep expiry and the first tick coincide in the bubble; when the closure returns first, the deferred Close makes the refill goroutine take the done branch, the parked Wait never receives its token, and the goroutine asserts after the test completed. go test -race -count=5 ./... also FAILs with the same panic. go vet ./... is clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists, honestly discloses the one deliberately failing test, and frames the zero-interval finding 'for the author' with a position rather than a bare observation: New returns successfully but the process later crashes from the refill goroutine, and the test 'is asking for the same upper-bound guard ... before this ships'. The finding itself is verified true (subprocess exit status 2). Caveat: the framing cites 'its sibling bucket.New (which caps rate at 1e9)', a package that does not exist in the graded module; it is the skill's bundled exemplar leaking into the deliverable as if it were codebase fact."
+    }
+  ]
+}

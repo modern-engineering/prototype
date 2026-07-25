@@ -1,0 +1,9 @@
+Blocking finding before anything else: `New` only guards `rate <= 0`, so a caller passing a very large rate (e.g. `2_000_000_000`) sails past the check, and `time.Second/time.Duration(rate)` floors to `0`; the refill goroutine then hands that to `time.NewTicker(0)`, which panics *in that unrecovered background goroutine* and takes the whole process down instead of failing `New` the way your other invalid-argument panics do. `TestNewCrashesOnRateAboveOnePerNanosecond` proves this out from a subprocess (the crash can't be recovered from the test's own goroutine, and letting it happen in-process would take the rest of the suite down with it) and passes today because it asserts the crash actually happens, not that `New` panics synchronously.
+
+This is a fork for you to resolve, not something I've decided for you: either harden `New` with an upper-bound guard mirroring its existing rate/burst checks (this would change the panic contract, and the crash test above would need to move into the synchronous `TestNewPanicsOnInvalidArguments` table once it does), or accept today's unbounded-rate behavior as a known limitation and keep testing that it doesn't get quietly worse (e.g. a silent clamp instead of a crash). Either way, the crash test above stays meaningful: it only checks that construction still ends in a panic somewhere, so it survives whichever direction you pick.
+
+Also added: an `Example_throttle` runnable example, a synctest-driven `TestThrottleLifecycle` covering burst exhaustion/impatient+patient Wait/lull-capped refill/Close precedence, and `TestZeroBurstOnlyAdmitsAnAlreadyWaitingCaller` covering the burst-0 contract your doc comment calls out.
+
+Everything else matches the doc comments as written, so no other drift found.
+
+Status: `go build ./...`, `go vet ./...`, `go test ./...`, and `go test -race ./...` (5x) all pass; `gofmt -l .` is clean.

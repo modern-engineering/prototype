@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominently in code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Resolution taken is the failing prose-sided test with an honest report. outputs/truncate.go is byte-identical to the fixture (diff clean), so the panic was not silently patched over nor half-fixed. TestNegativeLimitYieldsEmptyString (truncate_test.go:73-87) asserts the doc-promised \"\" for Head(-1), recovering the panic into t.Errorf so the run stays red: verified live, `Head(\"héllo\", -1) panicked (runtime error: slice bounds out of range [:0]...), want \"\"` fails on every run. Its doc comment (lines 69-72) states the contradiction: 'Tail honors that; Head panics instead, so this fails until Head grows the guard.' report.md's Finding section states the same drift and declares the deliberate red. No test or example anywhere asserts or expects the panic as correct behavior."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1: `package truncate_test`; imports `example.invalid/truncate` and calls truncate.Head/truncate.Tail throughout. go vet and go build pass."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file contains zero helper functions or types: only ExampleHead, ExampleTail, TestTruncatesToRuneCount, TestNegativeLimitYieldsEmptyString (grep for func declarations). The file opens with the two per-function stdlib-style examples. The prior iteration's func-value dispatch table and trimRecovering helper were removed (report.md Critique response, Finding 1); the negative-n test now makes two straight-line calls with an inline defer/recover."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The single case struct has four fields {s, n, head, tail} and every row uses named fields, e.g. `{s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"}` (truncate_test.go:53-57). There are no sub-tests at all (grep for t.Run: no hits), so no prose-named sub-tests exist; both tests are continuous top-level tests."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestTruncatesToRuneCount uses the merged case struct the maintainer suggested ({s, n, head, tail}) with paired Head and Tail assertions on the same inputs in one loop (truncate_test.go:59-66). TestNegativeLimitYieldsEmptyString also covers both functions in one test, asymmetrically only where behavior actually diverges (Tail plain equality, Head under recover). No duplicated per-function table structure exists."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Both non-trivial tests carry layman rationale doc comments (mirroring rationale at lines 42-46; drift rationale at lines 69-72). No comment opens with its own function name: ExampleHead/ExampleTail comments open with 'Head'/'Tail' (the attributed symbols, the sanctioned pattern), test comments open with 'Head and Tail mirror...' and 'The doc promises...'. grep -iE 'pins|pinned|convention|ordering|synctest|comes first|later tests' returns no hits. Borderline noted: the fragment 'Siding with the prose, the golden contract, over the code' (line 72) leans on skill jargon ('golden contract'), but it is a test-specific decision rationale telling maintainers why the test is red, not a convention/ordering/mechanics lecture, and matches none of the enumerated anti-slop categories."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "ExampleHead's doc comment (lines 10-12) speaks about Head's contract for users ('keeps the first n runes, counting characters rather than bytes... A limit larger than the input is not an error'); ExampleTail mirrors it. Neither narrates the example code, describes the example function itself, or addresses maintainers. In-function comments explain the non-obvious literals and contract at call sites: '\"héllo\" is five runes but six bytes; asking for two runes keeps \"hé\" whole, where the byte slice \"héllo\"[:2] would cut é in half' (lines 14-15) and the generous-limit affordance (lines 18-19, 34-35). Both examples pass with Output blocks."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (truncate-drift honest-red rule: the only failure, in every run, is the deliberate prose-sided drift test)",
+      "passed": true,
+      "evidence": "Honest-red rule applied. go test -count=30 -v: TestNegativeLimitYieldsEmptyString failed 30/30 with the identical deliberate message, TestTruncatesToRuneCount passed 30/30, ExampleHead/ExampleTail passed (Go runs examples once regardless of -count). go test -race -count=5: same pattern, 5/5 deliberate failures only, zero 'DATA RACE' reports. No flakiness: no test other than the declared drift test ever failed, and the red test never varied. report.md's Status section honestly declares exactly this one deliberate failure; verified claims (gofmt -l clean, go vet clean, go build clean) all reproduce."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with a 'Finding (author-context)' section. It goes beyond a bare observation: infers intent ('The forgiving behavior Tail already has is clearly the intent, so I sided with the prose'), and frames the open decision for the author: 'Whether to actually harden Head or narrow the doc is the author's call; that decision belongs in the commit body when the fix lands.' Status section reports verification honestly, including the deliberate red."
+    }
+  ]
+}

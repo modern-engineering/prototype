@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Took the failing-prose-sided-test resolution. TestHeadNegative (truncate_test.go:56-65) asserts the doc's promise (want \"\"), recovers the panic and converts it to t.Errorf('Head(\"hello\", -1) panicked ... doc promises it returns \"\"'). Its doc comment says 'KNOWN FAILURE, left in deliberately' and explains the missing n <= 0 guard. report.md line 4 states the contradiction and that the test 'deliberately asserts the documented contract and FAILS'. TestHead's table has no negative-n case, so no committed test blesses the panic. truncate.go is byte-identical to the supplied package (diff vs with_skill copy: unmodified), and go test confirms the test fails red on the panic."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "grep '^package' shows truncate_test.go:4 and example_test.go:1 both declare 'package truncate_test'; only truncate.go declares 'package truncate'."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The suite defines zero helpers: the only test-file functions are TestHead, TestHeadNegative, TestTail, ExampleHead, ExampleTail (grep '^func'). truncate_test.go opens with a short package comment and goes straight into TestHead. example_test.go carries per-function stdlib-style ExampleHead and ExampleTail with // Output: lines."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": false,
+      "evidence": "The four-field case structs do use named fields ({name: ..., s: ..., n: ..., want: ...}), but both TestHead and TestTail run t.Run(tt.name, ...) over prose names with spaces: 'ascii shorter than limit', 'cut lands after multibyte rune', 'empty input zero limit' (truncate_test.go:20-31, 74-85). These read as prose descriptions, not Go test names, and are not Field=Value style; the maintainer ruled on this exact package that such cases 'should be one long continuous test' (feedback-3 truncate baseline: 'I would not use sub-tests, this is a classic case of test descriptions that don't fit as test names'). The prose-named sub-tests were not inlined."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": false,
+      "evidence": "TestHead (truncate_test.go:13-43) and TestTail (truncate_test.go:67-98) each define their own anonymous case struct and an identical runner loop (same got/want Errorf plus the same utf8.ValidString check), duplicated verbatim. No shared or named case type, no merged {s, n, head, tail} cases, and no paired Head/Tail assertions anywhere; the symmetry is only implicit in parallel case naming. This is the blind structural duplication the assertion excludes (maintainer: 'a single test, with its test-case stating results for both Head and Tail ... {\"hello\", 3, \"hel\", \"llo\"}')."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": false,
+      "evidence": "TestHeadNegative's doc comment (truncate_test.go:45) opens 'TestHeadNegative pins the documented contract: ...' — it both opens with its own function name and uses the banned 'pins the ... contract' phrasing, two explicit anti-slop violations in one line (grep 'pins' hits it). The rationale content itself is good and in layman's terms, and the trivial table tests rightly carry no per-function comments, but the two prohibited patterns fail the assertion."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": false,
+      "evidence": "Neither example has any in-function comment beyond the // Output: directive (grep '//' example_test.go), yet the inputs are exactly the non-obvious kind the assertion targets: Head(\"héllo\", 2) and Tail(\"héllo\", 4) hinge on n counting runes not bytes (é is one rune, two bytes) and nothing at the call sites says so. ExampleTail carries no comment at all. ExampleHead's doc comment 'The doc example: two runes, three bytes, still valid UTF-8.' is maintainer-voiced provenance (pointing at the package doc's example) rather than speaking to pkgsite users about Head's behavior. The in-function-comments conjunct is plainly unmet."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (honest-red rule applied: the only permitted failure is the deliberate prose-sided drift test, deterministically)",
+      "passed": true,
+      "evidence": "Honest-red rule applied since the run chose the failing prose-sided test resolution. go test -count=30 ./...: exactly 30 '--- FAIL: TestHeadNegative' lines, zero FAIL lines for any other test — the honest red fires deterministically every run and nothing else flakes. go test -race -count=5 ./...: 5/5 runs fail only TestHeadNegative, 0 'DATA RACE' reports. The recover() in TestHeadNegative keeps the panic from aborting the harness, so all 26 other subtests and both examples pass in every run. gofmt -l clean, go vet clean, go build clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with the run's findings: the Head negative-n drift and a layout mismatch (code is a standalone module, not ./truncate in a utils module). The drift finding is framed for the author, not observed barely: it presents both resolution paths ('it will pass once the two-line guard is added, or should be updated if the doc is amended instead'), grounds the choice in contract terms ('since the docs are the public contract'), and asks for a decision before shipping ('Please fix before shipping'). The status line honestly reports 1 expected failure with reason."
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "Resolution taken is the failing prose-sided test with an honest report. report.md states the drift explicitly: 'both doc comments promise \"a negative n is treated as zero\". Tail has the n <= 0 guard and honors it. Head lacks the guard and panics on r[:n]'. The TestTruncate doc comment (truncate_test.go:31-33) states it prominently: 'Tail delivers on that promise; Head panics today. The negative-n row fails until the owner adds Head's missing guard or amends the prose.' No test blesses the panic: the {s: \"héllo\", n: -1, head: \"\"} row sides with prose, and headRecovered converts the panic into an ordinary Errorf failure wanting \"\". truncate.go is byte-identical to all 18 sibling runs (md5 0a519b00...), so the drift was not quietly patched away."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1: 'package truncate_test'. It is the only test file in outputs/; no in-package (package truncate) test file exists. go build ./... and go vet ./... pass."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file opens with Example() (line 14), then TestTruncate (line 34); the sole helper headRecovered is defined at line 67, after its first use at line 56. headRecovered is panic recovery, not trivial indirection: defer/recover cannot be inlined per-row, and the maintainer's rulings name panic-recovery as the one helper a trivial package earns (INTENT.md ruling 2; feedback-3 praised the identical headRecovered pattern as 'the most elegant to my taste')."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The four-field case struct {s, n, head, tail} uses named fields in every literal, e.g. {s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"} (truncate_test.go:41-53); grep finds no unnamed composite literals. No sub-tests exist (grep 't.Run' finds nothing), so no prose-named sub-tests to inline."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "A single merged case struct carries both expectations (head and tail fields), and one loop asserts both functions against each shared input (truncate_test.go:55-62). This is exactly the maintainer's suggested pattern from feedback-3 ('a single test, with its test-case stating results for both Head and Tail... {\"hello\", 3, \"hel\", \"llo\"}'). No duplicated per-function table structure exists."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "TestTruncate (non-trivial: red by design) carries a layman's-terms rationale doc comment about the drift (lines 31-33). Neither test function's comment opens with its own name (Example's opens 'Display surfaces trim text...', TestTruncate's opens 'Both doc comments promise...'); TESTS.md scopes the never-open-with-name rule to test functions, and headRecovered is a plain helper where godoc name-first convention applies, and its comment adds value rather than echoing. grep for 'pin', 'convention', 'order', 'synctest' in truncate_test.go returns nothing."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "The package Example's doc comment (lines 10-13) speaks to users about the package's display-trimming scenario and the rune-counting contract; it neither narrates statements nor addresses maintainers. In-function comments explain the non-obvious literals and repeat contract at call sites: the preview-column framing for Head(...,6), 'The interesting end of a long path is its file name' for Tail(...,9), and 'Short values pass through unchanged, so a generous limit is safe without measuring the input first' for Head(\"ok\", 40). The Example runs and passes (go test -v: '--- PASS: Example')."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Graded under the eval's honest-red rule (committed suite is deliberately red on the drift row only). go test -count=30 ./...: all 30 runs fail solely on TestTruncate with the identical deterministic message 'Head(\"héllo\", -1) = panic(runtime error: slice bounds out of range [:-1]), want \"\"' (30/30 occurrences); filtering that row and its FAIL lines leaves zero other failures. go test -race -count=5 -v ./...: 5/5 TestTruncate failures on the same row only, Example passes, zero DATA RACE warnings. The panic is recovered so all other rows run and pass on every iteration; report.md honestly declares the red state and that the suite goes green when Head's guard lands."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists and records the drift finding with author-context framing: 'The asymmetry with its sibling reads as an oversight in Head, not a deliberate choice, so the likely intent is to add Head's two-line guard rather than amend the prose. The owner should rule before ship.' It infers likely intent and defers the ruling to the owner rather than stating a bare observation, and honestly documents the red status with the exact failure."
+    }
+  ]
+}

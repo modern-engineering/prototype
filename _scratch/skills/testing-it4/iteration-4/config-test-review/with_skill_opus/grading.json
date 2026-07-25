@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Per-symbol tests are consolidated into whole-package contract scenarios and/or runnable examples (package-level Example() or a TestConfig-style scenario both welcome)",
+      "passed": true,
+      "evidence": "config_test.go contains exactly three functions: package-level Example() (line 27), TestConfig (line 48) driving Load plus every accessor and default fallback in one flow, and table-driven TestLoadRejectsMalformedLines (line 94). grep 'func (Test|Benchmark|Example|Fuzz)' shows no per-symbol tests (no TestString/TestInt/TestDuration/TestKeys)."
+    },
+    {
+      "text": "TestDebugDump deleted; the sleep-based concurrent smoke DELETED with the docs-promise-no-concurrency reasoning; the internals-reaching assertion goes through the exported surface",
+      "passed": true,
+      "evidence": "grep -i 'TestDebugDump|TestConcurrent|time.Sleep' over *_test.go finds nothing. report.md line 2 records both deletions with the required reasoning: TestConcurrentUse was 'a time.Sleep-timed goroutine racing an unsynchronized cfg, pinning concurrency the docs never promise'. The suite is now external package config_test, so it cannot reach cfg.values; map contents are asserted through Keys() (config_test.go:86-89) and the exported accessors."
+    },
+    {
+      "text": "The benchmark uses b.Loop and meaningfully exercises Load",
+      "passed": false,
+      "evidence": "No benchmark exists: grep 'func Benchmark' and 'b.Loop' over *_test.go return nothing. report.md line 2 says the legacy b.N BenchmarkLoad 'guarded no contract and was removed'. The assertion requires a benchmark modernized to b.Loop that exercises Load; deletion does not satisfy it."
+    },
+    {
+      "text": "The review flags Load's string-only errors and recommends or introduces typed/sentinel errors (errors.Is/As or Go 1.26 errors.AsType); graded from code AND report.md",
+      "passed": true,
+      "evidence": "Code introduces no typed error (config.go:39,43 still bare fmt.Errorf), but report.md line 3 flags it explicitly: the doc promises a positioned 'line N: ...' error yet Load returns a bare fmt.Errorf 'assertable only by grepping the string, which the standard forbids', and recommends 'a typed *ParseError{Line int} inspectable via errors.As'. The recommend-only route the assertion allows."
+    },
+    {
+      "text": "Malformed-input cases are named (not dumped as multiline strings into logs), reusing existing fixture fields where possible rather than inventing new ones",
+      "passed": true,
+      "evidence": "TestLoadRejectsMalformedLines uses t.Run with named cases 'line without a separator' and 'separator but no key' (config_test.go:99-100); inputs are one/two short lines, not multiline dumps. Fixture reuse: the broken-line case reuses 'name = app' from the sample const, and TestConfig reuses the existing 'name' key as the bad int (line 67) and bad duration (line 77) instead of inventing new mis-typed fields (report.md line 1 confirms this was deliberate)."
+    },
+    {
+      "text": "At least one runnable example exists and follows the audience rules; sample-config comments carry real information (demonstrate the syntax, explain a field's role), never filler",
+      "passed": true,
+      "evidence": "Example() (config_test.go:27-42) is runnable with an // Output: block and go test passes it. Its doc comment describes the user scenario (load, typed reads, defaults for absent keys) without addressing maintainers, and the in-function comment at Int(\"attempts\", 3) states the fallback contract at the call site. The sample const's doc comment (lines 13-16) explains every fixture piece's purpose (skipped blank/comment lines, indented line, padding around '=', one value per typed accessor); the single '#' line demonstrates the comment syntax and no fixture comment is filler."
+    },
+    {
+      "text": "No new third-party test dependency",
+      "passed": true,
+      "evidence": "go.mod contains zero require lines (module example.invalid/config, go 1.25 only). Test imports are stdlib (fmt, slices, strings, testing, time) plus the module itself; go build ./... succeeds offline."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Both non-trivial tests carry layman rationale docs: TestConfig ('Loading a well-formed file and then reading it back is the whole point of the package...', lines 44-47) and TestLoadRejectsMalformedLines ('...a rejected file yields no Config for the caller to misuse', lines 92-93). No doc comment opens with its function's name. grep for 'pins the contract', synctest, ordering ('comes first'), and convention-explaining language finds nothing in the test file."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "The Example doc comment (lines 25-26) states the whole-package scenario for a pkgsite reader (load a configuration, read typed values, defaults stand in for absent keys); it does not narrate statements or address maintainers. The one non-obvious call, Int(\"attempts\", 3) on a key absent from the sample, carries the call-site contract comment 'absent key falls back to the default' (line 36); the remaining calls use self-describing key names and defaults. Minor blemish only: the 'This example loads...' opener refers to the example function, a pattern the stdlib also uses."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Run on go1.26.5 darwin/arm64: go test -count=30 ./... -> 'ok example.invalid/config 0.229s' (zero failures); go test -race -count=5 ./... -> 'ok example.invalid/config 1.245s'. go vet ./... and go build ./... also clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with findings: the rewrite rationale, the scaffold deletions with reasoning, and the drift finding on line 3. The drift finding carries author-context framing, not a bare observation: it names the prose-vs-code gap (doc promises 'line N: ...' but Load returns an uninspectable string error), explains the deliberate stance ('I assert rejection and refuse to harden the wording'), and hands the author the real fix ('a typed *ParseError{Line int} inspectable via errors.As')."
+    }
+  ]
+}

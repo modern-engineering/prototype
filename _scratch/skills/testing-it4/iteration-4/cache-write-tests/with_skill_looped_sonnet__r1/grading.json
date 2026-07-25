@@ -1,0 +1,79 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in package cache_test",
+      "passed": true,
+      "evidence": "cache_test.go line 1: `package cache_test`; imports `example.invalid/cache` and uses qualified `cache.New`, `cache.Cache` throughout."
+    },
+    {
+      "text": "Time and the janitor run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+      "passed": false,
+      "evidence": "TestEntryLifecycle wraps its body in synctest.Test and its three sleeps (lines 68, 85, 89) sit inside the bubble; no polling loops exist anywhere. However `Example` (line 28) calls `time.Sleep(30 * time.Millisecond)` in real time, outside any bubble — go test -v shows Example taking 0.03s wall clock while the bubbled test takes 0.00s. Example functions cannot enter a synctest bubble, but the agent chose to demonstrate expiry-by-waiting in the runnable example, so a real-time sleep with only a 10ms margin over the 20ms TTL landed in the suite. The assertion admits no carve-out: not every time.Sleep sits inside a bubble."
+    },
+    {
+      "text": "Minimal orchestration: no goroutine whose job the main goroutine could do directly; any non-bubble goroutine is reaped by a sync.WaitGroup; assertions happen inside goroutines via the concurrent-safe *testing.T",
+      "passed": true,
+      "evidence": "Only TestConcurrentCallers spawns goroutines, and their job (concurrent access) cannot be done by the main goroutine. All 8 are reaped by `var wg sync.WaitGroup` / `wg.Wait()` (lines 125, 138). Assertions run inside the goroutines via `t.Errorf` (line 133) with no value-collecting channels or error slices."
+    },
+    {
+      "text": "FLOWS over symbols: at least one test or example walks an anticipated user story (set a token with a TTL, read it, let it expire, miss, shutdown); no per-symbol test names; a whole-package scenario name is welcome",
+      "passed": true,
+      "evidence": "Example walks set-with-TTL, live read, expiry, miss, shutdown (defer Close); TestEntryLifecycle walks the full lifecycle through Close as one continuous story. Test names are TestEntryLifecycle, TestConcurrentCallers, TestNewPanicsOnInvalidJanitorInterval — no TestSet/TestGet/TestClose symbol scan; the first two are whole-package scenario names."
+    },
+    {
+      "text": "Names claim package properties in plain English without receiver stutter",
+      "passed": true,
+      "evidence": "TestNewPanicsOnInvalidJanitorInterval reads as the plain-English property 'New panics on invalid janitor interval'; TestEntryLifecycle and TestConcurrentCallers name scenarios. No name repeats the receiver type (no TestCacheGet/TestCacheClose pattern)."
+    },
+    {
+      "text": "Bodies are straight-line with hard-coded authoring-time values; helpers only where justified; no run-time arithmetic deriving expectations",
+      "passed": true,
+      "evidence": "TestEntryLifecycle is one straight line of Set/Get/Len/Close with literal keys, values, TTLs, and expected counts (3, 2, 1, 0) written at authoring time. The only helper is mustPanic, the panic-recovery case that a trivial package legitimately earns. Expected values are never computed at run time; TestConcurrentCallers compares Len against the hard-coded const `callers = 8` (fmt.Sprintf builds distinct keys, not expectations)."
+    },
+    {
+      "text": "File order builds complexity: examples first (or a separate example_test.go), typical patterns before edge orchestration, helpers after first use",
+      "passed": true,
+      "evidence": "Order in cache_test.go: Example (line 15), TestEntryLifecycle (typical flow, line 42), TestConcurrentCallers (line 120), TestNewPanicsOnInvalidJanitorInterval (edge, line 145), mustPanic helper (line 160) after its first use at line 154."
+    },
+    {
+      "text": "A representative runnable example of the typical call pattern is present and follows the audience rules",
+      "passed": true,
+      "evidence": "Package-level Example is runnable (Output block, executes in go test -v) and shows the anticipated pattern: New, defer Close, Set a session token with a TTL, Get while live, miss after expiry. Doc comment addresses the client story; in-function comments carry contract at call sites ('Always defer Close so the janitor goroutine is released...')."
+    },
+    {
+      "text": "Documented boundaries are exercised as documented: ttl <= 0 stores without expiry, Get hides expired entries before the janitor sweeps, Close idempotence, the documented panic on non-positive janitor interval",
+      "passed": true,
+      "evidence": "ttl <= 0: TestEntryLifecycle stores with ttl 0 and -time.Hour and both survive elapsed time (lines 57-58, 72-77). Get-before-sweep: Example uses a one-minute janitor interval but observes the miss 30ms after a 20ms TTL, long before any sweep. Close idempotence: TestEntryLifecycle calls c.Close() explicitly (line 101) and the deferred c.Close() (line 45) runs a second time at bubble exit; a non-idempotent Close would panic and fail. Panic boundary: TestNewPanicsOnInvalidJanitorInterval covers zero and negative intervals via mustPanic."
+    },
+    {
+      "text": "The package's DOCUMENTED concurrency safety is tested as promised (this package explicitly promises concurrent use, so concurrent exercise is in-contract), without statistical race-hunting theatrics",
+      "passed": true,
+      "evidence": "The Cache doc promises 'All methods are safe for concurrent use.' TestConcurrentCallers has 8 goroutines each Set/Get/Len its own session key — the realistic shared-cache pattern — with no iteration-count race lotteries, no concurrent-Close hammering, no recover-hunting. go test -race -count=5 ./... passes."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "The two non-trivial tests carry layman rationale ('A cache entry's whole life: ...', 'The type's headline promise: ...'); trivial TestNewPanicsOnInvalidJanitorInterval carries none. No comment opens with its own function name. grep finds no 'pins', no ordering talk, no synctest explanation; the one meta-looking line ('janitor sweep interval is unobservable here') explains a non-meaningful literal, which is the encouraged pattern."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example's doc comment describes the client scenario ('stash a session token with a TTL, read it back while it's live...') without narrating lines or addressing maintainers. In-function comments restate contract at the call sites: defer Close releases the janitor goroutine; the post-sleep comment explains the entry is gone even before the janitor's next sweep."
+    },
+    {
+      "text": "Contexts (if any are needed) come from t.Context()",
+      "passed": true,
+      "evidence": "Vacuously satisfied: the cache API takes no contexts and grep finds no context usage in cache_test.go."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Ran both in outputs/ with go1.26.5: `go test -count=30 ./...` -> ok example.invalid/cache 0.629s (zero failures); `go test -race -count=5 ./...` -> ok example.invalid/cache 1.387s. gofmt -l clean, go vet clean."
+    },
+    {
+      "text": "report.md exists with the run's findings, any quirk carrying author-context framing",
+      "passed": true,
+      "evidence": "report.md exists and its finding (janitor sweep timing not independently observable through the public API) is framed for the author: 'flag if sweep timing itself was meant to be part of the contract, in which case it needs an exported hook to test against' — an ask about intended promises rather than a silent decision."
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "report.md line 4 states the drift explicitly ('the doc promises a negative count is \"treated as zero...\" ... Head slices r[:n] and panics'); TestNegativeCountReturnsEmpty's doc comment (truncate_test.go:46-49) states it in code. The test sides with prose: it wants \"\" and its recover-guard reports the panic as a FAILURE (t.Errorf 'panicked ... want \"\"'), never as an expectation, so nothing blesses the panic. Resolution taken is the sanctioned 'failing prose-sided test with an honest report': report.md line 6 admits 'go test ./... FAILS only on that one deliberate drift test'."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1: 'package truncate_test'; imports 'example.invalid/truncate' and go vet/go build pass, confirming external test package compiles."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "File opens with Example (line 12), then TestHeadAndTail, then TestNegativeCountReturnsEmpty. The sole helper wantEmpty is defined at line 59, after its first use at lines 52-53. It is a panic-recovery helper used for both Head and Tail, the one helper category the maintainer says a trivial package earns (INTENT.md ruling 2); table assertions are inlined directly in the loop, no case-construction ceremony."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The 4-field case struct {s, n, head, tail} uses named fields in every literal, e.g. line 30 '{s: \"héllö\", n: 2, head: \"hé\", tail: \"lö\"}'. grep confirms no t.Run anywhere: no sub-tests at all, so no prose-named sub-tests exist; assertions run inline in one linear loop."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestHeadAndTail uses one merged table with paired head/tail expectation columns (the exact merged-case-struct pattern from INTENT.md ruling 9) and asserts both functions per row; TestNegativeCountReturnsEmpty pairs both functions through the shared wantEmpty helper; the Example demonstrates Head and Tail on the same label. No duplicated per-function structure exists."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": false,
+      "evidence": "Mostly disciplined (rationale comments in layman's terms, no test/example doc comment opens with its own function name, no convention/ordering/synctest talk; wantEmpty's doc comment opening with 'wantEmpty' is idiomatic godoc for a helper, not a test), but the TestHeadAndTail doc comment (line 21-23) says 'so one table pins both:' — pinning-the-contract language applied to the test, which this assertion names as anti-slop. The maintainer's ruling is categorical: 'DO NOT tell maintainers that \"the test pins some contract\"' and 'all this talk on \"pinning\" makes it feel wayy too mechanical' (feedback-3, INTENT.md ruling 6)."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example's doc comment (lines 10-11) is user-voiced and scenario-focused ('a label clipped to fit a fixed width stays valid UTF-8 on both ends'): it states the package's value to a pkgsite reader, never narrates the code, never mentions the example function or maintainers. The body has no in-function comments, but its inputs are self-evident (a named const label; count 5 whose rune semantics the doc comment and the printed output make plain), so nothing non-obvious goes unexplained. Borderline: a '// 5 runes, not bytes' call-site note would have been stronger, but absence of comments on obvious inputs is not a violation."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Honest-red rule applied per this eval's sanctioned failing-prose-sided-test resolution. go test -count=30 ./...: TestNegativeCountReturnsEmpty red exactly 30/30 (deterministic, same panic message every run), TestHeadAndTail passed 30/30, Example passed; no other failure. go test -race -count=5 ./...: same single deliberate test red 5/5, zero 'DATA RACE' reports, all other tests green. The only red is the declared drift test, matching report.md's disclosure."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists (6 lines) and carries the drift finding with explicit author-context framing, line 5: 'Author question: did you intend Head to clamp negatives like Tail (a one-line fix), or should the doc drop that promise? I inferred the former, since Tail already does it.' This is the promise-or-drop inference the maintainer asked findings to carry, not a bare observation."
+    }
+  ]
+}

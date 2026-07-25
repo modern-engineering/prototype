@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "report.md has a dedicated section 'Finding: Head does not honor its own doc for negative n' stating the contradiction (Tail guards n<=0, Head falls through to r[:n] and panics). TestNegativeNIsZero asserts the documented empty-string behavior for both functions; the Head half wraps the call in recover and calls t.Errorf on panic, so the panic is reported as a failure, never blessed. go test -v confirms: 'Head(\"hello\", -1) panicked ... want \"\" per doc' -> FAIL TestNegativeNIsZero. This is the 'failing prose-sided test with an honest report' resolution; report.md states 'go test ./...: fails, deliberately'."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1: 'package truncate_test'; imports 'example.invalid/truncate' as an external test package. go vet and go build pass."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file opens with Example(), then two test functions. There are no named helper functions at all; the only indirection is an inline anonymous func with recover inside TestNegativeNIsZero, placed exactly at its single use site."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "The four-field case struct {s, n, head, tail} uses named fields in every case literal, e.g. {s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"}. grep confirms zero t.Run calls; the divergent negative-n behavior is one continuous test rather than prose-named sub-tests."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestHeadAndTailCountRunes drives both functions from a single merged case table with head and tail expectation fields and paired assertions in one loop — the exact {s, n, head, tail} shape the maintainer asked for in round-3 feedback. TestNegativeNIsZero also pairs the two functions at their one divergence point."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": false,
+      "evidence": "All three doc comments open with their own function name: line 10 'Example demonstrates...', line 20 'TestHeadAndTailCountRunes holds...', line 46 'TestNegativeNIsZero checks...'. TESTS.md states doc comments of all test functions (tests, bench, fuzz, example, runnable example) must never open with the function's name, and the assertion repeats that clause. The rest of the discipline holds (rationale comments are substantive, no convention/ordering/pins-the-contract slop), but the opens-with-own-name rule is violated three times."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": false,
+      "evidence": "Example()'s doc comment describes the example function itself ('Example demonstrates the package's anticipated use...'), the exact anti-pattern the maintainer flagged in round 3 ('speaking about the function itself... comes in great contradiction'). The function body has zero in-function comments: the literals 5 and 6 in Head(name, 5) and Tail(name, 6) are non-meaningful (they are the rune lengths of 'Bjørn' and 'Åström') and the rune-safety contract is never repeated at the call sites, failing the in-function-comment conjunct outright."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (truncate-drift honest-red rule: the deliberate prose-sided failure is the accepted state)",
+      "passed": true,
+      "evidence": "go test -count=30 -v: TestHeadAndTailCountRunes 30/30 PASS, Example PASS, TestNegativeNIsZero 30/30 FAIL with the identical deliberate drift message every run — deterministic, no flakiness. go test -race -count=5 -v: same shape, 5/5 identical deliberate failure, no race warnings. Under the honest-red rule the only failure is the documented prose-sided one, so stability holds."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists with a dedicated finding section. The drift finding carries author-context inference: 'This reads as an oversight rather than a deliberate divergence: the two functions are otherwise symmetric, and Tail already carries the guard Head is missing, suggesting it was dropped rather than never intended', and it hands the author the decision with both resolutions named: 'the package owner's call (add Head's missing guard, or narrow the doc)'."
+    }
+  ]
+}

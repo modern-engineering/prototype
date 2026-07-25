@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominent code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "The run chose the first sanctioned resolution: a failing prose-sided test with an honest report. TestNegativeCountMeansEmpty (truncate_test.go:57-70) asserts the documented empty-string contract for both Head and Tail; its doc comment (lines 50-56) states the contradiction prominently ('Tail honors it; Head currently panics on the r[:n] slice because it lacks Tail's n <= 0 guard'). The recover converts the panic into a plain t.Errorf failure, so no test blesses the panic as the contract (grep shows no want-panic assertion anywhere). report.md lines 4-5 state the same finding and honestly declare 'go test ./... fails deliberately on TestNegativeCountMeansEmpty'; source was left untouched as the owner's call. Verified by running go test -v: TestNegativeCountMeansEmpty fails with 'Head(\"héllo\", -1) panicked: runtime error: slice bounds out of range [:-1], want \"\" per the doc comment'."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "grep '^package' truncate_test.go → 'package truncate_test' (line 1); imports 'example.invalid/truncate' and calls truncate.Head/truncate.Tail through the exported surface. go vet and go build pass."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file opens with a runnable Example (line 14), then the plain table-driven TestTruncate with no helpers, then TestNegativeCountMeansEmpty. The only helper is a small panic-recovery closure 'check' defined inside TestNegativeCountMeansEmpty immediately before its two call sites (lines 58-69), not a file-level or file-opening helper; panic recovery is the one indirection this trivial package needs (it cannot be inlined without duplicating the defer/recover block per function). No per-function examples exist, but the assertion only welcomes them, it does not require them."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "TestTruncate's 4-field case struct (s, n, head, tail) uses named fields in every literal, e.g. '{s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"}' (truncate_test.go:31-38). grep 't.Run' finds no sub-tests at all, so no prose-named sub-tests exist; both tests run as continuous top-level tests."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestTruncate uses one merged case struct carrying both expectations per input ({s, n, head, tail}) with paired Head and Tail assertions in a single loop (truncate_test.go:26-47), exactly the merged-case shape. TestNegativeCountMeansEmpty likewise runs one shared check over both functions (check(\"Head\", ...); check(\"Tail\", ...)). The doc comment makes the symmetry rationale explicit: 'Head and Tail are mirror images, so one table carries both expectations per input.' No duplicated per-function table structures exist."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "Both non-trivial tests carry layman rationale: TestTruncate explains why one table serves both functions and why cut points sit next to multi-byte runes; TestNegativeCountMeansEmpty explains the doc-vs-code conflict, why it sides with prose, and why the recover exists (a non-obvious deliberate choice, not mechanics narration). No doc comment opens with its own function name (they open 'A column...', 'Head and Tail are mirror images...', 'Both doc comments promise...'). grep -i 'pin|convention|ordering|synctest' over truncate_test.go returns nothing; no comment discusses file order or conventions."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "The package-level Example's doc comment speaks to users about the display scenario ('A column too narrow for a full identifier keeps its head and tail around an ellipsis') and states the contract clause at the point of use ('Both cut points land on character boundaries because the functions count runes'); it never narrates the Go statements or addresses maintainers. The example body is a single composed call line, and the contract-bearing explanation sits directly above it, covering the only non-obvious behavior (rune-safe cuts through accented text). Marginal note: the literal budgets 12 and 6 carry no dedicated call-site comment, but Head(title, 12)/Tail(title, 6) read self-explanatorily from the function names and the // Output line, closer to the Every(time.Second) exemption than to opaque positional arguments."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Honest-red rule applied per the truncate-drift eval: the deliberate prose-sided failure is sanctioned, and stability requires it to be the only, fully deterministic failure. go test -v -count=30 ./...: TestNegativeCountMeansEmpty failed exactly 30/30 with the identical message every run; TestTruncate passed 30/30 and Example passed; no other failure appeared. go test -race -v -count=5 ./...: TestNegativeCountMeansEmpty failed 5/5 (same deliberate failure), TestTruncate passed 5/5, Example passed, zero data-race warnings. The red is honest, deterministic, and declared in report.md line 5."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists (3 substantive lines). The drift finding is framed with author-context inference, not a bare observation: 'given the functions are otherwise mirror images, this reads as an oversight rather than a deliberate change, so the test sides with the prose' and it hands the decision back with concrete options: 'Owner call: add the one-line guard to Head, or amend the docs.' It also records why the source was left untouched ('fixing exported behavior is the owner's decision') and the exact build/vet/test status."
+    }
+  ]
+}

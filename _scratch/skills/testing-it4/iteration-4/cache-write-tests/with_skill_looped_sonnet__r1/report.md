@@ -1,0 +1,5 @@
+Added `cache_test.go` (external `cache_test` package): `Example_sessionTokens` for the typical set-then-expire flow, `TestCacheLifecycle` inside a `synctest` bubble covering two-token coexistence, replacement resetting a deadline, expiry landing well before the janitor's next tick (proving read-time enforcement, not reliance on the sweep), a missing key, and Close discarding state so a later Set can't panic on a nil map. `TestNewPanicsOnInvalidJanitorInterval` (table + `mustPanic`) covers zero and negative intervals, mirroring the skill's exemplar shape.
+
+Finding for the author: janitor cadence itself isn't observable through the public API, since Get/Len already enforce expiry lazily on read regardless of the sweep; no test pins sweep timing as a result. Flag if the janitor's actual removal timing was meant to be contractual, since proving that needs an internal hook the package doesn't currently expose.
+
+Status: go build ./... and go test ./... both pass; also verified under go test -race and 5 repeats with no flakes; gofmt -l is clean.

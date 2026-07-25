@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED, NOT ABSORBED: the Head doc-vs-code contradiction (negative n: doc promises empty string, code panics) is stated in report.md or prominently in code comments; no committed test blesses the panic as the contract; acceptable resolutions are a failing prose-sided test with an honest report, commented-out conflicted cases with an explanatory comment, or a minimal code fix aligning to prose",
+      "passed": true,
+      "evidence": "report.md states the drift explicitly: 'both doc comments promise \"a negative n is treated as zero,\" and your Tail delivers it, but Head omits Tail's n <= 0 guard, so Head(s, -1) panics'. The resolution is the first acceptable form: TestNegativeCountYieldsEmptyString sides with the prose (wants \"\" from Head(s, -1)), recovers the panic into t.Errorf, and the report honestly declares 'go test ./... FAILS on that one deliberate test'. No test asserts or expects the panic as contract. The test's doc comment also states the contradiction prominently in the source."
+    },
+    {
+      "text": "Tests live in package truncate_test",
+      "passed": true,
+      "evidence": "truncate_test.go line 1: 'package truncate_test'; imports 'example.invalid/truncate' and calls truncate.Head/truncate.Tail. Verified by grep '^package'."
+    },
+    {
+      "text": "No convoluted helper opens the file: helpers appear after first use, trivial indirection is inlined; per-function examples in stdlib style are welcome",
+      "passed": true,
+      "evidence": "The file contains no helper functions at all: only Example (file opener), TestTruncate, and TestNegativeCountYieldsEmptyString. The one recover is a deferred inline closure inside the test that needs it, not a named helper. The file opens with a stdlib-style whole-package Example."
+    },
+    {
+      "text": "Case structs with three or more fields use named fields; sub-tests only where names read like Go test names (Field=Value style acceptable); prose-named sub-tests are inlined",
+      "passed": true,
+      "evidence": "TestTruncate's case struct has four fields {s, n, head, tail} and every case uses named fields, e.g. '{s: \"héllo\", n: 2, head: \"hé\", tail: \"lo\"}'. grep 't.Run' finds no sub-tests, so no prose-named sub-tests exist; both tests are continuous."
+    },
+    {
+      "text": "Head and Tail mirror each other; the suite exploits that symmetry (shared cases or paired assertions) rather than duplicating structure blindly",
+      "passed": true,
+      "evidence": "TestTruncate uses a single merged case struct carrying both expectations ({s, n, head, tail}) and each loop iteration asserts Head and Tail against the same input, the exact pattern the maintainer suggested ({\"hello\", 3, \"hel\", \"llo\"}). TestNegativeCountYieldsEmptyString likewise asserts the shared negative-n contract for both functions in one test."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "The non-trivial drift test carries a layman rationale doc comment ('Both doc comments promise... Stating the shared contract makes that gap a failing test rather than a latent crash'). TestTruncate's doc comment explains the shared boundaries and why one table carries both expectations. No doc comment opens with its function's name (they open 'A UI trims...', 'The documented boundaries...', 'Both doc comments promise...'). grep for pin/convention/synctest/ordering/'comes first' in truncate_test.go returns nothing. The in-function comment on recover explains a non-obvious deliberate choice, not a convention."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "Example's doc comment describes a user scenario ('A UI trims a display name to fit a fixed-width badge...') about the package's behavior, never the example function itself or the code, and never addresses maintainers. In-function comments explain the non-obvious input ('\"Zoë Saldaña\" is eleven runes; Head keeps the first eight.') and repeat contract clauses at call sites ('A limit longer than the input leaves it untouched, so callers need not measure the string first.'; 'Tail keeps the end instead: the last three runes of a word.'). Example passes: output block matches."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes (truncate-drift honest-red rule: the deliberate prose-sided drift test may fail, deterministically, as the only failure)",
+      "passed": true,
+      "evidence": "Honest-red rule applied. go test -count=30 -v: TestTruncate passed 30/30, Example passed, TestNegativeCountYieldsEmptyString failed 30/30 with the identical slice-bounds message; no other failure and no flake. go test -race -count=5 -v: same single deterministic failure 5/5, zero race warnings. go build ./... and go vet ./... pass; gofmt -l reports nothing. The red test is exactly the declared prose-sided drift test and the report discloses the failure."
+    },
+    {
+      "text": "report.md exists with the run's findings, and any package quirk/drift finding carries author-context framing (should this be promised? would that harden the contract?) rather than a bare observation",
+      "passed": true,
+      "evidence": "report.md exists and reports what was written, the drift found, and the honest test status. The drift finding carries author-context framing by posing the author's decision: 'Fix: add `if n <= 0 { return \"\" }` to Head, or amend its doc if the panic is intended' -- i.e. side with the promise or retract it, not a bare observation. Minor stylistic nit outside this assertion: the report uses the word 'pinned' once, language the maintainer dislikes in reports, but the required framing is present."
+    }
+  ]
+}

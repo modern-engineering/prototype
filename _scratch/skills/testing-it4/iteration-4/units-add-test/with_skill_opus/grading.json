@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "Coverage mimics the sibling precedent (ExampleParseSizeOrDefault): a runnable example or rows in an existing suitable test; no standalone test named after the function",
+      "passed": true,
+      "evidence": "grep of units_test.go shows exactly one new function, ExampleParseDurationOrDefault (line 66), placed directly after the sibling ExampleParseSizeOrDefault and mirroring its shape (fmt.Println per call, Output block, one well-formed and fallback inputs). No TestParseDurationOrDefault exists; the only Test function is the pre-existing TestSizeRoundTrip."
+    },
+    {
+      "text": "The leniency contract is asserted or shown: empty AND garbage return def without error; showing a boundary non-fallback case (a parseable zero like '0s') with a distinct comment is a plus, not a requirement",
+      "passed": true,
+      "evidence": "The example calls ParseDurationOrDefault(\"\", 30*time.Second) and ParseDurationOrDefault(\"garbage\", 30*time.Second), with Output lines 30s and 30s; the function's no-error signature plus matching output shows both fallbacks succeed without error. A well-formed \"250ms\" line shows the non-fallback path. The optional '0s' boundary line is absent, which the assertion itself marks as a plus, not a requirement (maintainer round-3 feedback on the identical shape said only 'Maybe I'd add')."
+    },
+    {
+      "text": "Existing tests and examples are preserved untouched",
+      "passed": true,
+      "evidence": "diff -ru against fixtures/units shows units.go and go.mod byte-identical and units_test.go changed only by additions: the time import and the appended ExampleParseDurationOrDefault. TestSizeRoundTrip, ExampleParseSize, and ExampleParseSizeOrDefault are untouched."
+    },
+    {
+      "text": "Comment discipline: NON-TRIVIAL tests carry a rationale doc comment in layman's terms; trivial ones may carry none; no comment opens with its own function name; no comment explains conventions, test ordering, synctest mechanics, or says a test 'pins the contract' (anti-slop)",
+      "passed": true,
+      "evidence": "The new example's doc comment opens 'A well-formed duration parses to its value...' (not the function name) and states the fallback rationale in layman's terms ('a missing or stray configuration value degrades gracefully'). grep for 'pins', 'convention', 'ordering', 'synctest' in units_test.go finds nothing; no comment discusses mechanics or ordering."
+    },
+    {
+      "text": "Runnable examples speak to pkgsite users about the attributed symbol/scenario: the doc comment never narrates the code or addresses maintainers, and in-function comments explain non-obvious inputs and contract behavior at the call sites",
+      "passed": true,
+      "evidence": "The doc comment describes ParseDurationOrDefault's user-facing contract (well-formed parses; empty and unparseable fall back to the caller's default) without narrating code or addressing maintainers. There are no in-function comments, but every input is self-describing (\"250ms\", \"\", \"garbage\", 30*time.Second) so nothing non-obvious is left unexplained; maintainer round-3 feedback on this exact example shape explicitly accepted the coherent doc-comment phrasing over per-call comments ('the way it is phrased actually makes more coherent sense together')."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... zero failures and go test -race -count=5 ./... passes",
+      "passed": true,
+      "evidence": "Ran in outputs/: 'go test -count=30 ./...' -> ok example.invalid/units/internal/units 0.223s (zero failures); 'go test -race -count=5 ./...' -> ok 1.336s. go vet ./... clean; gofmt -l reports no files."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+# Limiter test suite — engineer's note
+
+Wrote `limiter_test.go` (external `package limiter_test`), planned from `go doc -all` before reading the source: a runnable `Example_gateway` showing the Allow-then-Wait call pattern and the defer-Close-then-explicit-Close shutdown pattern, a whole-package `TestLimiterLifecycle` under `testing/synctest` (starting burst, deadline-expired Wait, refill-served Wait at exact virtual times, lull capped at burst, ErrClosed beating leftover tokens after Close), `TestZeroBurstStoresNoTokens` for the package doc's burst-0 promise, and a panic table for New's argument guards.
+
+**Finding for you (doc/code drift, the suite is red on it, please decide):** the doc says New panics only for non-positive rate, but any rate above 1e9 floors the refill interval to zero and `time.NewTicker(0)` panics inside the refill goroutine, crashing the process after New has already returned. The `rate: 2_000_000_000` row in `TestNewPanicsOnInvalidArguments` exercises exactly this and fails today by crashing the binary; the rationale sits on the row itself. Either guard the rate in New (and say so in the doc) or document a maximum rate; the row goes green the moment New panics from the constructor.
+
+**Finding for you (package smell surfaced by the tests):** every `New` call site in the test file needs a translation comment ("one token per second, two to start", "the first refill lands at the 1s mark"), because `New(rate, burst)` takes bare ints and the time unit lives only in prose. Production users will need the same translation at every call site. A constructor that names the unit, something shaped like `Every(time.Second)` or a rate parameter expressed as a `time.Duration` per token, would delete half the comments in this file. Worth a rethink of that corner of the API.
+
+**Smaller notes:** the docs never promise the methods are safe for concurrent use, so I committed no concurrency-hammering tests; a gateway will call this from many request goroutines, and the implementation looks safe (channels plus sync.Once), so consider promising it in the doc. Allow's behavior after Close (it can still drain leftover tokens) is undocumented, and no test asserts it either way; promise or forbid it if callers will care.
+
+**Critique round (what I applied, what I rejected):** all five points survived, none rejected.
+
+1. Applied (blocker): restored the zero-interval row instead of leaving it commented out with a note. The skill's rule is comment out to see the work through, restore at hand-off; handing over a green suite with the failing row parked inverted that, and a crashed `go test` is the failure mode that forces your decision. The drift rationale moved onto the row.
+2. Applied: the shutdown comment claimed "two more refills" but the 2600ms sleep from t=5500ms spans ticks at the 6s, 7s, and 8s marks, so three land and the bucket keeps two. Re-derived and corrected; the comment is the audit trail for those constants.
+3. Applied: `Example_gateway` now ends with an explicit `l.Close()` carrying the call-site comment that the deferred Close becomes a safe no-op, so pkgsite readers see the doc's idempotency promise in the shutdown pattern they will actually write.
+4. Applied: dropped the "pin" review-loop jargon from the table comment (and from this report); the comment now says what is meant, the row crashes the binary until New guards the rate.
+5. Applied: added the rate-to-interval translation smell above; the critique was right that the report walked past the smell on display in its own file.
+
+**Status:** `go build ./...` and `go vet ./...` pass. `go test ./...` fails deliberately: the restored drift row crashes the binary with `panic: non-positive interval for NewTicker` (exit 1). Everything else passes, verified by running the suite filtered to the other tests and with `-race`; the red hand-off is the finding above, not an accident.
