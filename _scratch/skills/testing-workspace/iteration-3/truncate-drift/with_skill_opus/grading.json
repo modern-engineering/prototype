@@ -1,0 +1,39 @@
+{
+  "expectations": [
+    {
+      "text": "DRIFT SURFACED: the run's report.md (or a prominent code comment) explicitly states the contradiction between Head's doc comment (negative n is treated as zero) and the code (panics on negative n) — silence fails",
+      "passed": true,
+      "evidence": "report.md line 4 states 'Drift found: Head breaks its own doc (\"a negative n is treated as zero...\") by panicking on negative n'; the test's doc comment (truncate_test.go:85-94) restates it."
+    },
+    {
+      "text": "PROSE WINS: no committed test pins the panic as correct behavior (asserting-a-panic-on-negative-n as the expected contract fails this assertion)",
+      "passed": true,
+      "evidence": "grep found no panic-expecting assertions; the sole recover (truncate_test.go:98-102) converts the panic into t.Fatalf, treating it as a failure, not the contract."
+    },
+    {
+      "text": "The documented contract is what tests assert; the discrepancy is escalated honestly — acceptable resolutions: a test asserting the documented behavior left failing WITH the report saying so, or a minimal code fix aligning code to prose with the fix noted; silently absorbing the code's behavior fails",
+      "passed": true,
+      "evidence": "TestHeadTreatsNegativeCountAsZero asserts the documented empty string and is left failing; report.md line 6 says 'go test ./... FAILS only on that one deliberate contract test' (verified: exactly that test fails)."
+    },
+    {
+      "text": "Evidence of prose-first design: the report describes starting from the exported surface/doc comments (go doc) before reading the implementation",
+      "passed": true,
+      "evidence": "report.md line 3: 'Wrote truncate_test.go ... from the go doc contract first', with 'Drift found' (implementation reading) reported afterward."
+    },
+    {
+      "text": "Tests live in package truncate_test; names claim package properties; bodies straight-line",
+      "passed": true,
+      "evidence": "truncate_test.go:1 declares 'package truncate_test'; names like TestHeadKeepsLeadingRunes/TestTailKeepsTrailingRunes/TestHeadTreatsNegativeCountAsZero claim properties; bodies are plain tables or linear asserts with no branching logic."
+    },
+    {
+      "text": "Every test and example function carries a doc comment giving the rationale or contract clause in plain terms (why this test / why this mechanism when non-trivial), and none opens with its own function name",
+      "passed": false,
+      "evidence": "All five functions carry rationale-bearing doc comments, but every one opens with its own function name ('ExampleHead shows...', 'TestHeadKeepsLeadingRunes pins...', etc. at truncate_test.go:10,22,33,59,85), violating the 'none opens with its own function name' clause."
+    },
+    {
+      "text": "The run's report honestly states the final go test status (green only if the code was fixed; a red drift-test with an honest report also passes)",
+      "passed": true,
+      "evidence": "report.md line 6 reports build/vet pass and go test FAILS only on the deliberate contract test; verified mechanically: 30/30 plain runs and 5/5 -race runs fail on exactly TestHeadTreatsNegativeCountAsZero, all else green."
+    }
+  ]
+}

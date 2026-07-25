@@ -1,0 +1,54 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in an external test package (package limiter_test)",
+      "passed": true,
+      "evidence": "limiter_test.go line 1 declares `package limiter_test`; it is the only test file."
+    },
+    {
+      "text": "Concurrency and timing run under testing/synctest; any time.Sleep sits inside a bubble; no polling loops",
+      "passed": true,
+      "evidence": "All 3 time.Sleep calls (lines 63, 106, 162) sit inside synctest.Test bubbles; the two non-synctest tests (pre-canceled ctx, Wait-after-Close) are deterministic non-timing checks; no sleep-poll loops."
+    },
+    {
+      "text": "Minimal orchestration: no goroutine whose only job is something the main goroutine could do directly (e.g. spawning a goroutine just to call Wait and be waited on); no gratuitous synctest.Wait; a hang is accepted as a valid failure mode rather than contorted around",
+      "passed": false,
+      "evidence": "TestZeroBurstLimiter (lines 53-73) spawns a goroutine just to call Wait, then uses errc + two synctest.Wait calls + select/default to avoid a hang; inside the bubble the main goroutine could call Wait directly (checking elapsed virtual time) and let a bubble deadlock be the failure mode."
+    },
+    {
+      "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes several exported symbols as a user would",
+      "passed": true,
+      "evidence": "No test is named exactly TestNew/TestAllow/TestWait/TestClose; TestZeroBurstLimiter composes New+Allow+Wait+Close and TestCloseStopsRefill composes New+Allow+Close."
+    },
+    {
+      "text": "Names claim package properties in plain English without symbol/receiver stutter",
+      "passed": true,
+      "evidence": "Six of seven names are plain-English property claims (TestBucketStartsFull, TestTokensRefillUpToBurst, TestWaitAfterCloseReturnsErrClosed, ...) with no Limiter-receiver stutter; TestZeroBurstLimiter is a scenario noun rather than a claim, a minor deviation."
+    },
+    {
+      "text": "Bodies are straight-line with hard-coded authoring-time expectations; the ONE sanctioned exception is panic-rejection cases via a table plus a recover helper whose failure message names the inputs and why they are invalid; no other case-generating loops or sub-test ceremony",
+      "passed": false,
+      "evidence": "Beyond the sanctioned panic table (which correctly names inputs and reason), TestBucketStartsFull uses `for i := range 3` with an index-parameterized assertion (line 84) and TestTokensRefillUpToBurst uses a `for l.Allow() {}` drain loop (line 103) instead of hard-coding the known burst of 2; no t.Run ceremony though."
+    },
+    {
+      "text": "Every test and example function carries a doc comment giving the rationale or contract clause in plain terms (why this test / why this mechanism when non-trivial), and none opens with its own function name",
+      "passed": false,
+      "evidence": "Every function has a rationale-bearing doc comment, but all 8 of them open with the function's own name (e.g. '// TestNewPanicsOnInvalidArguments checks...', '// ExampleLimiter shows...'), violating the 'none opens with its own function name' clause."
+    },
+    {
+      "text": "At least one runnable Example whose comment tells the same story the example shows (typical use, e.g. gating requests with Allow/Wait and Close on shutdown)",
+      "passed": true,
+      "evidence": "ExampleLimiter (line 173) is runnable with an // Output: block (executed and verified by go test), and its comment tells the same story the code shows: requests gated by Allow plus safe double Close."
+    },
+    {
+      "text": "Contexts in tests come from t.Context() (Go 1.24) unless a stated reason requires otherwise",
+      "passed": false,
+      "evidence": "grep finds zero t.Context() uses and three context.Background() uses (lines 54, 127, 144) with no stated reason for avoiding t.Context()."
+    },
+    {
+      "text": "STABILITY: go test -count=30 ./... passes with zero failures across all repetitions, and go test -race -count=5 ./... passes (flaky tests are contract failures)",
+      "passed": true,
+      "evidence": "Ran both in outputs/: `go test -count=30 ./...` ok (0.218s, exit 0) and `go test -race -count=5 ./...` ok (1.244s, exit 0); go vet also clean."
+    }
+  ]
+}

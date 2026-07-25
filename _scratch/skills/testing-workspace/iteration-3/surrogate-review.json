@@ -1,0 +1,84 @@
+{
+  "reviews": [
+    {
+      "run_id": "limiter-write-tests-with_skill",
+      "rating": 8,
+      "review": "This is close. The zero-burst test comes first and even says why it comes first, which is the thinking I want. Bodies are trivial top-to-bottom reads, the sleeps carry adjacent comments doing the math for me ('Four refills against a bucket that holds two'), t.Context() everywhere, and nobody spawned a goroutine to do the main goroutine's job. The panic table names the inputs and their specific invalidity in the failure message, exactly right. The Example finally earns its place: defers Close AND calls it explicitly, then shows ErrClosed. Idempotence proven in usage, not in a vacuous no-panic test. The report's findings (the unguarded rate > 1e9 ticker panic, the undocumented Wait-vs-Close race, refusing to pin unpromised concurrency) are the review notes I want before a PR.\n\nOne recurring itch: every single doc comment opens with its own function name, 'TestZeroBurstStoresNoTokens pins...'. That convention belongs to exported identifiers, not tests. Start with the story ('A burst-0 limiter stores nothing, so...'). The content is right, the opening word is wrong, all seven times. Also TestWaitAfterCloseReturnsErrClosed is the one test outside a bubble and doesn't say why. Fix the comment openings and I'd commit."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_opus",
+      "rating": 8,
+      "review": "A big recovery from last time. mustPanic is a helper done right: a doc comment that justifies its existence, and a failure message that reads as a sentence naming the inputs and why they are invalid. TestWaitBlocksUntilRefill even writes down the lesson: the main goroutine just calls Wait, no helper goroutine. Proving starts-full/drain through the Example instead of another test is the fewer-tests-covering-more instinct I keep asking for, and the report says so as a judgment call. Both report findings are real (unpromised concurrency; the in-flight Close behavior left unpinned rather than change-detected).\n\nSame itch as everywhere: every doc comment opens with the test's own name. The content behind the name is finally worth reading, but 'TestZeroBurstStoresNoTokens pins...' is still the exported-identifier convention leaking into tests. And the lone synctest.Wait in TestZeroBurstStoresNoTokens happens to be load-bearing (the 500ms tick races the sleep waking) but nothing says so; an uncommented synctest.Wait looks like cargo cult. Comment it or lose it. Fix the openings and this goes in."
+    },
+    {
+      "run_id": "limiter-write-tests-with_skill_sonnet",
+      "rating": 6,
+      "review": "Third time on this one: TestZeroBurstLimiter spawns a goroutine whose only job is to call Wait, then does the synctest.Wait plus select-with-default dance to prove 'it has not returned yet'. All the main goroutine ultimately does is wait for that goroutine, which is calling Wait. Measure time.Since around a direct Wait; a hang is a valid test failure. I have written this in both previous rounds.\n\nAlso: context.Background() throughout where t.Context() exists. The drain loop 'for l.Allow()' and 'for i := range 3' are algorithms at test time; do that math at coding time, three Allow calls read better than a loop. And the doc comments again all open with their own function names. On the good side: the Example proves double-Close in usage, the panic table names inputs and invalidity, TestCloseStopsRefill observes through Allow like a user would, and the report correctly declines to pin the in-flight-Close behavior the docs do not promise. The bones are fine; the recurring habits are not."
+    },
+    {
+      "run_id": "limiter-write-tests-without_skill",
+      "rating": 3,
+      "review": "I skimmed. Thirteen tests for a package this size, no example, and the whole file dodges flakiness with real-time sleeps and 'lower bounds only' apologetics when testing/synctest exists precisely so timing is exact and instant. TestCloseWakesBlockedWait and TestAllowAfterCloseDrainsLeftoverTokens pin behavior the docs never promise; the second one admits it ('pins current behavior'). That is a change-detector by construction: raise it in the report (you did, good) but never commit it. The two concurrency tests pin concurrency the docs do not promise; delete them. mustPanic's failure message ('expected panic, got none') names nothing.\n\nThe report itself is the best part: the rate > 1e9 ticker panic is a real find, and the Allow-vs-Wait disagreement after Close is exactly the kind of question to bring me. Keep the report, rewrite the suite."
+    },
+    {
+      "run_id": "config-test-review-with_skill",
+      "rating": 9,
+      "review": "This is the review I wanted. The five per-symbol tests collapsed into one TestConfig that reads like the caller's own code; TestDebugDump gone; TestConcurrentUse gone AND caught as an actual data race that only looked green because nobody ran -race. That is the catch of the round. External package, so the internals-poking died naturally. b.Loop. The sample does double duty cleverly: 'retries = many' is both a present key and the unparseable value for two accessors, and the comment above the const states the fixture's assumptions. The Example's config speaks ('# where the server listens') instead of announcing 'this is a comment'. Doc comments start with the story, not the function name; first run to get this consistently right. And the report flags Load's string-only error as a redesign signal with errors.As, while the test grudgingly pins only the documented 'line N:' prefix and says why. I would take a second or third malformed case, and testdata/ remains the nicer home if that set grows, but I would commit this."
+    },
+    {
+      "run_id": "config-test-review-with_skill_opus",
+      "rating": 7,
+      "review": "The substance is all here: consolidation into TestConfig, both deletions with the -race catch spelled out, b.Loop with a comment that actually teaches why b.Loop, and the typed *ParseError recommendation in the report. But TestLoadRejectsMalformedLine: I flagged almost this exact name last round for centering on the symbol; TestMalformedLines. Two t.Run sub-tests for two cases is ceremony; two linear checks, or name the inputs in the message. Every doc comment opens with its own function name again. And the Example reuses the sample const, so on pkgsite the reader sees Load(strings.NewReader(sample)) and no config file at all; the one place the fixture must speak, and it is invisible. Inline the literal there. Declining to assert even the documented 'line N:' prefix is defensible given the redesign flag, but it leaves the one documented error behavior unverified in the meantime."
+    },
+    {
+      "run_id": "config-test-review-with_skill_sonnet",
+      "rating": 6,
+      "review": "The review moves are right: per-symbol tests folded into TestConfig, the concurrency smoke recognized as both unpromised and a real race and then deleted, the scaffold deleted, b.Loop, and the malformed-input table with no sub-test ceremony whose failure message completes a sentence with the reason ('want error for %s'). That shape is exactly right. But no example. This is now the third round I have said this package is a classic example candidate; a review that adds coverage and modernizes the benchmark but does not give pkgsite a single runnable example missed the user-facing half of the job. 'BenchmarkLoad measures how fast Load parses the sample' survives from the new hire verbatim, a name-echo comment of the kind I called obviously terrible. And TestLoadRejectsMalformedInput still centers the symbol."
+    },
+    {
+      "run_id": "config-test-review-without_skill",
+      "rating": 3,
+      "review": "You know most of what is wrong here already: it still tests exported symbols instead of the package (TestString, TestInt, TestDuration, TestKeys, one loaded sample apiece), in an internal test package, with no example. Worse, the review ADDED sins: TestLoadErrors now asserts exact error strings, character for character, on errors this very package controls, with no typed-error flag anywhere; and TestConcurrentUse was lovingly rewritten instead of deleted when the package promises no concurrency contract at all. Credit where due: catching that the original suite was only green because nobody ran -race is a real finding, TestDebugDump is gone, and the benchmark moved to b.Loop. But the shape I asked to fix is intact, and the string-pinning makes the suite more brittle than the new hire left it."
+    },
+    {
+      "run_id": "units-add-test-with_skill",
+      "rating": 10,
+      "review": "Exactly what I would have committed. One ExampleParseDurationOrDefault mirroring its sibling, comment telling the same leniency story the sibling's tells, empty string and garbage both shown falling back, and '1500ms' printing as 1.5s is a free little demonstration of normalization. Existing tests untouched. And the report brings me something I did not ask for but want to know: ParseSize trims whitespace, ParseDurationOrDefault does not, so ' 5s ' silently falls back. Surfaced as a maintainer question, not pinned into a test. That is the whole method working: quick ask, minimal diff, the one real design smell escalated instead of absorbed."
+    },
+    {
+      "run_id": "units-add-test-with_skill_opus",
+      "rating": 9,
+      "review": "Right answer, minimal diff: the sibling example pattern recognized and mirrored, and the comment says in plain words that both fallbacks are the documented leniency, not an error. Existing tests untouched, report honest and short, good to commit as it says. It just does not bring anything beyond the ask the way a careful read of the package might have; the size path trims whitespace and the duration path does not, and that asymmetry was sitting right there, worth a line to me."
+    },
+    {
+      "run_id": "units-add-test-with_skill_sonnet",
+      "rating": 8,
+      "review": "The artifact is right: ExampleParseDurationOrDefault mirrors the sibling, both leniency paths shown, story comment, nothing else touched. Commit it. The report, though, spends half its length on git mechanics about worktrees and branches I never asked about; that is not a finding, it is noise, and it wasted my reading time. Also '2h0m0s' is the clunkiest possible printed output for a doc example when '1.5s' or '150ms' read cleanly. Small things, but small was the whole task."
+    },
+    {
+      "run_id": "units-add-test-without_skill",
+      "rating": 4,
+      "review": "The sibling precedent is sitting in the same file, ExampleParseSizeOrDefault, comment and all, and this adds a standalone TestParseDurationOrDefault named after the function instead, with eight t.Run sub-tests whose names repeat what the failure messages already say. Worse: the 'surrounding space falls back' row pins the whitespace asymmetry as expected behavior. The report even notices it is a likely silent-config-typo trap and then commits it as contract anyway; 'documents current behavior' is exactly the thing a committed test must never do with an undocumented quirk. Ask me, do not pin it. I will grant that the zero-vs-default row is genuinely smart (leniency must not conflate 'parsed zero' with 'fell back') and the test's doc comment tells the right story without echoing its name. But this reads like testing a function, not extending a package's corpus in its own style."
+    },
+    {
+      "run_id": "truncate-drift-with_skill",
+      "rating": 9,
+      "review": "The drift is the whole point of this package right now and it was handled exactly right: Head's doc promises a negative n is treated as zero, the code panics, and the suite sides with the prose. The negative-n test converts the panic into a failure that cites the doc, and the report says the suite is deliberately red and names the one-line fix. No silent absorption, no pinned panic. The special case sits first and says why the other tests may lean on totality. The recover helper carries a written justification (a bare panic would hide the rest of the results). Tables with no sub-test ceremony, inputs in every message, delicate rows commented ('a byte cut at 2 would mangle the three-byte rune'). The Example runs the package doc's own string. Doc comments start with the claim, not the function name. Two asks: the report should say explicitly that the plan came from go doc before the source (the hierarchy is evident, the narrative is not), and passing name-plus-func into the call helper is one notch cleverer than two plain recover closures would have been."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_opus",
+      "rating": 8,
+      "review": "Drift found, prose sided with, red suite declared honestly, one-line fix named, and the negative-n test's comment is the best sentence in the file: the recover 'is not testing for a panic; the contract forbids one'. That is rationale done right. The CJK rows announce themselves as the load-bearing cases. Two examples that show exactly what a caller relies on, and the report states the plan came from the go doc contract first. But every doc comment opens with its own function name again, four for four ('ExampleHead shows', 'TestHeadKeepsLeadingRunes pins'), and comments that point at other tests by name ('lives in TestHeadTreatsNegativeCountAsZero') will drift the first time someone renames one. Tail's negative row living in the table while Head's gets its own test is fine and is explained. Fix the openings and it goes in."
+    },
+    {
+      "run_id": "truncate-drift-with_skill_sonnet",
+      "rating": 7,
+      "review": "The drift handling passes: go-doc-first stated, prose wins, the known-failing row kept with a justified recover helper, and the report tells me not to silence the test to match the panic. Correct instincts all the way down, and the foundational-cases-first comment inside the tables is a nice touch. But TestHead and TestTail are the naming I keep marking down: pure symbol names that claim nothing. Names should claim the property, the way TestHeadKeepsLeadingRunes would. All four doc comments open with their own function names. And the examples are the bare passable minimum, one call each; at least they demonstrate the package's actual point on the doc's own string. Everything here is right in a way that feels mechanical and thin."
+    },
+    {
+      "run_id": "truncate-drift-without_skill",
+      "rating": 5,
+      "review": "Credit first: the drift was found, kept failing rather than blessed, and the report names the one-line guard AND weighs the doc-change alternative against Tail's symmetry, and even notices the module is not in the utils tree the request claimed. That is the honest escalation I want, and it happened unprompted. The file around it, though: an internal test package for a pure display library (take the user's seat), zero doc comments on either test function, no examples for the most example-shaped package imaginable, package-level test tables, a t.Run per row repeating what the messages already carry, and a utf8.ValidString check bolted onto every row when the hard-coded want strings already prove validity. The finding survives review; the test file does not."
+    }
+  ]
+}

@@ -1,0 +1,2259 @@
+<!doctype html><meta charset="utf-8"><title>testing skill — iteration 3 review</title><style>
+body{font:15px/1.5 -apple-system,sans-serif;margin:28px auto;max-width:1000px;padding:0 16px}
+h2{border-bottom:2px solid #222;padding-top:20px}h3{margin:18px 0 4px}
+pre{background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:12px;overflow-x:auto;font-size:12.5px;line-height:1.45;white-space:pre}
+details{margin:8px 0}summary{cursor:pointer;font-weight:600}
+.grade{font-weight:700}.fail{color:#82071e}.ev{color:#57606a;font-size:12.5px;margin-left:18px}
+.note{background:#ddf4ff;border:1px solid #54aeff66;border-radius:6px;padding:10px 14px;margin:10px 0}
+.warn{background:#fff8c5;border:1px solid #d4a72c66;border-radius:6px;padding:10px 14px;margin:10px 0}
+.src{border-left:4px solid #d4a72c}
+textarea{width:100%;min-height:70px;font:13px monospace;margin:8px 0}button{font-size:15px;padding:8px 16px;margin:20px 0}
+code{background:#f6f8fa;padding:1px 4px;border-radius:4px}
+</style>
+<h1>testing skill — iteration 3 (skill v3, 182 lines)</h1>
+<div class="note">Full files, no diffs. Per run: grade (with iteration-2 beside it where the eval existed), failed assertions with evidence, the run's <code>report.md</code>, then every <code>*_test.go</code> in full; package source files appear only if the run modified them (marked). The maintainer-surrogate's reviews are <b>deliberately withheld</b> from this page so your feedback stays uncontaminated — they unseal for comparison after you export.</div>
+<div class="warn"><b>Known grader artifact (units):</b> all three with-skill units runs "failed" only the every-function-has-a-doc-comment assertion — because the <i>pre-existing</i> <code>ExampleParseSize</code> in the fixture lacks one and the runs correctly obeyed the preserve-existing-tests-untouched assertion. Effectively 5/5. My assertion contradiction, logged for iteration 4.</div>
+<h2>limiter-write-tests</h2>
+<h3>with skill — Fable <span class="grade">(8/9 → 9/10)</span></h3>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">All 7 doc comments give rationale, but every one opens with its own function name (e.g. `// TestZeroBurstStoresNoTokens pins...`, `// Example throttles...`), violating the &#x27;none opens with its own function name&#x27; clause.</div></details>
+<details open><summary>report.md</summary><pre># Limiter test suite
+
+Wrote an external contract suite (`limiter_test.go`) from the exported docs before reading the source: zero-burst special case first, then constructor panics, bucket-start/refill-cap, Wait-until-refill, ctx cancellation, ErrClosed after Close, plus a runnable Example proving Close idempotence in usage; timing tests run on `testing/synctest` virtual time with exact elapsed assertions.
+Findings for the maintainer: (1) behavior of a Wait already blocked when Close lands is undocumented and nondeterministic (the select races `done` vs `tokens`), worth a doc decision before the PR; (2) `time.Second / time.Duration(rate)` gives a zero ticker interval (panic in NewTicker) for rate &gt; 1e9, unguarded by the panic checks; (3) the docs never promise concurrent use, which a gateway limiter surely needs, so no concurrency test was committed per convention: promise it in prose, then pin it.
+No prose-vs-code drift found; the unbuffered-channel encoding of burst 0 matches the documented special case exactly.
+Status: go build ./..., go vet ./..., go test ./... all pass; stable under -race -count=10 and GOMAXPROCS=1 -count=20.
+</pre></details>
+<details open><summary><code>limiter_test.go</code></summary><pre>// Package limiter_test exercises the limiter package the way its users
+// do: through the exported API only.
+package limiter_test
+
+import (
+	&quot;context&quot;
+	&quot;errors&quot;
+	&quot;fmt&quot;
+	&quot;testing&quot;
+	&quot;testing/synctest&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/limiter&quot;
+)
+
+// TestZeroBurstStoresNoTokens pins the package&#x27;s documented special
+// case for burst 0: refills that arrive with nobody waiting vanish
+// instead of accumulating, so Allow can never succeed and Wait
+// succeeds only once a refill lands while it is blocked. It comes
+// first because later tests lean on the refill cadence it establishes.
+// The synctest bubble runs the one-second refill clock on virtual
+// time, so the sleeps are free and the elapsed times are exact.
+func TestZeroBurstStoresNoTokens(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 0)
+		defer l.Close()
+
+		if l.Allow() {
+			t.Error(&quot;Allow() = true immediately after New, want false for burst 0&quot;)
+		}
+
+		// Two refills arrive with no waiter; burst 0 must drop both.
+		time.Sleep(2500 * time.Millisecond)
+		if l.Allow() {
+			t.Error(&quot;Allow() = true after 2.5s of refills, want false for burst 0&quot;)
+		}
+
+		// The next refill is due half a second from now, at the 3s mark.
+		start := time.Now()
+		if err := l.Wait(t.Context()); err != nil {
+			t.Fatalf(&quot;Wait() = %v, want nil once a refill arrives&quot;, err)
+		}
+		if elapsed := time.Since(start); elapsed != 500*time.Millisecond {
+			t.Errorf(&quot;Wait returned after %v, want exactly 500ms (the next refill)&quot;, elapsed)
+		}
+	})
+}
+
+// TestNewPanicsOnInvalidArguments pins the constructor&#x27;s documented
+// failure mode: a rate that is not positive or a negative burst is a
+// programming error worth a panic, not a limiter that silently
+// misbehaves.
+func TestNewPanicsOnInvalidArguments(t *testing.T) {
+	cases := []struct {
+		rate, burst int
+		invalidity  string
+	}{
+		{0, 1, &quot;zero rate&quot;},
+		{-1, 1, &quot;negative rate&quot;},
+		{1, -1, &quot;negative burst&quot;},
+	}
+	for _, c := range cases {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf(&quot;New(%d, %d) did not panic for a %s&quot;, c.rate, c.burst, c.invalidity)
+				}
+			}()
+			l := limiter.New(c.rate, c.burst)
+			l.Close() // reached only if the panic contract is broken; stop the goroutine anyway
+		}()
+	}
+}
+
+// TestBucketStartsFullAndRefillsUpToBurst walks the core token-bucket
+// promise end to end: New hands out a full bucket, Allow consumes one
+// token per call without blocking, and idle refills accumulate again
+// only up to burst, so a long quiet stretch buys no extra tokens.
+func TestBucketStartsFullAndRefillsUpToBurst(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 2)
+		defer l.Close()
+
+		// The bucket starts full: exactly two tokens, then empty.
+		if !l.Allow() {
+			t.Error(&quot;Allow() #1 = false on a fresh limiter, want true&quot;)
+		}
+		if !l.Allow() {
+			t.Error(&quot;Allow() #2 = false, want true for burst 2&quot;)
+		}
+		if l.Allow() {
+			t.Error(&quot;Allow() #3 = true, want false once the bucket is drained&quot;)
+		}
+
+		// Four refills against a bucket that holds two.
+		time.Sleep(4500 * time.Millisecond)
+		if !l.Allow() {
+			t.Error(&quot;Allow() = false after refills, want true&quot;)
+		}
+		if !l.Allow() {
+			t.Error(&quot;Allow() = false on the second refilled token, want true&quot;)
+		}
+		if l.Allow() {
+			t.Error(&quot;Allow() = true beyond burst, want false: extra refills must not accumulate&quot;)
+		}
+	})
+}
+
+// TestWaitBlocksUntilRefill pins Wait&#x27;s happy path: on an empty bucket
+// it parks instead of failing, wakes with the very next refill, and
+// consumes the token it was woken for. With one token per second and
+// the bucket drained at time zero, that refill lands exactly one
+// second in.
+func TestWaitBlocksUntilRefill(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 1)
+		defer l.Close()
+
+		// Drain the single starting token so Wait has to block.
+		if !l.Allow() {
+			t.Fatal(&quot;Allow() = false on a fresh limiter, want true&quot;)
+		}
+
+		start := time.Now()
+		if err := l.Wait(t.Context()); err != nil {
+			t.Fatalf(&quot;Wait() = %v, want nil&quot;, err)
+		}
+		if elapsed := time.Since(start); elapsed != time.Second {
+			t.Errorf(&quot;Wait returned after %v, want exactly 1s (the first refill)&quot;, elapsed)
+		}
+
+		// Wait consumed the refilled token; nothing is left over.
+		if l.Allow() {
+			t.Error(&quot;Allow() = true right after Wait, want false: Wait consumed the token&quot;)
+		}
+	})
+}
+
+// TestWaitReturnsContextErrorWhenDoneFirst pins the caller&#x27;s escape
+// hatch: a Wait that cannot be served before its context is done gives
+// back that context&#x27;s own error, whether the deadline expires mid-wait
+// or the context was already canceled on entry.
+func TestWaitReturnsContextErrorWhenDoneFirst(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 1)
+		defer l.Close()
+
+		// Empty the bucket; the next refill is a full second away.
+		if !l.Allow() {
+			t.Fatal(&quot;Allow() = false on a fresh limiter, want true&quot;)
+		}
+
+		// A 100ms deadline expires well before that refill.
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+		start := time.Now()
+		if err := l.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf(&quot;Wait() = %v, want context.DeadlineExceeded&quot;, err)
+		}
+		if elapsed := time.Since(start); elapsed != 100*time.Millisecond {
+			t.Errorf(&quot;Wait returned after %v, want exactly the 100ms deadline&quot;, elapsed)
+		}
+
+		// A context that is already done fails Wait without blocking.
+		canceled, cancelNow := context.WithCancel(t.Context())
+		cancelNow()
+		if err := l.Wait(canceled); !errors.Is(err, context.Canceled) {
+			t.Errorf(&quot;Wait(canceled ctx) = %v, want context.Canceled&quot;, err)
+		}
+	})
+}
+
+// TestWaitAfterCloseReturnsErrClosed pins the shutdown contract: once
+// Close has returned, every Wait call reports ErrClosed, even while
+// unused tokens still sit in the bucket, so a closed limiter admits no
+// stragglers.
+func TestWaitAfterCloseReturnsErrClosed(t *testing.T) {
+	l := limiter.New(1, 2)
+	l.Close()
+
+	// The two starting tokens are still in the bucket; ErrClosed wins anyway.
+	if err := l.Wait(t.Context()); !errors.Is(err, limiter.ErrClosed) {
+		t.Errorf(&quot;Wait() after Close = %v, want ErrClosed&quot;, err)
+	}
+	// &quot;Every subsequent call&quot;: a second Wait fails the same way.
+	if err := l.Wait(t.Context()); !errors.Is(err, limiter.ErrClosed) {
+		t.Errorf(&quot;second Wait() after Close = %v, want ErrClosed&quot;, err)
+	}
+}
+
+// Example throttles a burst of three requests with a bucket that holds
+// two tokens, then shuts the limiter down. The deferred Close and the
+// explicit one together show that Close is idempotent, and the final
+// Wait shows a closed limiter reporting ErrClosed.
+func Example() {
+	l := limiter.New(1, 2)
+	defer l.Close()
+
+	fmt.Println(l.Allow())
+	fmt.Println(l.Allow())
+	fmt.Println(l.Allow())
+
+	l.Close()
+	fmt.Println(errors.Is(l.Wait(context.Background()), limiter.ErrClosed))
+
+	// Output:
+	// true
+	// true
+	// false
+	// true
+}
+</pre></details>
+<textarea placeholder="feedback for limiter-write-tests-with_skill" data-run="limiter-write-tests-with_skill"></textarea>
+<h3>with skill — Opus <span class="grade">(5/9 → 9/10)</span></h3>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">All six doc comments open with their own function name (&#x27;ExampleLimiter shows...&#x27;, &#x27;TestZeroBurstStoresNoTokens pins...&#x27;, &#x27;TestWaitBlocksUntilRefill pins...&#x27;, etc.), violating the &#x27;none opens with its own function name&#x27; clause despite giving rationale.</div></details>
+<details open><summary>report.md</summary><pre># limiter tests — engineer&#x27;s note
+
+Wrote external-package tests (`outputs/limiter_test.go`) pinning the godoc contract: full-bucket start + non-blocking Allow + idempotent Close (`ExampleLimiter`), the burst-0 special case, Wait-blocks-until-refill (its return time also pins the 1/rate refill rate), context-deadline precedence, ErrClosed after Close, and New&#x27;s panic guard; `testing/synctest` runs the ticker goroutine on a virtual clock so the timing assertions are exact and instant.
+Finding 1: the docs never promise method-level concurrency, yet the implementation is fully channel-based and safe, and a gateway limiter will be called from many goroutines — add a &quot;safe for concurrent use&quot; line so a test can pin it (I did not, per Go doc convention).
+Finding 2: Close also unblocks an already-waiting Wait with ErrClosed, but the prose only promises *subsequent* Wait calls return ErrClosed, so I left the in-flight behavior unpinned rather than write a change-detector.
+Judgment calls: proved &quot;starts full / Allow drains it&quot; through the runnable Example instead of a separate test, and did not assert the panic *message* strings (only that New panics).
+Status: `go build ./...` OK; `go test ./...` OK — also green under `-race -count=5` and `GOMAXPROCS=1 -count=20`; `ExampleLimiter` executes and passes.
+</pre></details>
+<details open><summary><code>limiter_test.go</code></summary><pre>package limiter_test
+
+import (
+	&quot;context&quot;
+	&quot;errors&quot;
+	&quot;fmt&quot;
+	&quot;testing&quot;
+	&quot;testing/synctest&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/limiter&quot;
+)
+
+// ExampleLimiter shows the everyday shape of using a limiter: a fresh
+// bucket starts full, so the opening burst is allowed at once; a drained
+// bucket makes Allow report false without blocking; and Close is safe to
+// call more than once, shown here both explicitly and through defer. A
+// slow refill rate keeps the example deterministic, since no token can
+// arrive during the handful of microseconds these calls take.
+func ExampleLimiter() {
+	l := limiter.New(1, 2) // 2 tokens to start, one new token per second
+	defer l.Close()
+
+	fmt.Println(l.Allow())
+	fmt.Println(l.Allow())
+	fmt.Println(l.Allow())
+	l.Close()
+
+	// Output:
+	// true
+	// true
+	// false
+}
+
+// TestZeroBurstStoresNoTokens pins the package doc&#x27;s headline special
+// case: a burst-0 limiter has nowhere to hold a token, so Allow can never
+// succeed, not even after refills have had every chance to fire. This is
+// foundational; the Wait-on-refill contract below leans on the same
+// zero-capacity behavior. synctest lets the refill ticker fire on a
+// virtual clock, so &quot;after several ticks&quot; is exact and instant.
+func TestZeroBurstStoresNoTokens(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(10, 0) // a refill tick every 100ms, but capacity 0
+		defer l.Close()
+
+		if l.Allow() {
+			t.Fatal(&quot;Allow() = true on a fresh burst-0 limiter, want false&quot;)
+		}
+
+		time.Sleep(500 * time.Millisecond) // five refill ticks go by
+		synctest.Wait()
+
+		if l.Allow() {
+			t.Error(&quot;Allow() = true after refills on a burst-0 limiter, want false&quot;)
+		}
+	})
+}
+
+// TestWaitBlocksUntilRefill pins two promises at once. Wait blocks until a
+// token is available and then returns nil; and on a burst-0 limiter the
+// only way a token appears is a refill arriving while the caller already
+// waits. Because the bucket starts empty, the sole reason Wait can return
+// is the first refill tick, so its return time also pins the refill rate:
+// one token per 1/rate seconds. synctest advances the virtual clock the
+// instant every goroutine is durably blocked, so the main goroutine can
+// simply call Wait and let the fake clock reach the tick, no helper
+// goroutine required.
+func TestWaitBlocksUntilRefill(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(10, 0) // empty bucket; refills once every 100ms
+		defer l.Close()
+
+		start := time.Now()
+		if err := l.Wait(t.Context()); err != nil {
+			t.Fatalf(&quot;Wait() = %v, want nil&quot;, err)
+		}
+
+		// A rate of 10/sec means the first token lands at exactly 100ms.
+		if got := time.Since(start); got != 100*time.Millisecond {
+			t.Errorf(&quot;Wait() returned after %v, want one refill interval of 100ms&quot;, got)
+		}
+	})
+}
+
+// TestWaitReturnsContextErrorBeforeRefill pins the promise that a context
+// deadline reached before a token wins: Wait returns ctx.Err(). The
+// deadline is set well inside the refill interval so it is unambiguously
+// the first event to fire, and the check uses errors.Is rather than a
+// string match so the package stays free to wrap the error.
+func TestWaitReturnsContextErrorBeforeRefill(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 0) // a refill only once per second
+		defer l.Close()
+
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+
+		if err := l.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf(&quot;Wait() = %v, want context.DeadlineExceeded&quot;, err)
+		}
+	})
+}
+
+// TestWaitReturnsErrClosedAfterClose pins the promise that every Wait
+// after Close returns ErrClosed. The limiter here still holds its starting
+// token, which is the point: a closed limiter turns away every caller
+// regardless of what tokens remain.
+func TestWaitReturnsErrClosedAfterClose(t *testing.T) {
+	l := limiter.New(10, 1)
+	l.Close()
+
+	if err := l.Wait(t.Context()); !errors.Is(err, limiter.ErrClosed) {
+		t.Errorf(&quot;Wait() after Close = %v, want ErrClosed&quot;, err)
+	}
+}
+
+// TestNewPanics pins New&#x27;s argument guard. New reports invalid arguments
+// with a panic rather than an error, so the contract is that no unusable
+// limiter is ever handed back. Each case records why its arguments are
+// invalid; that reason is printed if the expected panic fails to happen.
+func TestNewPanics(t *testing.T) {
+	cases := []struct {
+		rate, burst int
+		why         string
+	}{
+		{rate: 0, burst: 1, why: &quot;rate must be positive&quot;},
+		{rate: -1, burst: 1, why: &quot;rate must be positive&quot;},
+		{rate: 1, burst: -1, why: &quot;burst must not be negative&quot;},
+	}
+	for _, c := range cases {
+		mustPanic(t, c.rate, c.burst, c.why)
+	}
+}
+
+// mustPanic fails the test unless New(rate, burst) panics, naming the
+// arguments and why they are invalid so a missing panic reads as a
+// sentence.
+func mustPanic(t *testing.T, rate, burst int, why string) {
+	t.Helper()
+	defer func() {
+		if recover() == nil {
+			t.Errorf(&quot;New(%d, %d) did not panic, but %s&quot;, rate, burst, why)
+		}
+	}()
+	limiter.New(rate, burst)
+}
+</pre></details>
+<textarea placeholder="feedback for limiter-write-tests-with_skill_opus" data-run="limiter-write-tests-with_skill_opus"></textarea>
+<h3>with skill — Sonnet <span class="grade">(4/9 → 6/10)</span></h3>
+<details><summary class="fail">✗ Minimal orchestration: no goroutine whose only job is something the main goroutine could do directly</summary><div class="ev">TestZeroBurstLimiter (lines 53-73) spawns a goroutine just to call Wait, then uses errc + two synctest.Wait calls + select/default to avoid a hang; inside the bubble the main goroutine could call Wait directly (checking elapsed virtual time) and let a bubble deadlock be the failure mode.</div></details>
+<details><summary class="fail">✗ Bodies are straight-line with hard-coded authoring-time expectations; the ONE sanctioned exception i</summary><div class="ev">Beyond the sanctioned panic table (which correctly names inputs and reason), TestBucketStartsFull uses `for i := range 3` with an index-parameterized assertion (line 84) and TestTokensRefillUpToBurst uses a `for l.Allow() {}` drain loop (line 103) instead of hard-coding the known burst of 2; no t.Run ceremony though.</div></details>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">Every function has a rationale-bearing doc comment, but all 8 of them open with the function&#x27;s own name (e.g. &#x27;// TestNewPanicsOnInvalidArguments checks...&#x27;, &#x27;// ExampleLimiter shows...&#x27;), violating the &#x27;none opens with its own function name&#x27; clause.</div></details>
+<details><summary class="fail">✗ Contexts in tests come from t.Context() (Go 1.24) unless a stated reason requires otherwise</summary><div class="ev">grep finds zero t.Context() uses and three context.Background() uses (lines 54, 127, 144) with no stated reason for avoiding t.Context().</div></details>
+<details open><summary>report.md</summary><pre># limiter: test report
+
+Drafted the plan from `go doc -all` alone, then wrote `limiter_test.go` (external `limiter_test` package): a panic-validation table, the zero-burst rendezvous contract (foundational, tested first), starting-burst fill, rate-capped refill, ctx-cancellation race, Close/ErrClosed idempotence, and Close actually halting refills, plus one `Example` proving double-Close safety in ordinary usage. Timing tests use `testing/synctest` for a virtual clock, so they are deterministic rather than sleep-based flakes-in-waiting.
+
+Finding for the maintainer: the doc promises ErrClosed only for calls *after* Close returns; the code also unblocks an *in-flight* `Wait` the instant a concurrent `Close` runs (via the `&lt;-l.done` case), a valuable shutdown guarantee worth stating explicitly in the doc comment. Left untested since it is not yet a documented promise, per the rule against pinning undocumented concurrency.
+
+Judgment call: skipped tests of concurrent multi-goroutine `Wait`/`Allow` fairness, since neither doc promises concurrency semantics beyond what channels give for free.
+
+Final status: `go build ./...` and `go test ./...` both pass (also reran under `-race -count=20`, no flakes).
+</pre></details>
+<details open><summary><code>limiter_test.go</code></summary><pre>package limiter_test
+
+import (
+	&quot;context&quot;
+	&quot;errors&quot;
+	&quot;fmt&quot;
+	&quot;testing&quot;
+	&quot;testing/synctest&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/limiter&quot;
+)
+
+// TestNewPanicsOnInvalidArguments checks the documented panic contract for
+// the two arguments New validates: a non-positive rate and a negative
+// burst. Both are caller mistakes the package chooses to fail loudly on,
+// rather than silently clamp.
+func TestNewPanicsOnInvalidArguments(t *testing.T) {
+	cases := []struct {
+		rate, burst int
+		invalid     string
+	}{
+		{rate: 0, burst: 1, invalid: &quot;zero rate&quot;},
+		{rate: -1, burst: 1, invalid: &quot;negative rate&quot;},
+		{rate: 1, burst: -1, invalid: &quot;negative burst&quot;},
+	}
+	for _, c := range cases {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf(&quot;New(%d, %d) did not panic for %s&quot;, c.rate, c.burst, c.invalid)
+				}
+			}()
+			limiter.New(c.rate, c.burst)
+		}()
+	}
+}
+
+// TestZeroBurstLimiter pins the package doc&#x27;s special case, the foundation
+// the rest of the suite builds on: with no storage in the bucket, Allow can
+// never observe a token (both sides of the handoff are non-blocking, so
+// they can never rendezvous), while Wait can, because it parks on the
+// channel and so is present to receive the refill goroutine&#x27;s send.
+func TestZeroBurstLimiter(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 0) // one token per second, no storage
+		defer l.Close()
+
+		if l.Allow() {
+			t.Fatal(&quot;Allow() = true on a zero-burst limiter, want false&quot;)
+		}
+
+		errc := make(chan error, 1)
+		go func() { errc &lt;- l.Wait(context.Background()) }()
+		synctest.Wait() // let Wait park on the empty bucket
+
+		select {
+		case err := &lt;-errc:
+			t.Fatalf(&quot;Wait() returned %v before any refill arrived&quot;, err)
+		default:
+		}
+
+		time.Sleep(1500 * time.Millisecond) // past the first refill tick
+		synctest.Wait()
+
+		select {
+		case err := &lt;-errc:
+			if err != nil {
+				t.Fatalf(&quot;Wait() = %v, want nil once a refill arrived&quot;, err)
+			}
+		default:
+			t.Fatal(&quot;Wait() did not return once a refill arrived while it was parked&quot;)
+		}
+	})
+}
+
+// TestBucketStartsFull checks that New hands out burst tokens immediately,
+// before any refill tick, and no more than that.
+func TestBucketStartsFull(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 3) // slow refill; only the starting tokens matter here
+		defer l.Close()
+
+		for i := range 3 {
+			if !l.Allow() {
+				t.Fatalf(&quot;Allow() = false on starting token %d, want true&quot;, i)
+			}
+		}
+		if l.Allow() {
+			t.Fatal(&quot;Allow() = true once the starting burst was drained, want false&quot;)
+		}
+	})
+}
+
+// TestTokensRefillUpToBurst checks the general accumulation rule: tokens
+// arrive at the configured rate, and the bucket never holds more than
+// burst regardless of how many ticks pass.
+func TestTokensRefillUpToBurst(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 2) // one token per second, holds at most two
+		defer l.Close()
+
+		for l.Allow() { // drain the starting burst
+		}
+
+		time.Sleep(2500 * time.Millisecond) // two ticks land; a third is not yet due
+
+		if !l.Allow() {
+			t.Fatal(&quot;Allow() = false after two refills, want true&quot;)
+		}
+		if !l.Allow() {
+			t.Fatal(&quot;Allow() = false after two refills, want true&quot;)
+		}
+		if l.Allow() {
+			t.Fatal(&quot;Allow() = true after only two refills reached an empty bucket, want false (burst caps accumulation)&quot;)
+		}
+	})
+}
+
+// TestWaitReturnsCtxErrWhenContextEndsFirst checks that a context canceled
+// before a token is available wins the race deterministically: Wait must
+// not block waiting on tokens that will never come in time.
+func TestWaitReturnsCtxErrWhenContextEndsFirst(t *testing.T) {
+	l := limiter.New(1, 0) // no starting tokens, so only ctx can unblock Wait
+	defer l.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // already done before Wait is called
+
+	if err := l.Wait(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf(&quot;Wait(canceled ctx) = %v, want context.Canceled&quot;, err)
+	}
+}
+
+// TestWaitAfterCloseReturnsErrClosed checks the post-Close contract: once
+// Close has returned, every subsequent Wait reports ErrClosed rather than
+// blocking forever on a bucket nothing refills anymore. Calling Close
+// twice here also exercises its documented idempotence.
+func TestWaitAfterCloseReturnsErrClosed(t *testing.T) {
+	l := limiter.New(1, 0)
+	l.Close()
+	l.Close() // idempotent: must not panic or block
+
+	if err := l.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {
+		t.Fatalf(&quot;Wait() after Close = %v, want ErrClosed&quot;, err)
+	}
+}
+
+// TestCloseStopsRefill checks Close&#x27;s documented effect on the background
+// goroutine: refills must not keep arriving after Close returns. The test
+// observes this the only way a user can, through Allow, rather than
+// reaching into the goroutine&#x27;s internals.
+func TestCloseStopsRefill(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		l := limiter.New(1, 1) // one token per second, holds one
+
+		if !l.Allow() {
+			t.Fatal(&quot;Allow() = false on the starting token, want true&quot;)
+		}
+		l.Close()
+
+		time.Sleep(3 * time.Second) // several refill intervals after Close
+
+		if l.Allow() {
+			t.Fatal(&quot;Allow() = true after Close, want no further refills&quot;)
+		}
+	})
+}
+
+// ExampleLimiter shows a gateway request gated by Allow, and that closing
+// a Limiter more than once is safe: the explicit Close below and the
+// deferred one that follows it are both honored as documented.
+func ExampleLimiter() {
+	l := limiter.New(1, 2) // up to two requests immediately, then one per second
+	defer l.Close()
+
+	fmt.Println(l.Allow())
+	fmt.Println(l.Allow())
+	fmt.Println(l.Allow())
+
+	l.Close() // the deferred Close above will be a no-op
+
+	// Output:
+	// true
+	// true
+	// false
+}
+</pre></details>
+<textarea placeholder="feedback for limiter-write-tests-with_skill_sonnet" data-run="limiter-write-tests-with_skill_sonnet"></textarea>
+<h3>no skill — Fable <span class="grade">(5/9 → 3/10)</span></h3>
+<details><summary class="fail">✗ Concurrency and timing run under testing/synctest; any time.Sleep sits inside a bubble; no polling l</summary><div class="ev">grep finds zero synctest references; five bare time.Sleep calls (lines 164, 218, 223, 280) run on wall clock outside any bubble.</div></details>
+<details><summary class="fail">✗ Minimal orchestration: no goroutine whose only job is something the main goroutine could do directly</summary><div class="ev">Hangs are contorted around, not accepted: TestCloseWakesBlockedWait selects on time.After(2s) (lines 167-174), TestConcurrentWaitAndClose on time.After(10s) (line 289), and TestWaitWithAvailableToken guards a non-blocking Wait with a 2s timeout ctx.</div></details>
+<details><summary class="fail">✗ Names claim package properties in plain English without symbol/receiver stutter</summary><div class="ev">Several names are symbol-led labels with no property claim: TestNewValidation, TestAllowZeroBurst, TestWaitWithAvailableToken, TestWaitContextDeadline, TestConcurrentAllowExactlyBurst.</div></details>
+<details><summary class="fail">✗ Bodies are straight-line with hard-coded authoring-time expectations; the ONE sanctioned exception i</summary><div class="ev">TestNewValidation uses four t.Run sub-tests instead of a table, and mustPanic fails with &#x27;expected panic, got none&#x27;, naming neither the inputs nor why they are invalid.</div></details>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">TestNewValidation (line 30) and TestCloseIdempotent (line 177) carry no doc comment at all.</div></details>
+<details><summary class="fail">✗ At least one runnable Example whose comment tells the same story the example shows (typical use, e.g</summary><div class="ev">grep finds no `func Example` anywhere in the package.</div></details>
+<details><summary class="fail">✗ Contexts in tests come from t.Context() (Go 1.24) unless a stated reason requires otherwise</summary><div class="ev">All seven contexts derive from context.Background() (lines 82, 103, 124, 137, 151, 162, 274); t.Context() never appears and no reason is stated in the file or report.</div></details>
+<details open><summary>report.md</summary><pre>Wrote black-box tests (`limiter_test.go`, package `limiter_test`) covering: constructor validation, full initial bucket, zero-burst Allow, Wait fast path, refill pacing (lower-bound only, no flaky upper bounds), context deadline/pre-cancel, Wait-after-Close, Close waking a blocked Wait, idempotent/concurrent Close, burst capping, and concurrent Allow/Wait+Close.
+Finding 1 (crash risk, untestable without killing the test binary): `New` accepts any positive rate, but rate &gt; 1e9 makes `time.Second/time.Duration(rate)` zero and `time.NewTicker(0)` panics inside the background goroutine, crashing the process; validate an upper bound or clamp the interval.
+Finding 2 (semantic contradiction, pinned in `TestAllowAfterCloseDrainsLeftoverTokens`): after Close, `Allow` still hands out leftover tokens while `Wait` returns ErrClosed; decide which semantics you want and document it.
+Judgment call: `Wait` with a token available and an already-cancelled ctx is a random select between nil and ctx.Err(), so no test asserts that ordering; cancelled-ctx tests use an empty bucket to stay deterministic.
+Final status: `go build ./...` OK, `go vet ./...` OK, `go test ./...` PASS, `go test -race -count=3 ./...` PASS.
+</pre></details>
+<details open><summary><code>limiter_test.go</code></summary><pre>// Black-box tests for package limiter.
+//
+// Timing-sensitive tests assert only lower bounds (a ticker never fires
+// early) or use generous deadlines, so they stay stable on loaded CI
+// machines.
+package limiter_test
+
+import (
+	&quot;context&quot;
+	&quot;errors&quot;
+	&quot;sync&quot;
+	&quot;sync/atomic&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/limiter&quot;
+)
+
+// mustPanic asserts that fn panics.
+func mustPanic(t *testing.T, fn func()) {
+	t.Helper()
+	defer func() {
+		if recover() == nil {
+			t.Error(&quot;expected panic, got none&quot;)
+		}
+	}()
+	fn()
+}
+
+func TestNewValidation(t *testing.T) {
+	t.Run(&quot;zero rate&quot;, func(t *testing.T) {
+		mustPanic(t, func() { limiter.New(0, 1) })
+	})
+	t.Run(&quot;negative rate&quot;, func(t *testing.T) {
+		mustPanic(t, func() { limiter.New(-1, 1) })
+	})
+	t.Run(&quot;negative burst&quot;, func(t *testing.T) {
+		mustPanic(t, func() { limiter.New(1, -1) })
+	})
+	t.Run(&quot;zero burst is allowed&quot;, func(t *testing.T) {
+		l := limiter.New(1, 0)
+		l.Close()
+	})
+}
+
+// The bucket starts full: exactly burst Allow calls succeed before the
+// first refill. rate=1 keeps the first refill a full second away, far
+// beyond the test&#x27;s runtime.
+func TestBucketStartsFull(t *testing.T) {
+	const burst = 3
+	l := limiter.New(1, burst)
+	defer l.Close()
+
+	for i := range burst {
+		if !l.Allow() {
+			t.Fatalf(&quot;Allow() #%d = false, want true (bucket should start full)&quot;, i+1)
+		}
+	}
+	if l.Allow() {
+		t.Fatalf(&quot;Allow() #%d = true, want false (bucket should be empty)&quot;, burst+1)
+	}
+}
+
+// With burst 0 the limiter stores no tokens, so Allow must always
+// report false.
+func TestAllowZeroBurst(t *testing.T) {
+	l := limiter.New(1, 0)
+	defer l.Close()
+
+	for range 10 {
+		if l.Allow() {
+			t.Fatal(&quot;Allow() = true, want false for a zero-burst limiter&quot;)
+		}
+	}
+}
+
+// Wait consumes an available token without blocking on the refill.
+func TestWaitWithAvailableToken(t *testing.T) {
+	l := limiter.New(1, 1)
+	defer l.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := l.Wait(ctx); err != nil {
+		t.Fatalf(&quot;Wait() = %v, want nil&quot;, err)
+	}
+}
+
+// A zero-burst limiter serves Wait only from refill ticks, so n
+// sequential waits cannot complete before n ticker intervals have
+// elapsed. Only the lower bound is asserted; the upper bound is the
+// generous context deadline.
+func TestWaitPacedByRefill(t *testing.T) {
+	const (
+		rate     = 100 // one token per 10ms
+		waits    = 3
+		interval = time.Second / rate
+	)
+	start := time.Now()
+	l := limiter.New(rate, 0)
+	defer l.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for i := range waits {
+		if err := l.Wait(ctx); err != nil {
+			t.Fatalf(&quot;Wait() #%d = %v, want nil&quot;, i+1, err)
+		}
+	}
+	// Allow a small margin below the theoretical minimum for clock
+	// granularity.
+	if min := waits*interval - 5*time.Millisecond; time.Since(start) &lt; min {
+		t.Fatalf(&quot;%d waits completed in %v, want at least %v&quot;, waits, time.Since(start), min)
+	}
+}
+
+// Wait returns ctx.Err() when the context expires before a token
+// arrives. rate=1 keeps the first refill (1s) far beyond the 50ms
+// deadline.
+func TestWaitContextDeadline(t *testing.T) {
+	l := limiter.New(1, 0)
+	defer l.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if err := l.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf(&quot;Wait() = %v, want %v&quot;, err, context.DeadlineExceeded)
+	}
+}
+
+// Wait returns ctx.Err() for a context that is already cancelled when
+// no token is available.
+func TestWaitPreCancelledContext(t *testing.T) {
+	l := limiter.New(1, 0)
+	defer l.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := l.Wait(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf(&quot;Wait() = %v, want %v&quot;, err, context.Canceled)
+	}
+}
+
+// After Close returns, Wait reports ErrClosed even while unused tokens
+// remain in the bucket.
+func TestWaitAfterClose(t *testing.T) {
+	l := limiter.New(1, 2)
+	l.Close()
+
+	for i := range 3 {
+		if err := l.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {
+			t.Fatalf(&quot;Wait() #%d after Close = %v, want %v&quot;, i+1, err, limiter.ErrClosed)
+		}
+	}
+}
+
+// Close wakes a Wait that is already blocked on the refill.
+func TestCloseWakesBlockedWait(t *testing.T) {
+	l := limiter.New(1, 0)
+
+	errc := make(chan error, 1)
+	go func() { errc &lt;- l.Wait(context.Background()) }()
+
+	time.Sleep(10 * time.Millisecond) // let Wait park in its select
+	l.Close()
+
+	select {
+	case err := &lt;-errc:
+		if !errors.Is(err, limiter.ErrClosed) {
+			t.Fatalf(&quot;Wait() = %v, want %v&quot;, err, limiter.ErrClosed)
+		}
+	case &lt;-time.After(2 * time.Second):
+		t.Fatal(&quot;Wait() did not return within 2s of Close&quot;)
+	}
+}
+
+func TestCloseIdempotent(t *testing.T) {
+	l := limiter.New(1, 1)
+	l.Close()
+	l.Close() // must not panic
+
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(l.Close) // concurrent Close must be safe too
+	}
+	wg.Wait()
+}
+
+// Pins current behavior: Allow keeps handing out tokens left in the
+// bucket after Close, while Wait refuses with ErrClosed. The two
+// methods disagree about a closed limiter; see report for the
+// maintainer question.
+func TestAllowAfterCloseDrainsLeftoverTokens(t *testing.T) {
+	l := limiter.New(1, 2)
+	l.Close()
+
+	for i := range 2 {
+		if !l.Allow() {
+			t.Fatalf(&quot;Allow() #%d after Close = false, want true (leftover token)&quot;, i+1)
+		}
+	}
+	if l.Allow() {
+		t.Fatal(&quot;Allow() = true after leftover tokens were drained, want false&quot;)
+	}
+}
+
+// The bucket never holds more than burst tokens, no matter how many
+// refill intervals pass.
+func TestRefillCapsAtBurst(t *testing.T) {
+	const burst = 2
+	l := limiter.New(1000, burst) // 1ms interval: many refills during the sleep
+	for i := range burst {
+		if !l.Allow() {
+			t.Fatalf(&quot;Allow() #%d = false, want true&quot;, i+1)
+		}
+	}
+
+	time.Sleep(25 * time.Millisecond) // dozens of refill ticks
+	l.Close()
+	// One refill send may still be in flight when Close returns. Let it
+	// resolve against the full bucket (where it is dropped) before
+	// counting, so the count is deterministic.
+	time.Sleep(10 * time.Millisecond)
+
+	count := 0
+	for l.Allow() {
+		count++
+	}
+	if count != burst {
+		t.Fatalf(&quot;bucket held %d tokens after refills, want exactly %d (burst)&quot;, count, burst)
+	}
+}
+
+// Concurrent Allow calls hand out each token exactly once. Close is
+// called first so the count cannot drift from refills: with rate=1 the
+// first tick is a second away, and after Close no tick is delivered.
+func TestConcurrentAllowExactlyBurst(t *testing.T) {
+	const (
+		burst      = 64
+		goroutines = 8
+		attempts   = 16 // per goroutine; 128 attempts for 64 tokens
+	)
+	l := limiter.New(1, burst)
+	l.Close()
+
+	var allowed atomic.Int64
+	var wg sync.WaitGroup
+	for range goroutines {
+		wg.Go(func() {
+			for range attempts {
+				if l.Allow() {
+					allowed.Add(1)
+				}
+			}
+		})
+	}
+	wg.Wait()
+
+	if got := allowed.Load(); got != burst {
+		t.Fatalf(&quot;concurrent Allow succeeded %d times, want exactly %d&quot;, got, burst)
+	}
+}
+
+// Waiters racing with Close must each either obtain a token or observe
+// ErrClosed; nothing may hang or return an unexpected error. Primarily
+// a race-detector target.
+func TestConcurrentWaitAndClose(t *testing.T) {
+	l := limiter.New(200, 4)
+
+	const waiters = 8
+	errs := make(chan error, waiters)
+	for range waiters {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			errs &lt;- l.Wait(ctx)
+		}()
+	}
+
+	time.Sleep(20 * time.Millisecond)
+	l.Close()
+
+	for i := range waiters {
+		select {
+		case err := &lt;-errs:
+			if err != nil &amp;&amp; !errors.Is(err, limiter.ErrClosed) {
+				t.Fatalf(&quot;Wait() = %v, want nil or %v&quot;, err, limiter.ErrClosed)
+			}
+		case &lt;-time.After(10 * time.Second):
+			t.Fatalf(&quot;waiter %d did not return after Close&quot;, i+1)
+		}
+	}
+}
+</pre></details>
+<textarea placeholder="feedback for limiter-write-tests-without_skill" data-run="limiter-write-tests-without_skill"></textarea>
+<h2>config-test-review</h2>
+<h3>with skill — Fable <span class="grade">(7/9 → 9/9)</span></h3>
+<details open><summary>report.md</summary><pre># Config test review
+
+Rewrote the suite in an external `config_test` package: the old tests poked at `cfg.values` internals and tested one symbol each, so I consolidated them into one whole-package `TestConfig` scenario, added the missing coverage the docs promise (positioned &quot;line N:&quot; Load error; Int/Duration fallback on unparseable values), added a runnable package Example, and moved the benchmark to `b.Loop`.
+Deleted two tests outright: `TestDebugDump` was a manual-inspection dev scaffold, and `TestConcurrentUse` pinned concurrency the docs never promise while itself being a data race (&quot;green&quot; only held without `-race`; it fails under `go test -race`).
+Redesign signal for the maintainer: Load&#x27;s positioned error is only a formatted string, so tests can do no better than grep the &quot;line N:&quot; prefix; a typed error carrying the line number (inspected via `errors.As`) would make the position a first-class contract. Judgment call: I asserted only that prefix, since the docs promise the form, and left `config.go` untouched.
+Final status: `go build ./...` OK; `go test -race -count=3 ./...` PASS (includes the Example and both tests); gofmt and `go vet` clean; benchmark smoke-run passes.
+</pre></details>
+<details open><summary><code>config_test.go</code></summary><pre>package config_test
+
+import (
+	&quot;slices&quot;
+	&quot;strings&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/config&quot;
+)
+
+// sample uses every syntax rule the package doc names: a comment line,
+// blank lines, and stray whitespace around a key and its value. The
+// &quot;retries&quot; value is deliberately neither an integer nor a duration.
+const sample = `
+# server settings
+  name   =   app
+port = 8080
+timeout = 2s
+retries = many
+`
+
+// One scenario walks the whole documented lifecycle over one file:
+// load it once, then read it back through every accessor. The
+// accessors are covered together because that is how programs use the
+// package: load once, look up many. Each accessor is asked for a
+// present key, a missing key, and (where parsing is involved) a key
+// whose value does not parse, since the docs promise the default in
+// both failure shapes. The final Keys check also proves the comment
+// and blank lines produced no keys.
+func TestConfig(t *testing.T) {
+	cfg, err := config.Load(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf(&quot;Load: %v&quot;, err)
+	}
+
+	// &quot;  name   =   app&quot; carries whitespace on every side of the pair.
+	if got := cfg.String(&quot;name&quot;, &quot;fallback&quot;); got != &quot;app&quot; {
+		t.Errorf(`String(&quot;name&quot;) = %q, want &quot;app&quot; with whitespace trimmed`, got)
+	}
+	if got := cfg.String(&quot;missing&quot;, &quot;fallback&quot;); got != &quot;fallback&quot; {
+		t.Errorf(`String(&quot;missing&quot;) = %q, want the &quot;fallback&quot; default`, got)
+	}
+
+	if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {
+		t.Errorf(`Int(&quot;port&quot;) = %d, want 8080`, got)
+	}
+	if got := cfg.Int(&quot;missing&quot;, 42); got != 42 {
+		t.Errorf(`Int(&quot;missing&quot;) = %d, want the default 42`, got)
+	}
+	// &quot;retries&quot; is configured, but &quot;many&quot; is not a decimal integer.
+	if got := cfg.Int(&quot;retries&quot;, 7); got != 7 {
+		t.Errorf(`Int(&quot;retries&quot;) = %d, want the default 7 for an unparseable value`, got)
+	}
+
+	if got := cfg.Duration(&quot;timeout&quot;, 0); got != 2*time.Second {
+		t.Errorf(`Duration(&quot;timeout&quot;) = %v, want 2s`, got)
+	}
+	if got := cfg.Duration(&quot;missing&quot;, time.Second); got != time.Second {
+		t.Errorf(`Duration(&quot;missing&quot;) = %v, want the default 1s`, got)
+	}
+	// &quot;many&quot; is not a duration either.
+	if got := cfg.Duration(&quot;retries&quot;, time.Minute); got != time.Minute {
+		t.Errorf(`Duration(&quot;retries&quot;) = %v, want the default 1m for an unparseable value`, got)
+	}
+
+	want := []string{&quot;name&quot;, &quot;port&quot;, &quot;retries&quot;, &quot;timeout&quot;}
+	if got := cfg.Keys(); !slices.Equal(got, want) {
+		t.Errorf(&quot;Keys() = %v, want %v (every configured key, sorted)&quot;, got, want)
+	}
+}
+
+// The docs promise exactly one error behavior: a line that is neither
+// blank, a comment, nor a &quot;key = value&quot; pair fails Load with an error
+// positioned as &quot;line N: ...&quot;. Only the position prefix is asserted;
+// the wording after it is not part of the contract and is free to
+// change.
+func TestLoadErrorReportsLineNumber(t *testing.T) {
+	// The bad line is third, after a pair and a comment, so a correct
+	// position proves ignored lines still count toward N.
+	const bad = &quot;name = app\n# comment\nnot a pair\n&quot;
+	_, err := config.Load(strings.NewReader(bad))
+	if err == nil {
+		t.Fatal(`Load succeeded, want an error for a line with no &quot;=&quot;`)
+	}
+	if !strings.HasPrefix(err.Error(), &quot;line 3:&quot;) {
+		t.Errorf(`Load error = %q, want a &quot;line 3:&quot; prefix`, err)
+	}
+}
+
+// Tracks the cost of parsing a small, typical file.
+func BenchmarkLoad(b *testing.B) {
+	for b.Loop() {
+		if _, err := config.Load(strings.NewReader(sample)); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+</pre></details>
+<details open><summary><code>example_test.go</code></summary><pre>package config_test
+
+import (
+	&quot;fmt&quot;
+	&quot;log&quot;
+	&quot;strings&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/config&quot;
+)
+
+// This example loads a configuration and reads values back, supplying a
+// default for anything the file leaves unset.
+func Example() {
+	cfg, err := config.Load(strings.NewReader(`
+# where the server listens
+host = localhost
+port = 8080
+`))
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(cfg.String(&quot;host&quot;, &quot;0.0.0.0&quot;))
+	fmt.Println(cfg.Int(&quot;port&quot;, 80))
+	fmt.Println(cfg.Duration(&quot;timeout&quot;, 5*time.Second))
+	// Output:
+	// localhost
+	// 8080
+	// 5s
+}
+</pre></details>
+<textarea placeholder="feedback for config-test-review-with_skill" data-run="config-test-review-with_skill"></textarea>
+<h3>with skill — Opus <span class="grade">(9/9 → 8/9)</span></h3>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">All four doc comments open with their own function name: &#x27;// TestConfig loads...&#x27;, &#x27;// TestLoadRejectsMalformedLine pins...&#x27;, &#x27;// Example documents...&#x27;, &#x27;// BenchmarkLoad tracks...&#x27; (rationale is present, but the no-name-opening clause fails).</div></details>
+<details open><summary>report.md</summary><pre># config test review
+
+Collapsed the five per-symbol tests that each re-loaded `sample` and poked the unexported `cfg.values` map into one external-package golden test (`TestConfig`) that drives the whole public API as a user would; added the missing &quot;unparseable value falls back to def&quot; branches for `Int`/`Duration`, an error test, and a runnable `Example`; swapped `reflect.DeepEqual` for `slices.Equal` and modernized the benchmark to `b.Loop`.
+
+Deleted `TestDebugDump` (a manual debug scaffold, no contract) and `TestConcurrentUse` (pins concurrency the docs never promise, and it is a real data race on a 100ms sleep: plain `go test` was green but `go test -race` failed on it). Redesign signal for the maintainer: `Load`&#x27;s doc promises a positioned `&quot;line N: ...&quot;` error, but it returns a bare `fmt.Errorf`, so the position is only checkable by string-grepping; consider a typed `*ParseError{Line int}` for `errors.As`. The new suite therefore only asserts that malformed lines error, not the wording.
+
+Final status: `go build ./...` clean, `go vet ./...` clean, `go test ./...` green, `go test -race ./...` green. Package (`config.go`) left untouched.
+</pre></details>
+<details open><summary><code>config_test.go</code></summary><pre>package config_test
+
+import (
+	&quot;fmt&quot;
+	&quot;log&quot;
+	&quot;slices&quot;
+	&quot;strings&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/config&quot;
+)
+
+// sample exercises every line kind the package documents: a plain pair, a
+// numeric value, a duration, a &#x27;#&#x27; comment, and the surrounding blank lines.
+// One fixture feeds every test, so a parser change surfaces in one place.
+const sample = `
+name = app
+port = 8080
+timeout = 2s
+# retries controls how often we try again
+retries = 3
+`
+
+// TestConfig loads the sample once and drives the whole public API the way a
+// caller does, because users compose these accessors rather than call one in
+// isolation. It checks each typed accessor for a present key, a missing key,
+// and (for Int and Duration) a value that does not parse, since the docs
+// promise a fall back to def in all three situations.
+func TestConfig(t *testing.T) {
+	cfg, err := config.Load(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf(&quot;Load(sample): %v&quot;, err)
+	}
+
+	// String: the stored value wins; an unknown key yields def.
+	if got := cfg.String(&quot;name&quot;, &quot;fallback&quot;); got != &quot;app&quot; {
+		t.Errorf(`String(&quot;name&quot;) = %q, want &quot;app&quot;`, got)
+	}
+	if got := cfg.String(&quot;missing&quot;, &quot;fallback&quot;); got != &quot;fallback&quot; {
+		t.Errorf(`String(&quot;missing&quot;) = %q, want &quot;fallback&quot;`, got)
+	}
+
+	// Int: parses a decimal; unknown and unparseable values yield def.
+	if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {
+		t.Errorf(`Int(&quot;port&quot;) = %d, want 8080`, got)
+	}
+	if got := cfg.Int(&quot;missing&quot;, 42); got != 42 {
+		t.Errorf(`Int(&quot;missing&quot;) = %d, want 42`, got)
+	}
+	if got := cfg.Int(&quot;name&quot;, 42); got != 42 { // &quot;app&quot; is not a number
+		t.Errorf(`Int(&quot;name&quot;) = %d, want 42 (fallback for unparseable value)`, got)
+	}
+
+	// Duration: parses via time.ParseDuration, with the same fallback rule.
+	if got := cfg.Duration(&quot;timeout&quot;, 0); got != 2*time.Second {
+		t.Errorf(`Duration(&quot;timeout&quot;) = %v, want 2s`, got)
+	}
+	if got := cfg.Duration(&quot;missing&quot;, time.Second); got != time.Second {
+		t.Errorf(`Duration(&quot;missing&quot;) = %v, want 1s`, got)
+	}
+	if got := cfg.Duration(&quot;name&quot;, time.Second); got != time.Second { // &quot;app&quot; is not a duration
+		t.Errorf(`Duration(&quot;name&quot;) = %v, want 1s (fallback for unparseable value)`, got)
+	}
+
+	// Keys: every configured key, sorted; the comment line is not a key.
+	want := []string{&quot;name&quot;, &quot;port&quot;, &quot;retries&quot;, &quot;timeout&quot;}
+	if got := cfg.Keys(); !slices.Equal(got, want) {
+		t.Errorf(&quot;Keys() = %v, want %v&quot;, got, want)
+	}
+}
+
+// TestLoadRejectsMalformedLine pins the promise that a line which is not
+// blank, a comment, or a &quot;key = value&quot; pair is reported as an error rather
+// than silently dropped. We assert only that an error is returned: the
+// documented &quot;line N: ...&quot; text is not exposed as a value, so matching the
+// wording would pin incidental phrasing (see report.md).
+func TestLoadRejectsMalformedLine(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{&quot;no separator&quot;, &quot;name = app\ngarbage\n&quot;},
+		{&quot;empty key&quot;, &quot;name = app\n = value\n&quot;},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := config.Load(strings.NewReader(tc.input)); err == nil {
+				t.Errorf(&quot;Load(%q) = nil error, want a positioned error&quot;, tc.input)
+			}
+		})
+	}
+}
+
+// Example documents the everyday use: load a reader, then read typed values,
+// falling back to a default for any key the file omits (here, &quot;host&quot;).
+func Example() {
+	cfg, err := config.Load(strings.NewReader(sample))
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(cfg.String(&quot;name&quot;, &quot;unnamed&quot;))
+	fmt.Println(cfg.Int(&quot;port&quot;, 80))
+	fmt.Println(cfg.Duration(&quot;timeout&quot;, time.Minute))
+	fmt.Println(cfg.String(&quot;host&quot;, &quot;localhost&quot;))
+	// Output:
+	// app
+	// 8080
+	// 2s
+	// localhost
+}
+
+// BenchmarkLoad tracks the cost of parsing the sample. The b.Loop form (Go
+// 1.24) keeps the returned *Config live, so the parse cannot be optimized
+// away the way a discarded call in a b.N loop can be.
+func BenchmarkLoad(b *testing.B) {
+	for b.Loop() {
+		if _, err := config.Load(strings.NewReader(sample)); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+</pre></details>
+<textarea placeholder="feedback for config-test-review-with_skill_opus" data-run="config-test-review-with_skill_opus"></textarea>
+<h3>with skill — Sonnet <span class="grade">(7/9 → 7/9)</span></h3>
+<details><summary class="fail">✗ At least one runnable Example exists (package-level Example() welcome); its comment and any sample-c</summary><div class="ev">grep &#x27;func Example&#x27; across outputs/*.go returns no matches; no Example function of any kind exists in the module.</div></details>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">All three doc comments open with their own function name: &#x27;TestConfig walks...&#x27;, &#x27;TestLoadRejectsMalformedInput verifies...&#x27;, &#x27;BenchmarkLoad measures...&#x27; (the last also gives no rationale).</div></details>
+<details open><summary>report.md</summary><pre>Rewrote `config_test.go` as an external `config_test` package, folding `TestLoad`/`String`/`Int`/`Duration`/`Keys` into one `TestConfig` scenario (per-symbol tests were change-detector-shaped) and adding the missing coverage for Load&#x27;s documented malformed-line error and for Int/Duration&#x27;s &quot;value present but unparseable&quot; fallback.
+
+`TestConcurrentUse` raced under `go test -race` (unsynchronized write in the goroutine vs. read in the main goroutine) and pinned a concurrency guarantee the docs never promise; deleted rather than fixed, per the docs&#x27; contract.
+
+`TestDebugDump` was a dev scaffold (only `t.Logf`, no assertions, &quot;check the dump manually&quot; comment); deleted.
+
+Judgment call: I test only that malformed input errors, not the exact &quot;line N: ...&quot; text, to avoid a brittle string-matching test; if that format is a real promise to callers, it deserves a typed/sentinel error so it can be tested via `errors.As` instead of grepping messages.
+
+Final status: `go build ./...` and `go test ./...` both pass; suite is also clean under `-race`.
+</pre></details>
+<details open><summary><code>config_test.go</code></summary><pre>package config_test
+
+import (
+	&quot;slices&quot;
+	&quot;strings&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/config&quot;
+)
+
+// sample is a small configuration file exercising every accessor&#x27;s value
+// type (string, int, duration), a comment, a blank line, and two values
+// that fail to parse so their accessors must fall back to the default.
+const sample = `
+name = app
+port = 8080
+timeout = 2s
+# retries controls how often we try again
+retries = 3
+bad_port = notanumber
+bad_timeout = notaduration
+`
+
+// TestConfig walks the exported API the way a caller does: load a file,
+// then read its values back through each typed accessor. One scenario
+// covers the whole contract instead of one test per method, since callers
+// always compose Load with the accessors rather than call them in
+// isolation.
+func TestConfig(t *testing.T) {
+	cfg, err := config.Load(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf(&quot;Load: %v&quot;, err)
+	}
+
+	// a present key returns its value; an unknown key falls back to def
+	if got := cfg.String(&quot;name&quot;, &quot;fallback&quot;); got != &quot;app&quot; {
+		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, &quot;app&quot;)
+	}
+	if got := cfg.String(&quot;missing&quot;, &quot;fallback&quot;); got != &quot;fallback&quot; {
+		t.Errorf(&quot;String(missing) = %q, want %q&quot;, got, &quot;fallback&quot;)
+	}
+
+	// a decimal value parses as int; an unparseable or unknown value falls
+	// back to def
+	if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {
+		t.Errorf(&quot;Int(port) = %d, want %d&quot;, got, 8080)
+	}
+	if got := cfg.Int(&quot;bad_port&quot;, 99); got != 99 {
+		t.Errorf(&quot;Int(bad_port) = %d, want %d&quot;, got, 99)
+	}
+	if got := cfg.Int(&quot;missing&quot;, 42); got != 42 {
+		t.Errorf(&quot;Int(missing) = %d, want %d&quot;, got, 42)
+	}
+
+	// a duration value parses with time.ParseDuration; an unparseable or
+	// unknown value falls back to def
+	if got := cfg.Duration(&quot;timeout&quot;, 0); got != 2*time.Second {
+		t.Errorf(&quot;Duration(timeout) = %v, want %v&quot;, got, 2*time.Second)
+	}
+	if got := cfg.Duration(&quot;bad_timeout&quot;, time.Minute); got != time.Minute {
+		t.Errorf(&quot;Duration(bad_timeout) = %v, want %v&quot;, got, time.Minute)
+	}
+	if got := cfg.Duration(&quot;missing&quot;, time.Second); got != time.Second {
+		t.Errorf(&quot;Duration(missing) = %v, want %v&quot;, got, time.Second)
+	}
+
+	// comments and blank lines never become keys; Keys is sorted
+	want := []string{&quot;bad_port&quot;, &quot;bad_timeout&quot;, &quot;name&quot;, &quot;port&quot;, &quot;retries&quot;, &quot;timeout&quot;}
+	if got := cfg.Keys(); !slices.Equal(got, want) {
+		t.Errorf(&quot;Keys() = %v, want %v&quot;, got, want)
+	}
+}
+
+// TestLoadRejectsMalformedInput verifies that a line which is neither
+// blank, a comment, nor a &quot;key = value&quot; pair produces an error rather
+// than silently dropping or misreading the line, matching the package
+// doc&#x27;s documented failure mode.
+func TestLoadRejectsMalformedInput(t *testing.T) {
+	cases := []struct {
+		reason string
+		input  string
+	}{
+		{&quot;no &#x27;=&#x27; separator&quot;, &quot;just some text&quot;},
+		{&quot;empty key before &#x27;=&#x27;&quot;, &quot; = value&quot;},
+	}
+	for _, tc := range cases {
+		if _, err := config.Load(strings.NewReader(tc.input)); err == nil {
+			t.Errorf(&quot;Load(%q) succeeded, want error for %s&quot;, tc.input, tc.reason)
+		}
+	}
+}
+
+// BenchmarkLoad measures how fast Load parses the sample.
+func BenchmarkLoad(b *testing.B) {
+	for b.Loop() {
+		config.Load(strings.NewReader(sample))
+	}
+}
+</pre></details>
+<textarea placeholder="feedback for config-test-review-with_skill_sonnet" data-run="config-test-review-with_skill_sonnet"></textarea>
+<h3>no skill — Fable <span class="grade">(4/9 → 4/9)</span></h3>
+<details><summary class="fail">✗ The five per-symbol tests are consolidated into whole-package contract scenarios or runnable Example</summary><div class="ev">config_test.go still has the five per-symbol tests (TestLoad, TestString, TestInt, TestDuration, TestKeys) unconsolidated and contains no Example functions.</div></details>
+<details><summary class="fail">✗ TestDebugDump is deleted; the sleep-based concurrent-use smoke is DELETED (the package documents no </summary><div class="ev">TestDebugDump is gone and TestLoad now uses the exported API, but the concurrent-use test was rewritten as TestConcurrentUse (sync.WaitGroup) instead of deleted.</div></details>
+<details><summary class="fail">✗ At least one runnable Example exists (package-level Example() welcome); its comment and any sample-c</summary><div class="ev">grep -c &#x27;func Example&#x27; config_test.go returns 0; no Example function exists anywhere in the module.</div></details>
+<details><summary class="fail">✗ Malformed-input cases either live in a readable external form (testdata/ file or minimal separated f</summary><div class="ev">Malformed cases are a small inline table, but neither code nor report.md mentions typed/sentinel errors or errors.Is/As; TestLoadErrors asserts exact err.Error() strings, entrenching string-only errors.</div></details>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">Every doc comment opens with its own function name (&#x27;TestLoad verifies...&#x27;, &#x27;TestString verifies...&#x27;, &#x27;BenchmarkLoad measures...&#x27;), violating the &#x27;none opens with its own name&#x27; clause.</div></details>
+<details open><summary>report.md</summary><pre>Reviewed the new hire&#x27;s config tests; the suite was green but only because `go test` was run without `-race`: `TestConcurrentUse` raced on `cfg` (goroutine write, sleep, unsynchronized read) and failed under the race detector, so I rewrote it as N synchronized concurrent readers of one loaded Config, which is what the name actually promises.
+Deleted `TestDebugDump`: it asserted nothing, logged internals, and carried a commented-out `t.Skip`; that is debugging scaffolding, not a test.
+Rewrote `TestLoad` to observe results through the exported API instead of the unexported `values` map, and made `BenchmarkLoad` check `Load`&#x27;s error using `b.Loop()`.
+Added missing coverage: `TestLoadErrors` (positioned errors for missing &#x27;=&#x27; and empty key) and malformed-value fallback asserts in `TestInt`/`TestDuration`; no production code changed.
+Final status: `go build ./...` OK; `go test ./...` PASS; `go test -race -count=2 ./...` PASS; gofmt/vet clean.
+</pre></details>
+<details open><summary><code>config_test.go</code></summary><pre>package config
+
+import (
+	&quot;reflect&quot;
+	&quot;strings&quot;
+	&quot;sync&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+)
+
+const sample = `
+name = app
+port = 8080
+timeout = 2s
+# retries controls how often we try again
+retries = 3
+`
+
+// TestLoad verifies that Load parses keys and values from a reader.
+// It observes the result through the exported API so the test does not
+// depend on the Config&#x27;s internal representation.
+func TestLoad(t *testing.T) {
+	cfg, err := Load(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf(&quot;Load: %v&quot;, err)
+	}
+	if got := cfg.String(&quot;name&quot;, &quot;&quot;); got != &quot;app&quot; {
+		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, &quot;app&quot;)
+	}
+	if got := cfg.String(&quot;port&quot;, &quot;&quot;); got != &quot;8080&quot; {
+		t.Errorf(&quot;String(port) = %q, want %q&quot;, got, &quot;8080&quot;)
+	}
+}
+
+// TestLoadErrors verifies that malformed input produces positioned
+// errors and no Config.
+func TestLoadErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr string
+	}{
+		{&quot;missing equals&quot;, &quot;name = app\nbogus line\n&quot;, `line 2: missing &#x27;=&#x27; in &quot;bogus line&quot;`},
+		{&quot;empty key&quot;, &quot;= value\n&quot;, &quot;line 1: empty key&quot;},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(strings.NewReader(tt.input))
+			if err == nil {
+				t.Fatalf(&quot;Load(%q) = %v, want error&quot;, tt.input, cfg)
+			}
+			if got := err.Error(); got != tt.wantErr {
+				t.Errorf(&quot;Load(%q) error = %q, want %q&quot;, tt.input, got, tt.wantErr)
+			}
+			if cfg != nil {
+				t.Errorf(&quot;Load(%q) config = %v, want nil&quot;, tt.input, cfg)
+			}
+		})
+	}
+}
+
+// TestString verifies that String returns values and defaults.
+func TestString(t *testing.T) {
+	cfg, err := Load(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf(&quot;Load: %v&quot;, err)
+	}
+	if got := cfg.String(&quot;name&quot;, &quot;fallback&quot;); got != &quot;app&quot; {
+		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, &quot;app&quot;)
+	}
+	if got := cfg.String(&quot;missing&quot;, &quot;fallback&quot;); got != &quot;fallback&quot; {
+		t.Errorf(&quot;String(missing) = %q, want %q&quot;, got, &quot;fallback&quot;)
+	}
+}
+
+// TestInt verifies that Int parses integer values.
+func TestInt(t *testing.T) {
+	cfg, err := Load(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf(&quot;Load: %v&quot;, err)
+	}
+	if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {
+		t.Errorf(&quot;Int(port) = %d, want %d&quot;, got, 8080)
+	}
+	if got := cfg.Int(&quot;missing&quot;, 42); got != 42 {
+		t.Errorf(&quot;Int(missing) = %d, want %d&quot;, got, 42)
+	}
+	if got := cfg.Int(&quot;name&quot;, 42); got != 42 {
+		t.Errorf(&quot;Int(name) = %d, want fallback %d for non-numeric value&quot;, got, 42)
+	}
+}
+
+// TestDuration verifies that Duration parses duration values.
+func TestDuration(t *testing.T) {
+	cfg, err := Load(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf(&quot;Load: %v&quot;, err)
+	}
+	if got := cfg.Duration(&quot;timeout&quot;, 0); got != 2*time.Second {
+		t.Errorf(&quot;Duration(timeout) = %v, want %v&quot;, got, 2*time.Second)
+	}
+	if got := cfg.Duration(&quot;missing&quot;, time.Second); got != time.Second {
+		t.Errorf(&quot;Duration(missing) = %v, want %v&quot;, got, time.Second)
+	}
+	if got := cfg.Duration(&quot;port&quot;, time.Second); got != time.Second {
+		t.Errorf(&quot;Duration(port) = %v, want fallback %v for non-duration value&quot;, got, time.Second)
+	}
+}
+
+// TestKeys verifies that Keys returns the keys in sorted order.
+func TestKeys(t *testing.T) {
+	cfg, err := Load(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf(&quot;Load: %v&quot;, err)
+	}
+	want := []string{&quot;name&quot;, &quot;port&quot;, &quot;retries&quot;, &quot;timeout&quot;}
+	if got := cfg.Keys(); !reflect.DeepEqual(got, want) {
+		t.Errorf(&quot;Keys() = %v, want %v&quot;, got, want)
+	}
+}
+
+// TestConcurrentUse verifies that a loaded Config is safe for
+// concurrent readers. Run with -race to make this meaningful.
+func TestConcurrentUse(t *testing.T) {
+	cfg, err := Load(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf(&quot;Load: %v&quot;, err)
+	}
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if got := cfg.String(&quot;name&quot;, &quot;&quot;); got != &quot;app&quot; {
+				t.Errorf(&quot;String(name) = %q, want %q&quot;, got, &quot;app&quot;)
+			}
+			if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {
+				t.Errorf(&quot;Int(port) = %d, want %d&quot;, got, 8080)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+// BenchmarkLoad measures how fast Load parses the sample.
+func BenchmarkLoad(b *testing.B) {
+	for b.Loop() {
+		if _, err := Load(strings.NewReader(sample)); err != nil {
+			b.Fatalf(&quot;Load: %v&quot;, err)
+		}
+	}
+}
+</pre></details>
+<textarea placeholder="feedback for config-test-review-without_skill" data-run="config-test-review-without_skill"></textarea>
+<h2>units-add-test</h2>
+<h3>with skill — Fable <span class="grade">(5/5 → 4/5)</span></h3>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">ExampleParseSize (units_test.go:46) carries no doc comment, so &#x27;every&#x27; does not hold for the final file; the new example&#x27;s comment is fine (&#x27;A well-formed duration parses...&#x27;) and no comment opens with its function name.</div></details>
+<details open><summary>report.md</summary><pre># units: pin ParseDurationOrDefault
+
+Added `ExampleParseDurationOrDefault` mirroring the sibling `ExampleParseSizeOrDefault`: one well-formed duration, plus the empty-string and garbage fallbacks the doc comment promises; an example fits this trivial contract better than a table test and documents the leniency for users.
+Planned from `go doc -all` before reading source; code matches the prose exactly, no drift.
+Maintainer note: `ParseSize` trims surrounding whitespace but `ParseDurationOrDefault` does not, so `&quot; 5s &quot;` silently falls back to the default; the docs promise nothing about trimming, so the test does not pin it, but the asymmetry may surprise config authors.
+Status: `go build ./...` and `go test ./...` both pass.
+</pre></details>
+<details open><summary><code>internal/units/units_test.go</code></summary><pre>package units_test
+
+import (
+	&quot;fmt&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/units/internal/units&quot;
+)
+
+// A size written with a binary suffix parses to its exact byte count,
+// and a byte count that is an even multiple of a suffix formats back to
+// the canonical string, so sizes survive a round trip through
+// configuration files.
+func TestSizeRoundTrip(t *testing.T) {
+	tests := []struct {
+		name      string
+		in        string
+		bytes     int64
+		formatted string
+	}{
+		{&quot;bare bytes&quot;, &quot;512&quot;, 512, &quot;512&quot;},
+		{&quot;kilobytes&quot;, &quot;10K&quot;, 10 &lt;&lt; 10, &quot;10K&quot;},
+		{&quot;megabytes&quot;, &quot;3M&quot;, 3 &lt;&lt; 20, &quot;3M&quot;},
+		{&quot;gigabytes&quot;, &quot;2G&quot;, 2 &lt;&lt; 30, &quot;2G&quot;},
+		{&quot;lowercase suffix normalizes&quot;, &quot;4k&quot;, 4 &lt;&lt; 10, &quot;4K&quot;},
+		{&quot;uneven count stays in bytes&quot;, &quot;1500&quot;, 1500, &quot;1500&quot;},
+		{&quot;surrounding space is trimmed&quot;, &quot; 8M &quot;, 8 &lt;&lt; 20, &quot;8M&quot;},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := units.ParseSize(tt.in)
+			if err != nil {
+				t.Fatalf(&quot;ParseSize(%q): %v&quot;, tt.in, err)
+			}
+			if got != tt.bytes {
+				t.Errorf(&quot;ParseSize(%q) = %d, want %d&quot;, tt.in, got, tt.bytes)
+			}
+			if s := units.FormatSize(got); s != tt.formatted {
+				t.Errorf(&quot;FormatSize(%d) = %q, want %q&quot;, got, s, tt.formatted)
+			}
+		})
+	}
+}
+
+func ExampleParseSize() {
+	n, _ := units.ParseSize(&quot;3M&quot;)
+	fmt.Println(n)
+	// Output: 3145728
+}
+
+// A well-formed size parses to its byte count, and a malformed one
+// falls back to the caller&#x27;s default instead of failing, so a stray
+// configuration value degrades gracefully.
+func ExampleParseSizeOrDefault() {
+	fmt.Println(units.ParseSizeOrDefault(&quot;10K&quot;, 512))
+	fmt.Println(units.ParseSizeOrDefault(&quot;not-a-size&quot;, 512))
+	// Output:
+	// 10240
+	// 512
+}
+
+// A well-formed duration parses with time.ParseDuration, and both an
+// empty string and a malformed one fall back to the caller&#x27;s default
+// instead of failing, so a stray configuration value degrades
+// gracefully.
+func ExampleParseDurationOrDefault() {
+	fmt.Println(units.ParseDurationOrDefault(&quot;1500ms&quot;, time.Second))
+	fmt.Println(units.ParseDurationOrDefault(&quot;&quot;, time.Second))
+	fmt.Println(units.ParseDurationOrDefault(&quot;soon&quot;, time.Second))
+	// Output:
+	// 1.5s
+	// 1s
+	// 1s
+}
+</pre></details>
+<textarea placeholder="feedback for units-add-test-with_skill" data-run="units-add-test-with_skill"></textarea>
+<h3>with skill — Opus <span class="grade">(5/5 → 4/5)</span></h3>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">ExampleParseSize (units_test.go:46) still carries no doc comment in the final file, so &#x27;every&#x27; does not hold; the new example&#x27;s comment is fine (&#x27;A well-formed duration parses to its value...&#x27;, not opening with the function name).</div></details>
+<details open><summary>report.md</summary><pre># ParseDurationOrDefault test
+
+Added `ExampleParseDurationOrDefault` to `internal/units/units_test.go`: happy path plus the empty-string and garbage fallbacks you flagged. Chose a runnable example to mirror its sibling `ExampleParseSizeOrDefault` and because the leniency is user-facing contract, not a bug hunt.
+No drift: source matches the doc comment exactly; the doc already frames the garbage fallback as deliberate leniency, so no owner question needed.
+`go build ./...`, `go vet ./...`, `go test ./...`: all pass. Good to commit.
+</pre></details>
+<details open><summary><code>internal/units/units_test.go</code></summary><pre>package units_test
+
+import (
+	&quot;fmt&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/units/internal/units&quot;
+)
+
+// A size written with a binary suffix parses to its exact byte count,
+// and a byte count that is an even multiple of a suffix formats back to
+// the canonical string, so sizes survive a round trip through
+// configuration files.
+func TestSizeRoundTrip(t *testing.T) {
+	tests := []struct {
+		name      string
+		in        string
+		bytes     int64
+		formatted string
+	}{
+		{&quot;bare bytes&quot;, &quot;512&quot;, 512, &quot;512&quot;},
+		{&quot;kilobytes&quot;, &quot;10K&quot;, 10 &lt;&lt; 10, &quot;10K&quot;},
+		{&quot;megabytes&quot;, &quot;3M&quot;, 3 &lt;&lt; 20, &quot;3M&quot;},
+		{&quot;gigabytes&quot;, &quot;2G&quot;, 2 &lt;&lt; 30, &quot;2G&quot;},
+		{&quot;lowercase suffix normalizes&quot;, &quot;4k&quot;, 4 &lt;&lt; 10, &quot;4K&quot;},
+		{&quot;uneven count stays in bytes&quot;, &quot;1500&quot;, 1500, &quot;1500&quot;},
+		{&quot;surrounding space is trimmed&quot;, &quot; 8M &quot;, 8 &lt;&lt; 20, &quot;8M&quot;},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := units.ParseSize(tt.in)
+			if err != nil {
+				t.Fatalf(&quot;ParseSize(%q): %v&quot;, tt.in, err)
+			}
+			if got != tt.bytes {
+				t.Errorf(&quot;ParseSize(%q) = %d, want %d&quot;, tt.in, got, tt.bytes)
+			}
+			if s := units.FormatSize(got); s != tt.formatted {
+				t.Errorf(&quot;FormatSize(%d) = %q, want %q&quot;, got, s, tt.formatted)
+			}
+		})
+	}
+}
+
+func ExampleParseSize() {
+	n, _ := units.ParseSize(&quot;3M&quot;)
+	fmt.Println(n)
+	// Output: 3145728
+}
+
+// A well-formed size parses to its byte count, and a malformed one
+// falls back to the caller&#x27;s default instead of failing, so a stray
+// configuration value degrades gracefully.
+func ExampleParseSizeOrDefault() {
+	fmt.Println(units.ParseSizeOrDefault(&quot;10K&quot;, 512))
+	fmt.Println(units.ParseSizeOrDefault(&quot;not-a-size&quot;, 512))
+	// Output:
+	// 10240
+	// 512
+}
+
+// A well-formed duration parses to its value, while an empty or malformed
+// one falls back to the caller&#x27;s default instead of failing. Both fallbacks
+// are the documented leniency, not an error, so a stray configuration value
+// degrades gracefully.
+func ExampleParseDurationOrDefault() {
+	fmt.Println(units.ParseDurationOrDefault(&quot;150ms&quot;, 30*time.Second))
+	fmt.Println(units.ParseDurationOrDefault(&quot;&quot;, 30*time.Second))
+	fmt.Println(units.ParseDurationOrDefault(&quot;not-a-duration&quot;, 30*time.Second))
+	// Output:
+	// 150ms
+	// 30s
+	// 30s
+}
+</pre></details>
+<textarea placeholder="feedback for units-add-test-with_skill_opus" data-run="units-add-test-with_skill_opus"></textarea>
+<h3>with skill — Sonnet <span class="grade">(5/5 → 4/5)</span></h3>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">ExampleParseSize (units_test.go:46) carries no doc comment, so &#x27;every&#x27; does not hold for the final file; the three commented functions are fine and none opens with its own function name.</div></details>
+<details open><summary>report.md</summary><pre>Added `ExampleParseDurationOrDefault` in `internal/units/units_test.go`, mirroring the existing `ExampleParseSizeOrDefault` sibling: valid duration plus both leniency paths (empty string and garbage both fall back to `def`), matching the doc comment&#x27;s contract. `go build ./...` and `go test ./...` both pass.
+Judgment call: skipped `git commit`. This copy sits inside the real `compiler-twoshot` worktree&#x27;s git repo (branch `worktree-compiler-twoshot`); I was told not to create new VCS metadata, and committing scratch/fixture output into that repo&#x27;s real history seemed like the wrong side effect, so the change is left staged on disk only, flagged here for you to commit or redirect.
+</pre></details>
+<details open><summary><code>internal/units/units_test.go</code></summary><pre>package units_test
+
+import (
+	&quot;fmt&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/units/internal/units&quot;
+)
+
+// A size written with a binary suffix parses to its exact byte count,
+// and a byte count that is an even multiple of a suffix formats back to
+// the canonical string, so sizes survive a round trip through
+// configuration files.
+func TestSizeRoundTrip(t *testing.T) {
+	tests := []struct {
+		name      string
+		in        string
+		bytes     int64
+		formatted string
+	}{
+		{&quot;bare bytes&quot;, &quot;512&quot;, 512, &quot;512&quot;},
+		{&quot;kilobytes&quot;, &quot;10K&quot;, 10 &lt;&lt; 10, &quot;10K&quot;},
+		{&quot;megabytes&quot;, &quot;3M&quot;, 3 &lt;&lt; 20, &quot;3M&quot;},
+		{&quot;gigabytes&quot;, &quot;2G&quot;, 2 &lt;&lt; 30, &quot;2G&quot;},
+		{&quot;lowercase suffix normalizes&quot;, &quot;4k&quot;, 4 &lt;&lt; 10, &quot;4K&quot;},
+		{&quot;uneven count stays in bytes&quot;, &quot;1500&quot;, 1500, &quot;1500&quot;},
+		{&quot;surrounding space is trimmed&quot;, &quot; 8M &quot;, 8 &lt;&lt; 20, &quot;8M&quot;},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := units.ParseSize(tt.in)
+			if err != nil {
+				t.Fatalf(&quot;ParseSize(%q): %v&quot;, tt.in, err)
+			}
+			if got != tt.bytes {
+				t.Errorf(&quot;ParseSize(%q) = %d, want %d&quot;, tt.in, got, tt.bytes)
+			}
+			if s := units.FormatSize(got); s != tt.formatted {
+				t.Errorf(&quot;FormatSize(%d) = %q, want %q&quot;, got, s, tt.formatted)
+			}
+		})
+	}
+}
+
+func ExampleParseSize() {
+	n, _ := units.ParseSize(&quot;3M&quot;)
+	fmt.Println(n)
+	// Output: 3145728
+}
+
+// A well-formed size parses to its byte count, and a malformed one
+// falls back to the caller&#x27;s default instead of failing, so a stray
+// configuration value degrades gracefully.
+func ExampleParseSizeOrDefault() {
+	fmt.Println(units.ParseSizeOrDefault(&quot;10K&quot;, 512))
+	fmt.Println(units.ParseSizeOrDefault(&quot;not-a-size&quot;, 512))
+	// Output:
+	// 10240
+	// 512
+}
+
+// A well-formed duration parses to its value, and both an empty string
+// and a malformed one fall back to the caller&#x27;s default instead of
+// failing, so a stray configuration value degrades gracefully.
+func ExampleParseDurationOrDefault() {
+	fmt.Println(units.ParseDurationOrDefault(&quot;2h&quot;, time.Second))
+	fmt.Println(units.ParseDurationOrDefault(&quot;&quot;, time.Second))
+	fmt.Println(units.ParseDurationOrDefault(&quot;not-a-duration&quot;, time.Second))
+	// Output:
+	// 2h0m0s
+	// 1s
+	// 1s
+}
+</pre></details>
+<textarea placeholder="feedback for units-add-test-with_skill_sonnet" data-run="units-add-test-with_skill_sonnet"></textarea>
+<h3>no skill — Fable <span class="grade">(4/5 → 3/5)</span></h3>
+<details><summary class="fail">✗ Coverage mimics the sibling precedent (rows/sub-cases in an existing suitable test, or a runnable Ex</summary><div class="ev">Run added a new standalone TestParseDurationOrDefault (units_test.go:56) named after the function, instead of extending an existing test or adding a runnable Example like the ExampleParseSizeOrDefault precedent.</div></details>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">ExampleParseSize (units_test.go:47) carries no doc comment; the new test&#x27;s comment is fine (&#x27;A well-formed duration parses...&#x27;), but &#x27;every&#x27; does not hold for the final file.</div></details>
+<details open><summary>report.md</summary><pre># units: test ParseDurationOrDefault
+
+Added `TestParseDurationOrDefault` to `internal/units/units_test.go`, table-driven in the file&#x27;s existing style: valid/compound/zero/negative durations parse, while empty, garbage, bare-number, and whitespace-padded inputs fall back to the default (documented leniency, asserted as behavior, not error).
+Judgment call: a valid `&quot;0s&quot;` must return 0, not the default; the test pins that so leniency never conflates &quot;parsed zero&quot; with &quot;fell back&quot;.
+Maintainer&#x27;s eyes: unlike `ParseSize`, `ParseDurationOrDefault` does not trim whitespace, so `&quot; 1s &quot;` silently becomes the default — inconsistent with the size path and a likely silent-config-typo trap; the test documents current behavior rather than guessing intent.
+Status: `go build ./...` and `go test ./...` both pass (all 8 new subtests green).
+</pre></details>
+<details open><summary><code>internal/units/units_test.go</code></summary><pre>package units_test
+
+import (
+	&quot;fmt&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+
+	&quot;example.invalid/units/internal/units&quot;
+)
+
+// A size written with a binary suffix parses to its exact byte count,
+// and a byte count that is an even multiple of a suffix formats back to
+// the canonical string, so sizes survive a round trip through
+// configuration files.
+func TestSizeRoundTrip(t *testing.T) {
+	tests := []struct {
+		name      string
+		in        string
+		bytes     int64
+		formatted string
+	}{
+		{&quot;bare bytes&quot;, &quot;512&quot;, 512, &quot;512&quot;},
+		{&quot;kilobytes&quot;, &quot;10K&quot;, 10 &lt;&lt; 10, &quot;10K&quot;},
+		{&quot;megabytes&quot;, &quot;3M&quot;, 3 &lt;&lt; 20, &quot;3M&quot;},
+		{&quot;gigabytes&quot;, &quot;2G&quot;, 2 &lt;&lt; 30, &quot;2G&quot;},
+		{&quot;lowercase suffix normalizes&quot;, &quot;4k&quot;, 4 &lt;&lt; 10, &quot;4K&quot;},
+		{&quot;uneven count stays in bytes&quot;, &quot;1500&quot;, 1500, &quot;1500&quot;},
+		{&quot;surrounding space is trimmed&quot;, &quot; 8M &quot;, 8 &lt;&lt; 20, &quot;8M&quot;},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := units.ParseSize(tt.in)
+			if err != nil {
+				t.Fatalf(&quot;ParseSize(%q): %v&quot;, tt.in, err)
+			}
+			if got != tt.bytes {
+				t.Errorf(&quot;ParseSize(%q) = %d, want %d&quot;, tt.in, got, tt.bytes)
+			}
+			if s := units.FormatSize(got); s != tt.formatted {
+				t.Errorf(&quot;FormatSize(%d) = %q, want %q&quot;, got, s, tt.formatted)
+			}
+		})
+	}
+}
+
+func ExampleParseSize() {
+	n, _ := units.ParseSize(&quot;3M&quot;)
+	fmt.Println(n)
+	// Output: 3145728
+}
+
+// A well-formed duration parses to its value, while an empty or
+// malformed string falls back to the caller&#x27;s default. The fallback is
+// documented leniency, not an error, so a stray configuration value
+// never fails at this layer.
+func TestParseDurationOrDefault(t *testing.T) {
+	def := 5 * time.Second
+	tests := []struct {
+		name string
+		in   string
+		want time.Duration
+	}{
+		{&quot;valid duration parses&quot;, &quot;1500ms&quot;, 1500 * time.Millisecond},
+		{&quot;compound duration parses&quot;, &quot;1h30m&quot;, 90 * time.Minute},
+		{&quot;zero duration is not the default&quot;, &quot;0s&quot;, 0},
+		{&quot;negative duration parses&quot;, &quot;-2s&quot;, -2 * time.Second},
+		{&quot;empty string falls back&quot;, &quot;&quot;, def},
+		{&quot;garbage falls back&quot;, &quot;not-a-duration&quot;, def},
+		{&quot;bare number falls back&quot;, &quot;10&quot;, def},
+		{&quot;surrounding space falls back&quot;, &quot; 1s &quot;, def},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := units.ParseDurationOrDefault(tt.in, def); got != tt.want {
+				t.Errorf(&quot;ParseDurationOrDefault(%q, %v) = %v, want %v&quot;, tt.in, def, got, tt.want)
+			}
+		})
+	}
+}
+
+// A well-formed size parses to its byte count, and a malformed one
+// falls back to the caller&#x27;s default instead of failing, so a stray
+// configuration value degrades gracefully.
+func ExampleParseSizeOrDefault() {
+	fmt.Println(units.ParseSizeOrDefault(&quot;10K&quot;, 512))
+	fmt.Println(units.ParseSizeOrDefault(&quot;not-a-size&quot;, 512))
+	// Output:
+	// 10240
+	// 512
+}
+</pre></details>
+<textarea placeholder="feedback for units-add-test-without_skill" data-run="units-add-test-without_skill"></textarea>
+<h2>truncate-drift</h2>
+<h3>with skill — Fable <span class="grade">(new → 6/7)</span></h3>
+<details><summary class="fail">✗ Evidence of prose-first design: the report describes starting from the exported surface/doc comments</summary><div class="ev">report.md never describes the investigation order (no mention of go doc or reading the exported surface before the implementation); it only reports the finding and resolution.</div></details>
+<details open><summary>report.md</summary><pre># truncate: committed tests
+
+Added `truncate_test.go` (external package): a negative-n special-case test, one rune-counting table per function, and a package Example on the doc&#x27;s own &quot;héllo&quot; string.
+
+Finding for the maintainer: `Head` contradicts its doc comment. The prose promises a negative n is treated as zero, but `Head` lacks `Tail`&#x27;s `n &lt;= 0` guard, so `Head(&quot;héllo&quot;, -1)` panics with a slice bounds error. I sided with the prose and left the test failing deliberately; the fix is copying Tail&#x27;s guard into Head before this ships.
+
+Status: `go build ./...` passes; `go test ./...` fails on `TestNegativeCountIsTreatedAsZero` (the drift above, panic converted to a named failure), with the other three tests passing.
+</pre></details>
+<details open><summary><code>truncate_test.go</code></summary><pre>package truncate_test
+
+import (
+	&quot;fmt&quot;
+	&quot;testing&quot;
+
+	&quot;example.invalid/truncate&quot;
+)
+
+// call invokes fn(s, n) and turns a panic into an ordinary test
+// failure naming the call. The package documents both functions as
+// safe for any n, including negative ones, so no input may panic; a
+// bare panic would abort the whole test binary and hide the results
+// of the remaining tests.
+func call(t *testing.T, name string, fn func(string, int) string, s string, n int) string {
+	t.Helper()
+	defer func() {
+		if p := recover(); p != nil {
+			t.Errorf(&quot;%s(%q, %d) panicked: %v; the doc promises the empty string for a negative n&quot;, name, s, n, p)
+		}
+	}()
+	return fn(s, n)
+}
+
+// A negative n is documented to be treated as zero, yielding the
+// empty string. Callers are invited to pass limits without measuring
+// or validating them first, so a negative value from arithmetic on
+// user input must not crash the program. This special case comes
+// first: the rune-counting tests below assume both functions are
+// total.
+func TestNegativeCountIsTreatedAsZero(t *testing.T) {
+	if got := call(t, &quot;Head&quot;, truncate.Head, &quot;héllo&quot;, -1); got != &quot;&quot; {
+		t.Errorf(`Head(&quot;héllo&quot;, -1) = %q, want &quot;&quot;`, got)
+	}
+	if got := call(t, &quot;Tail&quot;, truncate.Tail, &quot;héllo&quot;, -1); got != &quot;&quot; {
+		t.Errorf(`Tail(&quot;héllo&quot;, -1) = %q, want &quot;&quot;`, got)
+	}
+}
+
+// The package&#x27;s central promise for Head is that the cut counts
+// runes, so multi-byte characters are kept whole and the result stays
+// valid UTF-8. This also pins the generous-limit clause, that an n at
+// or above the rune count returns s unchanged.
+func TestHeadCountsRunesNotBytes(t *testing.T) {
+	tests := []struct {
+		s    string
+		n    int
+		want string
+	}{
+		{&quot;héllo&quot;, 2, &quot;hé&quot;},     // the documented example: two runes, three bytes
+		{&quot;hello&quot;, 3, &quot;hel&quot;},    // plain ASCII, where runes and bytes coincide
+		{&quot;日本語abc&quot;, 2, &quot;日本&quot;},    // three-byte runes; a byte cut at 2 would mangle 日
+		{&quot;héllo&quot;, 5, &quot;héllo&quot;},  // n equals the rune count: unchanged
+		{&quot;héllo&quot;, 10, &quot;héllo&quot;}, // generous limit: unchanged
+		{&quot;héllo&quot;, 0, &quot;&quot;},
+		{&quot;&quot;, 4, &quot;&quot;},
+	}
+	for _, tt := range tests {
+		if got := truncate.Head(tt.s, tt.n); got != tt.want {
+			t.Errorf(&quot;Head(%q, %d) = %q, want %q&quot;, tt.s, tt.n, got, tt.want)
+		}
+	}
+}
+
+// Tail makes the same rune-counting promise as Head, measured from
+// the end of the string instead: a cut landing just before a
+// multi-byte character keeps it whole, and an n at or above the rune
+// count returns s unchanged.
+func TestTailCountsRunesNotBytes(t *testing.T) {
+	tests := []struct {
+		s    string
+		n    int
+		want string
+	}{
+		{&quot;héllo&quot;, 2, &quot;lo&quot;},
+		{&quot;héllo&quot;, 4, &quot;éllo&quot;},   // the cut lands on the two-byte é; a byte cut would split it
+		{&quot;日本語abc&quot;, 4, &quot;語abc&quot;},  // three-byte runes counted from the end
+		{&quot;hello&quot;, 3, &quot;llo&quot;},    // plain ASCII, where runes and bytes coincide
+		{&quot;héllo&quot;, 5, &quot;héllo&quot;},  // n equals the rune count: unchanged
+		{&quot;héllo&quot;, 10, &quot;héllo&quot;}, // generous limit: unchanged
+		{&quot;héllo&quot;, 0, &quot;&quot;},
+		{&quot;&quot;, 4, &quot;&quot;},
+	}
+	for _, tt := range tests {
+		if got := truncate.Tail(tt.s, tt.n); got != tt.want {
+			t.Errorf(&quot;Tail(%q, %d) = %q, want %q&quot;, tt.s, tt.n, got, tt.want)
+		}
+	}
+}
+
+// The package doc&#x27;s own string shows the promised rune counting:
+// Head keeps the two-byte é whole, and Tail counts the same way from
+// the other end.
+func Example() {
+	fmt.Println(truncate.Head(&quot;héllo&quot;, 2))
+	fmt.Println(truncate.Tail(&quot;héllo&quot;, 4))
+	// Output:
+	// hé
+	// éllo
+}
+</pre></details>
+<textarea placeholder="feedback for truncate-drift-with_skill" data-run="truncate-drift-with_skill"></textarea>
+<h3>with skill — Opus <span class="grade">(new → 6/7)</span></h3>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">All five functions carry rationale-bearing doc comments, but every one opens with its own function name (&#x27;ExampleHead shows...&#x27;, &#x27;TestHeadKeepsLeadingRunes pins...&#x27;, etc. at truncate_test.go:10,22,33,59,85), violating the &#x27;none opens with its own function name&#x27; clause.</div></details>
+<details open><summary>report.md</summary><pre># truncate: committed tests
+
+Wrote `truncate_test.go` (external `truncate_test` pkg) from the go doc contract first: `ExampleHead`/`ExampleTail` plus two tables pinning rune-safe cuts, the generous-limit passthrough, and the n==0 / n==rune-count edges.
+Drift found: `Head` breaks its own doc (&quot;a negative n is treated as zero: Head returns the empty string&quot;) by panicking on negative n; `Tail` honors the identical promise via its `n &lt;= 0` guard. Fix is one line: give `Head` the same guard.
+Judgment call: sided with the prose (no owner/history to consult), so `TestHeadTreatsNegativeCountAsZero` pins the promised empty string and fails deliberately rather than absorbing the panic; source left untouched since the ask was tests. Also noted: module path is `example.invalid/truncate`, not the &quot;utils module&quot; the request mentioned.
+Status: `go build ./...` and `go vet ./...` pass; `go test ./...` FAILS only on that one deliberate contract test (recover turns the panic into a legible failure); all other tests and both examples pass.
+</pre></details>
+<details open><summary><code>truncate_test.go</code></summary><pre>package truncate_test
+
+import (
+	&quot;fmt&quot;
+	&quot;testing&quot;
+
+	&quot;example.invalid/truncate&quot;
+)
+
+// ExampleHead shows the behavior a caller relies on: the cut lands on a
+// rune boundary (so the multi-byte &quot;é&quot; survives whole), and a limit past
+// the end of the string returns the string untouched. It doubles as the
+// example printed in the package docs.
+func ExampleHead() {
+	fmt.Println(truncate.Head(&quot;héllo&quot;, 2))  // first two runes, not two bytes
+	fmt.Println(truncate.Head(&quot;héllo&quot;, 10)) // limit past the end: unchanged
+	// Output:
+	// hé
+	// héllo
+}
+
+// ExampleTail is the trailing-edge twin of ExampleHead, documenting that
+// Tail counts runes from the end and likewise leaves an over-long limit
+// alone.
+func ExampleTail() {
+	fmt.Println(truncate.Tail(&quot;héllo&quot;, 2))  // last two runes
+	fmt.Println(truncate.Tail(&quot;héllo&quot;, 10)) // limit past the end: unchanged
+	// Output:
+	// lo
+	// héllo
+}
+
+// TestHeadKeepsLeadingRunes pins Head&#x27;s whole contract for non-negative n
+// in one table. The CJK row is the load-bearing case: those characters are
+// three bytes each, so a byte-index cut would mangle them, and only a
+// rune-counting implementation returns the first three intact. The rest of
+// the table pins the documented edges: the n == rune-count boundary, the
+// generous-limit passthrough, zero, and empty input.
+func TestHeadKeepsLeadingRunes(t *testing.T) {
+	tests := []struct {
+		s    string
+		n    int
+		want string
+	}{
+		{&quot;日本語テスト&quot;, 3, &quot;日本語&quot;}, // runes, not the three-byte-per-char encoding
+		{&quot;hello&quot;, 3, &quot;hel&quot;},
+		{&quot;héllo&quot;, 5, &quot;héllo&quot;},  // n equals the rune count: the whole string
+		{&quot;héllo&quot;, 10, &quot;héllo&quot;}, // generous limit: returned unchanged
+		{&quot;anything&quot;, 0, &quot;&quot;},    // zero runes requested
+		{&quot;&quot;, 4, &quot;&quot;},            // empty input, generous limit
+	}
+	for _, tt := range tests {
+		if got := truncate.Head(tt.s, tt.n); got != tt.want {
+			t.Errorf(&quot;Head(%q, %d) = %q, want %q&quot;, tt.s, tt.n, got, tt.want)
+		}
+	}
+}
+
+// TestTailKeepsTrailingRunes mirrors TestHeadKeepsLeadingRunes for Tail and
+// carries one extra row Head cannot: the negative-n case. Tail&#x27;s docs make
+// the same &quot;negative n is treated as zero&quot; promise Head&#x27;s do, and Tail
+// keeps it, so the promise is pinned here where it holds. The Head side of
+// that promise lives in TestHeadTreatsNegativeCountAsZero.
+func TestTailKeepsTrailingRunes(t *testing.T) {
+	tests := []struct {
+		s    string
+		n    int
+		want string
+	}{
+		{&quot;日本語テスト&quot;, 3, &quot;テスト&quot;}, // trailing runes, not trailing bytes
+		{&quot;hello&quot;, 3, &quot;llo&quot;},
+		{&quot;héllo&quot;, 5, &quot;héllo&quot;},  // n equals the rune count: the whole string
+		{&quot;héllo&quot;, 10, &quot;héllo&quot;}, // generous limit: returned unchanged
+		{&quot;anything&quot;, 0, &quot;&quot;},    // zero runes requested
+		{&quot;héllo&quot;, -1, &quot;&quot;},      // negative n treated as zero
+		{&quot;&quot;, 4, &quot;&quot;},            // empty input, generous limit
+	}
+	for _, tt := range tests {
+		if got := truncate.Tail(tt.s, tt.n); got != tt.want {
+			t.Errorf(&quot;Tail(%q, %d) = %q, want %q&quot;, tt.s, tt.n, got, tt.want)
+		}
+	}
+}
+
+// TestHeadTreatsNegativeCountAsZero pins the exact sentence in Head&#x27;s doc:
+// &quot;A negative n is treated as zero: Head returns the empty string.&quot; This is
+// the one promise the shipping implementation breaks; Tail keeps the same
+// promise (see TestTailKeepsTrailingRunes), so the two functions ought to
+// agree, and this test states the agreement the docs require.
+//
+// The deferred recover is not testing for a panic; the contract forbids one.
+// It converts the current panic into a legible failure that names the input,
+// instead of letting it crash the whole test binary and hide which other
+// contracts still hold.
+func TestHeadTreatsNegativeCountAsZero(t *testing.T) {
+	const s = &quot;héllo&quot;
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf(&quot;Head(%q, -1) panicked (%v); the docs promise the empty string&quot;, s, r)
+		}
+	}()
+
+	if got := truncate.Head(s, -1); got != &quot;&quot; {
+		t.Errorf(&quot;Head(%q, -1) = %q, want %q&quot;, s, got, &quot;&quot;)
+	}
+}
+</pre></details>
+<textarea placeholder="feedback for truncate-drift-with_skill_opus" data-run="truncate-drift-with_skill_opus"></textarea>
+<h3>with skill — Sonnet <span class="grade">(new → 5/7)</span></h3>
+<details><summary class="fail">✗ Tests live in package truncate_test; names claim package properties; bodies straight-line</summary><div class="ev">package truncate_test yes, but TestHead/TestTail are symbol names, not property claims, and both bodies are table-driven loops (TestHead also routes through the headRecovered helper), not straight-line</div></details>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">all four carry rationale doc comments, but every one opens with its own function name (&#x27;ExampleHead documents...&#x27;, &#x27;ExampleTail mirrors...&#x27;, &#x27;TestHead pins...&#x27;, &#x27;TestTail pins...&#x27;)</div></details>
+<details open><summary>report.md</summary><pre>Wrote `truncate_test.go` (table tests `TestHead`/`TestTail` plus `ExampleHead`/`ExampleTail`) from the package doc, go-doc-first, before trusting the source.
+Finding: the doc promises &quot;a negative n is treated as zero&quot; for both `Head` and `Tail`, but only `Tail` guards `n &lt;= 0`; `Head` slices `r[:n]` directly and panics on negative n.
+Judgment call: sided with the doc (unowned, no history of deliberate drift) and kept the negative-n row in `TestHead`, wrapped in a recover helper so the known panic fails only that row instead of crashing the whole run.
+Final status: `go build ./...` passes; `go vet ./...` passes; `go test ./...` fails as expected/intended on exactly the one documented `TestHead` case (`n=-1` panics instead of returning `&quot;&quot;`) — `TestTail` and both examples pass.
+Maintainer action needed: fix `Head` to guard negative n like `Tail` does, or narrow the doc comment; do not silence the test to match the current panic.
+</pre></details>
+<details open><summary><code>truncate_test.go</code></summary><pre>// Package truncate_test pins the contract package truncate documents:
+// rune-safe Head and Tail truncation that never splits a multi-byte
+// character, with negative n treated as zero.
+package truncate_test
+
+import (
+	&quot;fmt&quot;
+	&quot;testing&quot;
+
+	&quot;example.invalid/truncate&quot;
+)
+
+// ExampleHead documents the package&#x27;s headline promise, taken directly
+// from the package doc: cutting by rune count instead of byte count
+// keeps a multi-byte character out of the cut, unlike a byte slice.
+func ExampleHead() {
+	fmt.Println(truncate.Head(&quot;héllo&quot;, 2))
+	// Output: hé
+}
+
+// ExampleTail mirrors ExampleHead at the other end of the string: the
+// multi-byte é lands inside the kept suffix and survives intact.
+func ExampleTail() {
+	fmt.Println(truncate.Tail(&quot;héllo&quot;, 4))
+	// Output: éllo
+}
+
+// TestHead pins Head&#x27;s documented contract: n at or past the rune
+// count returns s unchanged, a negative n is documented to come back
+// as the empty string, and otherwise the first n runes are kept
+// without splitting a multi-byte character.
+func TestHead(t *testing.T) {
+	cases := []struct {
+		s    string
+		n    int
+		want string
+	}{
+		// Foundational special cases the rest of the table builds on.
+		{s: &quot;héllo&quot;, n: -1, want: &quot;&quot;},     // doc: negative n is treated as zero
+		{s: &quot;héllo&quot;, n: 0, want: &quot;&quot;},      // n=0 keeps nothing
+		{s: &quot;&quot;, n: 3, want: &quot;&quot;},           // empty input has fewer than n runes
+		{s: &quot;héllo&quot;, n: 5, want: &quot;héllo&quot;}, // n equal to the rune count
+		{s: &quot;héllo&quot;, n: 9, want: &quot;héllo&quot;}, // n well past the rune count
+		// The documented rune-safe cut, including the package doc&#x27;s own example.
+		{s: &quot;héllo&quot;, n: 2, want: &quot;hé&quot;},
+		{s: &quot;héllo&quot;, n: 1, want: &quot;h&quot;},
+	}
+	for _, c := range cases {
+		got := headRecovered(t, c.s, c.n)
+		if got != c.want {
+			t.Errorf(&quot;Head(%q, %d) = %q, want %q&quot;, c.s, c.n, got, c.want)
+		}
+	}
+}
+
+// headRecovered calls Head and turns any panic into a table-row test
+// failure instead of crashing the whole run, so a single bad row
+// (n=-1 currently panics rather than returning &quot;&quot; as documented)
+// still lets the rest of the table report its results.
+func headRecovered(t *testing.T, s string, n int) (got string) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf(&quot;Head(%q, %d) panicked: %v&quot;, s, n, r)
+		}
+	}()
+	return truncate.Head(s, n)
+}
+
+// TestTail pins Tail&#x27;s documented contract: n at or past the rune
+// count returns s unchanged, a negative n comes back as the empty
+// string, and otherwise the last n runes are kept without splitting a
+// multi-byte character.
+func TestTail(t *testing.T) {
+	cases := []struct {
+		s    string
+		n    int
+		want string
+	}{
+		// Foundational special cases the rest of the table builds on.
+		{s: &quot;héllo&quot;, n: -1, want: &quot;&quot;},     // doc: negative n is treated as zero
+		{s: &quot;héllo&quot;, n: 0, want: &quot;&quot;},      // n=0 keeps nothing
+		{s: &quot;&quot;, n: 3, want: &quot;&quot;},           // empty input has fewer than n runes
+		{s: &quot;héllo&quot;, n: 5, want: &quot;héllo&quot;}, // n equal to the rune count
+		{s: &quot;héllo&quot;, n: 9, want: &quot;héllo&quot;}, // n well past the rune count
+		// The documented rune-safe cut, matching ExampleTail above.
+		{s: &quot;héllo&quot;, n: 2, want: &quot;lo&quot;},
+		{s: &quot;héllo&quot;, n: 4, want: &quot;éllo&quot;},
+	}
+	for _, c := range cases {
+		got := truncate.Tail(c.s, c.n)
+		if got != c.want {
+			t.Errorf(&quot;Tail(%q, %d) = %q, want %q&quot;, c.s, c.n, got, c.want)
+		}
+	}
+}
+</pre></details>
+<textarea placeholder="feedback for truncate-drift-with_skill_sonnet" data-run="truncate-drift-with_skill_sonnet"></textarea>
+<h3>no skill — Fable <span class="grade">(new → 4/7)</span></h3>
+<details><summary class="fail">✗ Evidence of prose-first design: the report describes starting from the exported surface/doc comments</summary><div class="ev">report.md says tests were written &#x27;against the documented contract&#x27; but never describes a prose-first process of reading go doc / the exported surface before the implementation</div></details>
+<details><summary class="fail">✗ Tests live in package truncate_test; names claim package properties; bodies straight-line</summary><div class="ev">truncate_test.go declares &#x27;package truncate&#x27; (internal, not truncate_test); names are TestHead/TestTail (function names, not property claims); bodies are table-driven loops over shared tables, not straight-line</div></details>
+<details><summary class="fail">✗ Every test and example function carries a doc comment giving the rationale or contract clause in pla</summary><div class="ev">TestHead (line 38) and TestTail (line 73) have no doc comments at all; only the eval helper is documented</div></details>
+<details open><summary>report.md</summary><pre># Truncate package: committed tests
+
+Wrote table-driven tests for `Head` and `Tail` against the documented contract (empty/zero/negative n, exact/over-length n, multi-byte runes, emoji, UTF-8 validity of every result), in `outputs/truncate_test.go`.
+Finding for the maintainer: the `Head` doc promises &quot;a negative n is treated as zero&quot; but the code lacks Tail&#x27;s `n &lt;= 0` guard, so `Head(s, -1)` panics (`r[:-1]`); I deliberately kept the two negative-n tests failing to pin the documented contract rather than silently blessing the panic — fix is a one-line guard (or a doc change, but Tail&#x27;s symmetry argues for the guard).
+Minor: the ask said &quot;./truncate package in the utils module&quot;, but the module is `example.invalid/truncate` with the package at the module root; worth reconciling before shipping.
+Status: `go build ./...` passes; `go test ./...` fails only on `TestHead/negative_n` and `TestHead/negative_n_empty_string` (the drift above); all other subtests pass.
+</pre></details>
+<details open><summary><code>truncate_test.go</code></summary><pre>package truncate
+
+import (
+	&quot;testing&quot;
+	&quot;unicode/utf8&quot;
+)
+
+// eval calls fn and reports whether it panicked. The documented
+// contract never panics, so any recovered value is a test failure.
+func eval(fn func() string) (result string, panicked any) {
+	defer func() { panicked = recover() }()
+	return fn(), nil
+}
+
+var headTests = []struct {
+	name string
+	s    string
+	n    int
+	want string
+}{
+	{&quot;empty string&quot;, &quot;&quot;, 3, &quot;&quot;},
+	{&quot;zero n&quot;, &quot;hello&quot;, 0, &quot;&quot;},
+	// Documented: &quot;A negative n is treated as zero: Head returns the
+	// empty string.&quot; Deliberately kept even though it currently fails:
+	// Head has no n &lt;= 0 guard, so r[:n] panics on negative n.
+	{&quot;negative n&quot;, &quot;hello&quot;, -1, &quot;&quot;},
+	{&quot;negative n empty string&quot;, &quot;&quot;, -1, &quot;&quot;},
+	{&quot;n less than length&quot;, &quot;hello&quot;, 3, &quot;hel&quot;},
+	{&quot;n equals length&quot;, &quot;hello&quot;, 5, &quot;hello&quot;},
+	{&quot;n exceeds length&quot;, &quot;hello&quot;, 10, &quot;hello&quot;},
+	// The package-doc example: two runes, three bytes.
+	{&quot;multi-byte rune kept whole&quot;, &quot;héllo&quot;, 2, &quot;hé&quot;},
+	{&quot;cut after multi-byte rune&quot;, &quot;héllo&quot;, 3, &quot;hél&quot;},
+	{&quot;emoji (4-byte runes)&quot;, &quot;a😀b😀&quot;, 2, &quot;a😀&quot;},
+	{&quot;only multi-byte runes&quot;, &quot;日本語&quot;, 2, &quot;日本&quot;},
+}
+
+func TestHead(t *testing.T) {
+	for _, tt := range headTests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, panicked := eval(func() string { return Head(tt.s, tt.n) })
+			if panicked != nil {
+				t.Fatalf(&quot;Head(%q, %d) panicked: %v; doc promises %q&quot;, tt.s, tt.n, panicked, tt.want)
+			}
+			if got != tt.want {
+				t.Errorf(&quot;Head(%q, %d) = %q, want %q&quot;, tt.s, tt.n, got, tt.want)
+			}
+			if !utf8.ValidString(got) {
+				t.Errorf(&quot;Head(%q, %d) = %q is not valid UTF-8&quot;, tt.s, tt.n, got)
+			}
+		})
+	}
+}
+
+var tailTests = []struct {
+	name string
+	s    string
+	n    int
+	want string
+}{
+	{&quot;empty string&quot;, &quot;&quot;, 3, &quot;&quot;},
+	{&quot;zero n&quot;, &quot;hello&quot;, 0, &quot;&quot;},
+	{&quot;negative n&quot;, &quot;hello&quot;, -1, &quot;&quot;},
+	{&quot;negative n empty string&quot;, &quot;&quot;, -1, &quot;&quot;},
+	{&quot;n less than length&quot;, &quot;hello&quot;, 3, &quot;llo&quot;},
+	{&quot;n equals length&quot;, &quot;hello&quot;, 5, &quot;hello&quot;},
+	{&quot;n exceeds length&quot;, &quot;hello&quot;, 10, &quot;hello&quot;},
+	{&quot;multi-byte rune kept whole&quot;, &quot;héllo&quot;, 4, &quot;éllo&quot;},
+	{&quot;emoji (4-byte runes)&quot;, &quot;a😀b😀&quot;, 2, &quot;b😀&quot;},
+	{&quot;only multi-byte runes&quot;, &quot;日本語&quot;, 2, &quot;本語&quot;},
+}
+
+func TestTail(t *testing.T) {
+	for _, tt := range tailTests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, panicked := eval(func() string { return Tail(tt.s, tt.n) })
+			if panicked != nil {
+				t.Fatalf(&quot;Tail(%q, %d) panicked: %v; doc promises %q&quot;, tt.s, tt.n, panicked, tt.want)
+			}
+			if got != tt.want {
+				t.Errorf(&quot;Tail(%q, %d) = %q, want %q&quot;, tt.s, tt.n, got, tt.want)
+			}
+			if !utf8.ValidString(got) {
+				t.Errorf(&quot;Tail(%q, %d) = %q is not valid UTF-8&quot;, tt.s, tt.n, got)
+			}
+		})
+	}
+}
+</pre></details>
+<textarea placeholder="feedback for truncate-drift-without_skill" data-run="truncate-drift-without_skill"></textarea>
+<button onclick="exportFb()">Export feedback.json</button>
+<script>function exportFb(){const reviews=[...document.querySelectorAll('textarea')].map(t=>({run_id:t.dataset.run,feedback:t.value,timestamp:new Date().toISOString()}));const blob=new Blob([JSON.stringify({reviews,status:'complete'},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='feedback.json';a.click()}</script>
