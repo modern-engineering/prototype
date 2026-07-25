@@ -1,19 +1,25 @@
 ---
 name: testing
 description: >-
-  Sets the maintainer's standard for writing and reviewing committed Go
-  tests (_test.go): the golden hierarchy of contract authority, go-doc-first
-  design and review, Go-team snippets to imitate, references per scenario.
+  Sets the maintainer's standard for committed Go tests (_test.go): what
+  earns a commit, how a suite is shaped, named, and commented, and how to
+  review one. Carries the golden hierarchy of contract authority,
+  go-doc-first design and review, annotated Go-team snippets to imitate,
+  and one reference file per scenario.
 when_to_use: >-
-  Load on any request to write, add, review, design, or fix Go tests, on
-  any question about test naming or structure, when a test suite or a
-  package's testability is being designed or reviewed, at the earliest
-  signal a _test.go file will change, and the moment a test proves hard to
-  write; begin in go-doc-first mode, planning tests from the exported docs
-  before opening source, and enter the annotated Go-team snippets in
-  exemplar/ by role: matched samples to write, the whole corpus to review.
-  Do not wait for the word "test": code without contract tests is
-  unfinished, so nearly every Go code-writing task ends here.
+  Use whenever Go _test.go files are the work: writing or adding tests for
+  a package or a single symbol; reviewing, consolidating, or judging an
+  existing suite ("these tests smell", "what would a reviewer say");
+  turning trivial tests into runnable examples for pkgsite; building a
+  conformance harness so other implementations can prove they satisfy an
+  interface; shaping a new package's API so it stays testable before the
+  code exists; rescuing a test that flakes or resists being written. Load
+  it after writing or changing any Go code, since committed tests are part
+  of done: do not wait for the word "test". Begin in go-doc-first mode,
+  planning from the exported docs before opening source, and enter
+  exemplar/ by role, matched samples to write and the whole corpus to
+  review. Not for non-Go test frameworks, godoc-only tasks, go vet or CI
+  tooling failures, fuzz-crash debugging, or test-plan process documents.
 ---
 
 # Committed Go Tests
