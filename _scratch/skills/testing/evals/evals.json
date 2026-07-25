@@ -1,0 +1,23 @@
+{
+ "skill_name": "testing",
+ "evals": [
+  {
+   "id": 1,
+   "prompt": "I just finished writing this little rate-limiter package for our internal gateway (token bucket, refills on a ticker goroutine, has a Wait(ctx) and an Allow() and a Close()). Can you write the tests for it before I send the PR?",
+   "expected_output": "Tests live in an external test package (package limiter_test), not package limiter; Concurrency and timing are tested with testing/synctest; no time.Sleep appears in test code; Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes two or more exported symbols in one scenario; No test/example doc comment opens with its own function name; comments state contract clauses; Tests trace to the package's documented promises (ctx.Err() propagation, Close idempotence, Wait-after-Close error) rather than hunting bugs; go test ./... passes in the module",
+   "files": []
+  },
+  {
+   "id": 2,
+   "prompt": "our new hire wrote tests for the config package and something feels off about them, can you review and fix? dont break anything, the suite is green",
+   "expected_output": "The five per-symbol tests are consolidated into fewer contract scenarios or a table exercising several exported symbols together; The committed dev scaffold TestDebugDump is deleted, not polished; The sleep-based test no longer uses time.Sleep (synctest or channel synchronization instead); The assert-nothing BenchmarkLoad is deleted or now asserts something; The internals-reaching test states its claim through the exported surface instead; At least one trivial case became a runnable Example; No test doc comment opens with its own function name after the fix; go test ./... still passes",
+   "files": []
+  },
+  {
+   "id": 3,
+   "prompt": "add a test for the new ParseDurationOrDefault helper I added to internal/units (it falls back to the default on empty string, and on garbage too - documented leniency, not an error). quick one please, need to commit",
+   "expected_output": "No lone per-function bug-probe TestParseDurationOrDefault is added; coverage lands as rows in the existing scenario/table or as a runnable Example; The documented leniency contract is asserted: empty string returns def AND garbage returns def without error; Any new doc comment does not open with the function name; The existing good-style test is preserved, not rewritten; go test ./... passes",
+   "files": []
+  }
+ ]
+}

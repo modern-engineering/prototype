@@ -1,0 +1,23 @@
+{
+  "skill_name": "testing",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just finished writing this little rate-limiter package for our internal gateway (token bucket, refills on a ticker goroutine, has a Wait(ctx) and an Allow() and a Close()). Can you write the tests for it before I send the PR? Package is in ./limiter",
+      "expected_output": "A small number of scenario tests exercising Allow/Wait/Close together from package limiter_test, concurrency and refill timing under testing/synctest (no sleeps), names claiming behavior (e.g. TestRefillGrantsBlockedWaiters), doc comments opening with the contract clause, possibly one Example; no per-function grain, no bug-hunt cases, no real-time flakiness.",
+      "files": ["limiter/limiter.go"]
+    },
+    {
+      "id": 2,
+      "prompt": "our new hire wrote tests for the config package (./config) and something feels off about them, can you review and fix? dont break anything, the suite is green",
+      "expected_output": "Identifies per-function grain, self-naming doc comments, a committed dev scaffold, an internals-reaching test, and a time.Sleep; consolidates into fewer contract scenarios, rewords comments to open with the contract clause, promotes the trivial case to an Example, deletes the scaffold with justification, keeps the suite green.",
+      "files": ["config/config.go", "config/config_test.go"]
+    },
+    {
+      "id": 3,
+      "prompt": "add a test for the new ParseDurationOrDefault helper I added to internal/units (it falls back to the default on empty string, errors on garbage). quick one please, need to commit",
+      "expected_output": "Resists adding a lone TestParseDurationOrDefault bug-probe: either extends the package's existing scenario/table with rows for the new symbol, or adds a runnable Example if trivial, with a comment stating the documented fallback contract; checks the doc comment promises match what is asserted.",
+      "files": ["internal/units/units.go", "internal/units/units_test.go"]
+    }
+  ]
+}
