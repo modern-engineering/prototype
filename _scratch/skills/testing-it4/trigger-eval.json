@@ -1,0 +1,82 @@
+[
+  {
+    "query": "here's the shape of my retry package: Do(ctx context.Context, p Policy, fn func() error) error, with exponential backoff and jitter, and Policy{Max int; Base time.Duration}. write the committed tests for it, i'm opening the PR today",
+    "should_trigger": true
+  },
+  {
+    "query": "our intern wrote nine test funcs for one auth middleware, one per exported function, and three of them assert on unexported struct fields. suite is green. how should i rework it?",
+    "should_trigger": true
+  },
+  {
+    "query": "i'm adding a WithTimeout option to a Go client package that already has a table-driven test covering the other options. does the new option get its own test func or another row in the table?",
+    "should_trigger": true
+  },
+  {
+    "query": "my Go test spawns three goroutines then sleeps 200ms before asserting the connection count. passes locally, flakes on CI maybe 1 in 20. how should that test be written instead?",
+    "should_trigger": true
+  },
+  {
+    "query": "before i write a Go package that parses our config DSL, how should i shape the API so the tests don't turn into a nightmare later?",
+    "should_trigger": true
+  },
+  {
+    "query": "what would a picky Go reviewer send back on a _test.go that has TestNew, TestGet, TestSet and TestDelete, each three lines, no examples anywhere?",
+    "should_trigger": true
+  },
+  {
+    "query": "we publish an Engine interface with two implementations and a partner is writing a third. i want to ship them something like httptest so they can prove their impl conforms. how do i structure that testing package?",
+    "should_trigger": true
+  },
+  {
+    "query": "what should i name a Go test that checks Close is safe to call twice AND that Get after Close returns ErrClosed? TestCloseTwiceAndGet feels wrong",
+    "should_trigger": true
+  },
+  {
+    "query": "the doc comment on ParseTimeout promises the default on empty input but the implementation returns an error for it. i'm writing this package's tests right now, which behavior do i encode?",
+    "should_trigger": true
+  },
+  {
+    "query": "i have four one-line Go tests that just check a formatting helper. turn them into runnable examples so they render on pkgsite",
+    "should_trigger": true
+  },
+  {
+    "query": "go vet says printf: %d arg is a string in my Go program. how do i fix that class of error and keep vet quiet in CI?",
+    "should_trigger": false
+  },
+  {
+    "query": "draft a test plan document for our Q3 billing migration: sign-offs per team, rollback criteria, comms timeline",
+    "should_trigger": false
+  },
+  {
+    "query": "write pytest integration tests for a python ingest pipeline, with fixtures that fake the s3 bucket and a few parametrized cases",
+    "should_trigger": false
+  },
+  {
+    "query": "my Go benchmark reports 412 ns/op and 3 allocs/op. how do i find which line is allocating, using pprof?",
+    "should_trigger": false
+  },
+  {
+    "query": "rename a Go interface from Store to Repository across a whole module and update every call site, test files included",
+    "should_trigger": false
+  },
+  {
+    "query": "write a github actions workflow that runs go test ./... -race on every PR, with module caching and a 10 minute timeout",
+    "should_trigger": false
+  },
+  {
+    "query": "explain what testing/synctest does in go 1.25. the bubble concept and durably blocked never clicked for me",
+    "should_trigger": false
+  },
+  {
+    "query": "my Go fuzz target found a panic in a URL parser. how do i work backwards from the saved corpus entry to the bug?",
+    "should_trigger": false
+  },
+  {
+    "query": "write godoc comments for a Go events package: the Publisher type, Subscription, and three sentinel error values",
+    "should_trigger": false
+  },
+  {
+    "query": "our cypress e2e login test times out about a third of the time waiting for the dashboard. how do i stabilize it?",
+    "should_trigger": false
+  }
+]
