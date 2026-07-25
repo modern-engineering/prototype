@@ -1,0 +1,1 @@
+`tree/` held a 2.2M working-tree snapshot of the `nightshift-complete` ref (11cad7d), pruned as derivable; restore with `mkdir -p tree && git -C "$(git rev-parse --show-toplevel)" archive nightshift-complete | tar -x -C tree`.
