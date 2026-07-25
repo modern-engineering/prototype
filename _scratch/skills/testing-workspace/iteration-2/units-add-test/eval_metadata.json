@@ -1,0 +1,12 @@
+{
+ "eval_id": 3,
+ "eval_name": "units-add-test",
+ "prompt": "add a test for the new ParseDurationOrDefault helper I added to internal/units (it falls back to the default on empty string, and on garbage too - documented leniency, not an error). quick one please, need to commit",
+ "assertions": [
+  "Coverage mimics the package's existing test patterns: it lands as rows/sub-tests in an existing suitable test, or as a runnable Example following the sibling ExampleParseSizeOrDefault precedent \u2014 NOT as a standalone test named after the function (TestParseDurationOrDefault fails)",
+  "The documented leniency is asserted: empty string returns def AND garbage returns def, without error",
+  "The existing good-style tests and examples are preserved untouched",
+  "Any new doc comment opens with the contract clause, not the function name",
+  "go test ./... passes"
+ ]
+}

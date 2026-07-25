@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "Coverage mimics the package's existing test patterns: it lands as rows/sub-tests in an existing suitable test, or as a runnable Example following the sibling ExampleParseSizeOrDefault precedent — NOT as a standalone test named after the function (TestParseDurationOrDefault fails)",
+      "passed": true,
+      "evidence": "internal/units/units_test.go:66 adds ExampleParseDurationOrDefault mirroring the ExampleParseSizeOrDefault precedent; grep -rn TestParseDurationOrDefault outputs/ returns no matches"
+    },
+    {
+      "text": "The documented leniency is asserted: empty string returns def AND garbage returns def, without error",
+      "passed": true,
+      "evidence": "internal/units/units_test.go:67-71: ParseDurationOrDefault(\"\", 2*time.Second) and ParseDurationOrDefault(\"not-a-duration\", 2*time.Second) both asserted as 2s via the // Output block; the helper returns no error value"
+    },
+    {
+      "text": "The existing good-style tests and examples are preserved untouched",
+      "passed": true,
+      "evidence": "diff -ru against fixtures/units shows units.go identical and units_test.go changed only by an added \"time\" import and the appended ExampleParseDurationOrDefault; TestSizeRoundTrip, ExampleParseSize, and ExampleParseSizeOrDefault are byte-for-byte unchanged"
+    },
+    {
+      "text": "Any new doc comment opens with the contract clause, not the function name",
+      "passed": true,
+      "evidence": "internal/units/units_test.go:63 the only new doc comment opens \"An empty duration string and a malformed one both fall back...\", not with the function name; units.go doc comments are unchanged from the fixture"
+    },
+    {
+      "text": "go test ./... passes",
+      "passed": true,
+      "evidence": "go test -count=1 -v ./... in outputs/ exits 0: \"ok example.invalid/units/internal/units 0.264s\" with ExampleParseDurationOrDefault PASS; go vet ./... also exits 0"
+    }
+  ]
+}

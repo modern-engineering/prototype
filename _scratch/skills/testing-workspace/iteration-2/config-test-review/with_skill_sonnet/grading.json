@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "The five per-symbol tests are consolidated into fewer contract scenarios (or runnable Examples) exercising several exported symbols together",
+      "passed": true,
+      "evidence": "config_test.go:23-60 single TestConfig exercises Load, String, Int, Duration, and Keys together; only TestMalformedLines (line 64) remains beside it"
+    },
+    {
+      "text": "The dev scaffold TestDebugDump is deleted, not polished",
+      "passed": true,
+      "evidence": "grep -rn 'DebugDump' outputs/ returns no matches; config_test.go contains only TestConfig, TestMalformedLines, BenchmarkLoad"
+    },
+    {
+      "text": "The sleep-based concurrent-use smoke is DELETED with the reasoning that the package documents no concurrency contract (methods are not safe for concurrent use unless documented); a rewrite that still pins unpromised concurrency fails this assertion",
+      "passed": true,
+      "evidence": "grep for 'Sleep|goroutine|sync\\.' in config_test.go returns no matches; the test is gone and no rewrite pins any concurrency behavior (reasoning itself not preserved: no report file exists for this run)"
+    },
+    {
+      "text": "The benchmark uses the modern b.Loop form and meaningfully exercises Load (the old discard-everything b.N loop is susceptible to being optimized away)",
+      "passed": true,
+      "evidence": "config_test.go:80-82 'for b.Loop() { config.Load(strings.NewReader(sample)) }' — b.Loop keeps the call live per iteration and Load parses the real sample each pass"
+    },
+    {
+      "text": "The internals-reaching test states its claim through the exported surface instead",
+      "passed": true,
+      "evidence": "config_test.go:1 'package config_test' (external test package); only exported API (Load/String/Int/Duration/Keys) is used, e.g. Keys() checked at lines 56-59; no test touches c.values"
+    },
+    {
+      "text": "At least one runnable Example exists; a package-level Example() not tied to any symbol is acceptable and well-suited to this shallow API",
+      "passed": false,
+      "evidence": "grep -rn 'func Example' outputs/ returns no matches; the test file defines no Example functions at all"
+    },
+    {
+      "text": "No test doc comment opens with its own function name after the fix",
+      "passed": true,
+      "evidence": "Doc comments open 'Loading a configuration file...' (line 20), 'Load reports an error...' (line 62), 'Load repeatedly parses...' (line 77) — none opens with TestConfig/TestMalformedLines/BenchmarkLoad"
+    },
+    {
+      "text": "REVIEW DEPTH: the reviewer flags (in code or in its report) that Load's errors are only string-inspectable ('line N: ...') and recommends typed/sentinel errors so users and tests can inspect them programmatically — string-matching on own-package error text is a redesign signal, not something to pin",
+      "passed": false,
+      "evidence": "grep -rniE 'sentinel|typed error|errors\\.(Is|As)|string-inspect' outputs/ returns no matches, and no report/transcript file exists in with_skill_sonnet/ (only timing.json and outputs/); config.go:25-26 merely documents the 'line N: ...' format without flagging it"
+    },
+    {
+      "text": "go test ./... still passes",
+      "passed": true,
+      "evidence": "go vet ./... clean; go test ./... prints 'ok example.invalid/config'"
+    }
+  ]
+}

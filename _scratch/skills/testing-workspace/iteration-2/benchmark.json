@@ -1,0 +1,783 @@
+{
+ "metadata": {
+  "skill_name": "testing",
+  "skill_path": "_scratch/skills/testing",
+  "executor_model": "fable/opus/sonnet (with_skill runs 1/2/3)",
+  "analyzer_model": "claude-fable-5",
+  "timestamp": "2026-07-22T01:00:00Z",
+  "evals_run": [
+   1,
+   2,
+   3
+  ],
+  "runs_per_configuration": 3
+ },
+ "runs": [
+  {
+   "eval_id": 1,
+   "eval_name": "limiter-write-tests",
+   "configuration": "with_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.889,
+    "passed": 8,
+    "failed": 1,
+    "total": 9,
+    "time_seconds": 140,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Tests live in an external test package (package limiter_test)",
+     "passed": true,
+     "evidence": "limiter_test.go:1 declares `package limiter_test`"
+    },
+    {
+     "text": "Concurrency and timing run under testing/synctest with NO real-time waits: any time.Sleep sits inside a synctest bubble (bubble sleeps are idiomatic and pass), and there are no polling loops",
+     "passed": true,
+     "evidence": "grep shows the only time.Sleep calls (limiter_test.go:101,118) are inside synctest.Test bubbles opened at lines 98 and 115; no polling loops exist"
+    },
+    {
+     "text": "Minimal synctest orchestration: no gratuitous synctest.Wait calls or non-contributing goroutines beyond what the scenario needs",
+     "passed": true,
+     "evidence": "grep -c synctest.Wait limiter_test.go returns 0 and grep 'go func' finds no test-spawned goroutines"
+    },
+    {
+     "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes several exported symbols as a user would",
+     "passed": true,
+     "evidence": "test names are TestInvalidNew/TestBucketStartsFull/TestWaitBlocksUntilRefill/TestWaitHonorsContext/TestWaitAfterClose/TestBurstCapsStoredTokens/TestZeroBurst; TestWaitAfterClose (limiter_test.go:87-95) composes New, Close, Wait, and ErrClosed"
+    },
+    {
+     "text": "Names claim package properties in plain English without symbol/receiver stutter (e.g. TestWaitBlocksUntilRefill, not TestLimiterWaitBlocksUntilRefill or TestLimiterNewPanics)",
+     "passed": true,
+     "evidence": "no TestLimiter* prefix anywhere; names like TestWaitBlocksUntilRefill (line 61), TestBucketStartsFull (line 45), TestBurstCapsStoredTokens (line 97) state properties in plain English"
+    },
+    {
+     "text": "Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at authoring time (no run-time arithmetic deriving expectations, no loops generating cases, no helper indirection at this scale); delicate arithmetic gets an adjacent comment",
+     "passed": false,
+     "evidence": "TestInvalidNew (limiter_test.go:29-42) generates its panic cases with `for _, args := range []struct{ rate, burst int }{...}` plus an inline closure with defer/recover, a case-generating loop with indirection at this scale"
+    },
+    {
+     "text": "At least one runnable Example demonstrates typical use (e.g. Allow in a request path)",
+     "passed": true,
+     "evidence": "Example() at limiter_test.go:16-25 gates with Allow and Wait plus deferred Close and has an `// Output:` block; `go test -v` reports `--- PASS: Example`"
+    },
+    {
+     "text": "No test/example doc comment opens with its own function name; comments state contract clauses tracing to the package's documented promises",
+     "passed": true,
+     "evidence": "the only doc comment (limiter_test.go:14-15) opens 'A gateway creates one limiter...'; inline comments cite contract clauses, e.g. line 28 'New promises to panic if rate is not positive or burst is negative' and line 90 'Close is documented as idempotent'"
+    },
+    {
+     "text": "go test ./... and go vet ./... pass",
+     "passed": true,
+     "evidence": "`go vet ./...` exited clean and `go test ./... -v` reported PASS for all 7 tests plus Example (ok example.invalid/limiter, go1.26.5)"
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 1,
+   "eval_name": "limiter-write-tests",
+   "configuration": "with_skill",
+   "run_number": 2,
+   "result": {
+    "pass_rate": 0.556,
+    "passed": 5,
+    "failed": 4,
+    "total": 9,
+    "time_seconds": 259,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Tests live in an external test package (package limiter_test)",
+     "passed": true,
+     "evidence": "limiter_test.go:1 declares `package limiter_test`"
+    },
+    {
+     "text": "Concurrency and timing run under testing/synctest with NO real-time waits: any time.Sleep sits inside a synctest bubble (bubble sleeps are idiomatic and pass), and there are no polling loops",
+     "passed": true,
+     "evidence": "grep finds zero time.Sleep and no polling loops; every timing/concurrency test body is wrapped in synctest.Test (limiter_test.go:16,51,74,93,115,127)"
+    },
+    {
+     "text": "Minimal synctest orchestration: no gratuitous synctest.Wait calls or non-contributing goroutines beyond what the scenario needs",
+     "passed": true,
+     "evidence": "exactly one synctest.Wait (limiter_test.go:103), justified by adjacent comment so cancel lands mid-wait; the single extra goroutine (line 99) is the waiter under test"
+    },
+    {
+     "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes several exported symbols as a user would",
+     "passed": true,
+     "evidence": "no test is named exactly TestNew/TestAllow/TestWait/TestClose; TestLimiter (limiter_test.go:15-45) composes New, Allow x3, Wait, and Close as a gateway flow"
+    },
+    {
+     "text": "Names claim package properties in plain English without symbol/receiver stutter (e.g. TestWaitBlocksUntilRefill, not TestLimiterWaitBlocksUntilRefill or TestLimiterNewPanics)",
+     "passed": false,
+     "evidence": "limiter_test.go:15 `func TestLimiter` is a bare type name claiming no property; the other six names comply, but this one echoes the Limiter symbol instead of stating a claim"
+    },
+    {
+     "text": "Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at authoring time (no run-time arithmetic deriving expectations, no loops generating cases, no helper indirection at this scale); delicate arithmetic gets an adjacent comment",
+     "passed": false,
+     "evidence": "limiter_test.go:137-154 TestNewRejectsInvalidArguments drives three cases through a table + for loop with t.Run subtests rather than straight-line checks, violating 'no loops generating cases'"
+    },
+    {
+     "text": "At least one runnable Example demonstrates typical use (e.g. Allow in a request path)",
+     "passed": false,
+     "evidence": "grep 'func Example' across the module returns no matches; no Example function exists"
+    },
+    {
+     "text": "No test/example doc comment opens with its own function name; comments state contract clauses tracing to the package's documented promises",
+     "passed": false,
+     "evidence": "all seven doc comments open with their own function name, e.g. limiter_test.go:13 '// TestLimiter walks...' and limiter_test.go:47 '// TestBurstZeroAdmitsOnlyOnRefill pins...' (also lines 71, 90, 112, 125, 134)"
+    },
+    {
+     "text": "go test ./... and go vet ./... pass",
+     "passed": true,
+     "evidence": "go test -count=1 ./... => 'ok example.invalid/limiter 0.328s' (exit 0); go vet ./... exit 0"
+    }
+   ],
+   "notes": [
+    "executor model: opus"
+   ]
+  },
+  {
+   "eval_id": 1,
+   "eval_name": "limiter-write-tests",
+   "configuration": "with_skill",
+   "run_number": 3,
+   "result": {
+    "pass_rate": 0.444,
+    "passed": 4,
+    "failed": 5,
+    "total": 9,
+    "time_seconds": 126,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Tests live in an external test package (package limiter_test)",
+     "passed": false,
+     "evidence": "limiter_test.go:1 declares `package limiter` (internal test package), not `package limiter_test`"
+    },
+    {
+     "text": "Concurrency and timing run under testing/synctest with NO real-time waits: any time.Sleep sits inside a synctest bubble (bubble sleeps are idiomatic and pass), and there are no polling loops",
+     "passed": true,
+     "evidence": "All 3 time.Sleep calls (limiter_test.go:50,86,152) sit inside synctest.Test bubbles; grep finds no polling loops, and the two non-synctest tests (lines 115, 124) involve no timing"
+    },
+    {
+     "text": "Minimal synctest orchestration: no gratuitous synctest.Wait calls or non-contributing goroutines beyond what the scenario needs",
+     "passed": true,
+     "evidence": "6 synctest.Wait calls each sit at a goroutine-spawn or post-sleep boundary serving a blocked/unblocked assertion (e.g. limiter_test.go:78 before the non-blocking done check); every spawned goroutine calls the Wait under test; the Waits at lines 87/153 are subsumed by the blocking <-done receive but follow the documented sleep-then-Wait idiom rather than being scattered"
+    },
+    {
+     "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes several exported symbols as a user would",
+     "passed": false,
+     "evidence": "limiter_test.go:33 defines a test named exactly `TestAllow`, violating the forbidden-name clause (composition does exist elsewhere, e.g. TestWaitBlocksUntilRefill uses New/Allow/Wait/Close)"
+    },
+    {
+     "text": "Names claim package properties in plain English without symbol/receiver stutter (e.g. TestWaitBlocksUntilRefill, not TestLimiterWaitBlocksUntilRefill or TestLimiterNewPanics)",
+     "passed": true,
+     "evidence": "grep -n 'func Test' shows no name contains the receiver 'Limiter'; names read as claims (TestWaitBlocksUntilRefill:67, TestCloseIsIdempotent:124, TestWaitReturnsErrClosedAfterClose:115)"
+    },
+    {
+     "text": "Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at authoring time (no run-time arithmetic deriving expectations, no loops generating cases, no helper indirection at this scale); delicate arithmetic gets an adjacent comment",
+     "passed": false,
+     "evidence": "limiter_test.go:13-28 TestInvalidNew is a table-driven loop (`for _, tt := range` with t.Run over a case slice), violating 'no loops generating cases at this scale'; other bodies are straight-line with hard-coded values"
+    },
+    {
+     "text": "At least one runnable Example demonstrates typical use (e.g. Allow in a request path)",
+     "passed": false,
+     "evidence": "grep 'func Example' limiter_test.go returns no matches (exit 1); no Example function exists in the module"
+    },
+    {
+     "text": "No test/example doc comment opens with its own function name; comments state contract clauses tracing to the package's documented promises",
+     "passed": false,
+     "evidence": "limiter_test.go:31 '// TestAllow exercises...', :65 '// TestWaitBlocksUntilRefill pins...', :130 '// TestZeroBurst pins...' all open with their own function name"
+    },
+    {
+     "text": "go test ./... and go vet ./... pass",
+     "passed": true,
+     "evidence": "go test ./... => 'ok example.invalid/limiter 0.226s' (exit 0); go vet ./... => no output (exit 0)"
+    }
+   ],
+   "notes": [
+    "executor model: sonnet"
+   ]
+  },
+  {
+   "eval_id": 1,
+   "eval_name": "limiter-write-tests",
+   "configuration": "without_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.556,
+    "passed": 5,
+    "failed": 4,
+    "total": 9,
+    "time_seconds": 103,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Tests live in an external test package (package limiter_test)",
+     "passed": false,
+     "evidence": "limiter_test.go:1 declares `package limiter` (internal test package), not `package limiter_test`"
+    },
+    {
+     "text": "Concurrency and timing run under testing/synctest with NO real-time waits: any time.Sleep sits inside a synctest bubble (bubble sleeps are idiomatic and pass), and there are no polling loops",
+     "passed": false,
+     "evidence": "grep finds no testing/synctest import; 6 real time.Sleep calls (e.g. limiter_test.go:118,191,215) and a polling loop at limiter_test.go:102-107 (`for !l.Allow() { ... time.Sleep(time.Millisecond) }`)"
+    },
+    {
+     "text": "Minimal synctest orchestration: no gratuitous synctest.Wait calls or non-contributing goroutines beyond what the scenario needs",
+     "passed": true,
+     "evidence": "grep finds zero synctest.Wait calls; each goroutine contributes (waitErr at limiter_test.go:13-17 bounds blocking Wait calls, TestConcurrentUse goroutines at :231-250 are the concurrency scenario itself)"
+    },
+    {
+     "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes several exported symbols as a user would",
+     "passed": true,
+     "evidence": "grep '^func Test' shows no exact TestNew/TestAllow/TestWait/TestClose; TestConcurrentUse (limiter_test.go:225-256) composes New, Allow, Wait, and Close together"
+    },
+    {
+     "text": "Names claim package properties in plain English without symbol/receiver stutter (e.g. TestWaitBlocksUntilRefill, not TestLimiterWaitBlocksUntilRefill or TestLimiterNewPanics)",
+     "passed": true,
+     "evidence": "No TestLimiter* prefix anywhere; names are plain-English claims, e.g. TestWaitBlocksUntilRefill (limiter_test.go:142), TestBucketStartsFull (:60), TestCloseIsIdempotent (:199)"
+    },
+    {
+     "text": "Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at authoring time (no run-time arithmetic deriving expectations, no loops generating cases, no helper indirection at this scale); delicate arithmetic gets an adjacent comment",
+     "passed": false,
+     "evidence": "TestNewPanicsOnInvalidArguments uses a table-driven case-generating loop (limiter_test.go:32-49); waitErr/receive helper indirection (:13-29) is used across many tests; TestRefillReplenishesTokens derives a runtime deadline and polls (:101-107)"
+    },
+    {
+     "text": "At least one runnable Example demonstrates typical use (e.g. Allow in a request path)",
+     "passed": false,
+     "evidence": "grep 'func Example' over the module returns no matches; limiter_test.go contains only Test functions"
+    },
+    {
+     "text": "No test/example doc comment opens with its own function name; comments state contract clauses tracing to the package's documented promises",
+     "passed": true,
+     "evidence": "No test function has a doc comment opening with its own name; in-body comments state contract clauses, e.g. limiter_test.go:111-114 traces to refill's documented 'tokens beyond the bucket's capacity are dropped' and :143-144 to the package doc's burst-0 promise"
+    },
+    {
+     "text": "go test ./... and go vet ./... pass",
+     "passed": true,
+     "evidence": "go vet ./... exited 0 with no output; go test ./... printed 'ok example.invalid/limiter 0.731s'"
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 2,
+   "eval_name": "config-test-review",
+   "configuration": "with_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.778,
+    "passed": 7,
+    "failed": 2,
+    "total": 9,
+    "time_seconds": 91,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "The five per-symbol tests are consolidated into fewer contract scenarios (or runnable Examples) exercising several exported symbols together",
+     "passed": true,
+     "evidence": "config_test.go:23-60 TestConfig exercises Load, String, Int, Duration, and Keys in one scenario; only 2 test funcs remain (grep -c '^func Test' = 2)."
+    },
+    {
+     "text": "The dev scaffold TestDebugDump is deleted, not polished",
+     "passed": true,
+     "evidence": "grep -rniE 'DebugDump' outputs/ matches nothing; no such test exists in config_test.go."
+    },
+    {
+     "text": "The sleep-based concurrent-use smoke is DELETED with the reasoning that the package documents no concurrency contract (methods are not safe for concurrent use unless documented); a rewrite that still pins unpromised concurrency fails this assertion",
+     "passed": true,
+     "evidence": "grep -rniE 'concurren|sleep|goroutine' outputs/ matches nothing: the smoke is fully deleted and no rewrite pins unpromised concurrency (harness saved no report, so only code artifacts were checkable)."
+    },
+    {
+     "text": "The benchmark uses the modern b.Loop form and meaningfully exercises Load (the old discard-everything b.N loop is susceptible to being optimized away)",
+     "passed": true,
+     "evidence": "config_test.go:76 'for b.Loop()' calling Load(strings.NewReader(sample)); go test -bench . reports BenchmarkLoad-14 ~910.8 ns/op, so the parse is not optimized away."
+    },
+    {
+     "text": "The internals-reaching test states its claim through the exported surface instead",
+     "passed": true,
+     "evidence": "grep -n 'values' config_test.go hits only prose comments (lines 11, 22); stored pairs are asserted via exported Keys() at config_test.go:56-59 and the lookup methods."
+    },
+    {
+     "text": "At least one runnable Example exists; a package-level Example() not tied to any symbol is acceptable and well-suited to this shallow API",
+     "passed": false,
+     "evidence": "grep -c '^func Example' config_test.go = 0; no Example function exists anywhere in the module."
+    },
+    {
+     "text": "No test doc comment opens with its own function name after the fix",
+     "passed": true,
+     "evidence": "config_test.go:20 TestConfig comment opens 'A whole-package scenario'; :62 TestMalformedLines opens 'Lines that are neither blank'; BenchmarkLoad has no comment."
+    },
+    {
+     "text": "REVIEW DEPTH: the reviewer flags (in code or in its report) that Load's errors are only string-inspectable ('line N: ...') and recommends typed/sentinel errors so users and tests can inspect them programmatically \u2014 string-matching on own-package error text is a redesign signal, not something to pin",
+     "passed": false,
+     "evidence": "grep -rniE 'sentinel|typed|errors\\.' outputs/ finds no such flag; config.go:24-26 merely documents the 'line N: ...' string form without recommending typed/sentinel errors, and no report file was saved."
+    },
+    {
+     "text": "go test ./... still passes",
+     "passed": true,
+     "evidence": "go vet ./... clean and go test ./... prints 'ok example.invalid/config 0.218s'."
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 2,
+   "eval_name": "config-test-review",
+   "configuration": "with_skill",
+   "run_number": 2,
+   "result": {
+    "pass_rate": 1.0,
+    "passed": 9,
+    "failed": 0,
+    "total": 9,
+    "time_seconds": 197,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "The five per-symbol tests are consolidated into fewer contract scenarios (or runnable Examples) exercising several exported symbols together",
+     "passed": true,
+     "evidence": "config_test.go has only 2 Test funcs; TestConfig (line 37) exercises Load, String, Int, Duration, and Keys together, and Example (line 21) covers the same surface."
+    },
+    {
+     "text": "The dev scaffold TestDebugDump is deleted, not polished",
+     "passed": true,
+     "evidence": "grep -i 'DebugDump' config_test.go config.go returns no matches."
+    },
+    {
+     "text": "The sleep-based concurrent-use smoke is DELETED with the reasoning that the package documents no concurrency contract (methods are not safe for concurrent use unless documented); a rewrite that still pins unpromised concurrency fails this assertion",
+     "passed": true,
+     "evidence": "grep -iE 'Sleep|goroutine|sync\\.|go func|concurren' over config_test.go and config.go returns no matches: the smoke is deleted outright, with no rewrite pinning unpromised concurrency (no report artifact exists to check stated reasoning)."
+    },
+    {
+     "text": "The benchmark uses the modern b.Loop form and meaningfully exercises Load (the old discard-everything b.N loop is susceptible to being optimized away)",
+     "passed": true,
+     "evidence": "config_test.go:102 'for b.Loop() { Load(strings.NewReader(sample)) }'; no b.N remains, and b.Loop keeps the call live against dead-code elimination."
+    },
+    {
+     "text": "The internals-reaching test states its claim through the exported surface instead",
+     "passed": true,
+     "evidence": "grep for '.values' and 'msg' in config_test.go returns nothing; TestMalformedLines (line 80) asserts via the exported *SyntaxError.Line through errors.As."
+    },
+    {
+     "text": "At least one runnable Example exists; a package-level Example() not tied to any symbol is acceptable and well-suited to this shallow API",
+     "passed": true,
+     "evidence": "Package-level Example() at config_test.go:21 with an // Output: block; go test -v shows '--- PASS: Example'."
+    },
+    {
+     "text": "No test doc comment opens with its own function name after the fix",
+     "passed": true,
+     "evidence": "Only doc comment on a test func is config_test.go:79 'A malformed line is reported as a *SyntaxError carrying its 1-based line.' which does not open with TestMalformedLines."
+    },
+    {
+     "text": "REVIEW DEPTH: the reviewer flags (in code or in its report) that Load's errors are only string-inspectable ('line N: ...') and recommends typed/sentinel errors so users and tests can inspect them programmatically \u2014 string-matching on own-package error text is a redesign signal, not something to pin",
+     "passed": true,
+     "evidence": "The flag was acted on in code: config.go:24-38 introduces exported SyntaxError{Line int} whose doc notes the positioned 'line N: ...' form, and config_test.go:90-96 inspects it via errors.As instead of string-matching."
+    },
+    {
+     "text": "go test ./... still passes",
+     "passed": true,
+     "evidence": "go test ./... -v: TestConfig, TestMalformedLines, Example all PASS; 'ok example.invalid/config'; go vet also clean."
+    }
+   ],
+   "notes": [
+    "executor model: opus"
+   ]
+  },
+  {
+   "eval_id": 2,
+   "eval_name": "config-test-review",
+   "configuration": "with_skill",
+   "run_number": 3,
+   "result": {
+    "pass_rate": 0.778,
+    "passed": 7,
+    "failed": 2,
+    "total": 9,
+    "time_seconds": 145,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "The five per-symbol tests are consolidated into fewer contract scenarios (or runnable Examples) exercising several exported symbols together",
+     "passed": true,
+     "evidence": "config_test.go:23-60 single TestConfig exercises Load, String, Int, Duration, and Keys together; only TestMalformedLines (line 64) remains beside it"
+    },
+    {
+     "text": "The dev scaffold TestDebugDump is deleted, not polished",
+     "passed": true,
+     "evidence": "grep -rn 'DebugDump' outputs/ returns no matches; config_test.go contains only TestConfig, TestMalformedLines, BenchmarkLoad"
+    },
+    {
+     "text": "The sleep-based concurrent-use smoke is DELETED with the reasoning that the package documents no concurrency contract (methods are not safe for concurrent use unless documented); a rewrite that still pins unpromised concurrency fails this assertion",
+     "passed": true,
+     "evidence": "grep for 'Sleep|goroutine|sync\\.' in config_test.go returns no matches; the test is gone and no rewrite pins any concurrency behavior (reasoning itself not preserved: no report file exists for this run)"
+    },
+    {
+     "text": "The benchmark uses the modern b.Loop form and meaningfully exercises Load (the old discard-everything b.N loop is susceptible to being optimized away)",
+     "passed": true,
+     "evidence": "config_test.go:80-82 'for b.Loop() { config.Load(strings.NewReader(sample)) }' \u2014 b.Loop keeps the call live per iteration and Load parses the real sample each pass"
+    },
+    {
+     "text": "The internals-reaching test states its claim through the exported surface instead",
+     "passed": true,
+     "evidence": "config_test.go:1 'package config_test' (external test package); only exported API (Load/String/Int/Duration/Keys) is used, e.g. Keys() checked at lines 56-59; no test touches c.values"
+    },
+    {
+     "text": "At least one runnable Example exists; a package-level Example() not tied to any symbol is acceptable and well-suited to this shallow API",
+     "passed": false,
+     "evidence": "grep -rn 'func Example' outputs/ returns no matches; the test file defines no Example functions at all"
+    },
+    {
+     "text": "No test doc comment opens with its own function name after the fix",
+     "passed": true,
+     "evidence": "Doc comments open 'Loading a configuration file...' (line 20), 'Load reports an error...' (line 62), 'Load repeatedly parses...' (line 77) \u2014 none opens with TestConfig/TestMalformedLines/BenchmarkLoad"
+    },
+    {
+     "text": "REVIEW DEPTH: the reviewer flags (in code or in its report) that Load's errors are only string-inspectable ('line N: ...') and recommends typed/sentinel errors so users and tests can inspect them programmatically \u2014 string-matching on own-package error text is a redesign signal, not something to pin",
+     "passed": false,
+     "evidence": "grep -rniE 'sentinel|typed error|errors\\.(Is|As)|string-inspect' outputs/ returns no matches, and no report/transcript file exists in with_skill_sonnet/ (only timing.json and outputs/); config.go:25-26 merely documents the 'line N: ...' format without flagging it"
+    },
+    {
+     "text": "go test ./... still passes",
+     "passed": true,
+     "evidence": "go vet ./... clean; go test ./... prints 'ok example.invalid/config'"
+    }
+   ],
+   "notes": [
+    "executor model: sonnet"
+   ]
+  },
+  {
+   "eval_id": 2,
+   "eval_name": "config-test-review",
+   "configuration": "without_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.444,
+    "passed": 4,
+    "failed": 5,
+    "total": 9,
+    "time_seconds": 94,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "The five per-symbol tests are consolidated into fewer contract scenarios (or runnable Examples) exercising several exported symbols together",
+     "passed": false,
+     "evidence": "config_test.go still has one test per symbol (TestLoad, TestString, TestInt, TestDuration, TestKeys); grep -c '^func Test' = 7, no consolidation"
+    },
+    {
+     "text": "The dev scaffold TestDebugDump is deleted, not polished",
+     "passed": true,
+     "evidence": "grep -n 'DebugDump' config_test.go returns no matches; the scaffold is gone"
+    },
+    {
+     "text": "The sleep-based concurrent-use smoke is DELETED with the reasoning that the package documents no concurrency contract (methods are not safe for concurrent use unless documented); a rewrite that still pins unpromised concurrency fails this assertion",
+     "passed": false,
+     "evidence": "config_test.go:124-145 keeps TestConcurrentUse rewritten with sync.WaitGroup, still pinning 'safe for concurrent readers' the package never documents"
+    },
+    {
+     "text": "The benchmark uses the modern b.Loop form and meaningfully exercises Load (the old discard-everything b.N loop is susceptible to being optimized away)",
+     "passed": true,
+     "evidence": "config_test.go:149-153 uses 'for b.Loop()' and checks Load's error (b.Fatal on failure); go.mod declares go 1.25"
+    },
+    {
+     "text": "The internals-reaching test states its claim through the exported surface instead",
+     "passed": true,
+     "evidence": "grep '.values' config_test.go finds no internals access; comment-line claim asserted via cfg.String at config_test.go:33"
+    },
+    {
+     "text": "At least one runnable Example exists; a package-level Example() not tied to any symbol is acceptable and well-suited to this shallow API",
+     "passed": false,
+     "evidence": "grep -n 'Example' config_test.go returns no matches; no Example function exists"
+    },
+    {
+     "text": "No test doc comment opens with its own function name after the fix",
+     "passed": false,
+     "evidence": "Every test doc comment opens with its own name, e.g. config_test.go:19 '// TestLoad verifies...' and config_test.go:62 '// TestString verifies...'"
+    },
+    {
+     "text": "REVIEW DEPTH: the reviewer flags (in code or in its report) that Load's errors are only string-inspectable ('line N: ...') and recommends typed/sentinel errors so users and tests can inspect them programmatically \u2014 string-matching on own-package error text is a redesign signal, not something to pin",
+     "passed": false,
+     "evidence": "No report file exists (only timing.json) and grep 'sentinel|typed|errors.Is|errors.As' finds nothing; TestLoadErrors (config_test.go:46-56) still string-matches error text unflagged"
+    },
+    {
+     "text": "go test ./... still passes",
+     "passed": true,
+     "evidence": "'go test ./...' in outputs/ exits 0: 'ok example.invalid/config'; go vet also clean"
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 3,
+   "eval_name": "units-add-test",
+   "configuration": "with_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 1.0,
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "time_seconds": 57,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Coverage mimics the package's existing test patterns: it lands as rows/sub-tests in an existing suitable test, or as a runnable Example following the sibling ExampleParseSizeOrDefault precedent \u2014 NOT as a standalone test named after the function (TestParseDurationOrDefault fails)",
+     "passed": true,
+     "evidence": "units_test.go:66 adds runnable ExampleParseDurationOrDefault mirroring ExampleParseSizeOrDefault (doc comment + Output block); grep for TestParseDurationOrDefault finds no match (exit 1)"
+    },
+    {
+     "text": "The documented leniency is asserted: empty string returns def AND garbage returns def, without error",
+     "passed": true,
+     "evidence": "units_test.go:68-69 call ParseDurationOrDefault(\"\", time.Second) and (\"not-a-duration\", time.Second), both asserted as 1s in the Output block (lines 72-73); example passes under go test -v"
+    },
+    {
+     "text": "The existing good-style tests and examples are preserved untouched",
+     "passed": true,
+     "evidence": "diff -ru against fixtures/units shows only additions to units_test.go (a \"time\" import and the new example); TestSizeRoundTrip, ExampleParseSize, and ExampleParseSizeOrDefault are byte-identical to the baseline"
+    },
+    {
+     "text": "Any new doc comment opens with the contract clause, not the function name",
+     "passed": true,
+     "evidence": "The only new doc comment (units_test.go:63-65) opens \"A well-formed duration parses to its value, and an empty or malformed one falls back to the caller's default...\", not with the function name"
+    },
+    {
+     "text": "go test ./... passes",
+     "passed": true,
+     "evidence": "go test -count=1 -v ./... in with_skill/outputs: all tests and examples PASS, ok example.invalid/units/internal/units, exit=0 (go vet also exit 0)"
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  },
+  {
+   "eval_id": 3,
+   "eval_name": "units-add-test",
+   "configuration": "with_skill",
+   "run_number": 2,
+   "result": {
+    "pass_rate": 1.0,
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "time_seconds": 48,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Coverage mimics the package's existing test patterns: it lands as rows/sub-tests in an existing suitable test, or as a runnable Example following the sibling ExampleParseSizeOrDefault precedent \u2014 NOT as a standalone test named after the function (TestParseDurationOrDefault fails)",
+     "passed": true,
+     "evidence": "units_test.go:66 adds ExampleParseDurationOrDefault mirroring the sibling ExampleParseSizeOrDefault; grep finds no TestParseDurationOrDefault (grep exit 1)"
+    },
+    {
+     "text": "The documented leniency is asserted: empty string returns def AND garbage returns def, without error",
+     "passed": true,
+     "evidence": "units_test.go:68-69 call ParseDurationOrDefault(\"\", time.Second) and (\"garbage\", time.Second), with Output lines asserting both print 1s (the default); the helper returns no error"
+    },
+    {
+     "text": "The existing good-style tests and examples are preserved untouched",
+     "passed": true,
+     "evidence": "diff against fixtures/units/internal/units/units_test.go shows only additions (the time import and ExampleParseDurationOrDefault); TestSizeRoundTrip, ExampleParseSize, ExampleParseSizeOrDefault are byte-identical"
+    },
+    {
+     "text": "Any new doc comment opens with the contract clause, not the function name",
+     "passed": true,
+     "evidence": "The only new doc comment (units_test.go:63-65) opens \"A well-formed duration parses to its value...\"; units.go is byte-identical to the fixture (diff exit 0), so no other doc comments are new"
+    },
+    {
+     "text": "go test ./... passes",
+     "passed": true,
+     "evidence": "go test -count=1 -v ./... prints \"ok example.invalid/units/internal/units 0.224s\" with all tests and examples PASS; go vet is clean"
+    }
+   ],
+   "notes": [
+    "executor model: opus"
+   ]
+  },
+  {
+   "eval_id": 3,
+   "eval_name": "units-add-test",
+   "configuration": "with_skill",
+   "run_number": 3,
+   "result": {
+    "pass_rate": 1.0,
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "time_seconds": 56,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Coverage mimics the package's existing test patterns: it lands as rows/sub-tests in an existing suitable test, or as a runnable Example following the sibling ExampleParseSizeOrDefault precedent \u2014 NOT as a standalone test named after the function (TestParseDurationOrDefault fails)",
+     "passed": true,
+     "evidence": "internal/units/units_test.go:66 adds ExampleParseDurationOrDefault mirroring the ExampleParseSizeOrDefault precedent; grep -rn TestParseDurationOrDefault outputs/ returns no matches"
+    },
+    {
+     "text": "The documented leniency is asserted: empty string returns def AND garbage returns def, without error",
+     "passed": true,
+     "evidence": "internal/units/units_test.go:67-71: ParseDurationOrDefault(\"\", 2*time.Second) and ParseDurationOrDefault(\"not-a-duration\", 2*time.Second) both asserted as 2s via the // Output block; the helper returns no error value"
+    },
+    {
+     "text": "The existing good-style tests and examples are preserved untouched",
+     "passed": true,
+     "evidence": "diff -ru against fixtures/units shows units.go identical and units_test.go changed only by an added \"time\" import and the appended ExampleParseDurationOrDefault; TestSizeRoundTrip, ExampleParseSize, and ExampleParseSizeOrDefault are byte-for-byte unchanged"
+    },
+    {
+     "text": "Any new doc comment opens with the contract clause, not the function name",
+     "passed": true,
+     "evidence": "internal/units/units_test.go:63 the only new doc comment opens \"An empty duration string and a malformed one both fall back...\", not with the function name; units.go doc comments are unchanged from the fixture"
+    },
+    {
+     "text": "go test ./... passes",
+     "passed": true,
+     "evidence": "go test -count=1 -v ./... in outputs/ exits 0: \"ok example.invalid/units/internal/units 0.264s\" with ExampleParseDurationOrDefault PASS; go vet ./... also exits 0"
+    }
+   ],
+   "notes": [
+    "executor model: sonnet"
+   ]
+  },
+  {
+   "eval_id": 3,
+   "eval_name": "units-add-test",
+   "configuration": "without_skill",
+   "run_number": 1,
+   "result": {
+    "pass_rate": 0.8,
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "time_seconds": 32,
+    "tokens": 0,
+    "tool_calls": 0,
+    "errors": 0
+   },
+   "expectations": [
+    {
+     "text": "Coverage mimics the package's existing test patterns: it lands as rows/sub-tests in an existing suitable test, or as a runnable Example following the sibling ExampleParseSizeOrDefault precedent \u2014 NOT as a standalone test named after the function (TestParseDurationOrDefault fails)",
+     "passed": false,
+     "evidence": "internal/units/units_test.go:50 declares `func TestParseDurationOrDefault(t *testing.T)`, a new standalone test named after the function; the assertion explicitly names this as failing."
+    },
+    {
+     "text": "The documented leniency is asserted: empty string returns def AND garbage returns def, without error",
+     "passed": true,
+     "evidence": "internal/units/units_test.go:60-61 table rows {\"empty string falls back\", \"\", def} and {\"garbage falls back\", \"not-a-duration\", def} both expect def with no error path; both subtests PASS under `go test -count=1 -v`."
+    },
+    {
+     "text": "The existing good-style tests and examples are preserved untouched",
+     "passed": true,
+     "evidence": "diff against fixtures/units/internal/units/units_test.go shows only an added `time` import and the new test block; TestSizeRoundTrip, ExampleParseSize, and ExampleParseSizeOrDefault are byte-identical, and units.go is unchanged."
+    },
+    {
+     "text": "Any new doc comment opens with the contract clause, not the function name",
+     "passed": true,
+     "evidence": "The only new doc comment (internal/units/units_test.go:46-49) opens \"A well-formed duration parses to its value...\", a contract clause, not \"TestParseDurationOrDefault\"."
+    },
+    {
+     "text": "go test ./... passes",
+     "passed": true,
+     "evidence": "`go test ./...` in without_skill/outputs exits 0 (`ok example.invalid/units/internal/units`); `go test -count=1 -v` shows all tests and examples PASS, and `go vet ./...` is clean."
+    }
+   ],
+   "notes": [
+    "executor model: fable"
+   ]
+  }
+ ],
+ "run_summary": {
+  "with_skill": {
+   "pass_rate": {
+    "mean": 0.827,
+    "stddev": 0.197,
+    "min": 0.444,
+    "max": 1.0
+   },
+   "time_seconds": {
+    "mean": 124.333,
+    "stddev": 66.86,
+    "min": 48,
+    "max": 259
+   },
+   "tokens": {
+    "mean": 0,
+    "stddev": 0,
+    "min": 0,
+    "max": 0
+   }
+  },
+  "without_skill": {
+   "pass_rate": {
+    "mean": 0.6,
+    "stddev": 0.149,
+    "min": 0.444,
+    "max": 0.8
+   },
+   "time_seconds": {
+    "mean": 76.333,
+    "stddev": 31.563,
+    "min": 32,
+    "max": 103
+   },
+   "tokens": {
+    "mean": 0,
+    "stddev": 0,
+    "min": 0,
+    "max": 0
+   }
+  },
+  "delta": {
+   "pass_rate": "+0.23",
+   "time_seconds": "+48.0",
+   "tokens": "n/a"
+  }
+ },
+ "notes": [
+  "UNITS SOLVED: 5/5 on all three with-skill models (baseline 4/5, still adds the per-function-named probe). The v2 single-symbol clause plus the ExampleParseSizeOrDefault mimicry target in the fixture closed iteration-1's universal miss.",
+  "CONFIG-REVIEW SOLVED FOR SONNET: 3/8 -> 7/9 (baseline 4/9); the 'reviewing an existing suite' clause worked. Opus hit 9/9 and satisfied REVIEW DEPTH the strongest way: it introduced a typed SyntaxError and asserted via errors.As rather than merely flagging. Fable/sonnet missed only the Example and the typed-error flag.",
+  "LIMITER IS THE REMAINING GAP, and it is adherence, not doctrine: fable 8/9, but opus 5/9 and sonnet 4/9 landed BELOW the 5/9 baseline under the new style assertions -- opus produced seven self-naming doc comments and no Example; sonnet wrote package limiter and a bare TestAllow. Iteration-1's laxer assertions masked this (the maintainer's own v1 grading of opus-limiter -- 'MUCH WORSE' -- anticipated exactly these misses). Open-ended write-from-scratch tasks show weak-model skill adherence variance that review-shaped tasks do not.",
+  "GRADING INFRA GAP: run agents' prose reports live only in the workflow journal, so REVIEW DEPTH-style assertions can only be graded from code. Iteration 3: runs write report.md into their run dir; graders and the reviewer see it.",
+  "Tokens not observable per-run inside a workflow; durations are agent-self-reported."
+ ]
+}

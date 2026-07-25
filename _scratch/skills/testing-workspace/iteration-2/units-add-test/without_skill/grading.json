@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "Coverage mimics the package's existing test patterns: it lands as rows/sub-tests in an existing suitable test, or as a runnable Example following the sibling ExampleParseSizeOrDefault precedent — NOT as a standalone test named after the function (TestParseDurationOrDefault fails)",
+      "passed": false,
+      "evidence": "internal/units/units_test.go:50 declares `func TestParseDurationOrDefault(t *testing.T)`, a new standalone test named after the function; the assertion explicitly names this as failing."
+    },
+    {
+      "text": "The documented leniency is asserted: empty string returns def AND garbage returns def, without error",
+      "passed": true,
+      "evidence": "internal/units/units_test.go:60-61 table rows {\"empty string falls back\", \"\", def} and {\"garbage falls back\", \"not-a-duration\", def} both expect def with no error path; both subtests PASS under `go test -count=1 -v`."
+    },
+    {
+      "text": "The existing good-style tests and examples are preserved untouched",
+      "passed": true,
+      "evidence": "diff against fixtures/units/internal/units/units_test.go shows only an added `time` import and the new test block; TestSizeRoundTrip, ExampleParseSize, and ExampleParseSizeOrDefault are byte-identical, and units.go is unchanged."
+    },
+    {
+      "text": "Any new doc comment opens with the contract clause, not the function name",
+      "passed": true,
+      "evidence": "The only new doc comment (internal/units/units_test.go:46-49) opens \"A well-formed duration parses to its value...\", a contract clause, not \"TestParseDurationOrDefault\"."
+    },
+    {
+      "text": "go test ./... passes",
+      "passed": true,
+      "evidence": "`go test ./...` in without_skill/outputs exits 0 (`ok example.invalid/units/internal/units`); `go test -count=1 -v` shows all tests and examples PASS, and `go vet ./...` is clean."
+    }
+  ]
+}

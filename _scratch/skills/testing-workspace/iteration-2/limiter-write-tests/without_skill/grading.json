@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in an external test package (package limiter_test)",
+      "passed": false,
+      "evidence": "limiter_test.go:1 declares `package limiter` (internal test package), not `package limiter_test`"
+    },
+    {
+      "text": "Concurrency and timing run under testing/synctest with NO real-time waits: any time.Sleep sits inside a synctest bubble (bubble sleeps are idiomatic and pass), and there are no polling loops",
+      "passed": false,
+      "evidence": "grep finds no testing/synctest import; 6 real time.Sleep calls (e.g. limiter_test.go:118,191,215) and a polling loop at limiter_test.go:102-107 (`for !l.Allow() { ... time.Sleep(time.Millisecond) }`)"
+    },
+    {
+      "text": "Minimal synctest orchestration: no gratuitous synctest.Wait calls or non-contributing goroutines beyond what the scenario needs",
+      "passed": true,
+      "evidence": "grep finds zero synctest.Wait calls; each goroutine contributes (waitErr at limiter_test.go:13-17 bounds blocking Wait calls, TestConcurrentUse goroutines at :231-250 are the concurrency scenario itself)"
+    },
+    {
+      "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes several exported symbols as a user would",
+      "passed": true,
+      "evidence": "grep '^func Test' shows no exact TestNew/TestAllow/TestWait/TestClose; TestConcurrentUse (limiter_test.go:225-256) composes New, Allow, Wait, and Close together"
+    },
+    {
+      "text": "Names claim package properties in plain English without symbol/receiver stutter (e.g. TestWaitBlocksUntilRefill, not TestLimiterWaitBlocksUntilRefill or TestLimiterNewPanics)",
+      "passed": true,
+      "evidence": "No TestLimiter* prefix anywhere; names are plain-English claims, e.g. TestWaitBlocksUntilRefill (limiter_test.go:142), TestBucketStartsFull (:60), TestCloseIsIdempotent (:199)"
+    },
+    {
+      "text": "Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at authoring time (no run-time arithmetic deriving expectations, no loops generating cases, no helper indirection at this scale); delicate arithmetic gets an adjacent comment",
+      "passed": false,
+      "evidence": "TestNewPanicsOnInvalidArguments uses a table-driven case-generating loop (limiter_test.go:32-49); waitErr/receive helper indirection (:13-29) is used across many tests; TestRefillReplenishesTokens derives a runtime deadline and polls (:101-107)"
+    },
+    {
+      "text": "At least one runnable Example demonstrates typical use (e.g. Allow in a request path)",
+      "passed": false,
+      "evidence": "grep 'func Example' over the module returns no matches; limiter_test.go contains only Test functions"
+    },
+    {
+      "text": "No test/example doc comment opens with its own function name; comments state contract clauses tracing to the package's documented promises",
+      "passed": true,
+      "evidence": "No test function has a doc comment opening with its own name; in-body comments state contract clauses, e.g. limiter_test.go:111-114 traces to refill's documented 'tokens beyond the bucket's capacity are dropped' and :143-144 to the package doc's burst-0 promise"
+    },
+    {
+      "text": "go test ./... and go vet ./... pass",
+      "passed": true,
+      "evidence": "go vet ./... exited 0 with no output; go test ./... printed 'ok example.invalid/limiter 0.731s'"
+    }
+  ]
+}

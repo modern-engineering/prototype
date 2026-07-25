@@ -1,0 +1,2580 @@
+<!doctype html><meta charset="utf-8"><title>testing skill — iteration 2 vs 1, diffs</title><style>
+body{font:14px/1.45 -apple-system,sans-serif;margin:24px;max-width:1100px}
+h1{font-size:20px} h2{font-size:17px;border-bottom:2px solid #333;padding-top:18px} h3{font-size:14px;margin:14px 0 6px}
+pre{background:#f6f8fa;padding:10px;overflow-x:auto;font-size:12px;line-height:1.5;border-radius:6px}
+span.add{color:#116329;background:#dafbe1;display:block}span.del{color:#82071e;background:#ffebe9;display:block}
+span.hunk{color:#6639ba;display:block;font-weight:600}span.meta{color:#57606a;display:block}span.ctx{display:block}
+details.file{margin:6px 0;border:1px solid #d0d7de;border-radius:6px;padding:4px 8px}
+details.assert{margin:4px 0} em.changed{color:#9a6700} em.added{color:#116329} em.deleted{color:#82071e}
+.grade{font-weight:600} .grade .up{color:#116329}.grade .down{color:#82071e}
+.fail{color:#82071e} .evidence{color:#57606a;font-size:12px}
+textarea{width:100%;min-height:64px;margin:6px 0;font:13px monospace}
+.banner{background:#fff8c5;border:1px solid #d4a72c66;border-radius:6px;padding:10px 14px}
+button{font-size:14px;padding:8px 14px;margin:16px 0}
+.nodiff{color:#57606a;font-style:italic}.binary{color:#57606a}
+</style>
+<h1>testing skill — iteration 2, diff-centric review</h1>
+<div class="banner"><b>Input fixtures between iterations:</b> <code>limiter</code> and <code>config</code> are byte-identical to iteration 1. <code>units</code> deliberately changed — it gained <code>ParseSizeOrDefault</code> plus <code>ExampleParseSizeOrDefault</code> as the mimicry target (your ruling #4). That input diff is shown first inside the units section. Each run diff below is <b>previous iteration's output → this iteration's output</b> for the same eval/config; both are fresh runs, so the diff shows how the revised skill changed behavior, not an edit history.</div>
+<h2>limiter-write-tests</h2>
+<h3>with skill — Fable <span class="grade">grades: 5/6 → 8/9</span></h3>
+<details class="assert"><summary class="fail">✗ Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at autho</summary><div class="evidence">TestInvalidNew (limiter_test.go:29-42) generates its panic cases with `for _, args := range []struct{ rate, burst int }{...}` plus an inline closure with defer/recover, a case-generating loop with indirection at this scale</div></details>
+<details class="file" open><summary><code>limiter_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/limiter_test.go</span>
+<span class="meta">+++ it2/limiter_test.go</span>
+<span class="hunk">@@ -11,135 +11,116 @@</span>
+<span class="ctx"> 	&quot;example.invalid/limiter&quot;</span>
+<span class="ctx"> )</span>
+<span class="ctx"> </span>
+<span class="del">-// A new limiter starts with a full bucket: Allow hands out one token</span>
+<span class="del">-// per call without blocking until the bucket is empty, and one token</span>
+<span class="del">-// refills per interval at the configured rate.</span>
+<span class="del">-func TestAllowDrainsBurstThenRefills(t *testing.T) {</span>
+<span class="add">+// A gateway creates one limiter, gates each request with Allow or</span>
+<span class="add">+// Wait, and releases the refill goroutine with Close on shutdown.</span>
+<span class="add">+func Example() {</span>
+<span class="add">+	l := limiter.New(100, 2)</span>
+<span class="add">+	defer l.Close()</span>
+<span class="add">+</span>
+<span class="add">+	fmt.Println(&quot;allowed:&quot;, l.Allow())</span>
+<span class="add">+	fmt.Println(&quot;wait:&quot;, l.Wait(context.Background()))</span>
+<span class="add">+	// Output:</span>
+<span class="add">+	// allowed: true</span>
+<span class="add">+	// wait: &lt;nil&gt;</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestInvalidNew(t *testing.T) {</span>
+<span class="add">+	// New promises to panic if rate is not positive or burst is negative.</span>
+<span class="add">+	for _, args := range []struct{ rate, burst int }{</span>
+<span class="add">+		{0, 1},</span>
+<span class="add">+		{-1, 1},</span>
+<span class="add">+		{1, -1},</span>
+<span class="add">+	} {</span>
+<span class="add">+		func() {</span>
+<span class="add">+			defer func() {</span>
+<span class="add">+				if recover() == nil {</span>
+<span class="add">+					t.Errorf(&quot;New(%d, %d) did not panic&quot;, args.rate, args.burst)</span>
+<span class="add">+				}</span>
+<span class="add">+			}()</span>
+<span class="add">+			limiter.New(args.rate, args.burst)</span>
+<span class="add">+		}()</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestBucketStartsFull(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="ctx"> 		l := limiter.New(1, 2)</span>
+<span class="ctx"> 		defer l.Close()</span>
+<span class="del">-</span>
+<span class="del">-		for i := range 2 {</span>
+<span class="del">-			if !l.Allow() {</span>
+<span class="del">-				t.Fatalf(&quot;Allow() = false for token %d of a full burst-2 bucket, want true&quot;, i+1)</span>
+<span class="del">-			}</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Error(&quot;first Allow() = false, want true from a full bucket&quot;)</span>
+<span class="add">+		}</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Error(&quot;second Allow() = false, want true from a full bucket&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 		if l.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = true on an empty bucket, want false&quot;)</span>
+<span class="del">-		}</span>
+<span class="del">-</span>
+<span class="del">-		time.Sleep(time.Second) // one refill interval at rate 1</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="del">-		if !l.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = false one refill interval after draining, want true&quot;)</span>
+<span class="del">-		}</span>
+<span class="del">-		if l.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = true before the next refill, want false&quot;)</span>
+<span class="add">+			t.Error(&quot;third Allow() = true, want false once the burst is spent&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// The bucket holds at most burst unused tokens; refills beyond that</span>
+<span class="del">-// capacity are dropped, so an idle limiter never exceeds its burst.</span>
+<span class="del">-func TestBucketCapsAtBurst(t *testing.T) {</span>
+<span class="add">+func TestWaitBlocksUntilRefill(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		l := limiter.New(100, 2)</span>
+<span class="add">+		l := limiter.New(4, 0) // one token every 250ms, none stored</span>
+<span class="ctx"> 		defer l.Close()</span>
+<span class="del">-</span>
+<span class="del">-		time.Sleep(time.Second) // 100 refill intervals pass unused</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="del">-		for i := range 2 {</span>
+<span class="del">-			if !l.Allow() {</span>
+<span class="del">-				t.Fatalf(&quot;Allow() = false for token %d of a burst-2 bucket, want true&quot;, i+1)</span>
+<span class="del">-			}</span>
+<span class="add">+		start := time.Now()</span>
+<span class="add">+		if err := l.Wait(context.Background()); err != nil {</span>
+<span class="add">+			t.Fatalf(&quot;Wait() = %v, want nil once a refill arrives&quot;, err)</span>
+<span class="ctx"> 		}</span>
+<span class="del">-		if l.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = true for a third token from a burst-2 bucket, want false&quot;)</span>
+<span class="add">+		if d := time.Since(start); d != 250*time.Millisecond {</span>
+<span class="add">+			t.Errorf(&quot;Wait() returned after %v, want 250ms at 4 tokens per second&quot;, d)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// With burst 0 the limiter stores no tokens: Allow always reports</span>
+<span class="del">-// false, and Wait proceeds only when a refill arrives while the caller</span>
+<span class="del">-// is already blocked, one interval after New.</span>
+<span class="del">-func TestWaitBlocksUntilRefill(t *testing.T) {</span>
+<span class="add">+func TestWaitHonorsContext(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		l := limiter.New(1, 0)</span>
+<span class="add">+		l := limiter.New(1, 0) // next refill a full second away</span>
+<span class="ctx"> 		defer l.Close()</span>
+<span class="del">-</span>
+<span class="del">-		if l.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = true with burst 0, want false&quot;)</span>
+<span class="del">-		}</span>
+<span class="del">-</span>
+<span class="del">-		ctx, cancel := context.WithCancel(context.Background())</span>
+<span class="add">+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)</span>
+<span class="ctx"> 		defer cancel()</span>
+<span class="del">-		start := time.Now()</span>
+<span class="del">-		if err := l.Wait(ctx); err != nil {</span>
+<span class="del">-			t.Fatalf(&quot;Wait() = %v, want nil&quot;, err)</span>
+<span class="del">-		}</span>
+<span class="del">-		if d := time.Since(start); d != time.Second {</span>
+<span class="del">-			t.Fatalf(&quot;Wait returned after %v, want one refill interval (1s)&quot;, d)</span>
+<span class="add">+		if err := l.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {</span>
+<span class="add">+			t.Errorf(&quot;Wait() = %v, want context.DeadlineExceeded&quot;, err)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// When the context is done before a token becomes available, Wait</span>
+<span class="del">-// returns the context&#x27;s error.</span>
+<span class="del">-func TestWaitHonorsContext(t *testing.T) {</span>
+<span class="add">+func TestWaitAfterClose(t *testing.T) {</span>
+<span class="add">+	l := limiter.New(1, 1)</span>
+<span class="add">+	l.Close()</span>
+<span class="add">+	l.Close() // Close is documented as idempotent</span>
+<span class="add">+	// ErrClosed wins even though an unused token is still in the bucket.</span>
+<span class="add">+	if err := l.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {</span>
+<span class="add">+		t.Errorf(&quot;Wait() after Close = %v, want ErrClosed&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestBurstCapsStoredTokens(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		l := limiter.New(1, 0)</span>
+<span class="add">+		l := limiter.New(10, 2)</span>
+<span class="ctx"> 		defer l.Close()</span>
+<span class="del">-</span>
+<span class="del">-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)</span>
+<span class="del">-		defer cancel()</span>
+<span class="del">-		if err := l.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {</span>
+<span class="del">-			t.Fatalf(&quot;Wait() = %v, want %v&quot;, err, context.DeadlineExceeded)</span>
+<span class="add">+		time.Sleep(time.Second) // ten refills against a bucket that holds two</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Error(&quot;first Allow() = false, want true&quot;)</span>
+<span class="add">+		}</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Error(&quot;second Allow() = false, want true&quot;)</span>
+<span class="add">+		}</span>
+<span class="add">+		if l.Allow() {</span>
+<span class="add">+			t.Error(&quot;third Allow() = true, want false: tokens beyond burst are dropped&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Close is idempotent, and once it has returned every Wait call</span>
+<span class="del">-// reports ErrClosed even while tokens remain in the bucket.</span>
+<span class="del">-func TestCloseStopsWait(t *testing.T) {</span>
+<span class="del">-	l := limiter.New(1, 1) // starts full, so one token remains after Close</span>
+<span class="del">-	l.Close()</span>
+<span class="del">-	l.Close() // second call must be a no-op</span>
+<span class="del">-</span>
+<span class="del">-	if err := l.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {</span>
+<span class="del">-		t.Fatalf(&quot;Wait() after Close = %v, want %v&quot;, err, limiter.ErrClosed)</span>
+<span class="del">-	}</span>
+<span class="add">+func TestZeroBurst(t *testing.T) {</span>
+<span class="add">+	synctest.Test(t, func(t *testing.T) {</span>
+<span class="add">+		l := limiter.New(10, 0)</span>
+<span class="add">+		defer l.Close()</span>
+<span class="add">+		time.Sleep(time.Second) // refills arrive but none can be stored</span>
+<span class="add">+		if l.Allow() {</span>
+<span class="add">+			t.Error(&quot;Allow() = true, want false: a burst-0 limiter stores no tokens&quot;)</span>
+<span class="add">+		}</span>
+<span class="add">+		if err := l.Wait(context.Background()); err != nil {</span>
+<span class="add">+			t.Errorf(&quot;Wait() = %v, want nil when a refill arrives mid-wait&quot;, err)</span>
+<span class="add">+		}</span>
+<span class="add">+	})</span>
+<span class="ctx"> }</span>
+<span class="del">-</span>
+<span class="del">-// New rejects a non-positive rate and a negative burst by panicking.</span>
+<span class="del">-func TestNewPanicsOnBadArguments(t *testing.T) {</span>
+<span class="del">-	for _, tt := range []struct {</span>
+<span class="del">-		name        string</span>
+<span class="del">-		rate, burst int</span>
+<span class="del">-	}{</span>
+<span class="del">-		{&quot;zero rate&quot;, 0, 1},</span>
+<span class="del">-		{&quot;negative rate&quot;, -1, 1},</span>
+<span class="del">-		{&quot;negative burst&quot;, 1, -1},</span>
+<span class="del">-	} {</span>
+<span class="del">-		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="del">-			defer func() {</span>
+<span class="del">-				if recover() == nil {</span>
+<span class="del">-					t.Errorf(&quot;New(%d, %d) did not panic&quot;, tt.rate, tt.burst)</span>
+<span class="del">-				}</span>
+<span class="del">-			}()</span>
+<span class="del">-			limiter.New(tt.rate, tt.burst)</span>
+<span class="del">-		})</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-func ExampleLimiter_Allow() {</span>
+<span class="del">-	l := limiter.New(1, 2) // 1 token per second, burst of 2; the bucket starts full</span>
+<span class="del">-	defer l.Close()</span>
+<span class="del">-</span>
+<span class="del">-	fmt.Println(l.Allow())</span>
+<span class="del">-	fmt.Println(l.Allow())</span>
+<span class="del">-	fmt.Println(l.Allow())</span>
+<span class="del">-	// Output:</span>
+<span class="del">-	// true</span>
+<span class="del">-	// true</span>
+<span class="del">-	// false</span>
+<span class="del">-}</span></pre></details>
+<textarea placeholder="feedback for limiter-write-tests-with_skill (leave empty if fine)" data-run="limiter-write-tests-with_skill"></textarea>
+<h3>with skill — Opus <span class="grade">grades: 5/6 → 5/9</span></h3>
+<details class="assert"><summary class="fail">✗ Names claim package properties in plain English without symbol/receiver stutter (e.g. TestWaitBlocksUntilRefil</summary><div class="evidence">limiter_test.go:15 `func TestLimiter` is a bare type name claiming no property; the other six names comply, but this one echoes the Limiter symbol instead of stating a claim</div></details>
+<details class="assert"><summary class="fail">✗ Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at autho</summary><div class="evidence">limiter_test.go:137-154 TestNewRejectsInvalidArguments drives three cases through a table + for loop with t.Run subtests rather than straight-line checks, violating &#x27;no loops generating cases&#x27;</div></details>
+<details class="assert"><summary class="fail">✗ At least one runnable Example demonstrates typical use (e.g. Allow in a request path)</summary><div class="evidence">grep &#x27;func Example&#x27; across the module returns no matches; no Example function exists</div></details>
+<details class="assert"><summary class="fail">✗ No test/example doc comment opens with its own function name; comments state contract clauses tracing to the p</summary><div class="evidence">all seven doc comments open with their own function name, e.g. limiter_test.go:13 &#x27;// TestLimiter walks...&#x27; and limiter_test.go:47 &#x27;// TestBurstZeroAdmitsOnlyOnRefill pins...&#x27; (also lines 71, 90, 112, 125, 134)</div></details>
+<details class="file" open><summary><code>limiter_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/limiter_test.go</span>
+<span class="meta">+++ it2/limiter_test.go</span>
+<span class="hunk">@@ -3,7 +3,6 @@</span>
+<span class="ctx"> import (</span>
+<span class="ctx"> 	&quot;context&quot;</span>
+<span class="ctx"> 	&quot;errors&quot;</span>
+<span class="del">-	&quot;fmt&quot;</span>
+<span class="ctx"> 	&quot;testing&quot;</span>
+<span class="ctx"> 	&quot;testing/synctest&quot;</span>
+<span class="ctx"> 	&quot;time&quot;</span>
+<span class="hunk">@@ -11,234 +10,146 @@</span>
+<span class="ctx"> 	&quot;example.invalid/limiter&quot;</span>
+<span class="ctx"> )</span>
+<span class="ctx"> </span>
+<span class="del">-// The bucket starts full, so the first burst events are permitted and the</span>
+<span class="del">-// next is denied. Time is frozen by the bubble, so no refill interferes.</span>
+<span class="del">-func TestNewAllowConsumesFullBucket(t *testing.T) {</span>
+<span class="add">+// TestLimiter walks the typical gateway flow: a full bucket admits its burst</span>
+<span class="add">+// at once, then further events pace out to the refill rate.</span>
+<span class="add">+func TestLimiter(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		const burst = 3</span>
+<span class="del">-		l := limiter.New(10, burst)</span>
+<span class="add">+		// rate 2 =&gt; one refill every 500ms; burst 2 =&gt; the bucket starts</span>
+<span class="add">+		// with two tokens.</span>
+<span class="add">+		l := limiter.New(2, 2)</span>
+<span class="ctx"> 		defer l.Close()</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="ctx"> </span>
+<span class="del">-		for i := 0; i &lt; burst; i++ {</span>
+<span class="del">-			if !l.Allow() {</span>
+<span class="del">-				t.Fatalf(&quot;Allow #%d on a full bucket = false, want true&quot;, i+1)</span>
+<span class="del">-			}</span>
+<span class="add">+		// The bucket starts full: two events are admitted immediately, and</span>
+<span class="add">+		// the third is refused because Allow never blocks.</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow denied the first token from a full bucket&quot;)</span>
+<span class="add">+		}</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow denied the second token from a full bucket&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 		if l.Allow() {</span>
+<span class="del">-			t.Error(&quot;Allow on a drained bucket = true, want false&quot;)</span>
+<span class="add">+			t.Fatal(&quot;Allow admitted a third token from a bucket of burst 2&quot;)</span>
+<span class="add">+		}</span>
+<span class="add">+</span>
+<span class="add">+		// With the bucket drained, Wait blocks until the refill goroutine</span>
+<span class="add">+		// delivers a token one interval later. Virtual time makes the</span>
+<span class="add">+		// interval exact.</span>
+<span class="add">+		start := time.Now()</span>
+<span class="add">+		if err := l.Wait(context.Background()); err != nil {</span>
+<span class="add">+			t.Fatalf(&quot;Wait on a drained bucket returned %v, want nil&quot;, err)</span>
+<span class="add">+		}</span>
+<span class="add">+		if elapsed := time.Since(start); elapsed != 500*time.Millisecond {</span>
+<span class="add">+			t.Errorf(&quot;Wait unblocked after %v, want one 500ms refill interval&quot;, elapsed)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Tokens accumulate at one per interval and stop at the burst cap; overflow</span>
+<span class="del">-// refills are dropped rather than stored.</span>
+<span class="del">-func TestRefillReplenishesUpToBurst(t *testing.T) {</span>
+<span class="add">+// TestBurstZeroAdmitsOnlyOnRefill pins the documented burst-0 behavior: no</span>
+<span class="add">+// token is ever stored, so Allow can never succeed and Wait proceeds only when</span>
+<span class="add">+// a refill meets a waiter.</span>
+<span class="add">+func TestBurstZeroAdmitsOnlyOnRefill(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		const (</span>
+<span class="del">-			rate     = 10</span>
+<span class="del">-			burst    = 5</span>
+<span class="del">-			interval = time.Second / rate</span>
+<span class="del">-		)</span>
+<span class="del">-		l := limiter.New(rate, burst)</span>
+<span class="add">+		// rate 1 =&gt; one refill per second; burst 0 =&gt; the bucket holds</span>
+<span class="add">+		// nothing.</span>
+<span class="add">+		l := limiter.New(1, 0)</span>
+<span class="ctx"> 		defer l.Close()</span>
+<span class="del">-		synctest.Wait() // the refill goroutine has armed its ticker at time zero</span>
+<span class="ctx"> </span>
+<span class="del">-		for i := 0; i &lt; burst; i++ {</span>
+<span class="del">-			l.Allow() // drain the initial fill</span>
+<span class="del">-		}</span>
+<span class="ctx"> 		if l.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow on a drained bucket = true, want false&quot;)</span>
+<span class="add">+			t.Fatal(&quot;Allow admitted a token from a bucket of burst 0&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> </span>
+<span class="del">-		// One interval yields exactly one fresh token.</span>
+<span class="del">-		time.Sleep(interval)</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="del">-		if !l.Allow() {</span>
+<span class="del">-			t.Error(&quot;Allow one interval after draining = false, want true&quot;)</span>
+<span class="add">+		start := time.Now()</span>
+<span class="add">+		if err := l.Wait(context.Background()); err != nil {</span>
+<span class="add">+			t.Fatalf(&quot;Wait returned %v, want nil once a refill arrived&quot;, err)</span>
+<span class="ctx"> 		}</span>
+<span class="del">-		if l.Allow() {</span>
+<span class="del">-			t.Error(&quot;Allow drew a second token from a single refill&quot;)</span>
+<span class="del">-		}</span>
+<span class="del">-</span>
+<span class="del">-		// Idling far past burst intervals still leaves at most burst tokens.</span>
+<span class="del">-		time.Sleep(2 * burst * interval)</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="del">-		for i := 0; i &lt; burst; i++ {</span>
+<span class="del">-			if !l.Allow() {</span>
+<span class="del">-				t.Errorf(&quot;Allow #%d after a long idle = false, want a full bucket&quot;, i+1)</span>
+<span class="del">-			}</span>
+<span class="del">-		}</span>
+<span class="del">-		if l.Allow() {</span>
+<span class="del">-			t.Errorf(&quot;Allow beyond burst = true; bucket exceeded its cap of %d&quot;, burst)</span>
+<span class="add">+		if elapsed := time.Since(start); elapsed != time.Second {</span>
+<span class="add">+			t.Errorf(&quot;Wait unblocked after %v, want one 1s refill interval&quot;, elapsed)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Wait returns nil at once when a token is ready and consumes exactly one.</span>
+<span class="del">-func TestWaitConsumesAvailableToken(t *testing.T) {</span>
+<span class="add">+// TestWaitHonorsContextDeadline checks that a deadline reached before the next</span>
+<span class="add">+// refill surfaces the context error rather than a token.</span>
+<span class="add">+func TestWaitHonorsContextDeadline(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		const burst = 3</span>
+<span class="del">-		l := limiter.New(10, burst)</span>
+<span class="add">+		// rate 1 =&gt; the first refill is a second away; the 500ms deadline</span>
+<span class="add">+		// fires first.</span>
+<span class="add">+		l := limiter.New(1, 0)</span>
+<span class="ctx"> 		defer l.Close()</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="ctx"> </span>
+<span class="del">-		if err := l.Wait(context.Background()); err != nil {</span>
+<span class="del">-			t.Fatalf(&quot;Wait on a full bucket = %v, want nil&quot;, err)</span>
+<span class="del">-		}</span>
+<span class="del">-		for i := 0; i &lt; burst-1; i++ {</span>
+<span class="del">-			if !l.Allow() {</span>
+<span class="del">-				t.Fatalf(&quot;Allow #%d after one Wait = false, want true&quot;, i+1)</span>
+<span class="del">-			}</span>
+<span class="del">-		}</span>
+<span class="del">-		if l.Allow() {</span>
+<span class="del">-			t.Error(&quot;bucket held more than burst tokens after one Wait&quot;)</span>
+<span class="add">+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)</span>
+<span class="add">+		defer cancel()</span>
+<span class="add">+</span>
+<span class="add">+		err := l.Wait(ctx)</span>
+<span class="add">+		if !errors.Is(err, context.DeadlineExceeded) {</span>
+<span class="add">+			t.Errorf(&quot;Wait past its deadline returned %v, want context.DeadlineExceeded&quot;, err)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// A burst-0 bucket stores nothing: Allow is always false and Wait blocks until</span>
+<span class="del">-// a refill arrives while the caller is parked, then proceeds.</span>
+<span class="del">-func TestWaitProceedsOnRefillWhileWaiting(t *testing.T) {</span>
+<span class="add">+// TestWaitHonorsContextCancellation checks that cancelling the context unblocks</span>
+<span class="add">+// a waiting caller with the context error.</span>
+<span class="add">+func TestWaitHonorsContextCancellation(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		const interval = time.Second / 10</span>
+<span class="del">-		l := limiter.New(10, 0)</span>
+<span class="add">+		l := limiter.New(1, 0)</span>
+<span class="ctx"> 		defer l.Close()</span>
+<span class="add">+</span>
+<span class="add">+		ctx, cancel := context.WithCancel(context.Background())</span>
+<span class="add">+		errc := make(chan error, 1)</span>
+<span class="add">+		go func() { errc &lt;- l.Wait(ctx) }()</span>
+<span class="add">+</span>
+<span class="add">+		// Let the waiter reach its blocking select before cancelling, so the</span>
+<span class="add">+		// cancellation is observed mid-wait.</span>
+<span class="ctx"> 		synctest.Wait()</span>
+<span class="add">+		cancel()</span>
+<span class="ctx"> </span>
+<span class="del">-		if l.Allow() {</span>
+<span class="del">-			t.Error(&quot;Allow with burst 0 = true, want false&quot;)</span>
+<span class="del">-		}</span>
+<span class="del">-</span>
+<span class="del">-		errc := make(chan error, 1)</span>
+<span class="del">-		go func() { errc &lt;- l.Wait(context.Background()) }()</span>
+<span class="del">-		synctest.Wait() // the caller is now parked, waiting for a refill</span>
+<span class="del">-</span>
+<span class="del">-		select {</span>
+<span class="del">-		case err := &lt;-errc:</span>
+<span class="del">-			t.Fatalf(&quot;Wait returned %v before any refill arrived&quot;, err)</span>
+<span class="del">-		default:</span>
+<span class="del">-		}</span>
+<span class="del">-</span>
+<span class="del">-		time.Sleep(interval) // a refill arrives while the caller waits</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="del">-		if err := &lt;-errc; err != nil {</span>
+<span class="del">-			t.Errorf(&quot;Wait after a refill = %v, want nil&quot;, err)</span>
+<span class="add">+		if err := &lt;-errc; !errors.Is(err, context.Canceled) {</span>
+<span class="add">+			t.Errorf(&quot;Wait on a cancelled context returned %v, want context.Canceled&quot;, err)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// When the context ends before a token is free, Wait reports the context&#x27;s own</span>
+<span class="del">-// error, whether the context was canceled or its deadline passed.</span>
+<span class="del">-func TestWaitReturnsContextError(t *testing.T) {</span>
+<span class="del">-	t.Run(&quot;canceled&quot;, func(t *testing.T) {</span>
+<span class="del">-		synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-			l := limiter.New(1, 1) // interval 1s, far longer than this test runs</span>
+<span class="del">-			defer l.Close()</span>
+<span class="del">-			synctest.Wait()</span>
+<span class="del">-			if !l.Allow() {</span>
+<span class="del">-				t.Fatal(&quot;Allow on a full bucket = false, want true&quot;)</span>
+<span class="del">-			}</span>
+<span class="add">+// TestWaitAfterCloseReturnsErrClosed checks that a closed limiter refuses every</span>
+<span class="add">+// Wait, even while a token is still buffered.</span>
+<span class="add">+func TestWaitAfterCloseReturnsErrClosed(t *testing.T) {</span>
+<span class="add">+	synctest.Test(t, func(t *testing.T) {</span>
+<span class="add">+		l := limiter.New(1, 1) // full bucket: a token is available</span>
+<span class="add">+		l.Close()</span>
+<span class="ctx"> </span>
+<span class="del">-			ctx, cancel := context.WithCancel(context.Background())</span>
+<span class="del">-			errc := make(chan error, 1)</span>
+<span class="del">-			go func() { errc &lt;- l.Wait(ctx) }()</span>
+<span class="del">-			synctest.Wait() // the caller is parked on the empty bucket</span>
+<span class="del">-</span>
+<span class="del">-			cancel()</span>
+<span class="del">-			synctest.Wait()</span>
+<span class="del">-			if err := &lt;-errc; !errors.Is(err, context.Canceled) {</span>
+<span class="del">-				t.Errorf(&quot;Wait after cancel = %v, want context.Canceled&quot;, err)</span>
+<span class="del">-			}</span>
+<span class="del">-		})</span>
+<span class="del">-	})</span>
+<span class="del">-</span>
+<span class="del">-	t.Run(&quot;deadline&quot;, func(t *testing.T) {</span>
+<span class="del">-		synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-			l := limiter.New(1, 1) // interval 1s, so no refill beats the deadline</span>
+<span class="del">-			defer l.Close()</span>
+<span class="del">-			synctest.Wait()</span>
+<span class="del">-			if !l.Allow() {</span>
+<span class="del">-				t.Fatal(&quot;Allow on a full bucket = false, want true&quot;)</span>
+<span class="del">-			}</span>
+<span class="del">-</span>
+<span class="del">-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)</span>
+<span class="del">-			defer cancel()</span>
+<span class="del">-			errc := make(chan error, 1)</span>
+<span class="del">-			go func() { errc &lt;- l.Wait(ctx) }()</span>
+<span class="del">-			synctest.Wait() // the caller is parked on the empty bucket</span>
+<span class="del">-</span>
+<span class="del">-			time.Sleep(10 * time.Millisecond)</span>
+<span class="del">-			synctest.Wait()</span>
+<span class="del">-			if err := &lt;-errc; !errors.Is(err, context.DeadlineExceeded) {</span>
+<span class="del">-				t.Errorf(&quot;Wait after deadline = %v, want context.DeadlineExceeded&quot;, err)</span>
+<span class="del">-			}</span>
+<span class="del">-		})</span>
+<span class="del">-	})</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Close releases a parked caller with ErrClosed and makes every later Wait</span>
+<span class="del">-// return ErrClosed too. The bubble also proves Close lets the refill goroutine</span>
+<span class="del">-// exit: an unclosed limiter would leave a lingering goroutine and fail.</span>
+<span class="del">-func TestCloseReleasesWaitersAndRejectsWaits(t *testing.T) {</span>
+<span class="del">-	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		l := limiter.New(1, 1)</span>
+<span class="del">-		defer l.Close()</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="del">-		if !l.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow on a full bucket = false, want true&quot;)</span>
+<span class="del">-		}</span>
+<span class="del">-</span>
+<span class="del">-		errc := make(chan error, 1)</span>
+<span class="del">-		go func() { errc &lt;- l.Wait(context.Background()) }()</span>
+<span class="del">-		synctest.Wait() // the caller is parked on the empty bucket</span>
+<span class="del">-</span>
+<span class="del">-		l.Close()</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="del">-		if err := &lt;-errc; !errors.Is(err, limiter.ErrClosed) {</span>
+<span class="del">-			t.Errorf(&quot;Wait released by Close = %v, want ErrClosed&quot;, err)</span>
+<span class="del">-		}</span>
+<span class="ctx"> 		if err := l.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {</span>
+<span class="del">-			t.Errorf(&quot;Wait after Close = %v, want ErrClosed&quot;, err)</span>
+<span class="add">+			t.Errorf(&quot;Wait after Close returned %v, want ErrClosed&quot;, err)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Repeated Close calls are safe; the limiter stays closed.</span>
+<span class="add">+// TestCloseIsIdempotent checks that closing more than once is safe.</span>
+<span class="ctx"> func TestCloseIsIdempotent(t *testing.T) {</span>
+<span class="del">-	l := limiter.New(1, 1)</span>
+<span class="del">-	l.Close()</span>
+<span class="del">-	l.Close()</span>
+<span class="del">-	if err := l.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {</span>
+<span class="del">-		t.Errorf(&quot;Wait after repeated Close = %v, want ErrClosed&quot;, err)</span>
+<span class="del">-	}</span>
+<span class="add">+	synctest.Test(t, func(t *testing.T) {</span>
+<span class="add">+		l := limiter.New(1, 1)</span>
+<span class="add">+		l.Close()</span>
+<span class="add">+		l.Close() // a second Close must not panic on the closed done channel</span>
+<span class="add">+	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// New rejects arguments that cannot describe a bucket: a non-positive rate has</span>
+<span class="del">-// no interval, and a negative burst has no capacity.</span>
+<span class="del">-func TestNewPanicsOnInvalidArguments(t *testing.T) {</span>
+<span class="del">-	for _, tt := range []struct {</span>
+<span class="add">+// TestNewRejectsInvalidArguments checks that New validates its arguments before</span>
+<span class="add">+// starting the refill goroutine, panicking on each invalid combination.</span>
+<span class="add">+func TestNewRejectsInvalidArguments(t *testing.T) {</span>
+<span class="add">+	cases := []struct {</span>
+<span class="ctx"> 		name        string</span>
+<span class="ctx"> 		rate, burst int</span>
+<span class="ctx"> 	}{</span>
+<span class="ctx"> 		{&quot;zero rate&quot;, 0, 1},</span>
+<span class="ctx"> 		{&quot;negative rate&quot;, -1, 1},</span>
+<span class="ctx"> 		{&quot;negative burst&quot;, 1, -1},</span>
+<span class="del">-	} {</span>
+<span class="del">-		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="add">+	}</span>
+<span class="add">+	for _, c := range cases {</span>
+<span class="add">+		t.Run(c.name, func(t *testing.T) {</span>
+<span class="ctx"> 			defer func() {</span>
+<span class="ctx"> 				if recover() == nil {</span>
+<span class="del">-					t.Errorf(&quot;New(%d, %d) did not panic&quot;, tt.rate, tt.burst)</span>
+<span class="add">+					t.Errorf(&quot;New(%d, %d) did not panic&quot;, c.rate, c.burst)</span>
+<span class="ctx"> 				}</span>
+<span class="ctx"> 			}()</span>
+<span class="del">-			limiter.New(tt.rate, tt.burst)</span>
+<span class="add">+			limiter.New(c.rate, c.burst)</span>
+<span class="ctx"> 		})</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span>
+<span class="del">-</span>
+<span class="del">-func ExampleLimiter_Allow() {</span>
+<span class="del">-	l := limiter.New(1, 1) // the bucket starts full with one token</span>
+<span class="del">-	defer l.Close()</span>
+<span class="del">-	fmt.Println(l.Allow())</span>
+<span class="del">-	// Output: true</span>
+<span class="del">-}</span></pre></details>
+<textarea placeholder="feedback for limiter-write-tests-with_skill_opus (leave empty if fine)" data-run="limiter-write-tests-with_skill_opus"></textarea>
+<h3>with skill — Sonnet <span class="grade">grades: 5/6 → 4/9</span></h3>
+<details class="assert"><summary class="fail">✗ Tests live in an external test package (package limiter_test)</summary><div class="evidence">limiter_test.go:1 declares `package limiter` (internal test package), not `package limiter_test`</div></details>
+<details class="assert"><summary class="fail">✗ Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test comp</summary><div class="evidence">limiter_test.go:33 defines a test named exactly `TestAllow`, violating the forbidden-name clause (composition does exist elsewhere, e.g. TestWaitBlocksUntilRefill uses New/Allow/Wait/Close)</div></details>
+<details class="assert"><summary class="fail">✗ Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at autho</summary><div class="evidence">limiter_test.go:13-28 TestInvalidNew is a table-driven loop (`for _, tt := range` with t.Run over a case slice), violating &#x27;no loops generating cases at this scale&#x27;; other bodies are straight-line with hard-coded values</div></details>
+<details class="assert"><summary class="fail">✗ At least one runnable Example demonstrates typical use (e.g. Allow in a request path)</summary><div class="evidence">grep &#x27;func Example&#x27; limiter_test.go returns no matches (exit 1); no Example function exists in the module</div></details>
+<details class="assert"><summary class="fail">✗ No test/example doc comment opens with its own function name; comments state contract clauses tracing to the p</summary><div class="evidence">limiter_test.go:31 &#x27;// TestAllow exercises...&#x27;, :65 &#x27;// TestWaitBlocksUntilRefill pins...&#x27;, :130 &#x27;// TestZeroBurst pins...&#x27; all open with their own function name</div></details>
+<details class="file" open><summary><code>limiter_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/limiter_test.go</span>
+<span class="meta">+++ it2/limiter_test.go</span>
+<span class="hunk">@@ -1,142 +1,159 @@</span>
+<span class="del">-package limiter_test</span>
+<span class="add">+package limiter</span>
+<span class="ctx"> </span>
+<span class="ctx"> import (</span>
+<span class="ctx"> 	&quot;context&quot;</span>
+<span class="ctx"> 	&quot;errors&quot;</span>
+<span class="add">+	&quot;fmt&quot;</span>
+<span class="ctx"> 	&quot;testing&quot;</span>
+<span class="ctx"> 	&quot;testing/synctest&quot;</span>
+<span class="ctx"> 	&quot;time&quot;</span>
+<span class="del">-</span>
+<span class="del">-	&quot;example.invalid/limiter&quot;</span>
+<span class="ctx"> )</span>
+<span class="ctx"> </span>
+<span class="del">-// The token bucket starts full, Allow drains it without blocking, and</span>
+<span class="del">-// refills arrive at the configured rate up to the burst capacity.</span>
+<span class="del">-func TestLimiter(t *testing.T) {</span>
+<span class="add">+func TestInvalidNew(t *testing.T) {</span>
+<span class="add">+	for _, tt := range []struct {</span>
+<span class="add">+		rate, burst int</span>
+<span class="add">+	}{</span>
+<span class="add">+		{0, 1},  // rate must be positive</span>
+<span class="add">+		{-1, 1}, // rate must be positive</span>
+<span class="add">+		{1, -1}, // burst must not be negative</span>
+<span class="add">+	} {</span>
+<span class="add">+		t.Run(fmt.Sprintf(&quot;New(%d, %d)&quot;, tt.rate, tt.burst), func(t *testing.T) {</span>
+<span class="add">+			defer func() {</span>
+<span class="add">+				if recover() == nil {</span>
+<span class="add">+					t.Errorf(&quot;New(%d, %d) did not panic, want panic&quot;, tt.rate, tt.burst)</span>
+<span class="add">+				}</span>
+<span class="add">+			}()</span>
+<span class="add">+			New(tt.rate, tt.burst)</span>
+<span class="add">+		})</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// TestAllow exercises Allow&#x27;s documented contract: the bucket starts full,</span>
+<span class="add">+// Allow never blocks, and refilled tokens never accumulate past burst.</span>
+<span class="add">+func TestAllow(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		lim := limiter.New(1, 2) // 1 token/sec, burst of 2</span>
+<span class="del">-		defer lim.Close()</span>
+<span class="add">+		l := New(1, 2) // 1 token/sec, burst 2</span>
+<span class="add">+		defer l.Close()</span>
+<span class="ctx"> </span>
+<span class="del">-		if !lim.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = false, want true: the bucket starts full&quot;)</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow() = false right after New, want true (bucket starts full)&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="del">-		if !lim.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = false, want true: the bucket starts full&quot;)</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow() = false, want true (burst is 2)&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="del">-		if lim.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = true, want false once the burst is exhausted&quot;)</span>
+<span class="add">+		if l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow() = true, want false (bucket drained)&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> </span>
+<span class="del">-		// Just under one interval: no refill has arrived yet.</span>
+<span class="del">-		time.Sleep(999 * time.Millisecond)</span>
+<span class="add">+		// Three refill intervals pass while the bucket is empty; only</span>
+<span class="add">+		// burst (2) tokens survive, the rest are dropped.</span>
+<span class="add">+		time.Sleep(3 * time.Second)</span>
+<span class="ctx"> 		synctest.Wait()</span>
+<span class="del">-		if lim.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = true before the refill interval elapsed&quot;)</span>
+<span class="add">+</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow() = false, want true (one refilled token)&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="del">-</span>
+<span class="del">-		// One interval elapses: exactly one token refills.</span>
+<span class="del">-		time.Sleep(time.Millisecond)</span>
+<span class="del">-		synctest.Wait()</span>
+<span class="del">-		if !lim.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = false, want true after one refill interval&quot;)</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow() = false, want true (a second refilled token)&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="del">-		if lim.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = true, want false: only one token should have refilled&quot;)</span>
+<span class="add">+		if l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow() = true, want false (refills never exceed burst)&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Wait blocks a caller until a token becomes available from a</span>
+<span class="del">-// refill, then returns nil. With a zero burst the bucket stores no</span>
+<span class="del">-// tokens of its own, so the only way Wait can succeed is by catching</span>
+<span class="del">-// a refill while already waiting.</span>
+<span class="del">-func TestLimiterWaitBlocksUntilRefill(t *testing.T) {</span>
+<span class="add">+// TestWaitBlocksUntilRefill pins Wait&#x27;s documented contract: it blocks</span>
+<span class="add">+// until a token is available, then consumes exactly one.</span>
+<span class="add">+func TestWaitBlocksUntilRefill(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		lim := limiter.New(1, 0)</span>
+<span class="del">-		defer lim.Close()</span>
+<span class="add">+		l := New(1, 1) // 1 token/sec, burst 1</span>
+<span class="add">+		defer l.Close()</span>
+<span class="ctx"> </span>
+<span class="del">-		if lim.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow() = true, want false: burst 0 stores no tokens&quot;)</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow() = false right after New, want true (bucket starts full)&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> </span>
+<span class="del">-		waited := make(chan error, 1)</span>
+<span class="del">-		go func() {</span>
+<span class="del">-			waited &lt;- lim.Wait(context.Background())</span>
+<span class="del">-		}()</span>
+<span class="add">+		done := make(chan error, 1)</span>
+<span class="add">+		go func() { done &lt;- l.Wait(context.Background()) }()</span>
+<span class="ctx"> 		synctest.Wait()</span>
+<span class="ctx"> </span>
+<span class="ctx"> 		select {</span>
+<span class="del">-		case err := &lt;-waited:</span>
+<span class="del">-			t.Fatalf(&quot;Wait() returned %v before any token refilled&quot;, err)</span>
+<span class="add">+		case err := &lt;-done:</span>
+<span class="add">+			t.Fatalf(&quot;Wait() returned early with %v, want blocked until refill&quot;, err)</span>
+<span class="ctx"> 		default:</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> </span>
+<span class="ctx"> 		time.Sleep(time.Second)</span>
+<span class="ctx"> 		synctest.Wait()</span>
+<span class="ctx"> </span>
+<span class="del">-		select {</span>
+<span class="del">-		case err := &lt;-waited:</span>
+<span class="del">-			if err != nil {</span>
+<span class="del">-				t.Fatalf(&quot;Wait() = %v, want nil once a token refilled&quot;, err)</span>
+<span class="del">-			}</span>
+<span class="del">-		default:</span>
+<span class="del">-			t.Fatal(&quot;Wait did not return after a token refilled&quot;)</span>
+<span class="add">+		if err := &lt;-done; err != nil {</span>
+<span class="add">+			t.Fatalf(&quot;Wait() = %v, want nil&quot;, err)</span>
+<span class="add">+		}</span>
+<span class="add">+		if l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow() = true right after Wait, want false (Wait consumed the token)&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Wait reports the context&#x27;s error when the context is done before a</span>
+<span class="del">-// token arrives.</span>
+<span class="del">-func TestLimiterWaitContextCanceled(t *testing.T) {</span>
+<span class="add">+func TestWaitReturnsContextError(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		lim := limiter.New(1, 0)</span>
+<span class="del">-		defer lim.Close()</span>
+<span class="add">+		l := New(1, 0) // no token ever available without a refill</span>
+<span class="add">+		defer l.Close()</span>
+<span class="ctx"> </span>
+<span class="ctx"> 		ctx, cancel := context.WithCancel(context.Background())</span>
+<span class="add">+		done := make(chan error, 1)</span>
+<span class="add">+		go func() { done &lt;- l.Wait(ctx) }()</span>
+<span class="add">+		synctest.Wait()</span>
+<span class="add">+</span>
+<span class="ctx"> 		cancel()</span>
+<span class="del">-</span>
+<span class="del">-		if err := lim.Wait(ctx); !errors.Is(err, context.Canceled) {</span>
+<span class="del">-			t.Fatalf(&quot;Wait(canceled ctx) = %v, want context.Canceled&quot;, err)</span>
+<span class="add">+		if err := &lt;-done; !errors.Is(err, context.Canceled) {</span>
+<span class="add">+			t.Fatalf(&quot;Wait() = %v, want context.Canceled&quot;, err)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Once Close has returned, every subsequent Wait call reports</span>
+<span class="del">-// ErrClosed instead of blocking, and Close itself is safe to call</span>
+<span class="del">-// more than once.</span>
+<span class="del">-func TestLimiterCloseStopsWait(t *testing.T) {</span>
+<span class="add">+func TestWaitReturnsErrClosedAfterClose(t *testing.T) {</span>
+<span class="add">+	l := New(1, 0)</span>
+<span class="add">+	l.Close()</span>
+<span class="add">+</span>
+<span class="add">+	if err := l.Wait(context.Background()); !errors.Is(err, ErrClosed) {</span>
+<span class="add">+		t.Fatalf(&quot;Wait() after Close = %v, want ErrClosed&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestCloseIsIdempotent(t *testing.T) {</span>
+<span class="add">+	l := New(1, 1)</span>
+<span class="add">+	l.Close()</span>
+<span class="add">+	l.Close() // must not panic</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// TestZeroBurst pins the package doc&#x27;s promise for a limiter created with</span>
+<span class="add">+// burst 0: Allow always reports false, and Wait proceeds only once a</span>
+<span class="add">+// refill arrives while the caller is already waiting.</span>
+<span class="add">+func TestZeroBurst(t *testing.T) {</span>
+<span class="ctx"> 	synctest.Test(t, func(t *testing.T) {</span>
+<span class="del">-		lim := limiter.New(1, 0)</span>
+<span class="add">+		l := New(1, 0)</span>
+<span class="add">+		defer l.Close()</span>
+<span class="ctx"> </span>
+<span class="del">-		lim.Close()</span>
+<span class="del">-		lim.Close()</span>
+<span class="add">+		if l.Allow() {</span>
+<span class="add">+			t.Fatal(&quot;Allow() = true for a zero-burst limiter, want false&quot;)</span>
+<span class="add">+		}</span>
+<span class="ctx"> </span>
+<span class="del">-		if err := lim.Wait(context.Background()); !errors.Is(err, limiter.ErrClosed) {</span>
+<span class="del">-			t.Fatalf(&quot;Wait() after Close = %v, want ErrClosed&quot;, err)</span>
+<span class="add">+		done := make(chan error, 1)</span>
+<span class="add">+		go func() { done &lt;- l.Wait(context.Background()) }()</span>
+<span class="add">+		synctest.Wait()</span>
+<span class="add">+</span>
+<span class="add">+		select {</span>
+<span class="add">+		case err := &lt;-done:</span>
+<span class="add">+			t.Fatalf(&quot;Wait() returned early with %v, want blocked until refill&quot;, err)</span>
+<span class="add">+		default:</span>
+<span class="add">+		}</span>
+<span class="add">+</span>
+<span class="add">+		time.Sleep(time.Second)</span>
+<span class="add">+		synctest.Wait()</span>
+<span class="add">+</span>
+<span class="add">+		if err := &lt;-done; err != nil {</span>
+<span class="add">+			t.Fatalf(&quot;Wait() = %v, want nil&quot;, err)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="ctx"> }</span>
+<span class="del">-</span>
+<span class="del">-// New validates its arguments: rate must be positive and burst must</span>
+<span class="del">-// not be negative.</span>
+<span class="del">-func TestLimiterNewPanics(t *testing.T) {</span>
+<span class="del">-	tests := []struct {</span>
+<span class="del">-		name        string</span>
+<span class="del">-		rate, burst int</span>
+<span class="del">-	}{</span>
+<span class="del">-		{&quot;zero rate&quot;, 0, 1},</span>
+<span class="del">-		{&quot;negative rate&quot;, -1, 1},</span>
+<span class="del">-		{&quot;negative burst&quot;, 1, -1},</span>
+<span class="del">-	}</span>
+<span class="del">-	for _, tt := range tests {</span>
+<span class="del">-		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="del">-			defer func() {</span>
+<span class="del">-				if recover() == nil {</span>
+<span class="del">-					t.Error(&quot;New did not panic&quot;)</span>
+<span class="del">-				}</span>
+<span class="del">-			}()</span>
+<span class="del">-			lim := limiter.New(tt.rate, tt.burst)</span>
+<span class="del">-			lim.Close()</span>
+<span class="del">-		})</span>
+<span class="del">-	}</span>
+<span class="del">-}</span></pre></details>
+<textarea placeholder="feedback for limiter-write-tests-with_skill_sonnet (leave empty if fine)" data-run="limiter-write-tests-with_skill_sonnet"></textarea>
+<h3>no skill — Fable <span class="grade">grades: 4/6 → 5/9</span></h3>
+<details class="assert"><summary class="fail">✗ Tests live in an external test package (package limiter_test)</summary><div class="evidence">limiter_test.go:1 declares `package limiter` (internal test package), not `package limiter_test`</div></details>
+<details class="assert"><summary class="fail">✗ Concurrency and timing run under testing/synctest with NO real-time waits: any time.Sleep sits inside a syncte</summary><div class="evidence">grep finds no testing/synctest import; 6 real time.Sleep calls (e.g. limiter_test.go:118,191,215) and a polling loop at limiter_test.go:102-107 (`for !l.Allow() { ... time.Sleep(time.Millisecond) }`)</div></details>
+<details class="assert"><summary class="fail">✗ Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at autho</summary><div class="evidence">TestNewPanicsOnInvalidArguments uses a table-driven case-generating loop (limiter_test.go:32-49); waitErr/receive helper indirection (:13-29) is used across many tests; TestRefillReplenishesTokens derives a runtime deadline and polls (:101-107)</div></details>
+<details class="assert"><summary class="fail">✗ At least one runnable Example demonstrates typical use (e.g. Allow in a request path)</summary><div class="evidence">grep &#x27;func Example&#x27; over the module returns no matches; limiter_test.go contains only Test functions</div></details>
+<details class="file" open><summary><code>limiter_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/limiter_test.go</span>
+<span class="meta">+++ it2/limiter_test.go</span>
+<span class="hunk">@@ -8,192 +8,191 @@</span>
+<span class="ctx"> 	&quot;time&quot;</span>
+<span class="ctx"> )</span>
+<span class="ctx"> </span>
+<span class="del">-func TestNewPanicsOnNonPositiveRate(t *testing.T) {</span>
+<span class="del">-	for _, rate := range []int{0, -1} {</span>
+<span class="del">-		func() {</span>
+<span class="add">+// waitErr runs l.Wait(ctx) in a goroutine and returns a channel that</span>
+<span class="add">+// yields its result, so tests can bound how long they block on Wait.</span>
+<span class="add">+func waitErr(l *Limiter, ctx context.Context) &lt;-chan error {</span>
+<span class="add">+	ch := make(chan error, 1)</span>
+<span class="add">+	go func() { ch &lt;- l.Wait(ctx) }()</span>
+<span class="add">+	return ch</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// receive fails the test if no result arrives on ch within the deadline.</span>
+<span class="add">+func receive(t *testing.T, ch &lt;-chan error, timeout time.Duration) error {</span>
+<span class="add">+	t.Helper()</span>
+<span class="add">+	select {</span>
+<span class="add">+	case err := &lt;-ch:</span>
+<span class="add">+		return err</span>
+<span class="add">+	case &lt;-time.After(timeout):</span>
+<span class="add">+		t.Fatalf(&quot;Wait did not return within %v&quot;, timeout)</span>
+<span class="add">+		return nil</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestNewPanicsOnInvalidArguments(t *testing.T) {</span>
+<span class="add">+	cases := []struct {</span>
+<span class="add">+		name        string</span>
+<span class="add">+		rate, burst int</span>
+<span class="add">+	}{</span>
+<span class="add">+		{&quot;zero rate&quot;, 0, 1},</span>
+<span class="add">+		{&quot;negative rate&quot;, -1, 1},</span>
+<span class="add">+		{&quot;negative burst&quot;, 1, -1},</span>
+<span class="add">+	}</span>
+<span class="add">+	for _, tc := range cases {</span>
+<span class="add">+		t.Run(tc.name, func(t *testing.T) {</span>
+<span class="ctx"> 			defer func() {</span>
+<span class="ctx"> 				if recover() == nil {</span>
+<span class="del">-					t.Errorf(&quot;New(%d, 1) did not panic&quot;, rate)</span>
+<span class="add">+					t.Fatalf(&quot;New(%d, %d) did not panic&quot;, tc.rate, tc.burst)</span>
+<span class="ctx"> 				}</span>
+<span class="ctx"> 			}()</span>
+<span class="del">-			New(rate, 1)</span>
+<span class="del">-		}()</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-func TestNewPanicsOnNegativeBurst(t *testing.T) {</span>
+<span class="del">-	defer func() {</span>
+<span class="del">-		if recover() == nil {</span>
+<span class="del">-			t.Error(&quot;New(1, -1) did not panic&quot;)</span>
+<span class="del">-		}</span>
+<span class="del">-	}()</span>
+<span class="del">-	New(1, -1)</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// The bucket starts full: exactly burst Allow calls succeed before any</span>
+<span class="del">-// refill can plausibly arrive.</span>
+<span class="add">+			New(tc.rate, tc.burst)</span>
+<span class="add">+		})</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestNewAcceptsZeroBurst(t *testing.T) {</span>
+<span class="add">+	l := New(1, 0)</span>
+<span class="add">+	defer l.Close()</span>
+<span class="add">+	if l.Allow() {</span>
+<span class="add">+		t.Error(&quot;Allow() = true for a zero-burst limiter; want false&quot;)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="ctx"> func TestBucketStartsFull(t *testing.T) {</span>
+<span class="del">-	const burst = 3</span>
+<span class="del">-	l := New(1, burst) // 1s interval: no refill lands during this test.</span>
+<span class="add">+	const burst = 5</span>
+<span class="add">+	// Rate 1 means the next refill is a full second away, so the six</span>
+<span class="add">+	// Allow calls below observe only the initial tokens.</span>
+<span class="add">+	l := New(1, burst)</span>
+<span class="ctx"> 	defer l.Close()</span>
+<span class="ctx"> </span>
+<span class="ctx"> 	for i := range burst {</span>
+<span class="ctx"> 		if !l.Allow() {</span>
+<span class="del">-			t.Fatalf(&quot;Allow call %d = false, want true&quot;, i+1)</span>
+<span class="del">-		}</span>
+<span class="del">-	}</span>
+<span class="del">-	if l.Allow() {</span>
+<span class="del">-		t.Fatalf(&quot;Allow call %d = true, want false (bucket drained)&quot;, burst+1)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// With burst 0 the bucket stores nothing, so Allow never succeeds even</span>
+<span class="del">-// while refills are being generated.</span>
+<span class="del">-func TestZeroBurstAllowAlwaysFalse(t *testing.T) {</span>
+<span class="del">-	l := New(1000, 0)</span>
+<span class="del">-	defer l.Close()</span>
+<span class="del">-</span>
+<span class="del">-	deadline := time.Now().Add(50 * time.Millisecond)</span>
+<span class="del">-	for time.Now().Before(deadline) {</span>
+<span class="del">-		if l.Allow() {</span>
+<span class="del">-			t.Fatal(&quot;Allow = true, want false for a burst-0 limiter&quot;)</span>
+<span class="del">-		}</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// A drained bucket becomes usable again once the refill goroutine adds</span>
+<span class="del">-// a token.</span>
+<span class="del">-func TestRefillReplenishesToken(t *testing.T) {</span>
+<span class="del">-	l := New(100, 1) // refill every 10ms</span>
+<span class="add">+			t.Fatalf(&quot;Allow() call %d = false; want true (bucket starts full)&quot;, i+1)</span>
+<span class="add">+		}</span>
+<span class="add">+	}</span>
+<span class="add">+	if l.Allow() {</span>
+<span class="add">+		t.Errorf(&quot;Allow() call %d = true after draining the bucket; want false&quot;, burst+1)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestAllowDoesNotBlockWhenEmpty(t *testing.T) {</span>
+<span class="add">+	l := New(1, 0)</span>
+<span class="add">+	defer l.Close()</span>
+<span class="add">+</span>
+<span class="add">+	done := make(chan bool, 1)</span>
+<span class="add">+	go func() { done &lt;- l.Allow() }()</span>
+<span class="add">+	select {</span>
+<span class="add">+	case got := &lt;-done:</span>
+<span class="add">+		if got {</span>
+<span class="add">+			t.Error(&quot;Allow() = true on an empty bucket; want false&quot;)</span>
+<span class="add">+		}</span>
+<span class="add">+	case &lt;-time.After(time.Second):</span>
+<span class="add">+		t.Fatal(&quot;Allow blocked on an empty bucket&quot;)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestRefillReplenishesTokens(t *testing.T) {</span>
+<span class="add">+	l := New(100, 1) // one token every 10ms</span>
+<span class="ctx"> 	defer l.Close()</span>
+<span class="ctx"> </span>
+<span class="ctx"> 	if !l.Allow() {</span>
+<span class="del">-		t.Fatal(&quot;Allow = false on a fresh limiter, want true&quot;)</span>
+<span class="add">+		t.Fatal(&quot;Allow() = false on a fresh limiter; want true&quot;)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> </span>
+<span class="ctx"> 	deadline := time.Now().Add(2 * time.Second)</span>
+<span class="del">-	for time.Now().Before(deadline) {</span>
+<span class="del">-		if l.Allow() {</span>
+<span class="del">-			return</span>
+<span class="add">+	for !l.Allow() {</span>
+<span class="add">+		if time.Now().After(deadline) {</span>
+<span class="add">+			t.Fatal(&quot;bucket was not refilled within 2s&quot;)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 		time.Sleep(time.Millisecond)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	t.Fatal(&quot;no token refilled within 2s at rate 100/s&quot;)</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Tokens beyond burst are dropped: after ample refill time only burst</span>
+<span class="del">-// tokens are stored.</span>
+<span class="del">-func TestRefillCapsAtBurst(t *testing.T) {</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestRefillDropsTokensBeyondBurst(t *testing.T) {</span>
+<span class="ctx"> 	const burst = 2</span>
+<span class="del">-	l := New(1000, burst) // refill every 1ms</span>
+<span class="del">-</span>
+<span class="del">-	time.Sleep(100 * time.Millisecond) // far more refills than capacity</span>
+<span class="del">-	l.Close()</span>
+<span class="del">-	time.Sleep(10 * time.Millisecond) // let any in-flight refill land</span>
+<span class="del">-</span>
+<span class="del">-	got := 0</span>
+<span class="del">-	for l.Allow() {</span>
+<span class="del">-		got++</span>
+<span class="del">-	}</span>
+<span class="del">-	if got != burst {</span>
+<span class="del">-		t.Fatalf(&quot;drained %d tokens after saturation, want exactly %d&quot;, got, burst)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-func TestWaitReturnsImmediatelyWithToken(t *testing.T) {</span>
+<span class="add">+	// 50ms interval: several refill ticks fire into the already-full</span>
+<span class="add">+	// bucket during the sleep, and the drain below finishes long before</span>
+<span class="add">+	// the tick that follows it.</span>
+<span class="add">+	l := New(20, burst)</span>
+<span class="add">+	defer l.Close()</span>
+<span class="add">+</span>
+<span class="add">+	time.Sleep(200 * time.Millisecond)</span>
+<span class="add">+</span>
+<span class="add">+	for i := range burst {</span>
+<span class="add">+		if !l.Allow() {</span>
+<span class="add">+			t.Fatalf(&quot;Allow() call %d = false; want true&quot;, i+1)</span>
+<span class="add">+		}</span>
+<span class="add">+	}</span>
+<span class="add">+	if l.Allow() {</span>
+<span class="add">+		t.Errorf(&quot;Allow() call %d = true; want false (tokens beyond burst must be dropped)&quot;, burst+1)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestWaitReturnsImmediatelyWhenTokenAvailable(t *testing.T) {</span>
+<span class="ctx"> 	l := New(1, 1)</span>
+<span class="ctx"> 	defer l.Close()</span>
+<span class="ctx"> </span>
+<span class="del">-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)</span>
+<span class="del">-	defer cancel()</span>
+<span class="del">-	if err := l.Wait(ctx); err != nil {</span>
+<span class="del">-		t.Fatalf(&quot;Wait = %v, want nil&quot;, err)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Wait on an empty burst-0 bucket parks until the refill goroutine</span>
+<span class="del">-// hands over a token.</span>
+<span class="add">+	if err := receive(t, waitErr(l, context.Background()), time.Second); err != nil {</span>
+<span class="add">+		t.Fatalf(&quot;Wait() = %v; want nil&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="add">+	if l.Allow() {</span>
+<span class="add">+		t.Error(&quot;Allow() = true after Wait consumed the only token; want false&quot;)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="ctx"> func TestWaitBlocksUntilRefill(t *testing.T) {</span>
+<span class="del">-	l := New(100, 0) // refill every 10ms</span>
+<span class="del">-	defer l.Close()</span>
+<span class="del">-</span>
+<span class="del">-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)</span>
+<span class="del">-	defer cancel()</span>
+<span class="del">-	if err := l.Wait(ctx); err != nil {</span>
+<span class="del">-		t.Fatalf(&quot;Wait = %v, want nil once a refill arrives&quot;, err)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-func TestWaitHonorsContextCancellation(t *testing.T) {</span>
+<span class="del">-	l := New(1, 0) // no token for ~1s</span>
+<span class="del">-	defer l.Close()</span>
+<span class="del">-</span>
+<span class="del">-	t.Run(&quot;deadline&quot;, func(t *testing.T) {</span>
+<span class="add">+	// Burst 0: the only way Wait can proceed is a refill arriving while</span>
+<span class="add">+	// it is already blocked.</span>
+<span class="add">+	l := New(100, 0)</span>
+<span class="add">+	defer l.Close()</span>
+<span class="add">+</span>
+<span class="add">+	if err := receive(t, waitErr(l, context.Background()), 2*time.Second); err != nil {</span>
+<span class="add">+		t.Fatalf(&quot;Wait() = %v; want nil after a refill&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestWaitReturnsContextError(t *testing.T) {</span>
+<span class="add">+	t.Run(&quot;canceled&quot;, func(t *testing.T) {</span>
+<span class="add">+		l := New(1, 0) // next refill a full second away</span>
+<span class="add">+		defer l.Close()</span>
+<span class="add">+</span>
+<span class="add">+		ctx, cancel := context.WithCancel(context.Background())</span>
+<span class="add">+		ch := waitErr(l, ctx)</span>
+<span class="add">+		cancel()</span>
+<span class="add">+		if err := receive(t, ch, time.Second); !errors.Is(err, context.Canceled) {</span>
+<span class="add">+			t.Errorf(&quot;Wait() = %v; want %v&quot;, err, context.Canceled)</span>
+<span class="add">+		}</span>
+<span class="add">+	})</span>
+<span class="add">+</span>
+<span class="add">+	t.Run(&quot;deadline exceeded&quot;, func(t *testing.T) {</span>
+<span class="add">+		l := New(1, 0)</span>
+<span class="add">+		defer l.Close()</span>
+<span class="add">+</span>
+<span class="ctx"> 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)</span>
+<span class="ctx"> 		defer cancel()</span>
+<span class="del">-		if err := l.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {</span>
+<span class="del">-			t.Fatalf(&quot;Wait = %v, want %v&quot;, err, context.DeadlineExceeded)</span>
+<span class="add">+		if err := receive(t, waitErr(l, ctx), time.Second); !errors.Is(err, context.DeadlineExceeded) {</span>
+<span class="add">+			t.Errorf(&quot;Wait() = %v; want %v&quot;, err, context.DeadlineExceeded)</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 	})</span>
+<span class="del">-</span>
+<span class="del">-	t.Run(&quot;cancel&quot;, func(t *testing.T) {</span>
+<span class="del">-		ctx, cancel := context.WithCancel(context.Background())</span>
+<span class="del">-		errc := make(chan error, 1)</span>
+<span class="del">-		go func() { errc &lt;- l.Wait(ctx) }()</span>
+<span class="del">-		cancel()</span>
+<span class="del">-		select {</span>
+<span class="del">-		case err := &lt;-errc:</span>
+<span class="del">-			if !errors.Is(err, context.Canceled) {</span>
+<span class="del">-				t.Fatalf(&quot;Wait = %v, want %v&quot;, err, context.Canceled)</span>
+<span class="del">-			}</span>
+<span class="del">-		case &lt;-time.After(2 * time.Second):</span>
+<span class="del">-			t.Fatal(&quot;Wait did not return after context cancellation&quot;)</span>
+<span class="del">-		}</span>
+<span class="del">-	})</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// After Close, Wait reports ErrClosed even if unused tokens remain in</span>
+<span class="del">-// the bucket.</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="ctx"> func TestWaitAfterCloseReturnsErrClosed(t *testing.T) {</span>
+<span class="del">-	l := New(1, 1)</span>
+<span class="add">+	l := New(1, 1) // bucket holds a token, yet closed wins</span>
+<span class="ctx"> 	l.Close()</span>
+<span class="ctx"> </span>
+<span class="ctx"> 	if err := l.Wait(context.Background()); !errors.Is(err, ErrClosed) {</span>
+<span class="del">-		t.Fatalf(&quot;Wait after Close = %v, want %v&quot;, err, ErrClosed)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Close unblocks a Wait that is already parked.</span>
+<span class="del">-func TestCloseUnblocksPendingWait(t *testing.T) {</span>
+<span class="del">-	l := New(1, 0) // no token for ~1s</span>
+<span class="del">-</span>
+<span class="del">-	errc := make(chan error, 1)</span>
+<span class="del">-	go func() { errc &lt;- l.Wait(context.Background()) }()</span>
+<span class="del">-</span>
+<span class="del">-	time.Sleep(20 * time.Millisecond) // let Wait park</span>
+<span class="del">-	l.Close()</span>
+<span class="del">-</span>
+<span class="del">-	select {</span>
+<span class="del">-	case err := &lt;-errc:</span>
+<span class="del">-		if !errors.Is(err, ErrClosed) {</span>
+<span class="del">-			t.Fatalf(&quot;Wait = %v, want %v&quot;, err, ErrClosed)</span>
+<span class="del">-		}</span>
+<span class="del">-	case &lt;-time.After(2 * time.Second):</span>
+<span class="del">-		t.Fatal(&quot;Wait did not return after Close&quot;)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Allow keeps handing out tokens that were already banked before Close;</span>
+<span class="del">-// it only stops once the bucket is drained.</span>
+<span class="del">-func TestAllowAfterCloseDrainsRemainingTokens(t *testing.T) {</span>
+<span class="del">-	l := New(1, 2)</span>
+<span class="del">-	l.Close()</span>
+<span class="del">-</span>
+<span class="del">-	if !l.Allow() || !l.Allow() {</span>
+<span class="del">-		t.Fatal(&quot;Allow = false for tokens banked before Close, want true&quot;)</span>
+<span class="del">-	}</span>
+<span class="del">-	if l.Allow() {</span>
+<span class="del">-		t.Fatal(&quot;Allow = true on a drained, closed limiter, want false&quot;)</span>
+<span class="add">+		t.Errorf(&quot;Wait() after Close = %v; want %v&quot;, err, ErrClosed)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestCloseUnblocksWait(t *testing.T) {</span>
+<span class="add">+	l := New(1, 0) // no token and no imminent refill: Wait must block</span>
+<span class="add">+</span>
+<span class="add">+	ch := waitErr(l, context.Background())</span>
+<span class="add">+	time.Sleep(20 * time.Millisecond) // let Wait reach its select</span>
+<span class="add">+	l.Close()</span>
+<span class="add">+</span>
+<span class="add">+	if err := receive(t, ch, time.Second); !errors.Is(err, ErrClosed) {</span>
+<span class="add">+		t.Errorf(&quot;Wait() = %v; want %v after Close&quot;, err, ErrClosed)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="hunk">@@ -201,36 +200,57 @@</span>
+<span class="ctx"> 	l := New(1, 1)</span>
+<span class="ctx"> 	l.Close()</span>
+<span class="ctx"> 	l.Close() // must not panic</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Smoke test for the race detector: Allow, Wait, and Close from many</span>
+<span class="del">-// goroutines at once must not race or deadlock.</span>
+<span class="del">-func TestConcurrentAllowWaitClose(t *testing.T) {</span>
+<span class="add">+</span>
+<span class="add">+	if err := l.Wait(context.Background()); !errors.Is(err, ErrClosed) {</span>
+<span class="add">+		t.Errorf(&quot;Wait() after double Close = %v; want %v&quot;, err, ErrClosed)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestCloseStopsRefill(t *testing.T) {</span>
+<span class="add">+	l := New(1000, 1)</span>
+<span class="add">+	l.Close()</span>
+<span class="add">+</span>
+<span class="add">+	// Give the refill goroutine ample ticks to observe done and exit,</span>
+<span class="add">+	// then drain whatever it left behind.</span>
+<span class="add">+	time.Sleep(100 * time.Millisecond)</span>
+<span class="add">+	for l.Allow() {</span>
+<span class="add">+	}</span>
+<span class="add">+</span>
+<span class="add">+	time.Sleep(50 * time.Millisecond)</span>
+<span class="add">+	if l.Allow() {</span>
+<span class="add">+		t.Error(&quot;Allow() = true after Close and drain; want false (refill must have stopped)&quot;)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestConcurrentUse(t *testing.T) {</span>
+<span class="ctx"> 	l := New(1000, 8)</span>
+<span class="ctx"> </span>
+<span class="add">+	const goroutines = 8</span>
+<span class="ctx"> 	var wg sync.WaitGroup</span>
+<span class="del">-	for range 8 {</span>
+<span class="del">-		wg.Add(1)</span>
+<span class="add">+	start := make(chan struct{})</span>
+<span class="add">+	for range goroutines {</span>
+<span class="add">+		wg.Add(2)</span>
+<span class="ctx"> 		go func() {</span>
+<span class="ctx"> 			defer wg.Done()</span>
+<span class="del">-			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)</span>
+<span class="del">-			defer cancel()</span>
+<span class="del">-			for l.Wait(ctx) == nil {</span>
+<span class="del">-			}</span>
+<span class="del">-		}()</span>
+<span class="del">-	}</span>
+<span class="del">-	for range 8 {</span>
+<span class="del">-		wg.Add(1)</span>
+<span class="del">-		go func() {</span>
+<span class="del">-			defer wg.Done()</span>
+<span class="add">+			&lt;-start</span>
+<span class="ctx"> 			for range 100 {</span>
+<span class="ctx"> 				l.Allow()</span>
+<span class="ctx"> 			}</span>
+<span class="ctx"> 		}()</span>
+<span class="del">-	}</span>
+<span class="del">-</span>
+<span class="del">-	time.Sleep(20 * time.Millisecond)</span>
+<span class="del">-	l.Close()</span>
+<span class="del">-	l.Close()</span>
+<span class="add">+		go func() {</span>
+<span class="add">+			defer wg.Done()</span>
+<span class="add">+			&lt;-start</span>
+<span class="add">+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)</span>
+<span class="add">+			defer cancel()</span>
+<span class="add">+			err := l.Wait(ctx)</span>
+<span class="add">+			if err != nil &amp;&amp; !errors.Is(err, context.DeadlineExceeded) &amp;&amp; !errors.Is(err, ErrClosed) {</span>
+<span class="add">+				t.Errorf(&quot;Wait() = %v; want nil, deadline exceeded, or ErrClosed&quot;, err)</span>
+<span class="add">+			}</span>
+<span class="add">+		}()</span>
+<span class="add">+	}</span>
+<span class="add">+	close(start)</span>
+<span class="add">+</span>
+<span class="add">+	time.Sleep(10 * time.Millisecond)</span>
+<span class="add">+	l.Close() // racing Close against Allow and Wait must be safe</span>
+<span class="ctx"> 	wg.Wait()</span>
+<span class="ctx"> }</span></pre></details>
+<textarea placeholder="feedback for limiter-write-tests-without_skill (leave empty if fine)" data-run="limiter-write-tests-without_skill"></textarea>
+<h2>config-test-review</h2>
+<h3>with skill — Fable <span class="grade">grades: 7/8 → 7/9</span></h3>
+<details class="assert"><summary class="fail">✗ At least one runnable Example exists; a package-level Example() not tied to any symbol is acceptable and well-</summary><div class="evidence">grep -c &#x27;^func Example&#x27; config_test.go = 0; no Example function exists anywhere in the module.</div></details>
+<details class="assert"><summary class="fail">✗ REVIEW DEPTH: the reviewer flags (in code or in its report) that Load&#x27;s errors are only string-inspectable (&#x27;l</summary><div class="evidence">grep -rniE &#x27;sentinel|typed|errors\.&#x27; outputs/ finds no such flag; config.go:24-26 merely documents the &#x27;line N: ...&#x27; string form without recommending typed/sentinel errors, and no report file was saved.</div></details>
+<details class="file" open><summary><code>config_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/config_test.go</span>
+<span class="meta">+++ it2/config_test.go</span>
+<span class="hunk">@@ -1,107 +1,79 @@</span>
+<span class="del">-package config_test</span>
+<span class="add">+package config</span>
+<span class="ctx"> </span>
+<span class="ctx"> import (</span>
+<span class="del">-	&quot;fmt&quot;</span>
+<span class="del">-	&quot;log&quot;</span>
+<span class="ctx"> 	&quot;slices&quot;</span>
+<span class="ctx"> 	&quot;strings&quot;</span>
+<span class="ctx"> 	&quot;testing&quot;</span>
+<span class="ctx"> 	&quot;time&quot;</span>
+<span class="del">-</span>
+<span class="del">-	&quot;example.invalid/config&quot;</span>
+<span class="ctx"> )</span>
+<span class="ctx"> </span>
+<span class="del">-// sample exercises every documented line form: key/value pairs, a</span>
+<span class="del">-// blank line, a comment, and whitespace around keys and values.</span>
+<span class="add">+// sample exercises the documented file syntax in one place: blank</span>
+<span class="add">+// lines, a comment line, and whitespace around keys and values.</span>
+<span class="ctx"> const sample = `</span>
+<span class="del">-name = app</span>
+<span class="add">+# server settings</span>
+<span class="add">+name  =  app</span>
+<span class="ctx"> port = 8080</span>
+<span class="ctx"> timeout = 2s</span>
+<span class="del">-# retries controls how often we try again</span>
+<span class="del">-retries = 3</span>
+<span class="add">+retries = soon</span>
+<span class="ctx"> `</span>
+<span class="ctx"> </span>
+<span class="del">-// A loaded Config answers every typed lookup from one parse. String,</span>
+<span class="del">-// Int, and Duration return the parsed value for a known key. Unknown</span>
+<span class="del">-// keys and values that do not parse fall back to the caller&#x27;s default.</span>
+<span class="del">-// Keys lists the configured keys in sorted order.</span>
+<span class="del">-func TestLoadAndLookups(t *testing.T) {</span>
+<span class="del">-	cfg, err := config.Load(strings.NewReader(sample))</span>
+<span class="add">+// A whole-package scenario: load sample, then read it back through</span>
+<span class="add">+// every exported lookup, covering the documented fallbacks for both</span>
+<span class="add">+// unknown keys and values that do not parse.</span>
+<span class="add">+func TestConfig(t *testing.T) {</span>
+<span class="add">+	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="ctx"> 	if err != nil {</span>
+<span class="ctx"> 		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.String(&quot;name&quot;, &quot;fallback&quot;), &quot;app&quot;; got != want {</span>
+<span class="del">-		t.Errorf(`String(&quot;name&quot;) = %q, want %q`, got, want)</span>
+<span class="add">+</span>
+<span class="add">+	if got := cfg.String(&quot;name&quot;, &quot;fallback&quot;); got != &quot;app&quot; {</span>
+<span class="add">+		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, &quot;app&quot;)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.String(&quot;missing&quot;, &quot;fallback&quot;), &quot;fallback&quot;; got != want {</span>
+<span class="del">-		t.Errorf(`String(&quot;missing&quot;) = %q, want %q`, got, want)</span>
+<span class="add">+	if got := cfg.String(&quot;missing&quot;, &quot;fallback&quot;); got != &quot;fallback&quot; {</span>
+<span class="add">+		t.Errorf(&quot;String(missing) = %q, want %q&quot;, got, &quot;fallback&quot;)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.Int(&quot;port&quot;, 0), 8080; got != want {</span>
+<span class="del">-		t.Errorf(`Int(&quot;port&quot;) = %d, want %d`, got, want)</span>
+<span class="add">+</span>
+<span class="add">+	if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {</span>
+<span class="add">+		t.Errorf(&quot;Int(port) = %d, want %d&quot;, got, 8080)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.Int(&quot;missing&quot;, 42), 42; got != want {</span>
+<span class="del">-		t.Errorf(`Int(&quot;missing&quot;) = %d, want %d`, got, want)</span>
+<span class="add">+	if got := cfg.Int(&quot;missing&quot;, 42); got != 42 {</span>
+<span class="add">+		t.Errorf(&quot;Int(missing) = %d, want %d&quot;, got, 42)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.Int(&quot;name&quot;, 42), 42; got != want {</span>
+<span class="del">-		t.Errorf(`Int(&quot;name&quot;) = %d, want default %d for unparsable value`, got, want)</span>
+<span class="add">+	if got := cfg.Int(&quot;retries&quot;, 42); got != 42 {</span>
+<span class="add">+		t.Errorf(&quot;Int(retries) = %d, want fallback %d for an unparsable value&quot;, got, 42)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.Duration(&quot;timeout&quot;, 0), 2*time.Second; got != want {</span>
+<span class="del">-		t.Errorf(`Duration(&quot;timeout&quot;) = %v, want %v`, got, want)</span>
+<span class="add">+</span>
+<span class="add">+	if got := cfg.Duration(&quot;timeout&quot;, 0); got != 2*time.Second {</span>
+<span class="add">+		t.Errorf(&quot;Duration(timeout) = %v, want %v&quot;, got, 2*time.Second)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.Duration(&quot;missing&quot;, time.Second), time.Second; got != want {</span>
+<span class="del">-		t.Errorf(`Duration(&quot;missing&quot;) = %v, want %v`, got, want)</span>
+<span class="add">+	if got := cfg.Duration(&quot;missing&quot;, time.Second); got != time.Second {</span>
+<span class="add">+		t.Errorf(&quot;Duration(missing) = %v, want %v&quot;, got, time.Second)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.Duration(&quot;port&quot;, time.Second), time.Second; got != want {</span>
+<span class="del">-		t.Errorf(`Duration(&quot;port&quot;) = %v, want default %v for unparsable value`, got, want)</span>
+<span class="add">+	if got := cfg.Duration(&quot;name&quot;, time.Second); got != time.Second {</span>
+<span class="add">+		t.Errorf(&quot;Duration(name) = %v, want fallback %v for an unparsable value&quot;, got, time.Second)</span>
+<span class="ctx"> 	}</span>
+<span class="add">+</span>
+<span class="ctx"> 	want := []string{&quot;name&quot;, &quot;port&quot;, &quot;retries&quot;, &quot;timeout&quot;}</span>
+<span class="ctx"> 	if got := cfg.Keys(); !slices.Equal(got, want) {</span>
+<span class="ctx"> 		t.Errorf(&quot;Keys() = %v, want %v&quot;, got, want)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Load rejects a line that is neither blank, a comment, nor a</span>
+<span class="del">-// &quot;key = value&quot; pair with an error positioned as &quot;line N: ...&quot;.</span>
+<span class="del">-// Blank and comment lines still count toward the position.</span>
+<span class="del">-func TestLoadErrors(t *testing.T) {</span>
+<span class="del">-	tests := []struct {</span>
+<span class="del">-		name   string</span>
+<span class="del">-		input  string</span>
+<span class="del">-		prefix string</span>
+<span class="del">-	}{</span>
+<span class="del">-		{&quot;missing equals&quot;, &quot;name = app\nbroken\n&quot;, &quot;line 2:&quot;},</span>
+<span class="del">-		{&quot;empty key&quot;, &quot;= value\n&quot;, &quot;line 1:&quot;},</span>
+<span class="del">-		{&quot;position counts blanks and comments&quot;, &quot;# comment\n\nbroken\n&quot;, &quot;line 3:&quot;},</span>
+<span class="add">+// Lines that are neither blank, comments, nor &quot;key = value&quot; pairs</span>
+<span class="add">+// make Load fail rather than return a partial Config.</span>
+<span class="add">+func TestMalformedLines(t *testing.T) {</span>
+<span class="add">+	for _, bad := range []string{</span>
+<span class="add">+		&quot;no equals sign&quot;,</span>
+<span class="add">+		&quot;= value without a key&quot;,</span>
+<span class="add">+	} {</span>
+<span class="add">+		if cfg, err := Load(strings.NewReader(bad)); err == nil {</span>
+<span class="add">+			t.Errorf(&quot;Load(%q) = %v, want error&quot;, bad, cfg)</span>
+<span class="add">+		}</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	for _, tt := range tests {</span>
+<span class="del">-		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="del">-			_, err := config.Load(strings.NewReader(tt.input))</span>
+<span class="del">-			if err == nil {</span>
+<span class="del">-				t.Fatalf(&quot;Load(%q) succeeded, want error&quot;, tt.input)</span>
+<span class="del">-			}</span>
+<span class="del">-			if !strings.HasPrefix(err.Error(), tt.prefix) {</span>
+<span class="del">-				t.Errorf(&quot;Load(%q) error = %q, want %q prefix&quot;, tt.input, err, tt.prefix)</span>
+<span class="del">-			}</span>
+<span class="del">-		})</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-func ExampleLoad() {</span>
+<span class="del">-	cfg, err := config.Load(strings.NewReader(&quot;port = 8080\ntimeout = 2s\n&quot;))</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		log.Fatal(err)</span>
+<span class="del">-	}</span>
+<span class="del">-	fmt.Println(cfg.Int(&quot;port&quot;, 0))</span>
+<span class="del">-	fmt.Println(cfg.Duration(&quot;timeout&quot;, time.Second))</span>
+<span class="del">-	// Output:</span>
+<span class="del">-	// 8080</span>
+<span class="del">-	// 2s</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="ctx"> func BenchmarkLoad(b *testing.B) {</span>
+<span class="ctx"> 	for b.Loop() {</span>
+<span class="del">-		if _, err := config.Load(strings.NewReader(sample)); err != nil {</span>
+<span class="del">-			b.Fatal(err)</span>
+<span class="del">-		}</span>
+<span class="add">+		Load(strings.NewReader(sample))</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span></pre></details>
+<textarea placeholder="feedback for config-test-review-with_skill (leave empty if fine)" data-run="config-test-review-with_skill"></textarea>
+<h3>with skill — Opus <span class="grade">grades: 7/8 → 9/9</span></h3>
+<div class="evidence">all assertions passed</div>
+<details class="file" open><summary><code>config.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/config.go</span>
+<span class="meta">+++ it2/config.go</span>
+<span class="hunk">@@ -21,9 +21,21 @@</span>
+<span class="ctx"> 	values map[string]string</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="add">+// A SyntaxError reports a malformed line encountered by Load. Line is the</span>
+<span class="add">+// 1-based number of the offending line. Its Error message has the positioned</span>
+<span class="add">+// form &quot;line N: ...&quot;.</span>
+<span class="add">+type SyntaxError struct {</span>
+<span class="add">+	Line int</span>
+<span class="add">+	msg  string</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func (e *SyntaxError) Error() string {</span>
+<span class="add">+	return fmt.Sprintf(&quot;line %d: %s&quot;, e.Line, e.msg)</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="ctx"> // Load reads key/value pairs from r. A line that is neither blank, a</span>
+<span class="del">-// comment, nor a &quot;key = value&quot; pair produces a positioned error of the</span>
+<span class="del">-// form &quot;line N: ...&quot;.</span>
+<span class="add">+// comment, nor a &quot;key = value&quot; pair is reported as a *SyntaxError whose</span>
+<span class="add">+// message has the positioned form &quot;line N: ...&quot;.</span>
+<span class="ctx"> func Load(r io.Reader) (*Config, error) {</span>
+<span class="ctx"> 	c := &amp;Config{values: make(map[string]string)}</span>
+<span class="ctx"> 	scanner := bufio.NewScanner(r)</span>
+<span class="hunk">@@ -36,11 +48,11 @@</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 		key, value, ok := strings.Cut(line, &quot;=&quot;)</span>
+<span class="ctx"> 		if !ok {</span>
+<span class="del">-			return nil, fmt.Errorf(&quot;line %d: missing &#x27;=&#x27; in %q&quot;, n, line)</span>
+<span class="add">+			return nil, &amp;SyntaxError{Line: n, msg: fmt.Sprintf(&quot;missing &#x27;=&#x27; in %q&quot;, line)}</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 		key = strings.TrimSpace(key)</span>
+<span class="ctx"> 		if key == &quot;&quot; {</span>
+<span class="del">-			return nil, fmt.Errorf(&quot;line %d: empty key&quot;, n)</span>
+<span class="add">+			return nil, &amp;SyntaxError{Line: n, msg: &quot;empty key&quot;}</span>
+<span class="ctx"> 		}</span>
+<span class="ctx"> 		c.values[key] = strings.TrimSpace(value)</span>
+<span class="ctx"> 	}</span></pre></details>
+<details class="file" open><summary><code>config_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/config_test.go</span>
+<span class="meta">+++ it2/config_test.go</span>
+<span class="hunk">@@ -1,16 +1,13 @@</span>
+<span class="del">-// The tests live in config_test so they exercise the package exactly as</span>
+<span class="del">-// its users do: through the exported API, never the unexported value map.</span>
+<span class="del">-package config_test</span>
+<span class="add">+package config</span>
+<span class="ctx"> </span>
+<span class="ctx"> import (</span>
+<span class="add">+	&quot;errors&quot;</span>
+<span class="ctx"> 	&quot;fmt&quot;</span>
+<span class="ctx"> 	&quot;log&quot;</span>
+<span class="ctx"> 	&quot;slices&quot;</span>
+<span class="ctx"> 	&quot;strings&quot;</span>
+<span class="ctx"> 	&quot;testing&quot;</span>
+<span class="ctx"> 	&quot;time&quot;</span>
+<span class="del">-</span>
+<span class="del">-	&quot;example.invalid/config&quot;</span>
+<span class="ctx"> )</span>
+<span class="ctx"> </span>
+<span class="ctx"> const sample = `</span>
+<span class="hunk">@@ -21,99 +18,88 @@</span>
+<span class="ctx"> retries = 3</span>
+<span class="ctx"> `</span>
+<span class="ctx"> </span>
+<span class="del">-// Loading the documented sample and reading it back covers the whole</span>
+<span class="del">-// happy path in one pass: comment and blank lines are dropped, surrounding</span>
+<span class="del">-// whitespace is trimmed, and each typed accessor returns either the stored</span>
+<span class="del">-// value or the caller&#x27;s default for an unknown key.</span>
+<span class="del">-func TestLoadAndLookup(t *testing.T) {</span>
+<span class="del">-	cfg, err := config.Load(strings.NewReader(sample))</span>
+<span class="add">+func Example() {</span>
+<span class="add">+	cfg, err := Load(strings.NewReader(&quot;name = app\nport = 8080\ntimeout = 2s\n&quot;))</span>
+<span class="ctx"> 	if err != nil {</span>
+<span class="del">-		t.Fatalf(&quot;Load(sample): %v&quot;, err)</span>
+<span class="add">+		log.Fatal(err)</span>
+<span class="add">+	}</span>
+<span class="add">+	fmt.Println(cfg.String(&quot;name&quot;, &quot;default&quot;))</span>
+<span class="add">+	fmt.Println(cfg.Int(&quot;port&quot;, 80))</span>
+<span class="add">+	fmt.Println(cfg.Duration(&quot;timeout&quot;, time.Second))</span>
+<span class="add">+	fmt.Println(cfg.Keys())</span>
+<span class="add">+	// Output:</span>
+<span class="add">+	// app</span>
+<span class="add">+	// 8080</span>
+<span class="add">+	// 2s</span>
+<span class="add">+	// [name port timeout]</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+func TestConfig(t *testing.T) {</span>
+<span class="add">+	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> </span>
+<span class="del">-	if got, want := cfg.String(&quot;name&quot;, &quot;fallback&quot;), &quot;app&quot;; got != want {</span>
+<span class="del">-		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, want)</span>
+<span class="add">+	if got := cfg.String(&quot;name&quot;, &quot;fallback&quot;); got != &quot;app&quot; {</span>
+<span class="add">+		t.Errorf(&quot;String(\&quot;name\&quot;) = %q, want %q&quot;, got, &quot;app&quot;)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.String(&quot;missing&quot;, &quot;fallback&quot;), &quot;fallback&quot;; got != want {</span>
+<span class="del">-		t.Errorf(&quot;String(missing) = %q, want %q&quot;, got, want)</span>
+<span class="add">+	if got := cfg.String(&quot;missing&quot;, &quot;fallback&quot;); got != &quot;fallback&quot; {</span>
+<span class="add">+		t.Errorf(&quot;String(\&quot;missing\&quot;) = %q, want %q&quot;, got, &quot;fallback&quot;)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> </span>
+<span class="del">-	if got, want := cfg.Int(&quot;port&quot;, 0), 8080; got != want {</span>
+<span class="del">-		t.Errorf(&quot;Int(port) = %d, want %d&quot;, got, want)</span>
+<span class="add">+	if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {</span>
+<span class="add">+		t.Errorf(&quot;Int(\&quot;port\&quot;) = %d, want %d&quot;, got, 8080)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.Int(&quot;missing&quot;, 42), 42; got != want {</span>
+<span class="del">-		t.Errorf(&quot;Int(missing) = %d, want %d&quot;, got, want)</span>
+<span class="add">+	if got := cfg.Int(&quot;missing&quot;, 42); got != 42 {</span>
+<span class="add">+		t.Errorf(&quot;Int(\&quot;missing\&quot;) = %d, want %d&quot;, got, 42)</span>
+<span class="add">+	}</span>
+<span class="add">+	// &quot;app&quot; is not an integer, so an unparsable value falls back to def.</span>
+<span class="add">+	if got := cfg.Int(&quot;name&quot;, 7); got != 7 {</span>
+<span class="add">+		t.Errorf(&quot;Int(\&quot;name\&quot;) = %d, want %d&quot;, got, 7)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> </span>
+<span class="del">-	if got, want := cfg.Duration(&quot;timeout&quot;, 0), 2*time.Second; got != want {</span>
+<span class="del">-		t.Errorf(&quot;Duration(timeout) = %v, want %v&quot;, got, want)</span>
+<span class="add">+	if got := cfg.Duration(&quot;timeout&quot;, 0); got != 2*time.Second {</span>
+<span class="add">+		t.Errorf(&quot;Duration(\&quot;timeout\&quot;) = %v, want %v&quot;, got, 2*time.Second)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.Duration(&quot;missing&quot;, time.Second), time.Second; got != want {</span>
+<span class="del">-		t.Errorf(&quot;Duration(missing) = %v, want %v&quot;, got, want)</span>
+<span class="add">+	if got := cfg.Duration(&quot;missing&quot;, time.Second); got != time.Second {</span>
+<span class="add">+		t.Errorf(&quot;Duration(\&quot;missing\&quot;) = %v, want %v&quot;, got, time.Second)</span>
+<span class="add">+	}</span>
+<span class="add">+	// &quot;app&quot; is not a duration, so an unparsable value falls back to def.</span>
+<span class="add">+	if got := cfg.Duration(&quot;name&quot;, time.Minute); got != time.Minute {</span>
+<span class="add">+		t.Errorf(&quot;Duration(\&quot;name\&quot;) = %v, want %v&quot;, got, time.Minute)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> </span>
+<span class="add">+	// Comments and blank lines contribute no keys; the rest are sorted.</span>
+<span class="ctx"> 	want := []string{&quot;name&quot;, &quot;port&quot;, &quot;retries&quot;, &quot;timeout&quot;}</span>
+<span class="ctx"> 	if got := cfg.Keys(); !slices.Equal(got, want) {</span>
+<span class="ctx"> 		t.Errorf(&quot;Keys() = %v, want %v&quot;, got, want)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Int and Duration promise to fall back to the default when the stored</span>
+<span class="del">-// value is present but does not parse, distinct from an absent key.</span>
+<span class="del">-func TestTypedLookupRejectsUnparsableValues(t *testing.T) {</span>
+<span class="del">-	cfg, err := config.Load(strings.NewReader(&quot;port = wat\ntimeout = later\n&quot;))</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="add">+// A malformed line is reported as a *SyntaxError carrying its 1-based line.</span>
+<span class="add">+func TestMalformedLines(t *testing.T) {</span>
+<span class="add">+	for _, tt := range []struct {</span>
+<span class="add">+		input string</span>
+<span class="add">+		line  int</span>
+<span class="add">+	}{</span>
+<span class="add">+		{&quot;good = 1\nbad line\n&quot;, 2},</span>
+<span class="add">+		{&quot;= value\n&quot;, 1},</span>
+<span class="add">+		{&quot;name = app\n\t= oops\n&quot;, 2},</span>
+<span class="add">+	} {</span>
+<span class="add">+		_, err := Load(strings.NewReader(tt.input))</span>
+<span class="add">+		var se *SyntaxError</span>
+<span class="add">+		if !errors.As(err, &amp;se) {</span>
+<span class="add">+			t.Errorf(&quot;Load(%q) error = %v, want *SyntaxError&quot;, tt.input, err)</span>
+<span class="add">+			continue</span>
+<span class="add">+		}</span>
+<span class="add">+		if se.Line != tt.line {</span>
+<span class="add">+			t.Errorf(&quot;Load(%q) reported line %d, want %d&quot;, tt.input, se.Line, tt.line)</span>
+<span class="add">+		}</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := cfg.Int(&quot;port&quot;, 42), 42; got != want {</span>
+<span class="del">-		t.Errorf(&quot;Int(port=wat) = %d, want %d&quot;, got, want)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got, want := cfg.Duration(&quot;timeout&quot;, time.Second), time.Second; got != want {</span>
+<span class="del">-		t.Errorf(&quot;Duration(timeout=later) = %v, want %v&quot;, got, want)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// A line that is neither blank, a comment, nor a key = value pair aborts</span>
+<span class="del">-// Load with a positioned &quot;line N: ...&quot; error carrying the offending line.</span>
+<span class="del">-func TestLoadReportsPositionedErrors(t *testing.T) {</span>
+<span class="del">-	tests := []struct {</span>
+<span class="del">-		name    string</span>
+<span class="del">-		input   string</span>
+<span class="del">-		wantSub string</span>
+<span class="del">-	}{</span>
+<span class="del">-		{&quot;missing equals&quot;, &quot;name = app\nbroken\n&quot;, &quot;line 2:&quot;},</span>
+<span class="del">-		{&quot;empty key&quot;, &quot;= value\n&quot;, &quot;line 1:&quot;},</span>
+<span class="del">-	}</span>
+<span class="del">-	for _, tt := range tests {</span>
+<span class="del">-		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="del">-			_, err := config.Load(strings.NewReader(tt.input))</span>
+<span class="del">-			if err == nil {</span>
+<span class="del">-				t.Fatalf(&quot;Load(%q) = nil error, want one containing %q&quot;, tt.input, tt.wantSub)</span>
+<span class="del">-			}</span>
+<span class="del">-			if got := err.Error(); !strings.Contains(got, tt.wantSub) {</span>
+<span class="del">-				t.Errorf(&quot;Load(%q) error = %q, want it to contain %q&quot;, tt.input, got, tt.wantSub)</span>
+<span class="del">-			}</span>
+<span class="del">-		})</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// A runnable example doubles as the package&#x27;s usage documentation.</span>
+<span class="del">-func Example() {</span>
+<span class="del">-	cfg, err := config.Load(strings.NewReader(&quot;name = app\nport = 8080\n&quot;))</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		log.Fatal(err)</span>
+<span class="del">-	}</span>
+<span class="del">-	fmt.Println(cfg.String(&quot;name&quot;, &quot;default&quot;))</span>
+<span class="del">-	fmt.Println(cfg.Int(&quot;port&quot;, 80))</span>
+<span class="del">-	// Output:</span>
+<span class="del">-	// app</span>
+<span class="del">-	// 8080</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="ctx"> func BenchmarkLoad(b *testing.B) {</span>
+<span class="ctx"> 	for b.Loop() {</span>
+<span class="del">-		if _, err := config.Load(strings.NewReader(sample)); err != nil {</span>
+<span class="del">-			b.Fatal(err)</span>
+<span class="del">-		}</span>
+<span class="add">+		Load(strings.NewReader(sample))</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span></pre></details>
+<textarea placeholder="feedback for config-test-review-with_skill_opus (leave empty if fine)" data-run="config-test-review-with_skill_opus"></textarea>
+<h3>with skill — Sonnet <span class="grade">grades: 3/8 → 7/9</span></h3>
+<details class="assert"><summary class="fail">✗ At least one runnable Example exists; a package-level Example() not tied to any symbol is acceptable and well-</summary><div class="evidence">grep -rn &#x27;func Example&#x27; outputs/ returns no matches; the test file defines no Example functions at all</div></details>
+<details class="assert"><summary class="fail">✗ REVIEW DEPTH: the reviewer flags (in code or in its report) that Load&#x27;s errors are only string-inspectable (&#x27;l</summary><div class="evidence">grep -rniE &#x27;sentinel|typed error|errors\.(Is|As)|string-inspect&#x27; outputs/ returns no matches, and no report/transcript file exists in with_skill_sonnet/ (only timing.json and outputs/); config.go:25-26 merely documents the &#x27;line N: ...&#x27; format without flagging it</div></details>
+<details class="file"><summary><code>config.go</code> <em class="deleted">deleted</em></summary><pre><span class="meta">--- it1/config.go</span>
+<span class="meta">+++ it2/config.go</span>
+<span class="hunk">@@ -1,97 +0,0 @@</span>
+<span class="del">-// Package config loads simple key/value configuration files.</span>
+<span class="del">-//</span>
+<span class="del">-// A configuration file holds one &quot;key = value&quot; pair per line. Blank</span>
+<span class="del">-// lines and lines beginning with &#x27;#&#x27; are ignored. Whitespace around</span>
+<span class="del">-// keys and values is trimmed.</span>
+<span class="del">-package config</span>
+<span class="del">-</span>
+<span class="del">-import (</span>
+<span class="del">-	&quot;bufio&quot;</span>
+<span class="del">-	&quot;fmt&quot;</span>
+<span class="del">-	&quot;io&quot;</span>
+<span class="del">-	&quot;slices&quot;</span>
+<span class="del">-	&quot;strconv&quot;</span>
+<span class="del">-	&quot;strings&quot;</span>
+<span class="del">-	&quot;time&quot;</span>
+<span class="del">-)</span>
+<span class="del">-</span>
+<span class="del">-// Config holds the key/value pairs read from a configuration file.</span>
+<span class="del">-// Lookups for unknown keys fall back to caller-supplied defaults.</span>
+<span class="del">-type Config struct {</span>
+<span class="del">-	values map[string]string</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Load reads key/value pairs from r. A line that is neither blank, a</span>
+<span class="del">-// comment, nor a &quot;key = value&quot; pair produces a positioned error of the</span>
+<span class="del">-// form &quot;line N: ...&quot;.</span>
+<span class="del">-func Load(r io.Reader) (*Config, error) {</span>
+<span class="del">-	c := &amp;Config{values: make(map[string]string)}</span>
+<span class="del">-	scanner := bufio.NewScanner(r)</span>
+<span class="del">-	n := 0</span>
+<span class="del">-	for scanner.Scan() {</span>
+<span class="del">-		n++</span>
+<span class="del">-		line := strings.TrimSpace(scanner.Text())</span>
+<span class="del">-		if line == &quot;&quot; || strings.HasPrefix(line, &quot;#&quot;) {</span>
+<span class="del">-			continue</span>
+<span class="del">-		}</span>
+<span class="del">-		key, value, ok := strings.Cut(line, &quot;=&quot;)</span>
+<span class="del">-		if !ok {</span>
+<span class="del">-			return nil, fmt.Errorf(&quot;line %d: missing &#x27;=&#x27; in %q&quot;, n, line)</span>
+<span class="del">-		}</span>
+<span class="del">-		key = strings.TrimSpace(key)</span>
+<span class="del">-		if key == &quot;&quot; {</span>
+<span class="del">-			return nil, fmt.Errorf(&quot;line %d: empty key&quot;, n)</span>
+<span class="del">-		}</span>
+<span class="del">-		c.values[key] = strings.TrimSpace(value)</span>
+<span class="del">-	}</span>
+<span class="del">-	if err := scanner.Err(); err != nil {</span>
+<span class="del">-		return nil, err</span>
+<span class="del">-	}</span>
+<span class="del">-	return c, nil</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// String returns the value for key. An unknown key falls back to def.</span>
+<span class="del">-func (c *Config) String(key, def string) string {</span>
+<span class="del">-	if v, ok := c.values[key]; ok {</span>
+<span class="del">-		return v</span>
+<span class="del">-	}</span>
+<span class="del">-	return def</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Int returns the value for key parsed as a decimal integer. An</span>
+<span class="del">-// unknown key, or a value that does not parse, falls back to def.</span>
+<span class="del">-func (c *Config) Int(key string, def int) int {</span>
+<span class="del">-	v, ok := c.values[key]</span>
+<span class="del">-	if !ok {</span>
+<span class="del">-		return def</span>
+<span class="del">-	}</span>
+<span class="del">-	i, err := strconv.Atoi(v)</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		return def</span>
+<span class="del">-	}</span>
+<span class="del">-	return i</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Duration returns the value for key parsed with time.ParseDuration.</span>
+<span class="del">-// An unknown key, or a value that does not parse, falls back to def.</span>
+<span class="del">-func (c *Config) Duration(key string, def time.Duration) time.Duration {</span>
+<span class="del">-	v, ok := c.values[key]</span>
+<span class="del">-	if !ok {</span>
+<span class="del">-		return def</span>
+<span class="del">-	}</span>
+<span class="del">-	d, err := time.ParseDuration(v)</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		return def</span>
+<span class="del">-	}</span>
+<span class="del">-	return d</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// Keys returns every configured key in sorted order.</span>
+<span class="del">-func (c *Config) Keys() []string {</span>
+<span class="del">-	keys := make([]string, 0, len(c.values))</span>
+<span class="del">-	for k := range c.values {</span>
+<span class="del">-		keys = append(keys, k)</span>
+<span class="del">-	}</span>
+<span class="del">-	slices.Sort(keys)</span>
+<span class="del">-	return keys</span>
+<span class="del">-}</span></pre></details>
+<details class="file" open><summary><code>config/config.go</code> <em class="added">added</em></summary><pre><span class="meta">--- it1/config/config.go</span>
+<span class="meta">+++ it2/config/config.go</span>
+<span class="hunk">@@ -0,0 +1,97 @@</span>
+<span class="add">+// Package config loads simple key/value configuration files.</span>
+<span class="add">+//</span>
+<span class="add">+// A configuration file holds one &quot;key = value&quot; pair per line. Blank</span>
+<span class="add">+// lines and lines beginning with &#x27;#&#x27; are ignored. Whitespace around</span>
+<span class="add">+// keys and values is trimmed.</span>
+<span class="add">+package config</span>
+<span class="add">+</span>
+<span class="add">+import (</span>
+<span class="add">+	&quot;bufio&quot;</span>
+<span class="add">+	&quot;fmt&quot;</span>
+<span class="add">+	&quot;io&quot;</span>
+<span class="add">+	&quot;slices&quot;</span>
+<span class="add">+	&quot;strconv&quot;</span>
+<span class="add">+	&quot;strings&quot;</span>
+<span class="add">+	&quot;time&quot;</span>
+<span class="add">+)</span>
+<span class="add">+</span>
+<span class="add">+// Config holds the key/value pairs read from a configuration file.</span>
+<span class="add">+// Lookups for unknown keys fall back to caller-supplied defaults.</span>
+<span class="add">+type Config struct {</span>
+<span class="add">+	values map[string]string</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// Load reads key/value pairs from r. A line that is neither blank, a</span>
+<span class="add">+// comment, nor a &quot;key = value&quot; pair produces a positioned error of the</span>
+<span class="add">+// form &quot;line N: ...&quot;.</span>
+<span class="add">+func Load(r io.Reader) (*Config, error) {</span>
+<span class="add">+	c := &amp;Config{values: make(map[string]string)}</span>
+<span class="add">+	scanner := bufio.NewScanner(r)</span>
+<span class="add">+	n := 0</span>
+<span class="add">+	for scanner.Scan() {</span>
+<span class="add">+		n++</span>
+<span class="add">+		line := strings.TrimSpace(scanner.Text())</span>
+<span class="add">+		if line == &quot;&quot; || strings.HasPrefix(line, &quot;#&quot;) {</span>
+<span class="add">+			continue</span>
+<span class="add">+		}</span>
+<span class="add">+		key, value, ok := strings.Cut(line, &quot;=&quot;)</span>
+<span class="add">+		if !ok {</span>
+<span class="add">+			return nil, fmt.Errorf(&quot;line %d: missing &#x27;=&#x27; in %q&quot;, n, line)</span>
+<span class="add">+		}</span>
+<span class="add">+		key = strings.TrimSpace(key)</span>
+<span class="add">+		if key == &quot;&quot; {</span>
+<span class="add">+			return nil, fmt.Errorf(&quot;line %d: empty key&quot;, n)</span>
+<span class="add">+		}</span>
+<span class="add">+		c.values[key] = strings.TrimSpace(value)</span>
+<span class="add">+	}</span>
+<span class="add">+	if err := scanner.Err(); err != nil {</span>
+<span class="add">+		return nil, err</span>
+<span class="add">+	}</span>
+<span class="add">+	return c, nil</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// String returns the value for key. An unknown key falls back to def.</span>
+<span class="add">+func (c *Config) String(key, def string) string {</span>
+<span class="add">+	if v, ok := c.values[key]; ok {</span>
+<span class="add">+		return v</span>
+<span class="add">+	}</span>
+<span class="add">+	return def</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// Int returns the value for key parsed as a decimal integer. An</span>
+<span class="add">+// unknown key, or a value that does not parse, falls back to def.</span>
+<span class="add">+func (c *Config) Int(key string, def int) int {</span>
+<span class="add">+	v, ok := c.values[key]</span>
+<span class="add">+	if !ok {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	i, err := strconv.Atoi(v)</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	return i</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// Duration returns the value for key parsed with time.ParseDuration.</span>
+<span class="add">+// An unknown key, or a value that does not parse, falls back to def.</span>
+<span class="add">+func (c *Config) Duration(key string, def time.Duration) time.Duration {</span>
+<span class="add">+	v, ok := c.values[key]</span>
+<span class="add">+	if !ok {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	d, err := time.ParseDuration(v)</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	return d</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// Keys returns every configured key in sorted order.</span>
+<span class="add">+func (c *Config) Keys() []string {</span>
+<span class="add">+	keys := make([]string, 0, len(c.values))</span>
+<span class="add">+	for k := range c.values {</span>
+<span class="add">+		keys = append(keys, k)</span>
+<span class="add">+	}</span>
+<span class="add">+	slices.Sort(keys)</span>
+<span class="add">+	return keys</span>
+<span class="add">+}</span></pre></details>
+<details class="file" open><summary><code>config/config_test.go</code> <em class="added">added</em></summary><pre><span class="meta">--- it1/config/config_test.go</span>
+<span class="meta">+++ it2/config/config_test.go</span>
+<span class="hunk">@@ -0,0 +1,83 @@</span>
+<span class="add">+package config_test</span>
+<span class="add">+</span>
+<span class="add">+import (</span>
+<span class="add">+	&quot;slices&quot;</span>
+<span class="add">+	&quot;strings&quot;</span>
+<span class="add">+	&quot;testing&quot;</span>
+<span class="add">+	&quot;time&quot;</span>
+<span class="add">+</span>
+<span class="add">+	&quot;example.invalid/config&quot;</span>
+<span class="add">+)</span>
+<span class="add">+</span>
+<span class="add">+const sample = `</span>
+<span class="add">+name = app</span>
+<span class="add">+port = 8080</span>
+<span class="add">+timeout = 2s</span>
+<span class="add">+# retries controls how often we try again</span>
+<span class="add">+retries = 3</span>
+<span class="add">+`</span>
+<span class="add">+</span>
+<span class="add">+// Loading a configuration file makes its accessors return the parsed</span>
+<span class="add">+// values, or fall back to the caller&#x27;s default for a key that is</span>
+<span class="add">+// missing or holds a value the accessor can&#x27;t parse.</span>
+<span class="add">+func TestConfig(t *testing.T) {</span>
+<span class="add">+	cfg, err := config.Load(strings.NewReader(sample))</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="add">+</span>
+<span class="add">+	if got, want := cfg.String(&quot;name&quot;, &quot;fallback&quot;), &quot;app&quot;; got != want {</span>
+<span class="add">+		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, want)</span>
+<span class="add">+	}</span>
+<span class="add">+	if got, want := cfg.String(&quot;missing&quot;, &quot;fallback&quot;), &quot;fallback&quot;; got != want {</span>
+<span class="add">+		t.Errorf(&quot;String(missing) = %q, want %q&quot;, got, want)</span>
+<span class="add">+	}</span>
+<span class="add">+</span>
+<span class="add">+	if got, want := cfg.Int(&quot;port&quot;, 0), 8080; got != want {</span>
+<span class="add">+		t.Errorf(&quot;Int(port) = %d, want %d&quot;, got, want)</span>
+<span class="add">+	}</span>
+<span class="add">+	if got, want := cfg.Int(&quot;missing&quot;, 42), 42; got != want {</span>
+<span class="add">+		t.Errorf(&quot;Int(missing) = %d, want %d&quot;, got, want)</span>
+<span class="add">+	}</span>
+<span class="add">+	if got, want := cfg.Int(&quot;name&quot;, 7), 7; got != want {</span>
+<span class="add">+		t.Errorf(&quot;Int(name) = %d, want %d&quot;, got, want) // &quot;app&quot; doesn&#x27;t parse as an integer</span>
+<span class="add">+	}</span>
+<span class="add">+</span>
+<span class="add">+	if got, want := cfg.Duration(&quot;timeout&quot;, 0), 2*time.Second; got != want {</span>
+<span class="add">+		t.Errorf(&quot;Duration(timeout) = %v, want %v&quot;, got, want)</span>
+<span class="add">+	}</span>
+<span class="add">+	if got, want := cfg.Duration(&quot;missing&quot;, time.Second), time.Second; got != want {</span>
+<span class="add">+		t.Errorf(&quot;Duration(missing) = %v, want %v&quot;, got, want)</span>
+<span class="add">+	}</span>
+<span class="add">+	if got, want := cfg.Duration(&quot;name&quot;, time.Minute), time.Minute; got != want {</span>
+<span class="add">+		t.Errorf(&quot;Duration(name) = %v, want %v&quot;, got, want) // &quot;app&quot; doesn&#x27;t parse as a duration</span>
+<span class="add">+	}</span>
+<span class="add">+</span>
+<span class="add">+	want := []string{&quot;name&quot;, &quot;port&quot;, &quot;retries&quot;, &quot;timeout&quot;}</span>
+<span class="add">+	if got := cfg.Keys(); !slices.Equal(got, want) {</span>
+<span class="add">+		t.Errorf(&quot;Keys() = %v, want %v&quot;, got, want)</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// Load reports an error for a line that is neither blank, a comment,</span>
+<span class="add">+// nor a &quot;key = value&quot; pair.</span>
+<span class="add">+func TestMalformedLines(t *testing.T) {</span>
+<span class="add">+	tests := []string{</span>
+<span class="add">+		&quot;name\n&quot;,             // missing &#x27;=&#x27;</span>
+<span class="add">+		&quot;= value\n&quot;,          // empty key</span>
+<span class="add">+		&quot;key = ok\nbroken\n&quot;, // second line malformed</span>
+<span class="add">+	}</span>
+<span class="add">+	for _, input := range tests {</span>
+<span class="add">+		if _, err := config.Load(strings.NewReader(input)); err == nil {</span>
+<span class="add">+			t.Errorf(&quot;Load(%q) succeeded, want error&quot;, input)</span>
+<span class="add">+		}</span>
+<span class="add">+	}</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// Load repeatedly parses the sample configuration to measure the cost</span>
+<span class="add">+// of the common case: a small, well-formed file.</span>
+<span class="add">+func BenchmarkLoad(b *testing.B) {</span>
+<span class="add">+	for b.Loop() {</span>
+<span class="add">+		config.Load(strings.NewReader(sample))</span>
+<span class="add">+	}</span>
+<span class="add">+}</span></pre></details>
+<details class="file" open><summary><code>config/go.mod</code> <em class="added">added</em></summary><pre><span class="meta">--- it1/config/go.mod</span>
+<span class="meta">+++ it2/config/go.mod</span>
+<span class="hunk">@@ -0,0 +1,3 @@</span>
+<span class="add">+module example.invalid/config</span>
+<span class="add">+</span>
+<span class="add">+go 1.25</span></pre></details>
+<details class="file"><summary><code>config_test.go</code> <em class="deleted">deleted</em></summary><pre><span class="meta">--- it1/config_test.go</span>
+<span class="meta">+++ it2/config_test.go</span>
+<span class="hunk">@@ -1,120 +0,0 @@</span>
+<span class="del">-package config</span>
+<span class="del">-</span>
+<span class="del">-import (</span>
+<span class="del">-	&quot;slices&quot;</span>
+<span class="del">-	&quot;strings&quot;</span>
+<span class="del">-	&quot;testing&quot;</span>
+<span class="del">-	&quot;time&quot;</span>
+<span class="del">-)</span>
+<span class="del">-</span>
+<span class="del">-const sample = `</span>
+<span class="del">-name = app</span>
+<span class="del">-port = 8080</span>
+<span class="del">-timeout = 2s</span>
+<span class="del">-# retries controls how often we try again</span>
+<span class="del">-retries = 3</span>
+<span class="del">-`</span>
+<span class="del">-</span>
+<span class="del">-// TestLoad verifies that Load parses &quot;key = value&quot; lines, skipping</span>
+<span class="del">-// blank lines and comments, and that the result is queryable through</span>
+<span class="del">-// the accessor methods.</span>
+<span class="del">-func TestLoad(t *testing.T) {</span>
+<span class="del">-	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.String(&quot;name&quot;, &quot;&quot;); got != &quot;app&quot; {</span>
+<span class="del">-		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, &quot;app&quot;)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {</span>
+<span class="del">-		t.Errorf(&quot;Int(port) = %d, want %d&quot;, got, 8080)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.Duration(&quot;timeout&quot;, 0); got != 2*time.Second {</span>
+<span class="del">-		t.Errorf(&quot;Duration(timeout) = %v, want %v&quot;, got, 2*time.Second)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// TestLoadRejectsMalformedLines verifies the positioned error that</span>
+<span class="del">-// Load documents for a line that is neither blank, a comment, nor a</span>
+<span class="del">-// &quot;key = value&quot; pair.</span>
+<span class="del">-func TestLoadRejectsMalformedLines(t *testing.T) {</span>
+<span class="del">-	tests := []struct {</span>
+<span class="del">-		name string</span>
+<span class="del">-		in   string</span>
+<span class="del">-	}{</span>
+<span class="del">-		{&quot;missing equals&quot;, &quot;just-a-word\n&quot;},</span>
+<span class="del">-		{&quot;empty key&quot;, &quot; = value\n&quot;},</span>
+<span class="del">-	}</span>
+<span class="del">-	for _, tt := range tests {</span>
+<span class="del">-		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="del">-			_, err := Load(strings.NewReader(tt.in))</span>
+<span class="del">-			if err == nil {</span>
+<span class="del">-				t.Fatal(&quot;Load: want error, got nil&quot;)</span>
+<span class="del">-			}</span>
+<span class="del">-			if got, want := err.Error(), &quot;line 1:&quot;; !strings.HasPrefix(got, want) {</span>
+<span class="del">-				t.Errorf(&quot;Load: err = %q, want prefix %q&quot;, got, want)</span>
+<span class="del">-			}</span>
+<span class="del">-		})</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// TestString verifies that String returns values and defaults.</span>
+<span class="del">-func TestString(t *testing.T) {</span>
+<span class="del">-	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.String(&quot;name&quot;, &quot;fallback&quot;); got != &quot;app&quot; {</span>
+<span class="del">-		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, &quot;app&quot;)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.String(&quot;missing&quot;, &quot;fallback&quot;); got != &quot;fallback&quot; {</span>
+<span class="del">-		t.Errorf(&quot;String(missing) = %q, want %q&quot;, got, &quot;fallback&quot;)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// TestInt verifies that Int parses integer values.</span>
+<span class="del">-func TestInt(t *testing.T) {</span>
+<span class="del">-	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {</span>
+<span class="del">-		t.Errorf(&quot;Int(port) = %d, want %d&quot;, got, 8080)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.Int(&quot;missing&quot;, 42); got != 42 {</span>
+<span class="del">-		t.Errorf(&quot;Int(missing) = %d, want %d&quot;, got, 42)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// TestDuration verifies that Duration parses duration values.</span>
+<span class="del">-func TestDuration(t *testing.T) {</span>
+<span class="del">-	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.Duration(&quot;timeout&quot;, 0); got != 2*time.Second {</span>
+<span class="del">-		t.Errorf(&quot;Duration(timeout) = %v, want %v&quot;, got, 2*time.Second)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.Duration(&quot;missing&quot;, time.Second); got != time.Second {</span>
+<span class="del">-		t.Errorf(&quot;Duration(missing) = %v, want %v&quot;, got, time.Second)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// TestKeys verifies that Keys returns the keys in sorted order.</span>
+<span class="del">-func TestKeys(t *testing.T) {</span>
+<span class="del">-	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="del">-	if err != nil {</span>
+<span class="del">-		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="del">-	}</span>
+<span class="del">-	want := []string{&quot;name&quot;, &quot;port&quot;, &quot;retries&quot;, &quot;timeout&quot;}</span>
+<span class="del">-	if got := cfg.Keys(); !slices.Equal(got, want) {</span>
+<span class="del">-		t.Errorf(&quot;Keys() = %v, want %v&quot;, got, want)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// BenchmarkLoad measures how fast Load parses the sample.</span>
+<span class="del">-func BenchmarkLoad(b *testing.B) {</span>
+<span class="del">-	for i := 0; i &lt; b.N; i++ {</span>
+<span class="del">-		Load(strings.NewReader(sample))</span>
+<span class="del">-	}</span>
+<span class="del">-}</span></pre></details>
+<details class="file"><summary><code>go.mod</code> <em class="deleted">deleted</em></summary><pre><span class="meta">--- it1/go.mod</span>
+<span class="meta">+++ it2/go.mod</span>
+<span class="hunk">@@ -1,3 +0,0 @@</span>
+<span class="del">-module example.invalid/config</span>
+<span class="del">-</span>
+<span class="del">-go 1.25</span></pre></details>
+<textarea placeholder="feedback for config-test-review-with_skill_sonnet (leave empty if fine)" data-run="config-test-review-with_skill_sonnet"></textarea>
+<h3>no skill — Fable <span class="grade">grades: 5/8 → 4/9</span></h3>
+<details class="assert"><summary class="fail">✗ The five per-symbol tests are consolidated into fewer contract scenarios (or runnable Examples) exercising sev</summary><div class="evidence">config_test.go still has one test per symbol (TestLoad, TestString, TestInt, TestDuration, TestKeys); grep -c &#x27;^func Test&#x27; = 7, no consolidation</div></details>
+<details class="assert"><summary class="fail">✗ The sleep-based concurrent-use smoke is DELETED with the reasoning that the package documents no concurrency c</summary><div class="evidence">config_test.go:124-145 keeps TestConcurrentUse rewritten with sync.WaitGroup, still pinning &#x27;safe for concurrent readers&#x27; the package never documents</div></details>
+<details class="assert"><summary class="fail">✗ At least one runnable Example exists; a package-level Example() not tied to any symbol is acceptable and well-</summary><div class="evidence">grep -n &#x27;Example&#x27; config_test.go returns no matches; no Example function exists</div></details>
+<details class="assert"><summary class="fail">✗ No test doc comment opens with its own function name after the fix</summary><div class="evidence">Every test doc comment opens with its own name, e.g. config_test.go:19 &#x27;// TestLoad verifies...&#x27; and config_test.go:62 &#x27;// TestString verifies...&#x27;</div></details>
+<details class="assert"><summary class="fail">✗ REVIEW DEPTH: the reviewer flags (in code or in its report) that Load&#x27;s errors are only string-inspectable (&#x27;l</summary><div class="evidence">No report file exists (only timing.json) and grep &#x27;sentinel|typed|errors.Is|errors.As&#x27; finds nothing; TestLoadErrors (config_test.go:46-56) still string-matches error text unflagged</div></details>
+<details class="file" open><summary><code>config_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/config_test.go</span>
+<span class="meta">+++ it2/config_test.go</span>
+<span class="hunk">@@ -16,64 +16,41 @@</span>
+<span class="ctx"> retries = 3</span>
+<span class="ctx"> `</span>
+<span class="ctx"> </span>
+<span class="del">-// load is a test helper that parses src and fails the test on error.</span>
+<span class="del">-func load(t *testing.T, src string) *Config {</span>
+<span class="del">-	t.Helper()</span>
+<span class="del">-	cfg, err := Load(strings.NewReader(src))</span>
+<span class="add">+// TestLoad verifies that Load parses keys and values from a reader,</span>
+<span class="add">+// trims surrounding whitespace, and skips blank and comment lines.</span>
+<span class="add">+func TestLoad(t *testing.T) {</span>
+<span class="add">+	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="ctx"> 	if err != nil {</span>
+<span class="ctx"> 		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	return cfg</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// TestLoad verifies that Load parses keys and values from a reader,</span>
+<span class="del">-// skipping blank lines and comments and trimming whitespace.</span>
+<span class="del">-func TestLoad(t *testing.T) {</span>
+<span class="del">-	cfg := load(t, sample)</span>
+<span class="del">-	for key, want := range map[string]string{</span>
+<span class="del">-		&quot;name&quot;:    &quot;app&quot;,</span>
+<span class="del">-		&quot;port&quot;:    &quot;8080&quot;,</span>
+<span class="del">-		&quot;timeout&quot;: &quot;2s&quot;,</span>
+<span class="del">-		&quot;retries&quot;: &quot;3&quot;,</span>
+<span class="del">-	} {</span>
+<span class="del">-		if got := cfg.String(key, &quot;&quot;); got != want {</span>
+<span class="del">-			t.Errorf(&quot;String(%q) = %q, want %q&quot;, key, got, want)</span>
+<span class="del">-		}</span>
+<span class="add">+	if got := cfg.String(&quot;name&quot;, &quot;&quot;); got != &quot;app&quot; {</span>
+<span class="add">+		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, &quot;app&quot;)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got, want := len(cfg.Keys()), 4; got != want {</span>
+<span class="del">-		t.Errorf(&quot;len(Keys()) = %d, want %d&quot;, got, want)</span>
+<span class="add">+	if got := cfg.String(&quot;port&quot;, &quot;&quot;); got != &quot;8080&quot; {</span>
+<span class="add">+		t.Errorf(&quot;String(port) = %q, want %q&quot;, got, &quot;8080&quot;)</span>
+<span class="add">+	}</span>
+<span class="add">+	// The comment line must not be parsed as a key.</span>
+<span class="add">+	if got := cfg.String(&quot;# retries controls how often we try again&quot;, &quot;absent&quot;); got != &quot;absent&quot; {</span>
+<span class="add">+		t.Errorf(&quot;comment line was parsed as a key: %q&quot;, got)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// TestLoadTrimsWhitespace verifies that whitespace around keys and</span>
+<span class="del">-// values is trimmed and that values may contain &#x27;=&#x27;.</span>
+<span class="del">-func TestLoadTrimsWhitespace(t *testing.T) {</span>
+<span class="del">-	cfg := load(t, &quot;  spaced   =   v  \nexpr = a=b\n&quot;)</span>
+<span class="del">-	if got := cfg.String(&quot;spaced&quot;, &quot;&quot;); got != &quot;v&quot; {</span>
+<span class="del">-		t.Errorf(&quot;String(spaced) = %q, want %q&quot;, got, &quot;v&quot;)</span>
+<span class="del">-	}</span>
+<span class="del">-	if got := cfg.String(&quot;expr&quot;, &quot;&quot;); got != &quot;a=b&quot; {</span>
+<span class="del">-		t.Errorf(&quot;String(expr) = %q, want %q&quot;, got, &quot;a=b&quot;)</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="del">-// TestLoadErrors verifies that malformed input produces positioned</span>
+<span class="del">-// errors that count blank and comment lines.</span>
+<span class="add">+// TestLoadErrors verifies that malformed input produces an error</span>
+<span class="add">+// positioned at the offending line.</span>
+<span class="ctx"> func TestLoadErrors(t *testing.T) {</span>
+<span class="ctx"> 	tests := []struct {</span>
+<span class="ctx"> 		name    string</span>
+<span class="ctx"> 		input   string</span>
+<span class="ctx"> 		wantErr string</span>
+<span class="ctx"> 	}{</span>
+<span class="del">-		{&quot;missing equals&quot;, &quot;name app\n&quot;, `line 1: missing &#x27;=&#x27; in &quot;name app&quot;`},</span>
+<span class="del">-		{&quot;empty key&quot;, &quot; = value\n&quot;, &quot;line 1: empty key&quot;},</span>
+<span class="del">-		{&quot;positioned after comments&quot;, &quot;# c\n\nbroken\n&quot;, `line 3: missing &#x27;=&#x27; in &quot;broken&quot;`},</span>
+<span class="add">+		{&quot;missing equals&quot;, &quot;name = app\nbroken line\n&quot;, `line 2: missing &#x27;=&#x27; in &quot;broken line&quot;`},</span>
+<span class="add">+		{&quot;empty key&quot;, &quot;= value\n&quot;, &quot;line 1: empty key&quot;},</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> 	for _, tt := range tests {</span>
+<span class="ctx"> 		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="del">-			cfg, err := Load(strings.NewReader(tt.input))</span>
+<span class="add">+			_, err := Load(strings.NewReader(tt.input))</span>
+<span class="ctx"> 			if err == nil {</span>
+<span class="del">-				t.Fatalf(&quot;Load(%q) = %v, want error&quot;, tt.input, cfg)</span>
+<span class="add">+				t.Fatalf(&quot;Load(%q) succeeded, want error&quot;, tt.input)</span>
+<span class="ctx"> 			}</span>
+<span class="ctx"> 			if got := err.Error(); got != tt.wantErr {</span>
+<span class="ctx"> 				t.Errorf(&quot;Load(%q) error = %q, want %q&quot;, tt.input, got, tt.wantErr)</span>
+<span class="hunk">@@ -84,7 +61,10 @@</span>
+<span class="ctx"> </span>
+<span class="ctx"> // TestString verifies that String returns values and defaults.</span>
+<span class="ctx"> func TestString(t *testing.T) {</span>
+<span class="del">-	cfg := load(t, sample)</span>
+<span class="add">+	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="ctx"> 	if got := cfg.String(&quot;name&quot;, &quot;fallback&quot;); got != &quot;app&quot; {</span>
+<span class="ctx"> 		t.Errorf(&quot;String(name) = %q, want %q&quot;, got, &quot;app&quot;)</span>
+<span class="ctx"> 	}</span>
+<span class="hunk">@@ -94,9 +74,12 @@</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="ctx"> // TestInt verifies that Int parses integer values and falls back to</span>
+<span class="del">-// the default for unknown keys and unparseable values.</span>
+<span class="add">+// the default for missing keys and unparseable values.</span>
+<span class="ctx"> func TestInt(t *testing.T) {</span>
+<span class="del">-	cfg := load(t, sample)</span>
+<span class="add">+	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="ctx"> 	if got := cfg.Int(&quot;port&quot;, 0); got != 8080 {</span>
+<span class="ctx"> 		t.Errorf(&quot;Int(port) = %d, want %d&quot;, got, 8080)</span>
+<span class="ctx"> 	}</span>
+<span class="hunk">@@ -109,33 +92,42 @@</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="ctx"> // TestDuration verifies that Duration parses duration values and falls</span>
+<span class="del">-// back to the default for unknown keys and unparseable values.</span>
+<span class="add">+// back to the default for missing keys and unparseable values.</span>
+<span class="ctx"> func TestDuration(t *testing.T) {</span>
+<span class="del">-	cfg := load(t, sample)</span>
+<span class="add">+	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="ctx"> 	if got := cfg.Duration(&quot;timeout&quot;, 0); got != 2*time.Second {</span>
+<span class="ctx"> 		t.Errorf(&quot;Duration(timeout) = %v, want %v&quot;, got, 2*time.Second)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> 	if got := cfg.Duration(&quot;missing&quot;, time.Second); got != time.Second {</span>
+<span class="ctx"> 		t.Errorf(&quot;Duration(missing) = %v, want %v&quot;, got, time.Second)</span>
+<span class="ctx"> 	}</span>
+<span class="del">-	if got := cfg.Duration(&quot;port&quot;, time.Second); got != time.Second {</span>
+<span class="del">-		t.Errorf(&quot;Duration(port) = %v, want fallback %v for unitless value&quot;, got, time.Second)</span>
+<span class="add">+	if got := cfg.Duration(&quot;name&quot;, time.Second); got != time.Second {</span>
+<span class="add">+		t.Errorf(&quot;Duration(name) = %v, want fallback %v for non-duration value&quot;, got, time.Second)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="ctx"> // TestKeys verifies that Keys returns the keys in sorted order.</span>
+<span class="ctx"> func TestKeys(t *testing.T) {</span>
+<span class="del">-	cfg := load(t, sample)</span>
+<span class="add">+	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="ctx"> 	want := []string{&quot;name&quot;, &quot;port&quot;, &quot;retries&quot;, &quot;timeout&quot;}</span>
+<span class="ctx"> 	if got := cfg.Keys(); !reflect.DeepEqual(got, want) {</span>
+<span class="ctx"> 		t.Errorf(&quot;Keys() = %v, want %v&quot;, got, want)</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// TestConcurrentUse verifies that concurrent lookups on a shared</span>
+<span class="del">-// Config are safe. Run with -race to catch violations.</span>
+<span class="add">+// TestConcurrentUse verifies that a loaded Config is safe for</span>
+<span class="add">+// concurrent readers.</span>
+<span class="ctx"> func TestConcurrentUse(t *testing.T) {</span>
+<span class="del">-	cfg := load(t, sample)</span>
+<span class="add">+	cfg, err := Load(strings.NewReader(sample))</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		t.Fatalf(&quot;Load: %v&quot;, err)</span>
+<span class="add">+	}</span>
+<span class="ctx"> 	var wg sync.WaitGroup</span>
+<span class="ctx"> 	for range 8 {</span>
+<span class="ctx"> 		wg.Add(1)</span></pre></details>
+<textarea placeholder="feedback for config-test-review-without_skill (leave empty if fine)" data-run="config-test-review-without_skill"></textarea>
+<h2>units-add-test</h2>
+<h3>Input change (fixture, exact additions for it2)</h3><div class="evidence">limiter and config fixtures are untouched; units gained exactly these two declarations (nothing else changed):</div><pre><span class="add">// ParseSizeOrDefault parses s with ParseSize. An empty string returns</span>
+<span class="add">// def. A string that does not parse also returns def: the leniency is</span>
+<span class="add">// deliberate, so a stray configuration value never turns into an error</span>
+<span class="add">// at this layer.</span>
+<span class="add">func ParseSizeOrDefault(s string, def int64) int64 {</span>
+<span class="add">	if s == &quot;&quot; {</span>
+<span class="add">		return def</span>
+<span class="add">	}</span>
+<span class="add">	n, err := ParseSize(s)</span>
+<span class="add">	if err != nil {</span>
+<span class="add">		return def</span>
+<span class="add">	}</span>
+<span class="add">	return n</span>
+<span class="add">}</span>
+<span class="add"></span>
+<span class="add">// A well-formed size parses to its byte count, and a malformed one</span>
+<span class="add">// falls back to the caller&#x27;s default instead of failing, so a stray</span>
+<span class="add">// configuration value degrades gracefully.</span>
+<span class="add">func ExampleParseSizeOrDefault() {</span>
+<span class="add">	fmt.Println(units.ParseSizeOrDefault(&quot;10K&quot;, 512))</span>
+<span class="add">	fmt.Println(units.ParseSizeOrDefault(&quot;not-a-size&quot;, 512))</span>
+<span class="add">	// Output:</span>
+<span class="add">	// 10240</span>
+<span class="add">	// 512</span>
+<span class="add">}</span></pre><h3>with skill — Fable <span class="grade">grades: 4/5 → 5/5</span></h3>
+<div class="evidence">all assertions passed</div>
+<details class="file" open><summary><code>internal/units/units.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/internal/units/units.go</span>
+<span class="meta">+++ it2/internal/units/units.go</span>
+<span class="hunk">@@ -74,3 +74,18 @@</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> 	return d</span>
+<span class="ctx"> }</span>
+<span class="add">+</span>
+<span class="add">+// ParseSizeOrDefault parses s with ParseSize. An empty string returns</span>
+<span class="add">+// def. A string that does not parse also returns def: the leniency is</span>
+<span class="add">+// deliberate, so a stray configuration value never turns into an error</span>
+<span class="add">+// at this layer.</span>
+<span class="add">+func ParseSizeOrDefault(s string, def int64) int64 {</span>
+<span class="add">+	if s == &quot;&quot; {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	n, err := ParseSize(s)</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	return n</span>
+<span class="add">+}</span></pre></details>
+<details class="file" open><summary><code>internal/units/units_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/internal/units/units_test.go</span>
+<span class="meta">+++ it2/internal/units/units_test.go</span>
+<span class="hunk">@@ -49,27 +49,26 @@</span>
+<span class="ctx"> 	// Output: 3145728</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// A duration string that time.ParseDuration accepts wins over the</span>
+<span class="del">-// default; an empty string or one that does not parse falls back to the</span>
+<span class="del">-// default, because the documented leniency keeps a stray configuration</span>
+<span class="del">-// value from becoming an error at this layer.</span>
+<span class="del">-func TestParseDurationOrDefault(t *testing.T) {</span>
+<span class="del">-	const def = 30 * time.Second</span>
+<span class="del">-	tests := []struct {</span>
+<span class="del">-		name string</span>
+<span class="del">-		in   string</span>
+<span class="del">-		want time.Duration</span>
+<span class="del">-	}{</span>
+<span class="del">-		{&quot;valid duration wins over default&quot;, &quot;1m30s&quot;, 90 * time.Second},</span>
+<span class="del">-		{&quot;empty string falls back&quot;, &quot;&quot;, def},</span>
+<span class="del">-		{&quot;garbage falls back&quot;, &quot;not-a-duration&quot;, def},</span>
+<span class="del">-		{&quot;bare number without unit falls back&quot;, &quot;15&quot;, def},</span>
+<span class="del">-	}</span>
+<span class="del">-	for _, tt := range tests {</span>
+<span class="del">-		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="del">-			if got := units.ParseDurationOrDefault(tt.in, def); got != tt.want {</span>
+<span class="del">-				t.Errorf(&quot;ParseDurationOrDefault(%q, %v) = %v, want %v&quot;, tt.in, def, got, tt.want)</span>
+<span class="del">-			}</span>
+<span class="del">-		})</span>
+<span class="del">-	}</span>
+<span class="add">+// A well-formed size parses to its byte count, and a malformed one</span>
+<span class="add">+// falls back to the caller&#x27;s default instead of failing, so a stray</span>
+<span class="add">+// configuration value degrades gracefully.</span>
+<span class="add">+func ExampleParseSizeOrDefault() {</span>
+<span class="add">+	fmt.Println(units.ParseSizeOrDefault(&quot;10K&quot;, 512))</span>
+<span class="add">+	fmt.Println(units.ParseSizeOrDefault(&quot;not-a-size&quot;, 512))</span>
+<span class="add">+	// Output:</span>
+<span class="add">+	// 10240</span>
+<span class="add">+	// 512</span>
+<span class="ctx"> }</span>
+<span class="add">+</span>
+<span class="add">+// A well-formed duration parses to its value, and an empty or malformed</span>
+<span class="add">+// one falls back to the caller&#x27;s default instead of failing, so a stray</span>
+<span class="add">+// configuration value degrades gracefully.</span>
+<span class="add">+func ExampleParseDurationOrDefault() {</span>
+<span class="add">+	fmt.Println(units.ParseDurationOrDefault(&quot;1500ms&quot;, time.Second))</span>
+<span class="add">+	fmt.Println(units.ParseDurationOrDefault(&quot;&quot;, time.Second))</span>
+<span class="add">+	fmt.Println(units.ParseDurationOrDefault(&quot;not-a-duration&quot;, time.Second))</span>
+<span class="add">+	// Output:</span>
+<span class="add">+	// 1.5s</span>
+<span class="add">+	// 1s</span>
+<span class="add">+	// 1s</span>
+<span class="add">+}</span></pre></details>
+<textarea placeholder="feedback for units-add-test-with_skill (leave empty if fine)" data-run="units-add-test-with_skill"></textarea>
+<h3>with skill — Opus <span class="grade">grades: 4/5 → 5/5</span></h3>
+<div class="evidence">all assertions passed</div>
+<details class="file" open><summary><code>internal/units/units.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/internal/units/units.go</span>
+<span class="meta">+++ it2/internal/units/units.go</span>
+<span class="hunk">@@ -74,3 +74,18 @@</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> 	return d</span>
+<span class="ctx"> }</span>
+<span class="add">+</span>
+<span class="add">+// ParseSizeOrDefault parses s with ParseSize. An empty string returns</span>
+<span class="add">+// def. A string that does not parse also returns def: the leniency is</span>
+<span class="add">+// deliberate, so a stray configuration value never turns into an error</span>
+<span class="add">+// at this layer.</span>
+<span class="add">+func ParseSizeOrDefault(s string, def int64) int64 {</span>
+<span class="add">+	if s == &quot;&quot; {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	n, err := ParseSize(s)</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	return n</span>
+<span class="add">+}</span></pre></details>
+<details class="file" open><summary><code>internal/units/units_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/internal/units/units_test.go</span>
+<span class="meta">+++ it2/internal/units/units_test.go</span>
+<span class="hunk">@@ -43,32 +43,32 @@</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// Only a value that time.ParseDuration accepts yields that duration; an</span>
+<span class="del">-// empty string and unparseable garbage alike fall back to the supplied</span>
+<span class="del">-// default, so a stray configuration value never surfaces as an error at</span>
+<span class="del">-// this layer.</span>
+<span class="del">-func TestParseDurationOrDefault(t *testing.T) {</span>
+<span class="del">-	const def = 30 * time.Second</span>
+<span class="del">-	tests := []struct {</span>
+<span class="del">-		name string</span>
+<span class="del">-		in   string</span>
+<span class="del">-		want time.Duration</span>
+<span class="del">-	}{</span>
+<span class="del">-		{&quot;valid value parses&quot;, &quot;5m&quot;, 5 * time.Minute},</span>
+<span class="del">-		{&quot;empty falls back to default&quot;, &quot;&quot;, def},</span>
+<span class="del">-		{&quot;garbage falls back to default&quot;, &quot;not-a-duration&quot;, def},</span>
+<span class="del">-	}</span>
+<span class="del">-	for _, tt := range tests {</span>
+<span class="del">-		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="del">-			if got := units.ParseDurationOrDefault(tt.in, def); got != tt.want {</span>
+<span class="del">-				t.Errorf(&quot;ParseDurationOrDefault(%q, %v) = %v, want %v&quot;, tt.in, def, got, tt.want)</span>
+<span class="del">-			}</span>
+<span class="del">-		})</span>
+<span class="del">-	}</span>
+<span class="del">-}</span>
+<span class="del">-</span>
+<span class="ctx"> func ExampleParseSize() {</span>
+<span class="ctx"> 	n, _ := units.ParseSize(&quot;3M&quot;)</span>
+<span class="ctx"> 	fmt.Println(n)</span>
+<span class="ctx"> 	// Output: 3145728</span>
+<span class="ctx"> }</span>
+<span class="add">+</span>
+<span class="add">+// A well-formed size parses to its byte count, and a malformed one</span>
+<span class="add">+// falls back to the caller&#x27;s default instead of failing, so a stray</span>
+<span class="add">+// configuration value degrades gracefully.</span>
+<span class="add">+func ExampleParseSizeOrDefault() {</span>
+<span class="add">+	fmt.Println(units.ParseSizeOrDefault(&quot;10K&quot;, 512))</span>
+<span class="add">+	fmt.Println(units.ParseSizeOrDefault(&quot;not-a-size&quot;, 512))</span>
+<span class="add">+	// Output:</span>
+<span class="add">+	// 10240</span>
+<span class="add">+	// 512</span>
+<span class="add">+}</span>
+<span class="add">+</span>
+<span class="add">+// A well-formed duration parses to its value, while both an empty string</span>
+<span class="add">+// and an unparseable one fall back to the caller&#x27;s default instead of</span>
+<span class="add">+// failing, so a stray configuration value degrades gracefully.</span>
+<span class="add">+func ExampleParseDurationOrDefault() {</span>
+<span class="add">+	fmt.Println(units.ParseDurationOrDefault(&quot;500ms&quot;, time.Second))</span>
+<span class="add">+	fmt.Println(units.ParseDurationOrDefault(&quot;&quot;, time.Second))</span>
+<span class="add">+	fmt.Println(units.ParseDurationOrDefault(&quot;garbage&quot;, time.Second))</span>
+<span class="add">+	// Output:</span>
+<span class="add">+	// 500ms</span>
+<span class="add">+	// 1s</span>
+<span class="add">+	// 1s</span>
+<span class="add">+}</span></pre></details>
+<textarea placeholder="feedback for units-add-test-with_skill_opus (leave empty if fine)" data-run="units-add-test-with_skill_opus"></textarea>
+<h3>with skill — Sonnet <span class="grade">grades: 4/5 → 5/5</span></h3>
+<div class="evidence">all assertions passed</div>
+<details class="file" open><summary><code>internal/units/units.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/internal/units/units.go</span>
+<span class="meta">+++ it2/internal/units/units.go</span>
+<span class="hunk">@@ -74,3 +74,18 @@</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> 	return d</span>
+<span class="ctx"> }</span>
+<span class="add">+</span>
+<span class="add">+// ParseSizeOrDefault parses s with ParseSize. An empty string returns</span>
+<span class="add">+// def. A string that does not parse also returns def: the leniency is</span>
+<span class="add">+// deliberate, so a stray configuration value never turns into an error</span>
+<span class="add">+// at this layer.</span>
+<span class="add">+func ParseSizeOrDefault(s string, def int64) int64 {</span>
+<span class="add">+	if s == &quot;&quot; {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	n, err := ParseSize(s)</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	return n</span>
+<span class="add">+}</span></pre></details>
+<details class="file" open><summary><code>internal/units/units_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/internal/units/units_test.go</span>
+<span class="meta">+++ it2/internal/units/units_test.go</span>
+<span class="hunk">@@ -49,25 +49,24 @@</span>
+<span class="ctx"> 	// Output: 3145728</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// A valid duration string parses to its value, while an empty string or</span>
+<span class="del">-// a malformed one both fall back to the caller&#x27;s default: the leniency</span>
+<span class="del">-// is documented behavior, not an error condition.</span>
+<span class="del">-func TestParseDurationOrDefault(t *testing.T) {</span>
+<span class="del">-	const def = 5 * time.Second</span>
+<span class="del">-	tests := []struct {</span>
+<span class="del">-		name string</span>
+<span class="del">-		in   string</span>
+<span class="del">-		want time.Duration</span>
+<span class="del">-	}{</span>
+<span class="del">-		{&quot;valid duration parses&quot;, &quot;10s&quot;, 10 * time.Second},</span>
+<span class="del">-		{&quot;empty string falls back to default&quot;, &quot;&quot;, def},</span>
+<span class="del">-		{&quot;garbage falls back to default&quot;, &quot;not-a-duration&quot;, def},</span>
+<span class="del">-	}</span>
+<span class="del">-	for _, tt := range tests {</span>
+<span class="del">-		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="del">-			if got := units.ParseDurationOrDefault(tt.in, def); got != tt.want {</span>
+<span class="del">-				t.Errorf(&quot;ParseDurationOrDefault(%q, %v) = %v, want %v&quot;, tt.in, def, got, tt.want)</span>
+<span class="del">-			}</span>
+<span class="del">-		})</span>
+<span class="del">-	}</span>
+<span class="add">+// A well-formed size parses to its byte count, and a malformed one</span>
+<span class="add">+// falls back to the caller&#x27;s default instead of failing, so a stray</span>
+<span class="add">+// configuration value degrades gracefully.</span>
+<span class="add">+func ExampleParseSizeOrDefault() {</span>
+<span class="add">+	fmt.Println(units.ParseSizeOrDefault(&quot;10K&quot;, 512))</span>
+<span class="add">+	fmt.Println(units.ParseSizeOrDefault(&quot;not-a-size&quot;, 512))</span>
+<span class="add">+	// Output:</span>
+<span class="add">+	// 10240</span>
+<span class="add">+	// 512</span>
+<span class="ctx"> }</span>
+<span class="add">+</span>
+<span class="add">+// An empty duration string and a malformed one both fall back to the</span>
+<span class="add">+// caller&#x27;s default instead of failing, so a stray configuration value</span>
+<span class="add">+// degrades gracefully.</span>
+<span class="add">+func ExampleParseDurationOrDefault() {</span>
+<span class="add">+	fmt.Println(units.ParseDurationOrDefault(&quot;&quot;, 2*time.Second))</span>
+<span class="add">+	fmt.Println(units.ParseDurationOrDefault(&quot;not-a-duration&quot;, 2*time.Second))</span>
+<span class="add">+	// Output:</span>
+<span class="add">+	// 2s</span>
+<span class="add">+	// 2s</span>
+<span class="add">+}</span></pre></details>
+<textarea placeholder="feedback for units-add-test-with_skill_sonnet (leave empty if fine)" data-run="units-add-test-with_skill_sonnet"></textarea>
+<h3>no skill — Fable <span class="grade">grades: 4/5 → 4/5</span></h3>
+<details class="assert"><summary class="fail">✗ Coverage mimics the package&#x27;s existing test patterns: it lands as rows/sub-tests in an existing suitable test,</summary><div class="evidence">internal/units/units_test.go:50 declares `func TestParseDurationOrDefault(t *testing.T)`, a new standalone test named after the function; the assertion explicitly names this as failing.</div></details>
+<details class="file" open><summary><code>internal/units/units.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/internal/units/units.go</span>
+<span class="meta">+++ it2/internal/units/units.go</span>
+<span class="hunk">@@ -74,3 +74,18 @@</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> 	return d</span>
+<span class="ctx"> }</span>
+<span class="add">+</span>
+<span class="add">+// ParseSizeOrDefault parses s with ParseSize. An empty string returns</span>
+<span class="add">+// def. A string that does not parse also returns def: the leniency is</span>
+<span class="add">+// deliberate, so a stray configuration value never turns into an error</span>
+<span class="add">+// at this layer.</span>
+<span class="add">+func ParseSizeOrDefault(s string, def int64) int64 {</span>
+<span class="add">+	if s == &quot;&quot; {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	n, err := ParseSize(s)</span>
+<span class="add">+	if err != nil {</span>
+<span class="add">+		return def</span>
+<span class="add">+	}</span>
+<span class="add">+	return n</span>
+<span class="add">+}</span></pre></details>
+<details class="file" open><summary><code>internal/units/units_test.go</code> <em class="changed">changed</em></summary><pre><span class="meta">--- it1/internal/units/units_test.go</span>
+<span class="meta">+++ it2/internal/units/units_test.go</span>
+<span class="hunk">@@ -43,22 +43,23 @@</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> }</span>
+<span class="ctx"> </span>
+<span class="del">-// A parseable duration string wins over the default, while an empty or</span>
+<span class="del">-// malformed string falls back to it. The fallback on garbage is the</span>
+<span class="del">-// documented leniency of the helper, not an error path.</span>
+<span class="add">+// A well-formed duration parses to its value. An empty string and a</span>
+<span class="add">+// string that does not parse both fall back to the caller&#x27;s default:</span>
+<span class="add">+// the leniency is documented behavior, not an error, so a stray</span>
+<span class="add">+// configuration value degrades gracefully.</span>
+<span class="ctx"> func TestParseDurationOrDefault(t *testing.T) {</span>
+<span class="del">-	def := 5 * time.Second</span>
+<span class="add">+	const def = 30 * time.Second</span>
+<span class="ctx"> 	tests := []struct {</span>
+<span class="ctx"> 		name string</span>
+<span class="ctx"> 		in   string</span>
+<span class="ctx"> 		want time.Duration</span>
+<span class="ctx"> 	}{</span>
+<span class="del">-		{&quot;valid duration parses&quot;, &quot;1500ms&quot;, 1500 * time.Millisecond},</span>
+<span class="del">-		{&quot;compound duration parses&quot;, &quot;2m30s&quot;, 2*time.Minute + 30*time.Second},</span>
+<span class="del">-		{&quot;zero duration overrides default&quot;, &quot;0s&quot;, 0},</span>
+<span class="add">+		{&quot;valid duration&quot;, &quot;5m&quot;, 5 * time.Minute},</span>
+<span class="add">+		{&quot;valid compound duration&quot;, &quot;1h30m&quot;, 90 * time.Minute},</span>
+<span class="add">+		{&quot;zero duration is not the default&quot;, &quot;0s&quot;, 0},</span>
+<span class="ctx"> 		{&quot;empty string falls back&quot;, &quot;&quot;, def},</span>
+<span class="del">-		{&quot;garbage falls back&quot;, &quot;soon&quot;, def},</span>
+<span class="del">-		{&quot;bare number falls back&quot;, &quot;10&quot;, def},</span>
+<span class="add">+		{&quot;garbage falls back&quot;, &quot;not-a-duration&quot;, def},</span>
+<span class="add">+		{&quot;bare number falls back&quot;, &quot;42&quot;, def},</span>
+<span class="ctx"> 	}</span>
+<span class="ctx"> 	for _, tt := range tests {</span>
+<span class="ctx"> 		t.Run(tt.name, func(t *testing.T) {</span>
+<span class="hunk">@@ -74,3 +75,14 @@</span>
+<span class="ctx"> 	fmt.Println(n)</span>
+<span class="ctx"> 	// Output: 3145728</span>
+<span class="ctx"> }</span>
+<span class="add">+</span>
+<span class="add">+// A well-formed size parses to its byte count, and a malformed one</span>
+<span class="add">+// falls back to the caller&#x27;s default instead of failing, so a stray</span>
+<span class="add">+// configuration value degrades gracefully.</span>
+<span class="add">+func ExampleParseSizeOrDefault() {</span>
+<span class="add">+	fmt.Println(units.ParseSizeOrDefault(&quot;10K&quot;, 512))</span>
+<span class="add">+	fmt.Println(units.ParseSizeOrDefault(&quot;not-a-size&quot;, 512))</span>
+<span class="add">+	// Output:</span>
+<span class="add">+	// 10240</span>
+<span class="add">+	// 512</span>
+<span class="add">+}</span></pre></details>
+<textarea placeholder="feedback for units-add-test-without_skill (leave empty if fine)" data-run="units-add-test-without_skill"></textarea>
+<button onclick="exportFb()">Export feedback.json</button>
+<script>function exportFb(){const reviews=[...document.querySelectorAll('textarea')].map(t=>({run_id:t.dataset.run,feedback:t.value,timestamp:new Date().toISOString()}));const blob=new Blob([JSON.stringify({reviews,status:'complete'},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='feedback.json';a.click()}</script>

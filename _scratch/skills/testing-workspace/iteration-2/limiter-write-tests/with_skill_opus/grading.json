@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "Tests live in an external test package (package limiter_test)",
+      "passed": true,
+      "evidence": "limiter_test.go:1 declares `package limiter_test`"
+    },
+    {
+      "text": "Concurrency and timing run under testing/synctest with NO real-time waits: any time.Sleep sits inside a synctest bubble (bubble sleeps are idiomatic and pass), and there are no polling loops",
+      "passed": true,
+      "evidence": "grep finds zero time.Sleep and no polling loops; every timing/concurrency test body is wrapped in synctest.Test (limiter_test.go:16,51,74,93,115,127)"
+    },
+    {
+      "text": "Minimal synctest orchestration: no gratuitous synctest.Wait calls or non-contributing goroutines beyond what the scenario needs",
+      "passed": true,
+      "evidence": "exactly one synctest.Wait (limiter_test.go:103), justified by adjacent comment so cancel lands mid-wait; the single extra goroutine (line 99) is the waiter under test"
+    },
+    {
+      "text": "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes several exported symbols as a user would",
+      "passed": true,
+      "evidence": "no test is named exactly TestNew/TestAllow/TestWait/TestClose; TestLimiter (limiter_test.go:15-45) composes New, Allow x3, Wait, and Close as a gateway flow"
+    },
+    {
+      "text": "Names claim package properties in plain English without symbol/receiver stutter (e.g. TestWaitBlocksUntilRefill, not TestLimiterWaitBlocksUntilRefill or TestLimiterNewPanics)",
+      "passed": false,
+      "evidence": "limiter_test.go:15 `func TestLimiter` is a bare type name claiming no property; the other six names comply, but this one echoes the Limiter symbol instead of stating a claim"
+    },
+    {
+      "text": "Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at authoring time (no run-time arithmetic deriving expectations, no loops generating cases, no helper indirection at this scale); delicate arithmetic gets an adjacent comment",
+      "passed": false,
+      "evidence": "limiter_test.go:137-154 TestNewRejectsInvalidArguments drives three cases through a table + for loop with t.Run subtests rather than straight-line checks, violating 'no loops generating cases'"
+    },
+    {
+      "text": "At least one runnable Example demonstrates typical use (e.g. Allow in a request path)",
+      "passed": false,
+      "evidence": "grep 'func Example' across the module returns no matches; no Example function exists"
+    },
+    {
+      "text": "No test/example doc comment opens with its own function name; comments state contract clauses tracing to the package's documented promises",
+      "passed": false,
+      "evidence": "all seven doc comments open with their own function name, e.g. limiter_test.go:13 '// TestLimiter walks...' and limiter_test.go:47 '// TestBurstZeroAdmitsOnlyOnRefill pins...' (also lines 71, 90, 112, 125, 134)"
+    },
+    {
+      "text": "go test ./... and go vet ./... pass",
+      "passed": true,
+      "evidence": "go test -count=1 ./... => 'ok example.invalid/limiter 0.328s' (exit 0); go vet ./... exit 0"
+    }
+  ]
+}

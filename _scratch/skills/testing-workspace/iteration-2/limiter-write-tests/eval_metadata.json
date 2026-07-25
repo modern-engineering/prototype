@@ -1,0 +1,16 @@
+{
+ "eval_id": 1,
+ "eval_name": "limiter-write-tests",
+ "prompt": "I just finished writing this little rate-limiter package for our internal gateway (token bucket, refills on a ticker goroutine, has a Wait(ctx) and an Allow() and a Close()). Can you write the tests for it before I send the PR?",
+ "assertions": [
+  "Tests live in an external test package (package limiter_test)",
+  "Concurrency and timing run under testing/synctest with NO real-time waits: any time.Sleep sits inside a synctest bubble (bubble sleeps are idiomatic and pass), and there are no polling loops",
+  "Minimal synctest orchestration: no gratuitous synctest.Wait calls or non-contributing goroutines beyond what the scenario needs",
+  "Scenario grain: no per-symbol tests named exactly TestNew/TestAllow/TestWait/TestClose; at least one test composes several exported symbols as a user would",
+  "Names claim package properties in plain English without symbol/receiver stutter (e.g. TestWaitBlocksUntilRefill, not TestLimiterWaitBlocksUntilRefill or TestLimiterNewPanics)",
+  "Test bodies are straight-line and readable top-to-bottom: expectations are hard-coded values computed at authoring time (no run-time arithmetic deriving expectations, no loops generating cases, no helper indirection at this scale); delicate arithmetic gets an adjacent comment",
+  "At least one runnable Example demonstrates typical use (e.g. Allow in a request path)",
+  "No test/example doc comment opens with its own function name; comments state contract clauses tracing to the package's documented promises",
+  "go test ./... and go vet ./... pass"
+ ]
+}

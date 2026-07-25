@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "The five per-symbol tests are consolidated into fewer contract scenarios (or runnable Examples) exercising several exported symbols together",
+      "passed": false,
+      "evidence": "config_test.go still has one test per symbol (TestLoad, TestString, TestInt, TestDuration, TestKeys); grep -c '^func Test' = 7, no consolidation"
+    },
+    {
+      "text": "The dev scaffold TestDebugDump is deleted, not polished",
+      "passed": true,
+      "evidence": "grep -n 'DebugDump' config_test.go returns no matches; the scaffold is gone"
+    },
+    {
+      "text": "The sleep-based concurrent-use smoke is DELETED with the reasoning that the package documents no concurrency contract (methods are not safe for concurrent use unless documented); a rewrite that still pins unpromised concurrency fails this assertion",
+      "passed": false,
+      "evidence": "config_test.go:124-145 keeps TestConcurrentUse rewritten with sync.WaitGroup, still pinning 'safe for concurrent readers' the package never documents"
+    },
+    {
+      "text": "The benchmark uses the modern b.Loop form and meaningfully exercises Load (the old discard-everything b.N loop is susceptible to being optimized away)",
+      "passed": true,
+      "evidence": "config_test.go:149-153 uses 'for b.Loop()' and checks Load's error (b.Fatal on failure); go.mod declares go 1.25"
+    },
+    {
+      "text": "The internals-reaching test states its claim through the exported surface instead",
+      "passed": true,
+      "evidence": "grep '.values' config_test.go finds no internals access; comment-line claim asserted via cfg.String at config_test.go:33"
+    },
+    {
+      "text": "At least one runnable Example exists; a package-level Example() not tied to any symbol is acceptable and well-suited to this shallow API",
+      "passed": false,
+      "evidence": "grep -n 'Example' config_test.go returns no matches; no Example function exists"
+    },
+    {
+      "text": "No test doc comment opens with its own function name after the fix",
+      "passed": false,
+      "evidence": "Every test doc comment opens with its own name, e.g. config_test.go:19 '// TestLoad verifies...' and config_test.go:62 '// TestString verifies...'"
+    },
+    {
+      "text": "REVIEW DEPTH: the reviewer flags (in code or in its report) that Load's errors are only string-inspectable ('line N: ...') and recommends typed/sentinel errors so users and tests can inspect them programmatically — string-matching on own-package error text is a redesign signal, not something to pin",
+      "passed": false,
+      "evidence": "No report file exists (only timing.json) and grep 'sentinel|typed|errors.Is|errors.As' finds nothing; TestLoadErrors (config_test.go:46-56) still string-matches error text unflagged"
+    },
+    {
+      "text": "go test ./... still passes",
+      "passed": true,
+      "evidence": "'go test ./...' in outputs/ exits 0: 'ok example.invalid/config'; go vet also clean"
+    }
+  ]
+}
