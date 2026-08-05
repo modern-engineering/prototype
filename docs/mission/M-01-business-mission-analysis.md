@@ -73,8 +73,8 @@ existence of an artifact format or a collection of tools:
 - intent is portable between heterogeneous deployment environments;
 - a running process can be traced to a stable solution identity, its intended
   configuration, and the relevant software provenance;
-- deployment knowledge moves out of bespoke tools and individual people into
-  explicit, composable boundaries and organizational interactions; and
+- deployment knowledge becomes explicit and composable instead of remaining
+  trapped in bespoke tools or individual people; and
 - responsibilities can be separated cleanly even when one person performs
   several of them.
 
@@ -107,7 +107,7 @@ org chart. One human may perform several roles.
 
 **Solution engineers** tailor the software offering to a customer's needs
 before deployment and validate in operation that those needs were met. They
-need clear control of solution intent and independence from backend developers
+need clear control of solution intent and independence from development/R&D
 for routine customer delivery.
 
 **Backend engineers** build long-running Go programs and make them available
@@ -147,7 +147,7 @@ The working black-box lifecycle vocabulary is:
 - **Provision** executes finite jobs against backing services and wires their
   outputs into application inputs.
 - **Deploy** turns intended applications into running services. It is the point
-  at which intent becomes production service.
+  at which intent becomes a running service.
 - **Operate** covers monitoring, verification, support, capacity, change, and
   continued responsibility until retirement.
 - **Retire** ends operation while preserving the solution's identity and
@@ -181,10 +181,11 @@ have separate solutions even when their current configurations match. A
 deliberately shared-pool solution may serve several customers with looser
 isolation.
 
-Availability across two locations is represented as two solutions. By
-contrast, relocating a solution from EKS to `systemd` preserves the solution's
-identity: the old placement operation ends and the same solution is deployed in
-the new environment, with both events retained in its audit history. Whether
+Simultaneous availability across two locations is represented as two
+solutions. By contrast, relocating a solution from EKS to `systemd` preserves
+the solution's identity: the old placement operation ends and the same
+solution is deployed in the new environment, with both events retained in its
+audit history. Whether
 blue/green concurrency represents one or multiple operational instances or
 revisions under one solution identity is unresolved and carries enough risk to
 require expert treatment later.
@@ -196,10 +197,11 @@ to a site, cluster, namespace, VM, serverless region or zone, or something else.
 The toolkit carries constraints concerning a location but assigns no universal
 semantics to it.
 
-“Solution artifact” is an umbrella term. A SEF is an exchange-format file and
-is definitely one of a solution's artifacts. The intermediate representation
-(IR) is the low-level, actionable description of intended deployment footprint
-and can be understood independently of solution identity. Its actionable
+A solution artifact carries the solution's stable identity; the term is an
+umbrella rather than a single format. A SEF is an exchange-format file and is
+definitely one of a solution's artifacts. The intermediate representation (IR)
+is the low-level, actionable description of intended deployment footprint and
+can be understood independently of the solution's identity. Its actionable
 content must be serializable, but the exact SEF contents, the IR's shape, and
 the relationship between supporting artifacts remain open.
 
