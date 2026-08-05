@@ -10,10 +10,13 @@ since: 2026-08-05
 This project addresses a recurring business problem in B2B software delivery:
 an engineering organization can build a capable software product, yet remain
 unable to deliver tailored instances of it to more customer entities without
-increasing its dependence on scarce development and R&D staff. The organization
-adopting the toolkit is called the **adopter** in this analysis. The party that
-receives a tailored solution from the adopter is the **customer entity**.
-This is a B2B delivery relationship, not a consumer product mission.
+increasing its dependence on scarce **development/R&D** staff in direct
+proportion. In this analysis, development/R&D means the people responsible for
+evolving the reusable software catalogue and toolkit rather than performing
+routine customer-entity delivery. The organization adopting the toolkit is
+called the **adopter** in this analysis. The party that receives a tailored
+solution from the adopter is the **customer entity**. This is a B2B delivery
+relationship, not a consumer product mission.
 
 The system being created and evaluated—the **system of interest**—is a
 project-owned, open-source toolkit. Its mission is to help an adopter make a
@@ -24,14 +27,14 @@ across heterogeneous environments while preserving meaning and accountability.
 It may change organizational interactions even when the deployed solution
 footprint remains the same or is consciously judged equivalent.
 
-The toolkit succeeds when tailored delivery can scale without routine R&D
-involvement scaling in proportion; running services can be related to the
-solution identity, intended configuration, and relevant software provenance;
-and deployment knowledge becomes explicit and composable rather than remaining
-in bespoke tools or individual memory. These outcomes depend on the adopter's
-people, policies, platforms, and execution tools. The toolkit contributes a
-common semantic handoff and responsibility model; it does not replace that
-larger delivery system.
+The toolkit succeeds when tailored delivery can scale without proportional
+growth in routine intervention from development/R&D; running services can be
+related to the solution identity, intended configuration, and relevant software
+provenance; and deployment knowledge becomes explicit and composable rather than
+remaining in bespoke tools or individual memory. These outcomes depend on the
+adopter's people, policies, platforms, and execution tools. The toolkit
+contributes a common semantic handoff and responsibility model; it does not
+replace that larger delivery system.
 
 ## Why the delivery system needs to change
 
@@ -45,7 +48,7 @@ Provisioning is divided between declarative delivery systems and operator
 actions against already-running services.
 
 In this context, responsibilities are often implicit. Solution engineers depend
-on development staff for routine deliveries. A shared environment repository
+on development/R&D for routine deliveries. A shared environment repository
 allows a change intended for one solution to affect another and has enabled a
 serious cross-solution failure. Several application versions must coexist, but
 layers of configuration obscure both their intended state and their software
@@ -62,8 +65,8 @@ service relates to that intent.
 The desired business change is therefore not simply faster deployment. It is a
 delivery system in which:
 
-- tailored solution delivery grows without proportional growth in routine R&D
-  intervention;
+- tailored solution delivery grows without proportional growth in routine
+  intervention from development/R&D;
 - a solution's identity and declared intent retain their meaning across
   heterogeneous targets;
 - running services are traceable to solution identity, intended configuration,
@@ -99,10 +102,13 @@ network, data, resource, or failure isolation.
 An owning entity—a customer entity, account, or shared pool—may own more than
 one solution. A shared-pool solution may intentionally serve several customer
 entities. Simultaneous availability in two Locations is represented by two
-solutions. Relocation is different: operation at the old placement ends and the
-same solution identity is deployed at the new placement. Whether blue/green
-operation should use one solution identity or more than one remains unresolved
-and is not the nominal model.
+solutions when this means two independently operated placements. This
+cardinality does not decide whether a single deployment footprint may consume
+or attach to capabilities associated with more than one Location. Relocation is
+different: operation at the old placement ends and the same solution identity
+is deployed at the new placement. Whether blue/green operation should use one
+solution identity or more than one remains unresolved and is not the nominal
+model.
 
 ### Stakeholders and responsibility domains
 
@@ -116,8 +122,8 @@ technical stack.
 | --- | --- |
 | Customer entity | Receives a tailored solution and needs its underlying business need to be satisfied and validated in operation. |
 | Adopter leadership and delivery authorities | Need evidence that adoption reduces delivery dependency and risk without surrendering infrastructure or deployment authority. |
-| Solution engineering | Understands customer-entity needs, tailors and approves declared solution intent, and validates those needs in operation. Routine delivery should not require development or R&D intervention. |
-| Application/catalogue engineering | Develops and verifies the software capabilities available for tailoring. The initial product focus is long-running Go applications; detailed interfaces and broader workload modes are later concerns. |
+| Solution engineering | Understands customer-entity needs, tailors and approves declared solution intent, and validates those needs in operation. Routine delivery should not require intervention from development/R&D. |
+| Application/catalogue engineering | Develops and verifies the software capabilities available for tailoring. Detailed interfaces and the breadth of supported workload modes are later concerns. |
 | Platform/service engineering | Makes operational platforms, Locations, and backing services ready for solution work; exposes organization-specific provisioning and attachment capabilities; and monitors services and capacity. Some practice may remain manual. |
 | Release and operations participants | Contribute cross-cutting confidence, traceability, change, and operational acceptance rather than forming a fourth responsibility domain. Compliance and financial attribution are plausible secondary beneficiaries, not mandatory initial outcomes. |
 
@@ -135,19 +141,20 @@ brownfield platform may already be running solutions.
 ## The durable handoff
 
 During Design, the adopter's design tooling associates a solution's stable
-identity and relevant retained context with approved, actionable intent. The
-result is a **solution artifact**, the umbrella term for the identity-bearing
-exchange used by the delivery system. The Solution Exchange Format (SEF) is the
-toolkit's standard serialized file for exchanging a solution artifact.
-Supporting artifacts may accompany it.
+identity with approved, declared actionable intent. A **solution artifact** is
+the broad umbrella for identity-bearing material exchanged about a solution; it
+carries or associates that stable identity with the declared actionable intent.
+The Solution Exchange Format (SEF) is the toolkit's standard serialized exchange
+file and is one of the solution's artifacts.
 
-Within that exchange, the intermediate representation (IR) is an
-identity-independent, actionable description of the intended deployment
-footprint. It can be inspected and acted on without assigning universal
-semantics to solution identity. IR alone is neither the identity-bearing
-solution artifact nor the retained record of the solution's lifecycle. The
-adopter's delivery system remains accountable for retaining identity and
-history; the custody mechanism is a later design decision.
+The intermediate representation (IR) is the low-level, actionable description
+of the intended deployment footprint and can be understood independently of
+solution identity. IR alone is neither the identity-bearing solution artifact
+nor the retained record of the solution's lifecycle. The exact containment and
+relationships among SEF, IR, and any supporting artifacts, their contents, and
+the custody or reference mechanisms remain later design. Regardless of the
+mechanism, the adopter's delivery system remains accountable for retaining
+solution identity and lifecycle history.
 
 The intended form of portability is semantic. A solution's stable identity and
 declared intent retain their meaning across handoffs and targets, while
@@ -162,11 +169,10 @@ toolkit's claim: semantic compatibility cannot establish equivalent operational
 behavior by assertion alone. The adopter retains the judgment and authority
 needed to accept a realization.
 
-## Repeatable lifecycle activities
+## Lifecycle activities
 
-The logical solution participates in five repeatable lifecycle activities.
-They describe business-operational work, not ordered phases in a one-pass state
-machine.
+The logical solution participates in five lifecycle activities. They describe
+business-operational work, not ordered phases in a one-pass state machine.
 
 | Activity | Mission-level purpose |
 | --- | --- |
@@ -176,11 +182,14 @@ machine.
 | Operate | Monitor, support, validate, plan capacity, and initiate change. |
 | Retire | End the solution's operational presence while retaining its identity and history. |
 
-A stable solution may revisit these activities as its intent or circumstances
-change. Activities can involve all three responsibility domains, and handoffs
-may be separated in time, organization, and place. Detailed triggers, ordering
-exceptions, state transitions, retries, and concurrency behavior belong to
-later operational and technical work.
+Design, Provision, Deploy, and Operate may recur as a stable solution's intent or
+circumstances change. Retire is terminal for that logical solution's operational
+lifecycle. Its identity and history remain retained records and are not
+reassigned to a later active solution. Ending an old placement during relocation
+is not Retire. Activities can involve all three responsibility domains, and
+handoffs may be separated in time, organization, and place. Detailed triggers,
+ordering exceptions, state transitions, retries, and concurrency behavior
+belong to later operational and technical work.
 
 The responsibility domains, the lifecycle activities, and any future
 decomposition of the toolkit are three different views. There is no expectation
@@ -197,9 +206,14 @@ realization is required, and may replace reference tools.
 
 Replacement tooling preserves interoperability only to the extent that it
 preserves the semantic meaning required at the handoff. An adopter may omit
-provenance or another toolkit-enabled capability, but then accepts the resulting
-business and operational cost. Neither customization nor use of a solution
-artifact, by itself, guarantees portable artifacts or derivation lineage.
+provenance or another toolkit-enabled capability while partially adopting
+toolkit components, but then accepts the resulting business and operational
+cost. If provenance is omitted, the adopter cannot claim full mission
+fulfillment because traceability from running services to solution identity,
+intended configuration, and relevant software provenance is a mission outcome.
+Provenance is not a condition of the first deployment slice unless the adopter
+selects it for that slice. Neither customization nor use of a solution artifact,
+by itself, guarantees portable artifacts or derivation lineage.
 
 The adopter selects execution tools and retains ownership of infrastructure,
 deployment authority, and reconciliation policy and responsibility. The toolkit
@@ -240,8 +254,8 @@ acceptance.
 | Claim | Observable evidence | Accepting authority |
 | --- | --- | --- |
 | Deployment-slice adoption | An approved solution artifact enters a bounded part of the adopter's delivery workflow and produces an observable running service. The deployed solution footprint is unchanged or consciously equivalent. This establishes a credible process replacement, not full mission fulfillment. | The adopter's delivery authority. |
-| Full-customer-thread business effect | A customer entity's need is tailored into declared solution intent, delivered, and validated in operation, with reduced routine dependence on R&D. | The adopter function accountable for delivering solutions to customer entities. |
-| Mission fulfillment | Repeated results across materially heterogeneous environments and solution changes show semantic portability, traceability, responsibility separation, and delivery that scales without proportional routine R&D dependence. | The adopter authority accountable for the adoption's business outcomes. |
+| Full-customer-thread business effect | A customer entity's need is tailored into declared solution intent, delivered, and validated in operation, with reduced routine dependence on development/R&D. | The adopter function accountable for delivering solutions to customer entities. |
+| Mission fulfillment | Repeated results across materially heterogeneous environments and solution changes show semantic portability, traceability from running services to solution identity, intended configuration, and relevant software provenance, responsibility separation, and delivery that scales without proportional routine dependence on development/R&D. | The adopter authority accountable for the adoption's business outcomes. |
 
 A **consciously equivalent footprint** is an intentional, recorded equivalence
 judgment by the adopter's delivery authority. Equivalence is contextual; this
@@ -290,7 +304,7 @@ mission may require a different boundary or additional participant capability.
 - An adopter may retain shared repositories or other cross-solution blast radii
   despite using the toolkit.
 - An adopter may discard provenance or lifecycle history while still claiming
-  toolkit adoption, weakening traceability and accountability.
+  full mission fulfillment, weakening traceability and accountability.
 
 ### Mission-shaping unknowns
 
@@ -301,7 +315,7 @@ operational patterns for air-gapped targets also remain open. These questions
 can change product scope or the strength of its claims and therefore require
 evidence before commitment.
 
-There will also be unknown unknowns. At the prototype stage, evidence from
-deployment slices and full customer threads may expose a mistaken system
-boundary, assumption, or mission measure. The mission is durable in purpose but
-revisable in response to that evidence.
+There will also be unknown unknowns. Early evidence from deployment slices and
+full customer threads may expose a mistaken system boundary, assumption, or
+mission measure. The mission is durable in purpose but revisable in response to
+that evidence.
