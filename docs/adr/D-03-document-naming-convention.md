@@ -54,7 +54,7 @@ the prefix resolves a reference to its file by `<family-dir>/<prefix>-*.md`.
 
 - Existing records take the new names; the number is preserved, the stem added.
 - References in prose and frontmatter are self-describing, for example
-  `derived-from: A-03-parameterization`.
+  `refines: [D-01-use-architectural-decision-records]`.
 - A stem is refined only by renaming the file, which git records and a prefix
   search makes easy to follow.
 

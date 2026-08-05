@@ -32,11 +32,11 @@ direction, stored on both records:
 | `refines`    | `refined-by`    | all                               | qualifies / is qualified by |
 
 Every relationship field holds a list of full identifiers, for example
-`A-03-parameterization`, each naming a target for a reader and resolving to a
-file. A single target is written as a one-element list too, so a tool reads one
-shape and never guesses between a scalar and a sequence. Both edges are written
-and kept in step by hand: editing frontmatter after the fact is welcome, not a
-cost, because it is what keeps the corpus navigable.
+`D-02-madr-format-with-frontmatter`, each naming a target for a reader and
+resolving to a file. A single target is written as a one-element list too, so a
+tool reads one shape and never guesses between a scalar and a sequence. Both
+edges are written and kept in step by hand: editing frontmatter after the fact
+is welcome, not a cost, because it is what keeps the corpus navigable.
 
 `refines` carries the subtler links a review tends to surface — a later record
 qualifying an earlier rule rather than replacing it — which would otherwise live

@@ -22,6 +22,10 @@
 
 - Reference only documents that already exist. Name a concern a later document will take up as a gap in prose ("a later analysis develops this"), never as a link to a document not yet written; the change that adds that document edits the earlier ones to turn the gap into a reference. References accrete in commit order, so every link points back to something already in the corpus.
 - Link between documents reference-style, with definitions at the foot of the file.
-- Prefer shortcut reference links (`[A-03 Parameterization]`) or collapsed (`[A-03 Parameterization][]`), where the words naming the target double as the label; reserve the full `[text][label]` form for when the label must differ. Pair the ID with words, never bare `[A-03]`; for a long target, name the section and point its definition at the `#fragment`.
+- Prefer shortcut reference links (`[D-03 Document Naming]`) or collapsed
+  (`[D-03 Document Naming][]`), where the words naming the target double as the
+  label; reserve the full `[text][label]` form for when the label must differ.
+  Pair the ID with words, never a bare identifier; for a long target, name the
+  section and point its definition at the `#fragment`.
 - This overrides the global inline-link default and is scoped to `docs/`; do not revert it.
 - Keep inline links only in `README.md` index tables, where the row supplies context.
