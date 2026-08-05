@@ -39,8 +39,11 @@ replace that larger delivery system.
 ## Why the delivery system needs to change
 
 The motivating context is a software-centric engineering organization that
-delivers tailored software solutions to customer entities. Its operating estate
-is brownfield and heterogeneous: development, staging, production, and lab
+delivers tailored software solutions to customer entities. The brownfield
+conditions described here come from one observed motivating case. They supply
+concrete business evidence for the mission, but are not a quantified market
+baseline or a claim that every adopter shares every condition. In that case, the
+operating estate is heterogeneous: development, staging, production, and lab
 environments may span different clouds and local infrastructure, while other
 targets are on-premises or air-gapped. Some backing services are deployed per
 solution. Others are shared services from which each solution receives a slice.
@@ -92,6 +95,15 @@ These three subjects must remain distinct:
 | Adopter's delivery system | The next-larger system: it composes the toolkit with adopter-owned people, policies, platforms, infrastructure, and execution tools. |
 | Logical solution | The explicitly identified object whose intent, lifecycle, change history, and accountability the delivery system manages. |
 
+The project sponsor governs the toolkit mission and shared semantic contract.
+Each adopter retains authority over its delivery system and its acceptance
+decisions.
+
+When an adopter commits to a tailored delivery for a customer entity, its
+delivery system manages that identity-bearing delivery as a logical solution.
+Validation concerns the operational business outcome for the customer entity,
+not merely the existence or correctness of an artifact.
+
 A logical solution is non-fungible: two solutions do not become the same object
 merely because their present contents match. Its declared intent and contents
 may change while its identity persists. It is the atomic unit of **operational
@@ -112,19 +124,25 @@ model.
 
 ### Stakeholders and responsibility domains
 
-The operating model separates three responsibility domains. They are logical
-accountabilities, not an organization chart; one person, team, tool, or
-automated actor may perform responsibilities in more than one domain. In this
-analysis, an operational layer means one of these responsibility domains, not a
-technical stack.
+The operating model separates exactly three responsibility domains: **Solution
+engineering**, **Application/catalogue engineering**, and **Platform/service
+engineering**. They are logical accountabilities, not an organization chart;
+one person, team, tool, or automated actor may perform responsibilities in more
+than one domain. In this analysis, an operational layer means one of these
+responsibility domains, not a technical stack.
 
-| Stakeholder or domain | Responsibility and need |
+| Responsibility domain | Accountability and need |
 | --- | --- |
-| Customer entity | Receives a tailored solution and needs its underlying business need to be satisfied and validated in operation. |
-| Adopter leadership and delivery authorities | Need evidence that adoption reduces delivery dependency and risk without surrendering infrastructure or deployment authority. |
 | Solution engineering | Understands customer-entity needs, tailors and approves declared solution intent, and validates those needs in operation. Routine delivery should not require intervention from development/R&D. |
 | Application/catalogue engineering | Develops and verifies the software capabilities available for tailoring. Detailed interfaces and the breadth of supported workload modes are later concerns. |
 | Platform/service engineering | Makes operational platforms, Locations, and backing services ready for solution work; exposes organization-specific provisioning and attachment capabilities; and monitors services and capacity. Some practice may remain manual. |
+
+Other stakeholders and cross-cutting participants surround those domains:
+
+| Stakeholder or participant | Concern or participation |
+| --- | --- |
+| Customer entity | Receives a tailored solution and needs its underlying business need to be satisfied and validated in operation. |
+| Adopter leadership and delivery authorities | Need evidence that adoption reduces delivery dependency and risk without surrendering infrastructure or deployment authority. |
 | Release and operations participants | Contribute cross-cutting confidence, traceability, change, and operational acceptance rather than forming a fourth responsibility domain. Compliance and financial attribution are plausible secondary beneficiaries, not mandatory initial outcomes. |
 
 AI may participate where an adopter chooses, just as other automated actors may.
@@ -223,11 +241,15 @@ assign universal semantics to a Location.
 
 ### Business alternatives
 
-Four broad responses frame the adoption decision:
+Five broad responses frame the adoption decision:
 
 - Continue bespoke, reactive delivery. This avoids an explicit adoption cost
   but leaves solution knowledge, responsibility, and cross-solution risk
   distributed through current people and tools.
+- Formalize responsibility and a semantic handoff through adopter governance and
+  existing tools alone. This may improve one adopter's delivery locally, but
+  semantics and enforcement remain organization-specific and it creates neither
+  a reusable executable contract nor a reference implementation.
 - Impose one platform and workflow everywhere. This can reduce variation where
   the adopter controls the estate, but conflicts with heterogeneous,
   on-premises, and air-gapped obligations and makes platform uniformity a
@@ -236,9 +258,15 @@ Four broad responses frame the adoption decision:
   This absorbs organization-specific infrastructure and execution policy into
   the product, broadens its authority, and competes with capabilities the
   adopter already owns.
-- Establish the selected intent-and-responsibility framework with supported
-  extension points. This addresses the semantic and organizational gap while
-  allowing target-specific execution to remain target specific.
+- Combine the adopter's responsibility model with the selected project-owned
+  toolkit and supported extension points. This alternative is selected because
+  the toolkit contributes a shared, inspectable, executable semantic contract
+  and reusable reference tooling while target-specific execution and authority
+  remain with adopters.
+
+The toolkit alone does not create responsibility boundaries or organizational
+change. The adopter has to establish and govern the responsibility model used
+with the product contracts and reference tooling.
 
 Adoption of the selected alternative is cumulative and may branch. A credible
 early path is to feed a solution artifact into an existing proprietary delivery
@@ -251,24 +279,38 @@ Evidence is accumulated through three distinct claims. Each needs an observable
 result and an accountable adopter authority; technical completion alone is not
 acceptance.
 
+Within an adopter, the **delivery authority** approves the deployment slice and
+the recorded footprint-equivalence judgment. The **function accountable for
+customer-entity solution delivery** accepts the full customer thread; it often
+involves Solution engineering, but its organizational mapping is adopter
+specific. **Adopter leadership or an accountable business authority** accepts
+adopter-level mission outcomes. These are authority roles rather than additional
+responsibility domains, and the same person or function may hold several of
+them.
+
 | Claim | Observable evidence | Accepting authority |
 | --- | --- | --- |
-| Deployment-slice adoption | An approved solution artifact enters a bounded part of the adopter's delivery workflow and produces an observable running service. The deployed solution footprint is unchanged or consciously equivalent. This establishes a credible process replacement, not full mission fulfillment. | The adopter's delivery authority. |
-| Full-customer-thread business effect | A customer entity's need is tailored into declared solution intent, delivered, and validated in operation, with reduced routine dependence on development/R&D. | The adopter function accountable for delivering solutions to customer entities. |
-| Mission fulfillment | Repeated results across materially heterogeneous environments and solution changes show semantic portability, traceability from running services to solution identity, intended configuration, and relevant software provenance, responsibility separation, and delivery that scales without proportional routine dependence on development/R&D. | The adopter authority accountable for the adoption's business outcomes. |
+| Deployment-slice adoption | An approved solution artifact enters a bounded part of the adopter's delivery workflow and produces an observable running service. The deployed solution footprint is unchanged or consciously equivalent. This establishes a credible replacement of that bounded part of the delivery process, not full mission fulfillment. | The adopter's delivery authority. |
+| Full-customer-thread business effect | A customer entity's need is tailored into declared solution intent, delivered, and validated in operation, with reduced routine dependence on development/R&D. | The adopter function accountable for customer-entity solution delivery. |
+| Mission fulfillment in an adopter context | Repeated results across materially heterogeneous environments and solution changes show semantic portability, traceability from running services to solution identity, intended configuration, and relevant software provenance, responsibility separation, and delivery that scales without proportional routine dependence on development/R&D. | Adopter leadership or its accountable business authority. |
 
 A **consciously equivalent footprint** is an intentional, recorded equivalence
 judgment by the adopter's delivery authority. Equivalence is contextual; this
 mission does not invent universal technical criteria for it.
 
-The deployment slice is the first credible adoption milestone because it proves
-that an approved identity-bearing handoff can enter a real delivery process and
-produce an accepted running result. The full customer thread is the next
-milestone because it demonstrates an effect on the adopter's business, not just
-on its deployment mechanics. Mission fulfillment requires repetition under
-meaningful variation. Numeric baselines and thresholds for intervention rate,
-lead time, traceability, and other measures must be learned with an adopter and
-agreed later rather than invented here.
+The deployment-slice and full-customer-thread claims are accepted in a particular
+adopter context. The deployment slice is the first credible adoption milestone
+because it proves that an approved identity-bearing handoff can enter a real
+delivery process and produce an accepted running result. The full customer
+thread is the next milestone because it demonstrates an effect on the adopter's
+business, not just on its deployment mechanics. Mission fulfillment within an
+adopter requires repetition under meaningful variation.
+
+Evidence for the toolkit's general product mission accumulates across materially
+different adopter contexts and is evaluated by the project sponsor. No single
+adopter result establishes universal mission fulfillment. Numeric baselines and
+thresholds for intervention rate, lead time, traceability, and other measures
+must be learned with adopters and agreed later rather than invented here.
 
 ## Conditions, exposure, and uncertainty
 
