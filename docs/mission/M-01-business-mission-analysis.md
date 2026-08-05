@@ -9,12 +9,14 @@ since: 2026-08-05
 
 Target adopters are B2B, software-centric engineering organizations delivering
 tailored logical solutions whose identity and declared intent must retain meaning
-across materially heterogeneous targets or organization-specific execution. They
-seek to meet growing routine solution-delivery demand without proportional growth
-in delivery-specific **adopter development/R&D** work. That category evolves the
-adopter's reusable application catalogue or delivery or platform extensions,
-rather than performing routine customer-entity delivery. The demand unit is
-onboarding customer-associated logical solutions or changing existing ones.
+across materially heterogeneous delivery environments and targets.
+Organization-specific execution occurs within, not instead of, that
+heterogeneity. Adopters seek to meet growing routine solution-delivery
+demand without proportional growth in delivery-specific **adopter
+development/R&D** work. That category evolves the adopter's reusable application
+catalogue or delivery or platform extensions, rather than performing routine
+customer-entity delivery. The demand unit is onboarding customer-associated
+logical solutions, changing existing ones, or retiring them.
 Routine intervention includes such capability-development work when it is
 required to complete an otherwise-routine delivery, even if performed in
 advance; classification follows responsibility, not title. Upstream project
@@ -23,13 +25,15 @@ the **adopter**; the receiving party is the **customer entity**, not a B2C
 consumer.
 
 The system being created and evaluated—the **system of interest**—is a
-project-owned, open-source toolkit. Its mission is to help an adopter make a
-logical solution's stable identity and declared intent an explicit, durable
-handoff across otherwise separate delivery responsibilities. That handoff
-enables the adopter to tailor, provision, deploy, operate, and retire solutions
-across heterogeneous environments while preserving meaning and accountability.
-It may change organizational interactions even when the deployed solution
-footprint remains the same or is consciously judged equivalent.
+project-owned, open-source toolkit. The current prototype is an early increment
+toward this enduring toolkit mission and does not define its final scope. The
+toolkit's mission is to help an adopter make a logical solution's stable identity
+and declared intent an explicit, durable handoff across otherwise separate
+delivery responsibilities. That handoff enables the adopter to tailor,
+provision, deploy, operate, and retire solutions across heterogeneous
+environments while preserving meaning and accountability. It may change
+organizational interactions even when the deployed solution footprint remains
+the same or is consciously judged equivalent.
 
 The toolkit succeeds when tailored delivery can scale without proportional
 growth in routine intervention from adopter development/R&D; running services
@@ -187,10 +191,11 @@ A **deployed solution footprint** covers the running applications,
 solution-owned resources, configuration and wiring, and slices or attachments
 to shared backing capabilities attributable to the logical solution; it excludes
 unrelated platform estate. For a deployment slice, unchanged or consciously
-equivalent is relative to a pre-agreed baseline for the output and footprint
-expected from the bounded incumbent process. Before acceptance, the delivery
-authority records the footprint scope, local equivalence criteria, and accepted
-differences; no universal criteria apply.
+equivalent is judged against a baseline representing the output and footprint
+expected from the bounded incumbent process. The baseline, footprint scope, and
+local equivalence criteria are agreed and recorded before the evidence-producing
+slice; at acceptance, the delivery authority records observed differences and
+the equivalence judgment. No universal criteria apply.
 
 Portability is semantic: stable identity and declared intent retain meaning
 across handoffs and targets, although target-specific tools may realize them
@@ -320,7 +325,7 @@ compatibility contract remains open.
 | Deployment-slice adoption | An approved solution artifact in a qualifying handoff enters a bounded part of the adopter's delivery workflow and produces an observable running service with an unchanged or consciously equivalent footprint relative to the pre-agreed baseline. This credibly replaces that bounded part of the delivery process, not the whole process or mission. | The adopter's delivery authority. |
 | Full-customer-thread business effect | A customer entity's need is tailored into declared solution intent, delivered, and validated in operation, with reduced routine dependence on adopter development/R&D. | The adopter function accountable for customer-entity solution delivery. |
 | Mission fulfillment in an adopter context | Repeated results across materially heterogeneous environments and solution changes show semantic portability, traceability from running services to solution identity, intended configuration, and relevant software provenance, explicit, inspectable, and composable delivery knowledge, distinguishable accountability across all three domains, and delivery that scales without proportional routine dependence on adopter development/R&D. | Adopter leadership or its accountable business authority. |
-| Reusable-product hypothesis | Materially different adopter contexts use the same project-owned semantic core and reference capability while adopter-specific realization and execution authority remain adopter-owned. | The project sponsor. |
+| Reusable-product hypothesis | Materially different adopter contexts reuse the same project-owned semantic contract and applicable reference tooling while adopter-specific realization and execution authority remain adopter-owned. Compatible replacements remain permitted but do not demonstrate reuse of replaced reference tooling. | The project sponsor. |
 
 The first three claims are accepted in an adopter context. The deployment slice
 and full customer thread are sequential milestones; adopter-level mission
@@ -336,8 +341,9 @@ measures remain later and adopter-specific.
 
 - The toolkit implementation is Go.
 - Actionable intent crosses disjoint work in serialized form.
-- Target contexts require heterogeneous or organization-specific execution and
-  may, but need not, include on-premises or air-gapped targets.
+- Full adopter mission evidence spans materially heterogeneous delivery
+  environments and targets. Organization-specific execution is not a substitute;
+  on-premises or air-gapped targets are not required.
 - The adopter retains execution and infrastructure authority, including
   deployment acceptance and reconciliation responsibility.
 
