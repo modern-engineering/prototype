@@ -35,10 +35,10 @@ Chosen option: "per-family `status` enum with `since`." `status` follows a
 shared shape — not a spec'd state machine — whose wording bends per family where
 the domain reads better:
 
-- A **preliminary** state (`draft` for analyses and requirements, `proposed` for
-  decision records) marks a document merged while still unstable, so work can
-  land and circulate before it settles. A document already settled at merge time
-  may enter as `accepted` directly.
+- A **preliminary** state (`draft` for mission documents, analyses, and
+  requirements; `proposed` for decision records) marks a document merged while
+  still unstable, so work can land and circulate before it settles. A document
+  already settled at merge time may enter as `accepted` directly.
 - **`accepted`** is the settled state every family converges on: the
   load-bearing version other documents may rely on.
 - A preliminary document that does not make it is abandoned (`rejected`).
@@ -50,6 +50,11 @@ the domain reads better:
 It moves on a transition and never on a content edit, so it states what git does
 not: when the status last changed. Authoring and last-modified dates remain
 git's responsibility.
+
+For a mission document, `accepted` specifically records that the sponsor
+approved the exact revision. A substantive edit returns it to `draft` until the
+sponsor accepts the revised content; metadata-only lifecycle and relationship
+updates do not alter the approved mission.
 
 Recording a transition edits the frontmatter of an accepted record. This refines
 [D-01 decision records][d-01]: its immutability governs the decision body, while

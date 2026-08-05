@@ -7,12 +7,12 @@ since: 2026-05-31
 
 ## Context and Problem Statement
 
-The corpus spans several families — analyses, requirements, decision records —
-and every document needs a name that a human recognises and a tool can resolve.
-A bare sequence number ([D-01 decision records] started at `001`) does neither
-well: people do not recall what "002" decided, and an unquoted number in YAML
-frontmatter is read as an integer, losing its zero-padding and differing between
-parsers.
+The corpus spans several families — mission documents, analyses, requirements,
+decision records — and every document needs a name that a human recognises and
+a tool can resolve. A bare sequence number ([D-01 decision records] started at
+`001`) does neither well: people do not recall what "002" decided, and an
+unquoted number in YAML frontmatter is read as an integer, losing its
+zero-padding and differing between parsers.
 
 ## Decision Drivers
 
@@ -36,12 +36,13 @@ Chosen option: "`FAMILY-[AREA]-NUMBER-STEM`." A document's name, its filename
 (minus `.md`), and the form references use are one and the same, for example
 `D-02-madr-format-with-frontmatter`:
 
-- `FAMILY` is one letter that also selects the directory: `A` analyses
-  (`analyses/`), `R` requirements (`reqs/`), `D` decision records (`adr/`).
+- `FAMILY` is one letter that also selects the directory: `M` mission documents
+  (`mission/`), `A` analyses (`analyses/`), `R` requirements (`reqs/`), `D`
+  decision records (`adr/`).
 - `AREA` is an optional sub-namespace within a family, omitted until one is
   needed.
-- `NUMBER` is zero-padded to a per-family width — two digits for `A` and `D`,
-  three for `R` — sized to the records each family expects.
+- `NUMBER` is zero-padded to a per-family width — two digits for `M`, `A`, and
+  `D`, three for `R` — sized to the records each family expects.
 - `STEM` is the kebab-case description, and is paramount: it is what a reader
   recognises and cites. The `FAMILY-[AREA]-NUMBER` prefix is only the stable key
   that files, sorts, and greps; the stem is never dropped from a reference.

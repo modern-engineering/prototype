@@ -25,11 +25,11 @@ by reading every body.
 Record relationships as pairs of [family-prefixed identifiers], one field per
 direction, stored on both records:
 
-| Forward      | Inverse         | Families                | Meaning                     |
-| ------------ | --------------- | ----------------------- | --------------------------- |
-| `supersedes` | `superseded-by` | all                     | replaces / is replaced by   |
-| `derives`    | `derived-from`  | analyses / requirements | gives rise to / quotes      |
-| `refines`    | `refined-by`    | all                     | qualifies / is qualified by |
+| Forward      | Inverse         | Families                          | Meaning                     |
+| ------------ | --------------- | --------------------------------- | --------------------------- |
+| `supersedes` | `superseded-by` | all                               | replaces / is replaced by   |
+| `derives`    | `derived-from`  | mission / analyses / requirements | gives rise to / quotes      |
+| `refines`    | `refined-by`    | all                               | qualifies / is qualified by |
 
 Every relationship field holds a list of full identifiers, for example
 `A-03-parameterization`, each naming a target for a reader and resolving to a

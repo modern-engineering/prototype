@@ -1,6 +1,7 @@
 # Authoring documentation in `docs/`
 
 - Apply INCOSE systems-engineering practice. Most notably:
+  - establish the mission before developing the operational concept;
   - analyze the problem before choosing a solution;
   - keep every artifact traceable to the one that motivated it.
 - Consult @README.md for the document index.
@@ -8,6 +9,8 @@
 ## Conventions
 
 - A new document takes the next free number in its family; never reuse one.
+- Mission documents establish the enduring frame for downstream work. Only the
+  sponsor may accept one, and only after reviewing its exact revision.
 - Frontmatter follows the schema the `adr/` records define:
   - `status` (`draft`/`proposed` while unstable, `accepted` once settled, `deprecated`/`superseded` later)
   - `since` (date of that status)
