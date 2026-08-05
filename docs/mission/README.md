@@ -8,3 +8,4 @@ Substantive changes to accepted content return it to `draft` for renewed accepta
 
 | Record | Mission document |
 | ------ | ---------------- |
+| [M-01](M-01-business-mission-analysis.md) | Business Mission Analysis |
