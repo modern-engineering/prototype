@@ -251,15 +251,15 @@ that every unusual workflow will be supported.
 
 The first credible completion point for adoption is replacing at least one
 complete slice of an existing deployment or continuous-delivery process with a
-solution-artifact-based handoff. The result must produce the same software
-footprint, or a consciously accepted equivalent, and be accepted by the
+solution-artifact-based handoff. The result must produce the same deployed
+solution footprint, or a consciously accepted equivalent, and be accepted by the
 organizational function responsible for tailored customer delivery—typically
 solution engineering or operations.
 
 ## How progress will be judged
 
 Product and mission evidence must show useful portability of intent between
-deployment environments without unconsciously changing the delivered software
+deployment environments without unconsciously changing the deployed solution
 footprint. It should also show whether the handoff improves the responsible
 function's ability to deliver a complete slice without bespoke R&D
 intervention.
