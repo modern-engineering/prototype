@@ -31,8 +31,9 @@ participate without losing the solution's identity, history or line of accountab
 The current prototype is an early increment, not the final scope of the toolkit. Its
 first useful proof is narrow: replace part of an incumbent delivery process and produce
 an observable running service whose footprint is acceptable against criteria agreed in
-advance. Broader claims require a complete customer thread, repetition within an
-organisation, and eventually evidence across materially different organisations.
+advance. Evidence of broader value requires a complete customer thread, repetition
+within an organisation, and eventually results across materially different
+organisations.
 
 ## Business context
 
@@ -51,11 +52,11 @@ software version was intended and whether the running service reflected the appr
 solution. Knowledge of how to prepare a platform, obtain a shared-service slice and
 connect it to an application lived in bespoke tooling and specialists' memories.
 
-Routine customer work therefore crossed into application, catalogue or platform
-development. The issue was not which department performed it, but that delivery
-required someone to change a reusable capability or extend platform-specific machinery.
-That dependence limited growth and drew specialists away from improving capabilities
-shared by many solutions.
+Routine customer work therefore crossed into changes to reusable applications and
+platform capabilities. The issue was not which department performed it, but that
+delivery required someone to change a reusable capability or extend platform-specific
+machinery. That dependence limited growth and drew specialists away from improving
+capabilities shared by many solutions.
 
 GitOps and automation are present in this story, but neither is the root problem.
 Automation can repeat a poorly bounded process, and a repository can version files
@@ -81,22 +82,23 @@ Approved intent states what the solution is: its selected capabilities, intended
 configuration and relationships. The other half of the handoff is inspectable and
 reproducible know-how for transition into operation. It covers how backing capabilities
 are prepared or attached, target-specific forms are derived and intended applications
-become running services. The toolkit connects these concerns without pretending that a
-portable declaration can encode every local practice.
+become running services. The handoff standardises what must retain its meaning across
+environments, while target-specific procedures remain explicit in the adopter's tooling.
 
 The business objective is to grow routine tailored delivery without proportional growth
-in delivery-specific application or catalogue work and platform-extension work. Routine
-tailoring, provisioning and deployment should use capabilities that already exist. Work
-is classified by the responsibility it fulfils, not by a person's title or department.
-A solution engineer changing a catalogue component is doing application/catalogue
-engineering. A platform engineer performing ordinary provision work is not thereby
-extending the platform.
+in specialist intervention. Here, specialist intervention means delivery-specific
+changes to reusable software or platform capabilities. Routine tailoring, provisioning
+and deployment should use capabilities that already exist. The nature of the work, not
+the person's title, determines whether it is specialist intervention. Extending a
+reusable application for one delivery is software development. Running an established
+provisioning procedure is routine delivery; changing that procedure is platform
+development.
 
-This handoff makes the intended change boundary explicit, giving the organisation a
-basis to reduce avoidable coordination, contain change, and relate running services to
-approved intent and relevant software versions. It also exposes missing capability.
-When routine delivery needs new catalogue or platform work, the organisation can treat
-it as an explicit improvement rather than hide it inside customer fulfilment.
+The handoff makes the change boundary visible. Teams can see which solution a change
+belongs to and relate the running software to its approved intent and version. It also
+reveals capability gaps. When a delivery needs new reusable software or new platform
+behaviour, the organisation can plan that improvement explicitly instead of concealing
+it within customer fulfilment.
 
 ## System boundary and operating model
 
@@ -117,16 +119,17 @@ platform ownership nor guarantees business results.
 
 The operating model divides delivery work into three enduring responsibility domains:
 
-| Responsibility domain | Enduring accountability |
-| --- | --- |
-| **Solution engineering** | Understand the customer need, compose and approve the solution's declared intent, and validate that the operational solution fulfils that need. |
-| **Application/catalogue engineering** | Develop and verify the reusable software capabilities from which solutions are composed, including their supported means of configuration and integration. |
-| **Platform/service engineering** | Make platforms and backing services ready to receive solution work, and provide the organisation-specific means to provision, deploy and sustain solutions there. |
+| Responsibility domain | Primary concern | Enduring accountability |
+| --- | --- | --- |
+| **Solution engineering** | Approved solution intent | Understand the customer need, compose and approve the solution's declared intent, and validate that the operational solution fulfils that need. |
+| **Software engineering** | Reusable application catalogue | Develop and verify the reusable software capabilities from which solutions are composed, including their supported means of configuration and integration. |
+| **Platform/service engineering** | Ready platform estate and backing-service catalogue | Make platforms and backing services ready to receive solution work, and provide the organisation-specific means to provision, deploy and sustain solutions there. |
 
 These are domains of responsibility, not prescribed teams. One person, team or
 automated actor may wear several hats. Full mission fulfilment still requires the
 accountabilities to remain distinguishable, so that routine delivery is not mistaken
-for catalogue development and platform extension is not hidden inside deployment.
+for software development and changes to platform automation are not hidden inside
+ordinary deployment.
 
 Customer use and organisational sustainment are also distinct. The customer uses the
 operational solution. The organisation sustains it through monitoring, support, repair
@@ -171,27 +174,48 @@ actionable description of the intended deployment footprint, understandable with
 solution identity. IR is not the lifecycle record. Artefact schemas, containment,
 carriers and custody remain open.
 
-Portability is semantic. Solution identity and approved intent should retain meaning
-across handoffs and materially different targets, even when local tools realise them
-differently. The toolkit does not promise identical bytes, portable derivation lineage
-or equivalent operational behaviour. Relevant software provenance records the identity
-and version of catalogue software declared for the solution and observed in operation.
-Traceability relates that declaration to those observations and does not require a
-record of every source-to-runtime transformation.
+Semantic portability applies to meaning, not implementation. A solution's identity and approved
+intent must still mean the same thing after crossing a handoff or moving to a materially
+different target. Local tools may represent and act on that meaning differently. The
+toolkit does not promise byte-for-byte artefacts, a portable record of every
+transformation or equivalent operational behaviour.
 
-The solution's life is described through recurring activities, not a one-way state
-machine. **Design** composes and approves intent. **Provision** establishes or attaches
-the backing capabilities needed by the solution. **Deploy** turns the intended
-applications into observable running services. **Use** is the customer's use of the
-operational solution. **Sustain** is the organisation's monitoring, support, repair,
-change and capacity work that keeps it useful. Design, Provision, Deploy, Use and
-Sustain may all recur as needs and circumstances change.
+Relevant software provenance is narrower. It identifies the reusable application and
+version approved for the solution, and the application and version observed in
+operation. Traceability connects those two points; it need not reconstruct every
+transformation between them.
 
-**Retire** is terminal: it ends the solution's operational life, while its identity and
-history remain retained and are not reassigned. Detailed sequencing, triggers, retries,
-concurrency and recovery belong to a later operational concept and architecture. The
-mission requires the meaning of the activities and their handoffs, not a premature
-execution design.
+The solution's activities have a direction: their purpose is to put a solution into
+customer use and keep it useful. They are not, however, a one-pass sequence.
+
+```mermaid
+flowchart TD
+    D["Design<br/>create identity and approve or revise intent"]
+    P["Provision<br/>prepare or attach backing capabilities"]
+    DP["Deploy<br/>produce observable running services"]
+    U["Use<br/>customer uses the operational solution"]
+    S["Sustain<br/>observe, support and plan change"]
+    R["Retire<br/>end operational life"]
+
+    D --> P --> DP --> U
+    U <--> S
+    S -. "change needed" .-> D
+    U --> R
+    S --> R
+```
+
+The first **Design** gives the solution its identity and approved intent. Later Design
+work changes that intent without changing the solution's identity. **Provision**
+establishes or attaches its backing capabilities. **Deploy** produces its running
+services. **Use** is the customer's use of the operational solution, supported by the
+organisation through **Sustain**.
+
+Each activity establishes the basis for those that follow. When its result changes,
+downstream results must be reassessed. An unaffected result may be reaffirmed without
+repeating the activity that produced it. **Retire** is terminal: it ends the solution's
+operational life, while its identity and history remain retained and are not reassigned.
+Detailed triggers, retries, concurrency and recovery belong to the later operational
+concept and architecture.
 
 ## Product posture and adoption
 
@@ -199,47 +223,47 @@ The product is an opinionated open-source Go toolkit, not a mandate for one deli
 platform. It offers a common contract, supported extension points and coherent
 reference tools. Organisations can compose its packages with local code and replace a
 reference tool where another implementation preserves the required semantics.
-Compatibility is a specific interoperability claim at a handoff, not a blanket
-assertion that tools or artefacts are interchangeable. Precise compatibility and
-versioning contracts remain open.
+Compatibility means that two participants preserve the required meaning at a particular
+handoff. It does not make their tools or artefacts interchangeable. Precise
+compatibility and versioning contracts remain open.
 
 Adoption can be cumulative. An organisation may begin by passing a solution artefact
 into an incumbent process, replace one bounded step, and extend use only where evidence
-shows value. Partial adoption is legitimate, but its claims are correspondingly narrow.
-An organisation that omits lifecycle history or software provenance may still use part
-of the toolkit. It cannot claim the traceability or full mission effect that the
-omitted capability supports.
+shows value. Partial adoption is legitimate, but demonstrates only the capabilities
+actually used. An organisation that omits lifecycle history or software provenance may
+still use part of the toolkit, but has not established runtime traceability or the full
+mission outcome.
 
-This posture fits brownfield reality better than imposing platform uniformity. One
-platform can reduce variation, but it moves the product boundary into infrastructure
-governance and may exclude obligations the organisation cannot standardise away. A
-universal automation layer has a similar cost: it absorbs target-specific execution
-policy and duplicates existing deployment systems.
+The toolkit's boundary ends before target-specific provisioning and execution. After
+the handoff, adopter-owned tools carry out that work. For example, Terraform may
+provision a cloud database required by a solution, and Kubernetes may run the solution's
+containerised applications. The toolkit carries the solution's identity and approved
+intent into those steps; the adopter configures, authorises and operates both tools.
 
-The toolkit leaves local execution local. It is not infrastructure as code, a universal
-deployment engine or a reconciler, and does not select a target mechanism. It provides
-shared meaning while the organisation retains infrastructure ownership, execution,
-reconciliation, deployment acceptance and the local mapping of responsibility.
+Accordingly, the toolkit is not infrastructure as code, nor a universal deployment engine
+or a reconciler, and does not select target mechanisms. It provides shared meaning
+while the organisation retains infrastructure ownership, execution, reconciliation,
+deployment acceptance and the local mapping of responsibility.
 
 ## Evidence and business acceptance
 
-Evidence must grow with the claim. Technical completion alone does not establish
-business acceptance, and a result in one organisation does not establish reusable
-product demand elsewhere.
+Each step below answers a different question and is accepted by a different authority.
+Technical completion alone does not establish business acceptance, and a result in one
+organisation does not establish that others need or can reuse the product.
 
-| Claim | Required evidence | Accepting authority |
+| Evidence level | What must be demonstrated | Accepted by |
 | --- | --- | --- |
 | **Deployment slice** | A bounded part of an incumbent delivery process is replaced using the toolkit contract or a semantically compatible replacement. An approved solution artefact produces an observable running service whose footprint is judged against the baseline, scope and local equivalence criteria agreed before the slice. | The organisation's delivery authority. |
-| **Full customer thread** | A customer need is composed into approved solution intent, transitioned into operation and validated through customer use, with less routine dependence on delivery-specific application/catalogue or platform-extension work. | The function accountable for customer delivery. |
+| **Full customer thread** | A customer need is composed into approved solution intent, transitioned into operation and validated through customer use, with less routine dependence on specialist intervention. | The function accountable for customer delivery. |
 | **Repeated fulfilment in one adopter context** | Repeated solution changes and deliveries across materially heterogeneous environments demonstrate continuity of identity, semantic portability, and traceability from runtime to approved intent and relevant software provenance. They also demonstrate inspectable, reproducible transition know-how, distinguishable accountability and delivery growth without proportional specialist intervention. | Adopter leadership or its accountable business authority. |
 | **Cross-adopter product hypothesis** | Materially different organisations reuse the same semantic contract and applicable reference tooling while retaining their own execution authority and local realisation. Compatible replacement proves compatibility where exercised, but not reuse of the replaced reference tool. | The project sponsor. |
 
 The deployment slice is the first milestone because it can test the handoff without
-claiming to replace a whole delivery system. The full customer thread follows because
-customer use is needed to validate business fulfilment. Repetition strengthens the
-organisation-level claim. Only accumulated evidence across different organisations can
-support the product hypothesis, and even that does not by itself prove sustainable
-support economics.
+replacing a whole delivery system. The full customer thread follows because customer
+use is needed to validate business fulfilment. Repetition shows whether the result
+persists across solution changes and heterogeneous environments. Only accumulated
+evidence across different organisations can support the product hypothesis, and even
+that does not by itself prove sustainable support economics.
 
 ## Constraints, risks and uncertainty
 
@@ -275,5 +299,5 @@ architecture.
 
 These are known unknowns, not an exhaustive boundary around uncertainty. Early slices
 and customer threads may reveal unknown unknowns that challenge the system boundary,
-the operating model or the value claimed. The mission should remain durable in purpose
+the operating model or the expected value. The mission should remain durable in purpose
 while being revised when evidence shows that its assumptions are wrong.
