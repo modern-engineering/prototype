@@ -1,7 +1,6 @@
 # Architectural Decision Records
 
-Decisions recorded in MADR 4.0.0 format; see the authoring guide in
-`docs/CLAUDE.md`.
+Decisions recorded in MADR 4.0.0 format; see the authoring guide in `docs/CLAUDE.md`.
 
 | Record                                             | Decision                                     |
 | -------------------------------------------------- | -------------------------------------------- |
