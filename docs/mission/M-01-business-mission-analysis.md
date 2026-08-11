@@ -174,11 +174,11 @@ actionable description of the intended deployment footprint, understandable with
 solution identity. IR is not the lifecycle record. Artefact schemas, containment,
 carriers and custody remain open.
 
-Semantic portability applies to meaning, not implementation. A solution's identity and approved
-intent must still mean the same thing after crossing a handoff or moving to a materially
-different target. Local tools may represent and act on that meaning differently. The
-toolkit does not promise byte-for-byte artefacts, a portable record of every
-transformation or equivalent operational behaviour.
+**Semantic portability** applies to meaning, not implementation. A solution's identity
+and approved intent must still mean the same thing after crossing a handoff or moving
+to a materially different target. Local tools may represent and act on that meaning
+differently. The toolkit does not promise byte-for-byte artefacts, a portable record of
+every transformation or equivalent operational behaviour.
 
 Relevant software provenance is narrower. It identifies the reusable application and
 version approved for the solution, and the application and version observed in
@@ -186,36 +186,61 @@ operation. Traceability connects those two points; it need not reconstruct every
 transformation between them.
 
 The solution's activities have a direction: their purpose is to put a solution into
-customer use and keep it useful. They are not, however, a one-pass sequence.
+customer use and keep it useful:
+
+- **Design** brings the logical solution into being by establishing its identity and
+  approved intent. Later **Design** work can revise that intent without changing the
+  solution's identity.
+- **Provision** renders the required backing capabilities usable by the solution.
+- **Deploy** renders the intended applications operational.
+- **Operate** is the customer's use of the solution to meet its needs. The resulting
+  experience and outcomes reveal whether the solution continues to satisfy those needs.
+- **Sustain** is the adopter's work to keep the operational solution fit for use. It
+  includes routine monitoring and maintenance, operational support and repair, and
+  capacity planning.
+- **Retire** is terminal. It ends the solution's operational life, while its identity
+  and history remain retained and are not reassigned.
 
 ```mermaid
 flowchart TD
-    D["Design<br/>create identity and approve or revise intent"]
-    P["Provision<br/>prepare or attach backing capabilities"]
-    DP["Deploy<br/>produce observable running services"]
-    U["Use<br/>customer uses the operational solution"]
-    S["Sustain<br/>observe, support and plan change"]
-    R["Retire<br/>end operational life"]
+    subgraph T["Transition into operation"]
+        D["Design"]
+        P["Provision"]
+        DP["Deploy"]
+        D --> P --> DP
+    end
 
-    D --> P --> DP --> U
-    U <--> S
-    S -. "change needed" .-> D
+    subgraph O["Operational life"]
+        direction LR
+        U["Operate"]
+        S["Sustain"]
+        U -- "feedback" --> S -- "support" --> U
+    end
+
+    R["Retire"]
+
+    DP --> U
+    U -. "needs change" .-> D
+    S -..-> P
+    S -..-> DP
     U --> R
     S --> R
 ```
 
-The first **Design** gives the solution its identity and approved intent. Later Design
-work changes that intent without changing the solution's identity. **Provision**
-establishes or attaches its backing capabilities. **Deploy** produces its running
-services. **Use** is the customer's use of the operational solution, supported by the
-organisation through **Sustain**.
+The dotted return arrows distinguish two reasons to repeat work:
 
-Each activity establishes the basis for those that follow. When its result changes,
-downstream results must be reassessed. An unaffected result may be reaffirmed without
-repeating the activity that produced it. **Retire** is terminal: it ends the solution's
-operational life, while its identity and history remain retained and are not reassigned.
-Detailed triggers, retries, concurrency and recovery belong to the later operational
-concept and architecture.
+- A new or changed customer need, or evidence during **Operate** that the solution no
+  longer satisfies that need, returns the solution to **Design**. The approved intent
+  may change, but the solution retains its identity.
+- Operational needs identified during **Sustain** may return the solution to
+  **Provision** to restore, replace or scale backing capabilities, or to **Deploy** to
+  restore the intended applications to operation. This work leaves the approved intent
+  unchanged, provided that the intent still reflects the customer's need.
+
+When an activity's result changes, downstream results must be reassessed; an unaffected
+result may be reaffirmed without repeating the activity that produced it. Detailed
+triggers, retries, concurrency and recovery belong to the later operational concept and
+architecture.
 
 ## Product posture and adoption
 
@@ -229,7 +254,7 @@ compatibility and versioning contracts remain open.
 
 Adoption can be cumulative. An organisation may begin by passing a solution artefact
 into an incumbent process, replace one bounded step, and extend use only where evidence
-shows value. Partial adoption is legitimate, but demonstrates only the capabilities
+shows value. Partial adoption is legitimate but demonstrates only the capabilities
 actually used. An organisation that omits lifecycle history or software provenance may
 still use part of the toolkit, but has not established runtime traceability or the full
 mission outcome.
@@ -240,8 +265,8 @@ provision a cloud database required by a solution, and Kubernetes may run the so
 containerised applications. The toolkit carries the solution's identity and approved
 intent into those steps; the adopter configures, authorises and operates both tools.
 
-Accordingly, the toolkit is not infrastructure as code, nor a universal deployment engine
-or a reconciler, and does not select target mechanisms. It provides shared meaning
+Accordingly, the toolkit is neither infrastructure as code nor a universal deployment
+engine or reconciler. It does not select target mechanisms. It provides shared meaning
 while the organisation retains infrastructure ownership, execution, reconciliation,
 deployment acceptance and the local mapping of responsibility.
 
@@ -277,27 +302,45 @@ The mission is shaped by a small number of enduring constraints:
 - The organisation retains infrastructure, execution, reconciliation and
   deployment-acceptance authority.
 
-The principal risks are equally direct:
+### Product and mission risks
 
-- Local extensions may drift until nominally shared intent has different meanings in
-  different settings.
-- Unbounded customisation may recreate bespoke delivery behind toolkit-shaped
-  interfaces.
-- Existing incentives may resist distinct accountabilities even when the same people
-  continue doing the work.
-- Shared repositories, platforms or services may preserve cross-solution blast radius
-  despite adoption of the toolkit.
-- Weak retention of identity, history or provenance may make a partial implementation
-  appear to fulfil the whole mission.
+- The common contract may be too weak to preserve meaning across heterogeneous
+  environments, or too restrictive to fit them without bespoke workarounds. Either
+  outcome would **defeat semantic portability**.
+- The toolkit may introduce new integration and coordination work without reducing
+  specialist intervention. Technical adoption would then fail to achieve the business
+  objective.
+- The contract and reference tooling may prove reusable in only one adopter context.
+  The result would be a local solution rather than a **reusable open-source product**.
 
-Product reuse remains a hypothesis rather than proven market need. Maintenance and
-support economics, and therefore long-term sustainability, are unknown. Workload
-breadth, useful evidence thresholds, air-gapped operation, unresolved placement
-patterns, semantic compatibility, and the design of artefacts, security and execution
-remain open. Detailed choices belong to later requirements, the operational concept and
+### Adoption risks
+
+- Local extensions may assign different meanings to the same shared concepts. The same
+  solution artefact could then pass validation in two environments but be interpreted
+  differently, breaking semantic portability.
+- Extension points may allow every adopter to build a different, incompatible delivery
+  model. The toolkit would then add another interface without reducing bespoke
+  integration or enabling reuse.
+- Existing authority or incentives may conflict with the responsibility model. Routine
+  delivery could remain dependent on software and platform specialists even after the
+  toolkit is adopted.
+- The toolkit distinguishes logical solutions, but cannot isolate every shared
+  implementation. Shared repositories, platforms, backing services, credentials, or
+  workflows may still allow a change for one solution to disrupt another.
+- If identity, history or provenance are not retained, the adopter cannot reliably
+  relate a running service to its approved solution. A partial implementation may still
+  look complete, creating false confidence in its traceability and accountability.
+
+### Known and unknown uncertainty
+
+The **known unknowns** include whether materially different organisations will adopt
+the same contract and whether the project can sustain maintenance and support. Workload
+breadth, useful evidence thresholds, air-gapped operation, concurrent placement,
+semantic compatibility, and the design of artefacts, security and execution also remain
+open. These decisions belong to later requirements, the operational concept and
 architecture.
 
-These are known unknowns, not an exhaustive boundary around uncertainty. Early slices
-and customer threads may reveal unknown unknowns that challenge the system boundary,
-the operating model or the expected value. The mission should remain durable in purpose
-while being revised when evidence shows that its assumptions are wrong.
+Deployment slices and customer threads may expose **unknown unknowns**: needs or
+constraints not anticipated here. They may require us to change the system boundary,
+operating model or expected value. The mission's purpose should remain stable, but the
+analysis must change when its assumptions are wrong.
