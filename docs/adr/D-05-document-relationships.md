@@ -26,8 +26,16 @@ Record relationships as pairs of [family-prefixed identifiers], one field per di
 | `derives`    | `derived-from`  | mission / analyses / requirements | gives rise to / quotes      |
 | `refines`    | `refined-by`    | all                               | qualifies / is qualified by |
 
-Every relationship field holds a list of full identifiers, for example `D-02-madr-format-with-frontmatter`, each naming a target for a reader and resolving to a file.
-A single target is written as a one-element list too, so a tool reads one shape and never guesses between a scalar and a sequence.
+Every relationship field holds a block YAML sequence of full identifiers, each naming a target for a reader and resolving to a file.
+A single target is written as a one-element sequence too, so a tool reads one shape and never guesses between a scalar and a sequence:
+
+```yaml
+refines:
+  - D-01-use-architectural-decision-records
+```
+
+The flow-sequence form (`refines: [D-01-use-architectural-decision-records]`) is forbidden.
+In a Markdown document, its brackets are too easily read as link syntax rather than YAML data.
 Both edges are written and kept in step by hand: editing frontmatter after the fact is welcome, not a cost, because it is what keeps the corpus navigable.
 
 `refines` carries the subtler links a review tends to surface — a later record qualifying an earlier rule rather than replacing it — which would otherwise live only in prose and be lost to a reader of the earlier record.

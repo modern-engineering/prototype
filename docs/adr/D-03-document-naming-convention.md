@@ -37,7 +37,7 @@ A leading letter keeps every identifier a string rather than a YAML integer, and
 ### Consequences
 
 - Existing records take the new names; the number is preserved, the stem added.
-- References in prose and frontmatter are self-describing, for example `refines: [D-01-use-architectural-decision-records]`.
+- References in prose and frontmatter are self-describing, for example `D-01-use-architectural-decision-records`.
 - A stem is refined only by renaming the file, which git records and a prefix search makes easy to follow.
 
 ## More Information

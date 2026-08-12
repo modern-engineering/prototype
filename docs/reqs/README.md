@@ -1,6 +1,6 @@
 # Requirements
 
-Requirements derived from mission documents and analyses; see the authoring guide in `docs/CLAUDE.md`.
+Requirements derive from mission documents and analyses.
 
 | Record | Requirement |
 | ------ | ----------- |
