@@ -46,6 +46,8 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
   It does not promise security, compute, network, data, resource or failure isolation.
 - **Operational solution** — `provisional` — Current corpus prose for a logical solution as realised and available for customer use, not a second identity-bearing subject.
   Operational stories may refine the boundary between the logical solution, its realised contents and customer use.
+- **Operational story** — `provisional` — A bounded, time-sequenced account that places the common mission concepts in one sociotechnical delivery system and exposes the actors, authorities, handoffs, evidence and material conditions that affect the outcome.
+  This term comes from the provisional [M-02-concept-of-operations] and may change as the planned story portfolio is completed.
 - **Business beneficiary** — `settled` — A business entity whose needs justify a logical solution and against whose needs that solution is designed and validated.
   Consuming an operational service does not by itself establish this relationship, and the relationship grants no lifecycle or deployment-acceptance authority.
 - **Partial adoption** — `settled` — Legitimate use of a bounded subset of toolkit capabilities that demonstrates only the outcomes exercised and must not be presented as the full mission result.
@@ -93,3 +95,4 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 [D-05-document-relationships]: adr/D-05-document-relationships.md
 [M-01-business-mission-analysis]: mission/M-01-business-mission-analysis.md
 [M-01-mission-opportunity]: mission/M-01-business-mission-analysis.md#mission-and-opportunity
+[M-02-concept-of-operations]: mission/M-02-concept-of-operations.md

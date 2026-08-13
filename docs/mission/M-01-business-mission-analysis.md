@@ -1,6 +1,8 @@
 ---
 status: draft
 since: 2026-08-05
+derives:
+  - M-02-concept-of-operations
 ---
 
 # Business Mission Analysis
