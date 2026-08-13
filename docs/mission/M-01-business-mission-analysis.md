@@ -113,9 +113,9 @@ The organisation retains infrastructure ownership and responsibility for authori
 
 ## The durable handoff and the life of a solution
 
-A logical solution is non-fungible.
-Two solutions do not become the same because their present contents happen to match, and a solution does not become a new one merely because its contents change.
-Its stable identity carries its lifecycle, history and accountability through those changes.
+A logical solution has a durable identity.
+Two solutions remain distinct even when their present contents match, and a solution retains that identity as its contents change.
+The identity carries the solution's lineage, lifecycle, history and accountability through those changes.
 This is the unit of **operational isolation** in the mission: each solution can be changed, placed and retired on its own terms.
 The term does not promise security, compute, network, data, resource or failure isolation.
 
