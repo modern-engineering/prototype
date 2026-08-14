@@ -65,7 +65,7 @@ The labels below describe the evidence for a vocabulary entry, not a document li
   Platform/service engineering is accountable for making platforms and backing services ready to receive solution work and providing the means specific to the adopting organisation to provision, deploy and sustain solutions there.
   A domain is not a prescribed team, and one actor may perform work in several domains while the accountable domain, performing actor, authorising authority and owning entity remain distinguishable.
 - **Retire** — `settled` — The terminal activity that ends a logical solution's operational life while retaining its identity and history and never reassigning them.
-- **Routine delivery** — `settled` — Tailoring, provisioning or deployment performed with reusable software, platform capabilities and established procedures that already exist.
+- **Routine delivery** — `provisional` — Tailoring, provisioning or deployment performed through the established delivery path using reusable software, platform capabilities, established procedures and appropriately delegated access and authority.
 - **Runtime traceability** — `provisional` — The connection between the application and version specified in the solution design and the application and version observed in operation within the mission's relevant software provenance boundary.
   It need not reconstruct every intermediate transformation.
 - **Semantic contract** — `settled` — The shared meaning the toolkit requires participants to preserve at its handoffs while allowing tools and realisations specific to each adopting organisation.
@@ -82,8 +82,9 @@ The labels below describe the evidence for a vocabulary entry, not a document li
   It is semantic content, not an artefact; artefacts may represent it.
 - **Solution Exchange Format (SEF)** — `settled` — The project's serialised exchange format and one kind of solution artefact.
   Its schema, containment, carrier and custody remain open.
-- **Specialist intervention** — `provisional` — Delivery-specific work that the established routine-delivery path cannot perform because it requires specialist-held expertise, access or judgement, or a change to reusable software or platform capability.
-  For example, a platform specialist uses restricted production control-plane access to add a customer-specific firewall route that the established provisioning procedure cannot express, without changing a reusable capability.
+- **Specialist intervention** — `provisional` — A particular delivery depends on specialist intervention when the established delivery path cannot complete it without specialist-held expertise, authority or access, or without changing reusable software or platform capability.
+  Classification follows the dependency, not the title or identity of the executor.
+  [M-01 § Mission and opportunity][M-01-mission-opportunity] explains the boundary with operational examples.
 - **Sustain** — `settled` — The adopting organisation's work to keep an operational solution fit for customer use through monitoring, maintenance, support, repair, change and capacity planning.
 - **System of interest** — `settled` — The toolkit when analysed within the next-larger context of the adopting organisation's sociotechnical delivery system.
 - **Toolkit** — `settled` — The opinionated, open-source Go packages, supported extension mechanisms, semantic contract and reference tooling supplied by this project.
@@ -92,3 +93,4 @@ The labels below describe the evidence for a vocabulary entry, not a document li
 
 [D-05-document-relationships]: adr/D-05-document-relationships.md
 [M-01-business-mission-analysis]: mission/M-01-business-mission-analysis.md
+[M-01-mission-opportunity]: mission/M-01-business-mission-analysis.md#mission-and-opportunity

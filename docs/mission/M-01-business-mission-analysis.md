@@ -39,8 +39,8 @@ A shared environment repository allowed a change for one solution to affect anot
 Layers of configuration obscured which applications and versions belonged to each solution, and whether the running service still matched its design.
 Knowledge of how to prepare a platform, obtain a shared-service slice and connect it to an application lived in bespoke tooling and specialists' memories.
 
-Routine customer work therefore crossed into changes to reusable applications and platform capabilities.
-The issue was not which department performed it, but that delivery required someone to change a reusable capability or extend platform-specific machinery.
+Recurring customer delivery work therefore required specialists to supply expertise, access or authority personally, or to change reusable application or platform capability.
+The issue was the dependency, not which department performed the work.
 That dependence limited growth and drew specialists away from improving capabilities shared by many solutions.
 
 GitOps and automation are present in this story, but neither is the root problem.
@@ -64,11 +64,15 @@ That know-how covers how backing capabilities are prepared or attached, target-s
 The toolkit's semantic contract standardises the identity and design meanings that participants must preserve across environments, while the adopting organisation's process keeps target-specific procedures explicit in its tooling.
 
 The business objective is to grow routine tailored delivery without proportional growth in specialist intervention.
-Here, specialist intervention means delivery-specific changes to reusable software or platform capabilities.
-Routine tailoring, provisioning and deployment should use capabilities that already exist.
+Here, specialist intervention is delivery-specific work that the established delivery path cannot complete without specialist-held expertise, authority or access, or a change to reusable software or platform capability.
+For example, only developers may hold the authority required to create or approve a customer-specific GitOps commit, and only they may hold the relevant CLI credentials used by provisioning commands.
+An agent executing the work does not remove the dependency when the specialist must still supply the knowledge, authority or access.
+Routine tailoring, provisioning and deployment use established capabilities and procedures with appropriately delegated access and authority.
 The nature of the work, not the person's title, determines whether it is specialist intervention.
 Extending a reusable application for one delivery is software development.
-Running an established provisioning procedure is routine delivery; changing that procedure is platform development.
+Running an established provisioning procedure through the established delivery path with appropriately delegated access and authority is routine delivery.
+It remains specialist intervention when completion still depends on specialist-held expertise, authority or access.
+Changing the procedure is platform development.
 
 The handoff makes the change boundary visible.
 Teams can see which solution a change belongs to and relate the application and version observed in operation to those specified in the solution design.
