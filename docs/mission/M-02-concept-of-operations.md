@@ -3,6 +3,8 @@ status: draft
 since: 2026-08-13
 derived-from:
   - M-01-business-mission-analysis
+derives:
+  - M-03-sales-led-demonstration
 ---
 
 # Concept of Operations
@@ -82,11 +84,10 @@ If an apparent commonality conflicts with the accepted business mission, the mis
 
 ## Story portfolio
 
-This catalogue intentionally begins empty because no operational story has yet been established.
-Links will be added only when story documents exist.
+### [M-03-sales-led-demonstration]
 
-| Story document | Operational setting | Material distinctions |
-| -------------- | ------------------- | --------------------- |
+In a counterfactual Elastic, an online retailer uses authorised live production telemetry to investigate payment latency through a temporary vendor-operated demonstration.
+A bounded path lets the sales engineer revise the same demonstration and remove it completely, even though some infrastructure remains shared.
 
 The portfolio is not a coverage claim.
 Its value will come from the contrasts represented and the evidence each story contributes, not from the number of entries.
@@ -118,6 +119,7 @@ When they do, the corpus should preserve the contradiction, reconsider the affec
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-01-boundary]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
 [M-01-life]: M-01-business-mission-analysis.md#the-durable-handoff-and-the-life-of-a-solution
+[M-03-sales-led-demonstration]: M-03-sales-led-demonstration.md
 [NASA-Appendix-S]: https://www.nasa.gov/reference/system-engineering-handbook-appendix/#hds-sidebar-nav-112
 [NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
 [INCOSE-RE]: https://www.incose.org/wp-content/uploads/2026/01/requirements_engineering_part_1.pdf
