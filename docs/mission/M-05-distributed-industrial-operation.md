@@ -9,7 +9,8 @@ derived-from:
 
 > **Counterfactual basis.**
 > This story applies the [Concept of Operations][M-02-concept-of-operations] to an invented Siemens customer service.
-> Siemens publicly offers [cloud-based predictive-maintenance software across assets and sites][Siemens-Senseye], describes [hybrid edge-cloud arrangements for intelligent maintenance][Siemens-Industrial-Edge], and documents the [ingestion of industrial machine data][Siemens-machine-data].
+> Siemens publicly offers [cloud-based predictive-maintenance software across assets and sites][Siemens-Senseye].
+> It also describes [hybrid edge-cloud arrangements for intelligent maintenance][Siemens-Industrial-Edge] and documents the [ingestion of industrial machine data][Siemens-machine-data].
 > Big Hammer Steelworks, the customer relationship, the toolkit adoption, the responsibilities and every event below are invented.
 
 ## One service across several factories
@@ -72,7 +73,8 @@ It expresses the intended cloud-and-plant arrangement after the change without c
 
 Siemens verifies the new software and prepares a supported way to introduce it at the factories.
 The software carries the repeatable upgrade know-how, so the employee executing the change does not have to interpret an arbitrary playbook or reproduce technical knowledge from memory.
-People still authorise and initiate the work, transport approved data where the environment requires it, judge the result and intervene when the supported path cannot complete.
+People still authorise and initiate the work, transport approved data where the environment requires it, and judge the result.
+They intervene when the supported path cannot complete.
 
 > **Deliberately unresolved.**
 > R1 and R2 are story labels, not a selected identifier scheme.
@@ -85,14 +87,16 @@ Each factory manager chooses a window in which Siemens may change the plant-side
 
 The cloud therefore begins running the software specified by R2 while the factories still run software specified by R1.
 At the first factory, a Siemens service engineer joins the agreed window and uses the supported upgrade capability to introduce the plant-side release.
-Siemens confirms that its software is running as intended, the factory manager decides that production may resume, and Big Hammer's reliability team confirms that the service is ready for local use.
+Siemens confirms that its software is running as intended.
+The factory manager decides that production may resume.
+Big Hammer's reliability team confirms that the service is ready for local use.
 None of those decisions substitutes for another.
 
 As the factory resumes operation, its uploads carry the logical solution's identity, R2 and the application version that produced the data.
 If connectivity is interrupted, the plant-side software continues its local work and retains that context until the data can reach the cloud.
 The cloud application can then handle information according to the applicable revision, while Siemens operations can see which factories have moved and which are intentionally waiting.
 
-The rollout looks simple only when the independent factory windows remain visible:
+The independent factory windows produce a staggered state:
 
 ```text
                          Cloud       Factory A       Factory B       Factory C
@@ -128,7 +132,8 @@ Big Hammer's reliability teams continue to receive the alerts and maintenance in
 That business parity is the required result.
 The predictive-maintenance service has not become valuable because of the toolkit; it has remained valuable while Siemens changed how the service moves through its cloud and factory estate.
 
-Siemens can now relate the intended R2 change to the software running in the cloud and at each factory, the data returning from those factories and the people who authorised and accepted each step.
+Siemens can now relate the intended R2 change to the software running in the cloud and at each factory.
+It can connect returning factory data to that revision and application version, and see who authorised and accepted each step.
 The nominal upgrade knowledge is carried by supported software rather than only by current playbooks, augmented scripts and the people who remember how to join them.
 
 If that path earns enough confidence, Siemens may later let Big Hammer's IT or OT staff perform some routine upgrades with Siemens ready for escalation during the agreed window.
