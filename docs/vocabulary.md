@@ -85,6 +85,11 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
   It is semantic content, not an artefact; artefacts may represent it.
 - **Solution Exchange Format (SEF)** — `settled` — The project's serialised exchange format and one kind of solution artefact.
   Its schema, containment, carrier and custody remain open.
+- **Solution revision** — `provisional` — A distinct intended edition of a logical solution under its durable identity.
+  Its semantic content is expressed by a solution design; a later revision changes the intended edition without creating another logical solution.
+  A solution revision does not assert that every cooperating part already realises it.
+  During a transition, parts at different Locations may contribute to different solution revisions, while relevant software provenance identifies the application and version specified by the solution design and observed in operation.
+  Revision identifiers, ordering, branching, rollback, representation and containment remain open.
 - **Specialist intervention** — `settled` — A particular delivery depends on specialist intervention when the established delivery path cannot complete it without specialist-held expertise, authority or access, or without changing reusable software or platform capability.
   Classification follows the dependency, not the title or identity of the executor.
   [M-01 § Mission and opportunity][M-01-mission-opportunity] explains the boundary with operational examples.
