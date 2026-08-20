@@ -5,6 +5,7 @@ derived-from:
   - M-01-business-mission-analysis
 derives:
   - M-03-sales-led-demonstration
+  - M-05-distributed-industrial-operation
 ---
 
 # Concept of Operations
