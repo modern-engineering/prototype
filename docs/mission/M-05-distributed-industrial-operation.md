@@ -7,78 +7,134 @@ derived-from:
 
 # Distributed Industrial Operation
 
-This counterfactual story applies the [Concept of Operations][M-02-concept-of-operations] to a distributed industrial service.
-Public Siemens material establishes only that Siemens offers [cloud-based predictive-maintenance software across assets and sites][Siemens-Senseye], describes [hybrid edge-cloud arrangements for intelligent maintenance][Siemens-Industrial-Edge], and documents the [ingestion of industrial machine data][Siemens-machine-data].
-Big Hammer Steelworks, the customer relationship, the toolkit adoption, the responsibilities and every event below are invented.
+> **Counterfactual basis.**
+> This story applies the [Concept of Operations][M-02-concept-of-operations] to an invented Siemens customer service.
+> Siemens publicly offers [cloud-based predictive-maintenance software across assets and sites][Siemens-Senseye], describes [hybrid edge-cloud arrangements for intelligent maintenance][Siemens-Industrial-Edge], and documents the [ingestion of industrial machine data][Siemens-machine-data].
+> Big Hammer Steelworks, the customer relationship, the toolkit adoption, the responsibilities and every event below are invented.
+
+## One service across several factories
 
 Big Hammer operates several factories where an unexpected equipment stoppage can halt production.
 Siemens provides one customer-specific predictive-maintenance service that helps Big Hammer notice deterioration early enough to plan maintenance instead.
-Plant-side software observes local conditions and remains useful when cloud connectivity is intermittent.
-The cloud contribution retains the longer view across Big Hammer's factories, giving Siemens data scientists and Big Hammer's reliability team broader evidence for maintenance decisions.
 
-Big Hammer experiences those contributions as one service.
-For the toolkit, that customer service is one logical solution whose identity continues as its software changes.
-The plant-side software is not a complete copy of the cloud service, and the cloud service cannot replace the timely local view.
-Each factory needs the plant-side contribution for timely local action, while the cloud contribution reveals longer patterns across the factories.
+Plant-side software observes local conditions and remains useful when cloud connectivity is intermittent.
+The cloud software retains the longer view across Big Hammer's factories, giving Siemens data scientists and Big Hammer's reliability teams broader evidence for maintenance decisions.
+Neither part provides the complete service alone.
+
+```mermaid
+flowchart LR
+    subgraph S["One Big Hammer predictive-maintenance service"]
+        F1["Factory A<br/>plant-side software"]
+        F2["Factory B<br/>plant-side software"]
+        FN["Other factories<br/>plant-side software"]
+        C["Siemens cloud software<br/>longer view across factories"]
+
+        F1 -- "Observations when connected" --> C
+        F2 -- "Observations when connected" --> C
+        FN -- "Observations when connected" --> C
+    end
+
+    R(["Big Hammer reliability teams"])
+
+    F1 -- "Local warning" --> R
+    F2 -- "Local warning" --> R
+    FN -- "Local warning" --> R
+    C -- "Longer-term maintenance insight" --> R
+```
+
+Big Hammer experiences this arrangement as one service.
+For the toolkit, it is one logical solution whose identity continues as its software changes.
+The factories and cloud are cooperating parts of that service, not separate customer solutions.
+
+## A mature process still carried by people
 
 Siemens already operates the service successfully.
 Its engineers use mature internal tooling, maintain playbooks, augment scripts for particular customer sites and personally bridge the steps that the tooling does not carry.
-That approach is workable for a company able to place skilled people around a growing customer estate, but routine changes continue to consume their attention.
+When a factory window opens, the right Siemens staff must be available with current instructions and knowledge of that site.
+
+That reliance on people is a workable way for a large company to scale.
+It also keeps skilled engineers involved in repeatable changes that software could carry more consistently.
 
 The Siemens group responsible for Big Hammer's service chooses the toolkit as a different delivery foundation.
-It wants supported software to carry more of the repeatable transition knowledge while people retain authority, operational judgement and the ability to intervene.
+It wants supported software to carry more of the repeatable upgrade knowledge while people retain authority, operational judgement and the ability to intervene.
 The group is not trying to rescue a failed service or discover predictive maintenance for the first time.
 Its first obligation is to preserve the value Big Hammer already receives.
 
+## One product change becomes R2
+
 As operating data accumulates, Siemens data scientists see a way to improve the product's detection behaviour.
 The change updates cloud software and data models together with related plant-side software.
-It is an ordinary product change, but it must become one understandable change to Big Hammer's service even though its cooperating parts cannot all move at once.
+It is an ordinary product change, but its parts cannot become operational everywhere at once.
 
 Siemens identifies the intended edition as **solution revision R2**.
-R2 belongs to the same logical solution and expresses the intended cloud-and-plant arrangement after the change.
-It does not claim that every factory has already moved from the software specified by the previously accepted R1 revision.
+R2 belongs to the same logical solution as the previously accepted R1 revision.
+It expresses the intended cloud-and-plant arrangement after the change without claiming that every factory already runs it.
 
 Siemens verifies the new software and prepares a supported way to introduce it at the factories.
-Supported software carries the repeatable upgrade know-how so that the employee executing the change does not have to interpret an arbitrary playbook or reproduce technical knowledge from memory.
-A person still authorises and initiates the work, transports approved data where the environment requires it, judges the result and can depart from the nominal path when circumstances demand.
+The software carries the repeatable upgrade know-how, so the employee executing the change does not have to interpret an arbitrary playbook or reproduce technical knowledge from memory.
+People still authorise and initiate the work, transport approved data where the environment requires it, judge the result and intervene when the supported path cannot complete.
+
+> **Deliberately unresolved.**
+> R1 and R2 are story labels, not a selected identifier scheme.
+> The story does not decide how revisions are encoded, how data is transported, how Siemens implements reconciliation, or how artefacts and product interfaces are structured.
+
+## The cloud moves first
 
 Siemens can introduce the cloud change centrally, but Big Hammer's factories have different production commitments.
 Each factory manager chooses a window in which Siemens may change the plant-side software and retains the decision to return the factory to production.
-The cloud therefore begins running the software specified by R2 while some factories still run software specified by R1.
 
+The cloud therefore begins running the software specified by R2 while the factories still run software specified by R1.
 At the first factory, a Siemens service engineer joins the agreed window and uses the supported upgrade capability to introduce the plant-side release.
-Siemens accepts that its software is running as intended.
-Big Hammer's factory manager separately confirms that production may resume.
-Its reliability team confirms that the predictive-maintenance service is ready for local use.
+Siemens confirms that its software is running as intended, the factory manager decides that production may resume, and Big Hammer's reliability team confirms that the service is ready for local use.
 None of those decisions substitutes for another.
 
-As the factory resumes operation, the information it uploads carries the logical solution's durable identity, R2 and the application version that produced it.
-When connectivity is interrupted, the plant-side contribution continues locally and retains that context until its information can reach the cloud.
-Siemens' cloud application can then interpret the information according to the applicable revision and apply its own product logic when information from different revisions needs different handling.
+As the factory resumes operation, its uploads carry the logical solution's identity, R2 and the application version that produced the data.
+If connectivity is interrupted, the plant-side software continues its local work and retains that context until the data can reach the cloud.
+The cloud application can then handle information according to the applicable revision, while Siemens operations can see which factories have moved and which are intentionally waiting.
 
-The same context gives Siemens operations a view of the change across Big Hammer's footprint.
-They can distinguish a factory that is intentionally waiting for its authorised window from one whose running software does not match the accepted result of a completed transition.
-They decide which factory needs follow-up and when; the toolkit neither makes that decision nor forces the factories to converge.
+The rollout looks simple only when the independent factory windows remain visible:
+
+```text
+                         Cloud       Factory A       Factory B       Factory C
+Start                      R1            R1              R1              R1
+Cloud release              R2            R1              R1              R1
+First factory window       R2            R2              R1              R1
+Closed factory window      R2            R2          R1 retained         R1
+Later windows              R2            R2              R2              R2
+```
+
+For a time, R1 and R2 are both intentionally present within the same customer service.
+Siemens operations decide which factory needs follow-up and when; the toolkit does not make that decision or force the factories to converge.
+
+## A factory remains on R1
+
+At Factory B, the upgrade cannot complete before the authorised window closes.
+Production cannot remain paused while Siemens investigates without a new agreement from Big Hammer.
+
+Siemens and Big Hammer return the factory to its previously accepted R1 software and resume production.
+Data uploaded from that factory remains identifiable with R1 and the application version that produced it, while the software running elsewhere remains untouched.
+The cloud can continue handling that factory's data without pretending that Factory B has moved to R2.
+
+Siemens schedules another attempt for a later window.
+Its engineers may intervene directly if the supported path again needs help.
+Keeping that action available matters: codifying the routine work does not turn an authorised engineering decision into a prohibited exception.
+
+## The service changes without losing its thread
 
 The remaining factories move when their production schedules permit.
-For a time, the cloud and some factories run software specified by R2 while other factories continue on software specified by R1.
-That mixed state belongs to a change in one distributed customer service; it does not turn the cloud and factory contributions into separate services.
+Once the intended cloud and factory changes have been accepted, the Siemens service owner declares R2 available across Big Hammer's intended footprint.
 
-At one factory, the upgrade cannot complete before the authorised window closes.
-Rather than improvise under production pressure, Siemens and Big Hammer return that factory to its previously accepted software and resume production.
-Its uploaded information remains identifiable with R1 and the application version that produced it, while the software running elsewhere remains untouched.
-Siemens schedules another attempt, and its engineers may intervene directly during the next window.
+Big Hammer's reliability teams continue to receive the alerts and maintenance insight on which production already depended.
+That business parity is the required result.
+The predictive-maintenance service has not become valuable because of the toolkit; it has remained valuable while Siemens changed how the service moves through its cloud and factory estate.
 
-Once the intended cloud and factory transitions have been accepted, the Siemens service owner declares the new solution revision available across Big Hammer's intended footprint.
-Big Hammer's reliability team continues to receive the alerts and maintenance insight on which its operation already depended.
-That business parity is the required result: the toolkit-backed path has carried the same customer service through a distributed change without obscuring its intent, running software or lines of authority.
+Siemens can now relate the intended R2 change to the software running in the cloud and at each factory, the data returning from those factories and the people who authorised and accepted each step.
+The nominal upgrade knowledge is carried by supported software rather than only by current playbooks, augmented scripts and the people who remember how to join them.
 
-If Siemens later gains enough confidence in the supported path, it may allow Big Hammer's IT or OT staff to perform some routine plant-side upgrades with Siemens ready for escalation during the agreed window.
-That would reduce the need for a Siemens specialist to enact every nominal step, but it is a possible later gain rather than the reason this adoption succeeds.
+If that path earns enough confidence, Siemens may later let Big Hammer's IT or OT staff perform some routine upgrades with Siemens ready for escalation during the agreed window.
+That is a possible gain, not the test this story needs to pass.
 
-The case does not depend on a particular identifier format, data schema, transport, reconciliation mechanism, command interface or artefact partition.
-Those choices remain with later design work.
-What matters here is that one evolving customer service remains understandable while its cloud and factory contributions change through different tools, authorities and schedules.
+The operational change is already concrete: one Siemens team has carried one evolving customer service through different tools, authorities and schedules without losing sight of what Big Hammer was meant to receive or what was actually running.
 
 [M-02-concept-of-operations]: M-02-concept-of-operations.md
 [Siemens-Industrial-Edge]: https://www.siemens.com/en-gb/products/industrial-edge/
