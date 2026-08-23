@@ -7,13 +7,12 @@ derived-from:
 
 # Distributed Industrial Operation
 
-> **Counterfactual basis.**
-> This story applies the [Concept of Operations][M-02-concept-of-operations] to an invented Siemens customer service.
-> Siemens publicly offers [cloud-based predictive-maintenance software across assets and sites][Siemens-Senseye].
-> It also describes [hybrid edge-cloud arrangements for intelligent maintenance][Siemens-Industrial-Edge] and documents the [ingestion of industrial machine data][Siemens-machine-data].
-> Big Hammer Steelworks, the customer relationship, the toolkit adoption, the responsibilities and every event below are invented.
+This story applies the [Concept of Operations][M-02-concept-of-operations] to an invented Siemens customer service.
+Siemens publicly offers [cloud-based predictive-maintenance software across assets and sites][Siemens-Senseye].
+It also describes [hybrid edge-cloud arrangements for intelligent maintenance][Siemens-Industrial-Edge] and documents the [ingestion of industrial machine data][Siemens-machine-data].
+Big Hammer Steelworks, the customer relationship, the toolkit adoption, the responsibilities and every event below are invented.
 
-## Predictive maintenance across Big Hammer's factories
+## Predictive maintenance across factories
 
 Big Hammer operates several factories where an unexpected equipment stoppage can halt production.
 Siemens provides one customer-specific predictive-maintenance service that helps Big Hammer notice deterioration early enough to plan maintenance instead.
@@ -106,13 +105,13 @@ Cloud release                 R2            R1              R1              R1
 Factory A accepts R2          R2            R2              R1              R1
 Factory B window closes       R2            R2          R1 retained         R1
 Factory C accepts R2          R2            R2          R1 retained         R2
-Factory B accepts R2          R2            R2              R2              R2
+Factory B new window          R2            R2              R2              R2
 ```
 
 For a time, R1 and R2 are both intentionally present within the same customer service.
 Siemens operations decide which factory needs follow-up and when; the toolkit does not make that decision or force the factories to converge.
 
-## Factory B remains on R1
+## When factory B remains on R1
 
 At Factory B, the upgrade cannot complete before the authorised window closes.
 Production cannot remain paused while Siemens investigates without a new agreement from Big Hammer.
