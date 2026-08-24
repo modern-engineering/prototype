@@ -107,15 +107,14 @@ The cloud application can then handle information according to the applicable re
 The independent factory windows produce a staggered state.
 Each row below is a timeframe: arrows show change during it, and the final term shows the released, accepted or retained state at its close.
 
-```text
-Timeframe              | Cloud             | Factory A         | Factory B                         | Factory C
-Before R2              | R1                | R1                | R1                                | R1
-Cloud release          | R1 -> R2 released | R1                | R1                                | R1
-Factory A window       | R2                | R1 -> R2 accepted | R1                                | R1
-Factory B first window | R2                | R2                | R1 -> R2 attempted -> R1 retained | R1
-Factory C window       | R2                | R2                | R1 retained                       | R1 -> R2 accepted
-Factory B retry window | R2                | R2                | R1 -> R2 accepted                 | R2
-```
+| Timeframe              | Cloud            | Factory A        | Factory B                       | Factory C        |
+| ---------------------- | ---------------- | ---------------- | ------------------------------- | ---------------- |
+| Before R2              | R1               | R1               | R1                              | R1               |
+| Cloud release          | R1 → R2 released | R1               | R1                              | R1               |
+| Factory A window       | R2               | R1 → R2 accepted | R1                              | R1               |
+| Factory B first window | R2               | R2               | R1 → R2 attempted → R1 retained | R1               |
+| Factory C window       | R2               | R2               | R1 retained                     | R1 → R2 accepted |
+| Factory B retry window | R2               | R2               | R1 → R2 accepted                | R2               |
 
 For a time, R1 and R2 are both intentionally present within the same customer service.
 Siemens operations decide which factory needs follow-up and when; the toolkit does not make that decision or force the factories to converge.
