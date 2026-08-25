@@ -7,7 +7,7 @@ Later documents may make a definition more precise without reducing that confide
 Once every entry is settled, this scaffold will become the project glossary.
 The labels below describe confidence in a vocabulary entry, not a document lifecycle state.
 
-- `settled` — the term and concept are established by an accepted corpus record.
+- `settled` — the term and concept are established with sufficient confidence across the canonical corpus.
 - `term open` — the concept is established, but its preferred term or exact keyword remains unsettled.
 - `provisional` — the concept or its boundary still needs operational evidence.
 
