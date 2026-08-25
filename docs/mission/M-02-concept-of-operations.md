@@ -19,9 +19,9 @@ The business mission is not repeated in every story, and one story is not promot
 Instead, each story places the common concepts in a particular sociotechnical delivery system, makes its authorities and material conditions visible, and shows a logical solution moving through time.
 As contrasting stories accumulate, they will reveal which operational ideas are genuinely shared and which differences the corpus must preserve.
 
-This common frame is provisional.
+This common frame is accepted as part of the mission corpus but remains incomplete.
 It is expected to change as the remaining storylines expose differences in boundaries, authorities and operational consequences.
-Only after the planned story portfolio is complete can the common frame be reconsidered for acceptance.
+It can be considered complete after the planned story portfolio is complete and its shared ideas and material differences have been integrated here.
 
 ## Operational viewpoint
 
@@ -86,7 +86,7 @@ This catalogue intentionally begins empty because no operational story has yet b
 Links will be added only when story documents exist.
 
 | Story document | Operational setting | Material distinctions |
-| --- | --- | --- |
+| -------------- | ------------------- | --------------------- |
 
 The portfolio is not a coverage claim.
 Its value will come from the contrasts represented and the evidence each story contributes, not from the number of entries.
