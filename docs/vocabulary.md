@@ -39,16 +39,17 @@ The labels below describe the evidence for a vocabulary entry, not a document li
 - **Full customer thread** — `provisional` — End-to-end evidence that a customer need informs a solution design and the corresponding logical solution is transitioned into operation and validated through customer use with less routine dependence on specialist intervention.
 - **Intermediate representation (IR)** — `settled` — A low-level actionable description of the intended deployment footprint that can be understood without solution identity.
   It is not the logical solution, its durable identity or its lifecycle record.
-- **Location** — `settled` — An opaque identity defined by the adopting organisation for a place where a solution may be available, such as a site, cluster, namespace, machine or region.
-  The same solution can relocate between Locations, but simultaneous availability at two Locations is currently modelled as two logical solutions.
-- **Logical solution** — `settled` — The composed whole an adopting organisation commits to meet a customer need and the durable, identity-bearing subject of delivery, lifecycle, history and accountability.
+- **Location** — `provisional` — An opaque identity defined by the adopting organisation for a place where all or part of a solution may be available, such as a site, cluster, namespace, machine or region.
+  A logical solution may relocate between Locations or be realised through cooperating parts placed at multiple Locations; partitioning that realisation does not itself create additional logical solutions.
+  An adopting organisation may constrain each logical solution to one Location as a matter of local policy.
+- **Logical solution** — `provisional` — The durable identity-bearing whole intended to satisfy the needs of its business beneficiary and the subject of delivery, lifecycle, history and accountability.
 - **Operate** — `settled` — The customer's use of the operational solution to meet its needs and produce evidence about whether it remains fit for those needs.
 - **Operational isolation** — `settled` — The property by which each logical solution can be changed, placed and retired on its own terms.
   It does not promise security, compute, network, data, resource or failure isolation.
 - **Operational solution** — `provisional` — Current corpus prose for a logical solution as realised and available for customer use, not a second identity-bearing subject.
   Operational stories may refine the boundary between the logical solution, its realised contents and customer use.
-- **Owning entity** — `settled` — The business attribution recorded for a logical solution, such as a customer, account or shared pool.
-  Ownership does not by itself grant lifecycle or deployment-acceptance authority.
+- **Business beneficiary** — `provisional` — A business entity whose needs justify a logical solution and against whose needs that solution is designed and validated.
+  Consuming an operational service does not by itself establish this relationship, and the relationship grants no lifecycle or deployment-acceptance authority.
 - **Partial adoption** — `settled` — Legitimate use of a bounded subset of toolkit capabilities that demonstrates only the outcomes exercised and must not be presented as the full mission result.
 - **Platform** — `settled` — An operational capability owned by the adopting organisation on which solutions run; it is part of its delivery system, not part of the toolkit.
 - **Platform readiness** — `settled` — The condition in which a platform, including an existing brownfield platform, can accept provision or deploy work.
@@ -60,10 +61,10 @@ The labels below describe the evidence for a vocabulary entry, not a document li
 - **Relevant software provenance** — `provisional` — The mission's narrow provenance boundary identifies the reusable application and version specified in the solution design and the application and version observed in operation.
   Unqualified _software provenance_ may describe a broader chain outside this mission.
 - **Responsibility domain** — `provisional` — One of the enduring accountability domains of solution engineering, software engineering or platform/service engineering.
-  Solution engineering is accountable for understanding the customer need, curating the solution design and validating that the operational solution fulfils that need.
+  Solution engineering is accountable for understanding beneficiary needs, curating the solution design and validating that the operational solution fulfils those needs.
   Software engineering is accountable for developing and verifying reusable software capabilities and their supported means of configuration and integration.
   Platform/service engineering is accountable for making platforms and backing services ready to receive solution work and providing the means specific to the adopting organisation to provision, deploy and sustain solutions there.
-  A domain is not a prescribed team, and one actor may perform work in several domains while the accountable domain, performing actor, authorising authority and owning entity remain distinguishable.
+  A domain is not a prescribed team, and one actor may perform work in several domains while the accountable domain, performing actor, authorising authority and business beneficiary remain distinguishable.
 - **Retire** — `settled` — The terminal activity that ends a logical solution's operational life while retaining its identity and history and never reassigning them.
 - **Routine delivery** — `provisional` — Tailoring, provisioning or deployment performed through the established delivery path using reusable software, platform capabilities, established procedures and appropriately delegated access and authority.
 - **Runtime traceability** — `provisional` — The connection between the application and version specified in the solution design and the application and version observed in operation within the mission's relevant software provenance boundary.

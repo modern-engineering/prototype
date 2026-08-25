@@ -53,7 +53,7 @@ It does expose a broader risk: local practices accumulate faster than the busine
 ## Mission and opportunity
 
 The mission is to establish a durable identity-and-intent handoff for each logical solution.
-A logical solution is the composed whole that the adopting organisation commits to meet a customer need.
+A logical solution is the durable identity-bearing whole intended to satisfy the needs of its business beneficiary.
 It is one living business and operational subject with its own identity, lifecycle, history and accountability, not a disposable template or incidental collection of deployment files.
 
 A **solution design** expresses which software is chosen for a logical solution, how it is configured and the relationships among its parts.
@@ -99,7 +99,7 @@ The operating model divides delivery work into three enduring responsibility dom
 
 | Responsibility domain | Primary concern | Enduring accountability |
 | --- | --- | --- |
-| **Solution engineering** | Solution design | Understand the customer need, curate the solution design, and validate that the operational solution fulfils that need. |
+| **Solution engineering** | Solution design | Understand beneficiary needs, curate the solution design, and validate that the operational solution fulfils those needs. |
 | **Software engineering** | Reusable application catalogue | Develop and verify the reusable software capabilities from which solutions are composed, including their supported means of configuration and integration. |
 | **Platform/service engineering** | Ready platform estate and backing-service catalogue | Make platforms and backing services ready to receive solution work, and provide the means specific to the adopting organisation to provision, deploy and sustain solutions there. |
 
@@ -125,25 +125,30 @@ The identity carries the solution's lineage, lifecycle, history and accountabili
 This is the unit of **operational isolation** in the mission: each solution can be changed, placed and retired on its own terms.
 The term does not promise security, compute, network, data, resource or failure isolation.
 
-An owning entity records business attribution.
-One customer, account or shared pool may own several solutions, and a shared-pool solution may serve several customers.
-Ownership does not by itself grant lifecycle or deployment acceptance authority.
-Those remain matters for the adopting organisation's governance.
+A **business beneficiary** is a business entity whose needs justify a logical solution and against whose needs that solution is designed and validated.
+A beneficiary may be associated with several logical solutions, and its footprint may be attributed or billed across them.
+A customer, tenant, user or subscriber does not become a beneficiary merely by consuming the operational service.
+A multi-tenant solution may have the adopting organisation as its beneficiary while serving a changing customer population.
+Several customers are beneficiaries only when their collective needs justify the solution; multi-tenancy alone does not establish that relationship.
+The beneficiary relationship does not by itself grant lifecycle or deployment acceptance authority.
+It is a semantic business relationship, not a prescribed artefact field.
 
-A **Location** is an opaque identity defined by the adopting organisation for a place where a solution may be available.
+A **Location** is an opaque identity defined by the adopting organisation for a place where all or part of a solution may be available.
 It may denote a site, cluster, namespace, machine, region or something else.
-Simultaneous availability through placements in two Locations is modelled as two logical solutions.
-Each logical solution carries its own lifecycle, even when the two solutions have matching contents.
-Relocation is different: operation ends at the old placement and the same solution identity is deployed at the new Location.
+A logical solution may be realised through cooperating parts placed at multiple Locations.
+Partitioning that realisation across Locations does not by itself create additional logical solutions.
+An adopting organisation may constrain each logical solution to one Location, but that is its policy rather than a universal semantic rule.
+A completed relocation is different from continuing concurrent placement: operation ends at the old placement and the same solution identity continues at the new Location.
 Ending the old placement is not retirement.
-Blue/green delivery, warm standby, disaster recovery and overlapping relocation remain unresolved until later operational work supplies better evidence.
+How blue/green delivery, warm standby, disaster recovery, overlapping relocation and other concurrent-placement patterns affect design and lifecycle remains unresolved until later operational work supplies better evidence.
+Those patterns do not by themselves determine logical-solution cardinality.
 
 Participants use artefacts at the handoff without equating the solution with a file.
 A **solution artefact** is the identity-bearing umbrella for material exchanged about a solution.
-The Solution Exchange Format, or SEF, is the project's serialised exchange format and one solution artefact.
+The Solution Exchange Format, or SEF, is the project's serialised exchange format and one kind of solution artefact.
 The **intermediate representation**, or IR, is a low-level actionable description of the intended deployment footprint, understandable without solution identity.
 IR is not the lifecycle record.
-Artefact schemas, containment, carriers and custody remain open.
+Artefact schemas, containment, carriers, custody, partitioning and cardinality remain open.
 
 **Semantic portability** applies to meaning, not implementation.
 A solution's identity and design meaning must remain the same after crossing a handoff or moving to a materially different target.
@@ -195,10 +200,11 @@ flowchart TD
 
 The dotted return arrows distinguish two reasons to repeat work:
 
-- A new or changed customer need, or evidence during **Operate** that the solution no longer satisfies that need, returns the solution to **Design**.
+- New or changed beneficiary needs return the solution to **Design**.
+  Evidence during **Operate** that the solution no longer satisfies those needs also returns it to **Design**.
   The solution design may change, but the solution retains its identity.
 - Operational needs identified during **Sustain** may return the solution to **Provision** to restore, replace or scale backing capabilities, or to **Deploy** to restore the intended applications to operation.
-  This work leaves the solution design unchanged, provided that the design still reflects the customer's need.
+  This work leaves the solution design unchanged, provided that the design still reflects beneficiary needs.
 
 When an activity's result changes, downstream results must be reassessed; an unaffected result may be reaffirmed without repeating the activity that produced it.
 Detailed triggers, retries, concurrency and recovery belong to the later operational concept and architecture.
@@ -278,7 +284,8 @@ The mission is shaped by a small number of enduring constraints:
 ### Known and unknown uncertainty
 
 The **known unknowns** include whether materially different adopting organisations will use the same contract and whether the project can sustain maintenance and support.
-Workload breadth, useful evidence thresholds, air-gapped operation, concurrent placement, semantic compatibility, and the design of artefacts, security and execution also remain open.
+Logical-solution identity across concurrent placement is established above, while placement patterns and their operational consequences remain open.
+Workload breadth, useful evidence thresholds, air-gapped operation, semantic compatibility, artefact partitioning and cardinality, and the design of security and execution also remain open.
 These decisions belong to later requirements, the operational concept and architecture.
 
 Deployment slices and customer threads may expose **unknown unknowns**: needs or constraints not anticipated here.
