@@ -46,8 +46,8 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 - **Operate** — `settled` — The customer's use of the operational solution to meet its needs and produce evidence about whether it remains fit for those needs.
 - **Operational isolation** — `settled` — The property by which each logical solution can be changed, placed and retired on its own terms.
   It does not promise security, compute, network, data, resource or failure isolation.
-- **Operational solution** — `provisional` — Current corpus prose for a logical solution as realised and available for customer use, not a second identity-bearing subject.
-  Operational stories may refine the boundary between the logical solution, its realised contents and customer use.
+- **Operational solution** — `settled` — The realised, usable form of a logical solution: its intended applications are running, its required backing capabilities are usable, and it is available to its users.
+  It retains the logical solution's identity and is not a second solution.
 - **Operational story** — `provisional` — A bounded, time-sequenced account that places the common mission concepts in one sociotechnical delivery system and exposes the actors, authorities, handoffs, evidence and material conditions that affect the outcome.
   This term comes from the provisional [M-02-concept-of-operations] and may change as the planned story portfolio is completed.
 - **Business beneficiary** — `settled` — A business entity whose needs justify a logical solution and against whose needs that solution is designed and validated.
@@ -58,10 +58,11 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 - **Provision** — `settled` — The activity that renders the required backing capabilities usable by the solution.
 - **Provisioning procedure / provisioning job** — `term open` — Inspectable and reproducible, target-specific know-how that prepares or attaches backing capabilities.
   The mission establishes the need for that know-how, but not whether its executable unit is a procedure, job, driver or another mechanism.
-- **Reconciliation** — `provisional` — The work controlled by the adopting organisation to compare intended and observed operational state and decide or act on differences.
-  The adopting organisation retains reconciliation authority, but the mission does not prescribe a reconciler, control loop or execution model.
-- **Relevant software provenance** — `provisional` — The mission's narrow provenance boundary identifies the reusable application and version specified in the solution design and the application and version observed in operation.
-  Unqualified _software provenance_ may describe a broader chain outside this mission.
+- **Reconciliation** — `settled` — The work of comparing a logical solution's intended operational state with what is observed, deciding whether a difference requires action, and authorising or carrying out the response.
+  The adopting organisation owns those decisions.
+  The work may be manual or automated; the mission does not require a particular controller, process or tool.
+- **Relevant software provenance** — `settled` — Evidence that answers two questions for a logical solution: which reusable application and version did its design call for, and which application and version was observed in operation?
+  _Relevant_ limits this evidence to those endpoints; it does not require a complete history of source, builds, dependencies, packaging or every intermediate transformation.
 - **Responsibility domain** — `settled` — One of the enduring accountability domains of solution engineering, software engineering or platform/service engineering.
   Solution engineering is accountable for understanding beneficiary needs, curating the solution design and validating that the operational solution fulfils those needs.
   Software engineering is accountable for developing and verifying reusable software capabilities and their supported means of configuration and integration.
@@ -69,15 +70,15 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
   A domain is not a prescribed team, and one actor may perform work in several domains while the accountable domain, performing actor, authorising authority and business beneficiary remain distinguishable.
 - **Retire** — `settled` — The terminal activity that ends a logical solution's operational life while retaining its identity and history and never reassigning them.
 - **Routine delivery** — `settled` — Tailoring, provisioning or deployment performed through the established delivery path using reusable software, platform capabilities, established procedures and appropriately delegated access and authority.
-- **Runtime traceability** — `provisional` — The connection between the application and version specified in the solution design and the application and version observed in operation within the mission's relevant software provenance boundary.
-  It need not reconstruct every intermediate transformation.
+- **Runtime traceability** — `settled` — The ability to correlate a defined software footprint observed in operation with the durable identities and solution revisions of the logical solutions that the footprint realises or supports.
+  The relationship is not assumed to be one-to-one: the observed footprint may contribute to several revisions of one logical solution during a transition, or to multiple logical solutions when software is shared.
 - **Semantic contract** — `settled` — The shared meaning the toolkit requires participants to preserve at its handoffs while allowing tools and realisations specific to each adopting organisation.
   Its precise schemas, compatibility rules and versioning remain open.
 - **Semantic handoff compatibility** — `term open` — A contextual relation in which two participants or implementations preserve the meaning required at one named handoff.
   “The proprietary consumer is semantically compatible with the reference producer at the solution-artefact handoff because it preserves solution identity and design semantics” is a complete relational use; unqualified “B is compatible” is incomplete.
   Semantic handoff compatibility does not make tools or artefacts interchangeable, and precise compatibility and versioning contracts remain open.
-- **Semantic portability** — `provisional` — Preservation of a solution's identity and design meaning across handoffs and materially different targets, even when local representations and mechanisms differ.
-  It does not imply byte-for-byte artefacts, equivalent operational behaviour or a complete record of every transformation.
+- **Semantic portability** — `settled` — Preservation of a logical solution's identity and design meaning as it crosses handoffs or materially different targets, even when local representations and mechanisms differ.
+  It does not require byte-for-byte-identical artefacts, nor does it guarantee equivalent operational behaviour or a complete record of every transformation.
 - **Sociotechnical delivery system** — `settled` — The adopting organisation's combination of people, policies, tools, automation and platforms through which tailored solutions move from intent into operation and sustainment.
 - **Solution artefact** — `settled` — The identity-bearing umbrella for material exchanged about a logical solution.
   A solution artefact may carry a representation of a solution design, but is neither the design nor the solution itself, and neither SEF nor IR should be used as its synonym.
@@ -85,10 +86,9 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
   It is semantic content, not an artefact; artefacts may represent it.
 - **Solution Exchange Format (SEF)** — `settled` — The project's serialised exchange format and one kind of solution artefact.
   Its schema, containment, carrier and custody remain open.
-- **Solution revision** — `provisional` — A distinct intended edition of a logical solution under its durable identity.
-  Its semantic content is expressed by a solution design; a later revision changes the intended edition without creating another logical solution.
-  A solution revision does not assert that every cooperating part already realises it.
-  During a transition, parts at different Locations may contribute to different solution revisions, while relevant software provenance identifies the application and version specified by the solution design and observed in operation.
+- **Solution revision** — `settled` — A distinguishable intended edition of a logical solution under the same durable identity.
+  Its content is expressed by a solution design; creating another revision changes the intended edition without creating another logical solution.
+  During a transition, different parts or Locations may still realise different revisions.
   Revision identifiers, ordering, branching, rollback, representation and containment remain open.
 - **Specialist intervention** — `settled` — A particular delivery depends on specialist intervention when the established delivery path cannot complete it without specialist-held expertise, authority or access, or without changing reusable software or platform capability.
   Classification follows the dependency, not the title or identity of the executor.
