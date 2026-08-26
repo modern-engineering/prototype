@@ -32,8 +32,8 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
   It is not a standalone field or index.
   Authors should qualify _traceability_ as _document traceability_ or _runtime traceability_ where the distinction matters.
 - **Durable identity** — `settled` — The continuity by which a logical solution remains the same business and operational subject as its contents change, while two solutions remain distinct even when their present contents match.
-- **Durable identity-and-intent handoff** — `provisional` — The mission's central handoff in which participants exchange a logical solution's durable identity and a representation of its design together with inspectable and reproducible know-how for transition into operation.
-  The semantic contract defines the identity and design meanings that participants preserve at its boundaries but is not by itself the whole handoff.
+- **Durable identity-and-intent handoff** — `provisional` — A handoff across people, tools, time or place that preserves a logical solution's durable identity and intended design, together with the inspectable and reproducible know-how needed to transition it into operation.
+  It does not prescribe a single artefact, carrier or transfer mechanism.
 - **Full customer thread** — `settled` — End-to-end evidence that a customer need informs a solution design and the corresponding logical solution is transitioned into operation and validated through customer use with less routine dependence on specialist intervention.
 - **Intermediate representation (IR)** — `settled` — A low-level actionable description of the intended deployment footprint that can be understood without solution identity.
   It is not the logical solution, its durable identity or its lifecycle record.
