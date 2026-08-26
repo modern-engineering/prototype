@@ -11,19 +11,20 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 - `term open` — the concept is established, but its preferred term or exact keyword remains unsettled.
 - `provisional` — the concept or its boundary still needs operational evidence.
 
-- **Actor** — `provisional` — A person, organisation or automated tool that performs work in a responsibility domain; performing work does not by itself confer accountability or decision authority.
+- **Actor** — `settled` — A person, organisation, ordinary automated tool or AI agent that performs work in one or more responsibility domains.
+  Performing work does not by itself make the actor accountable for a domain or give it decision authority.
 - **Adopting organisation** — `settled` — A B2B, software-centric organisation that incorporates the toolkit into the people, policies, tools and platforms through which it delivers tailored solutions.
   The present model encompasses integration and infrastructure-hosting responsibilities within the adopting organisation's sociotechnical delivery system.
   _Adopting organisation_ is the preferred prose term; the one-word form is not recommended.
 - **Application** — `provisional` — A reusable software capability made available through an application catalogue, whose use and version may be specified in a solution design.
   **Deploy** renders the intended application operational, while the application's exact catalogue and runtime boundaries remain open.
-- **Authority** — `provisional` — The power to make a consequential decision, such as authorising operational change, accepting deployment or accepting evidence; it must not be inferred merely from the actor that performs the work.
+- **Authority** — `settled` — The power to make a consequential decision, such as authorising operational change, accepting deployment or accepting evidence; it must not be inferred merely from the actor that performs the work.
 - **Backing capability / backing service** — `term open` — An operational capability prepared for or attached to a solution during **Provision**, whether dedicated to that solution or shared so that the solution receives a usable slice.
   The preferred umbrella term and the boundary between a capability, service and allocated slice remain open.
 - **Capability gap** — `settled` — A delivery need that cannot be met using existing reusable software or platform behaviour and therefore requires an explicit capability change rather than routine delivery.
 - **Catalogue** — `provisional` — An adopting organisation's set of reusable application or backing-service capabilities considered available for composition or delivery.
   Its ownership, representation, discovery rules and relationship to solution design remain open.
-- **Cross-organisation product hypothesis** — `term open` — The proposition that materially different adopting organisations can reuse the same semantic contract and applicable reference tooling while retaining local execution authority and realisation.
+- **Cross-organisation product hypothesis** — `settled` — The proposition that materially different adopting organisations can reuse the same semantic contract and applicable reference tooling while retaining local execution authority and realisation.
 - **Customer** — `settled` — The party that receives and uses the operational solution to achieve a business outcome; it is distinct from the adopting organisation.
 - **Deploy** — `settled` — The activity that renders the intended applications operational.
 - **Deployment slice** — `settled` — A bounded replacement of part of an incumbent delivery process in which the replacement process uses a solution artefact to produce an observable running service judged against criteria agreed in advance.
@@ -46,6 +47,8 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
   It does not promise security, compute, network, data, resource or failure isolation.
 - **Operational solution** — `provisional` — Current corpus prose for a logical solution as realised and available for customer use, not a second identity-bearing subject.
   Operational stories may refine the boundary between the logical solution, its realised contents and customer use.
+- **Operational story** — `provisional` — A bounded, time-sequenced account that places the common mission concepts in one sociotechnical delivery system and exposes the actors, authorities, handoffs, evidence and material conditions that affect the outcome.
+  This term comes from the provisional [M-02-concept-of-operations] and may change as the planned story portfolio is completed.
 - **Business beneficiary** — `settled` — A business entity whose needs justify a logical solution and against whose needs that solution is designed and validated.
   Consuming an operational service does not by itself establish this relationship, and the relationship grants no lifecycle or deployment-acceptance authority.
 - **Partial adoption** — `settled` — Legitimate use of a bounded subset of toolkit capabilities that demonstrates only the outcomes exercised and must not be presented as the full mission result.
@@ -93,3 +96,4 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 [D-05-document-relationships]: adr/D-05-document-relationships.md
 [M-01-business-mission-analysis]: mission/M-01-business-mission-analysis.md
 [M-01-mission-opportunity]: mission/M-01-business-mission-analysis.md#mission-and-opportunity
+[M-02-concept-of-operations]: mission/M-02-concept-of-operations.md
