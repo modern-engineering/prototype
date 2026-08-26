@@ -16,14 +16,15 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 - **Adopting organisation** — `settled` — A B2B, software-centric organisation that incorporates the toolkit into the people, policies, tools and platforms through which it delivers tailored solutions.
   The present model encompasses integration and infrastructure-hosting responsibilities within the adopting organisation's sociotechnical delivery system.
   _Adopting organisation_ is the preferred prose term; the one-word form is not recommended.
-- **Application** — `provisional` — A reusable software capability made available through an application catalogue, whose use and version may be specified in a solution design.
-  **Deploy** renders the intended application operational, while the application's exact catalogue and runtime boundaries remain open.
+- **Application** — `settled` — A reusable, long-lived software capability made available through an application catalogue.
+  A solution design may select the application and its version; once deployed, its instances perform ongoing operational work.
+  It differs from a finite procedure or job, which completes after changing operational state.
 - **Authority** — `settled` — The power to make a consequential decision, such as authorising operational change, accepting deployment or accepting evidence; it must not be inferred merely from the actor that performs the work.
 - **Backing capability / backing service** — `term open` — An operational capability prepared for or attached to a solution during **Provision**, whether dedicated to that solution or shared so that the solution receives a usable slice.
   The preferred umbrella term and the boundary between a capability, service and allocated slice remain open.
 - **Capability gap** — `settled` — A delivery need that cannot be met using existing reusable software or platform behaviour and therefore requires an explicit capability change rather than routine delivery.
-- **Catalogue** — `provisional` — An adopting organisation's set of reusable application or backing-service capabilities considered available for composition or delivery.
-  Its ownership, representation, discovery rules and relationship to solution design remain open.
+- **Catalogue** — `provisional` — A governed collection through which an adopting organisation makes reusable applications, backing capabilities, and supported provisioning or deployment procedures available for composition or delivery.
+  Its representation, discovery rules, curatorial responsibility and relationship to solution design remain open.
 - **Cross-organisation product hypothesis** — `settled` — The proposition that materially different adopting organisations can reuse the same semantic contract and applicable reference tooling while retaining local execution authority and realisation.
 - **Customer** — `settled` — The party that receives and uses the operational solution to achieve a business outcome; it is distinct from the adopting organisation.
 - **Deploy** — `settled` — The activity that renders the intended applications operational.
