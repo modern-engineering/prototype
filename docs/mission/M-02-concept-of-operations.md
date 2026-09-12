@@ -7,6 +7,7 @@ derives:
   - M-03-sales-led-demonstration
   - M-04-evolving-operational-solution
   - M-05-distributed-industrial-operation
+  - M-06-one-responsibility-model-across-platforms
 ---
 
 # Concept of Operations
@@ -16,12 +17,12 @@ derives:
 This mission corpus describes the same endeavour at progressively more concrete operational viewpoints.
 [M-01-business-mission-analysis] establishes why the toolkit exists, the enduring mission outcome and the boundaries within which an adopter remains accountable.
 This document provides the common frame for seeing that mission in operation.
-Future mission documents will tell individual operational stories from the viewpoints of adopting organisations and greenfield settings.
+The individual operational stories follow solutions through the work of their adopting organisations, customers and users.
 
 The parts are intended to remain read together.
 The business mission is not repeated in every story, and one story is not promoted into the universal operating model.
 Instead, each story places the common concepts in a particular sociotechnical delivery system, makes its authorities and material conditions visible, and shows a logical solution moving through time.
-As contrasting stories accumulate, they will reveal which operational ideas are genuinely shared and which differences the corpus must preserve.
+The contrasting settings reveal shared operational ideas and differences that remain significant to the people doing the work.
 
 This common frame is accepted as part of the mission corpus but remains incomplete.
 It is expected to change as the remaining storylines expose differences in boundaries, authorities and operational consequences.
@@ -50,29 +51,25 @@ Operational evidence and changed needs may then drive sustainment or renewed des
 
 This is a direction of travel, not a mandatory linear workflow.
 An operational story may enter part-way through an existing lifecycle, revisit activities, combine roles or use incumbent work around the toolkit.
-It should still make the time sequence and consequential handoffs legible enough to show how identity, intent, authority and evidence survive the journey.
+The solution's identity connects the intended changes, the work performed and the evidence returned from operation through those handoffs.
 
 ## Operational stories
 
-Each future story will describe a bounded setting in which an adopter seeks an observable operational change.
-It should be broad enough to expose a meaningful end-to-end thread and narrow enough that its assumptions, authorities and evidence can be examined.
-The story should cover the following concerns in coherent prose rather than mechanically completing a template:
+The stories enter the solution's life at different points.
+A temporary demonstration begins with a prospect's evaluation need and ends with complete retirement.
+The sustained services already provide useful results when their software, configuration or delivery arrangements change.
+Their beneficiaries continue to depend on those results while the adopting organisation introduces the change.
 
-- the starting situation and the pressure or opportunity that makes adoption worth considering;
-- the adoption boundary and intended outcome, including what remains with incumbent practices;
-- the actors, responsibility domains and decision authorities that matter to the thread;
-- the relevant before view, so that operational and organisational change can be judged;
-- a time-sequenced nominal thread following the logical solution across the relevant lifecycle activities and handoffs;
-- only those off-nominal, recovery or change threads that materially alter authority, continuity, evidence or outcome;
-- sustainment, evolution and retirement where they are material to the setting;
-- the evidence to be observed and the authority that accepts the result;
-- positive and negative impacts on the adopter, its customer and affected operational work;
-- assumptions and unknowns that bound what the story can support; and
-- differences from this common concept or from other stories that must not be normalised away.
+A solution revision describes an intended edition without requiring every running part to reach it simultaneously.
+Factory windows, cloud rollouts and recovery from a failed upgrade can leave parts of the same solution running different versions or deliberately stopped.
+Operators relate those observations to the solution's identity and intended revision, decide which differences are expected, and act through their organisation's operating procedures.
+The toolkit supports that understanding while the adopting organisation retains responsibility for reconciliation and recovery.
 
-A story can combine responsibilities in one actor or distribute them across people, tools and organisations.
-It can begin in a brownfield process or a greenfield setting.
-Those choices belong in the story because they change operation, not because this frame prefers one realisation.
+The operational contribution varies with the setting.
+The sales engineer gains the ability to carry routine demonstrations through their complete lifecycle, while Siemens engineers use supported software to carry more of the repeatable factory-upgrade work.
+Stripe's engineers and operators can follow a merchant's intended solution through successive changes and recovery.
+The event-intake company applies the same division of software, solution and platform responsibilities through three different cloud environments.
+These contrasts preserve each operation's purpose and constraints while showing how the common responsibility model fits different work.
 
 ## Promoting commonality
 
@@ -101,13 +98,18 @@ A failed upgrade and the later removal of an experimental daemon show how the so
 In a counterfactual Siemens, one Big Hammer predictive-maintenance service spans cloud software and separately scheduled factories.
 Supported upgrade software carries routine delivery knowledge across those windows while the customer retains its existing maintenance value and the decisions about production and local use.
 
+### [M-06-one-responsibility-model-across-platforms]
+
+In a counterfactual Twilio Segment, one multi-tenant event-intake solution operates through serverless container environments in AWS, Azure and Google Cloud.
+A routine event-rule change passes from local application checks through solution selection into three distinct deployment paths using the toolkit's existing division of responsibility.
+
 The portfolio is not a coverage claim.
-Its value will come from the contrasts represented and the evidence each story contributes, not from the number of entries.
+Its value lies in the contrasts represented and the operational consequences each story makes visible.
 
 ## Method tailoring
 
 This frame draws on public NASA and INCOSE systems-engineering material without claiming compliance with either body.
-It adopts the useful core of ConOps practice: describe the system, users and operators from a high-level operational viewpoint; use time-sequenced single-thread scenarios; include selected nominal and off-nominal conditions; and tailor depth to the system's size, complexity and current decisions.
+Its high-level operational viewpoint connects the system, users and operators through time-sequenced scenarios and selected nominal, change and recovery conditions.
 [NASA's Concept of Operations annotated outline][NASA-Appendix-S] is treated as a source of concerns rather than a document template, while the [NASA Systems Engineering Handbook][NASA-SE-Handbook] and [INCOSE requirements-engineering material][INCOSE-RE] reinforce the separation between stakeholder-facing operational understanding and later requirements or implementation choices.
 
 That tailoring is deliberate.
@@ -120,13 +122,13 @@ This document does not select artefact schemas or carriers, APIs, deployment or 
 It does not allocate requirements or prescribe how an adopter implements a responsibility domain.
 Those decisions require evidence from operational stories and belong in later analyses, requirements and architecture.
 
-The first stories need to test which contextual differences change the common concept.
-Known candidates include brownfield versus greenfield adoption; connected versus air-gapped operation; local versus remote provisioning authority; toolkit, incumbent or proprietary front ends and execution tools; lightweight demonstration environments versus sustained customer operations; catalogue discovery and composition; and handoffs that cross activities separated by people, tools, time or place.
-These are story discriminators, not product capabilities or architecture decisions.
+The current portfolio covers established operations, from temporary demonstrations to sustained services on virtual machines, at factories and across clouds.
+The current stories do not yet examine greenfield adoption, controlled disconnected delivery or catalogue discovery.
+The stories also leave open how handoffs are partitioned among artefacts and tools, how provisioning authority is delegated beyond the arrangements shown, and what evidence would establish compatibility between independently supplied participants.
 
-The corpus also does not yet know which operational threads are representative, how many contrasting settings are sufficient, where authority patterns recur, or which off-nominal conditions expose new mission-level needs.
-Early stories may challenge the system boundary, role vocabulary or expected outcome.
-When they do, the corpus should preserve the contradiction, reconsider the affected accepted mission content, and promote only what the resulting evidence supports.
+The portfolio does not yet establish which operational threads are representative or how many contrasting settings are sufficient.
+Further operational evidence may expose needs that change the system boundary, role vocabulary or expected outcome.
+The common concept remains incomplete while those material differences and their consequences are unresolved.
 
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-01-boundary]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
@@ -134,6 +136,7 @@ When they do, the corpus should preserve the contradiction, reconsider the affec
 [M-03-sales-led-demonstration]: M-03-sales-led-demonstration.md
 [M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
 [M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
+[M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
 [NASA-Appendix-S]: https://www.nasa.gov/reference/system-engineering-handbook-appendix/#hds-sidebar-nav-112
 [NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
 [INCOSE-RE]: https://www.incose.org/wp-content/uploads/2026/01/requirements_engineering_part_1.pdf
