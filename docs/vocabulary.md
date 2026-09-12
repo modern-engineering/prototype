@@ -89,7 +89,7 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 - **Solution revision** — `settled` — A distinguishable intended edition of a logical solution under the same durable identity.
   Its content is expressed by a solution design; creating another revision changes the intended edition without creating another logical solution.
   During a transition, different parts or Locations may still realise different revisions.
-  Revision identifiers, ordering, branching, rollback, representation and containment remain open.
+  Revision identifiers, ordering, branching, rollback mechanisms, representation and containment remain open.
 - **Specialist intervention** — `settled` — A particular delivery depends on specialist intervention when the established delivery path cannot complete it without specialist-held expertise, authority or access, or without changing reusable software or platform capability.
   Classification follows the dependency, not the title or identity of the executor.
   [M-01 § Mission and opportunity][M-01-mission-opportunity] explains the boundary with operational examples.
