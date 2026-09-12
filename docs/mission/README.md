@@ -12,9 +12,11 @@ If later evidence reopens a completed document, it returns to `draft` until the 
 | [M-01-business-mission-analysis] | Business Mission Analysis |
 | [M-02-concept-of-operations] | Concept of Operations |
 | [M-03-sales-led-demonstration] | ConOps Story: Sales-Led Demonstration |
+| [M-04-evolving-operational-solution] | ConOps Story: Evolving an Operational Solution |
 | [M-05-distributed-industrial-operation] | ConOps Story: Distributed Industrial Operation |
 
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-02-concept-of-operations]: M-02-concept-of-operations.md
 [M-03-sales-led-demonstration]: M-03-sales-led-demonstration.md
+[M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
 [M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md

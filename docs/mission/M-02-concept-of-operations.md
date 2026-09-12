@@ -5,6 +5,7 @@ derived-from:
   - M-01-business-mission-analysis
 derives:
   - M-03-sales-led-demonstration
+  - M-04-evolving-operational-solution
   - M-05-distributed-industrial-operation
 ---
 
@@ -90,6 +91,11 @@ If an apparent commonality conflicts with the accepted business mission, the mis
 In a counterfactual Elastic, an online retailer uses authorised live production telemetry to investigate payment latency through a temporary vendor-operated demonstration.
 A bounded path lets the sales engineer revise the same demonstration and remove it completely, even though some infrastructure remains shared.
 
+### [M-04-evolving-operational-solution]
+
+In a counterfactual Stripe, a merchant's need for broader payment classifications leads to changes in an existing solution's configuration and capacity.
+A failed upgrade and the later removal of an experimental daemon show how the solution keeps its identity while its intended configuration changes.
+
 ### [M-05-distributed-industrial-operation]
 
 In a counterfactual Siemens, one Big Hammer predictive-maintenance service spans cloud software and separately scheduled factories.
@@ -126,6 +132,7 @@ When they do, the corpus should preserve the contradiction, reconsider the affec
 [M-01-boundary]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
 [M-01-life]: M-01-business-mission-analysis.md#the-durable-handoff-and-the-life-of-a-solution
 [M-03-sales-led-demonstration]: M-03-sales-led-demonstration.md
+[M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
 [M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
 [NASA-Appendix-S]: https://www.nasa.gov/reference/system-engineering-handbook-appendix/#hds-sidebar-nav-112
 [NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
