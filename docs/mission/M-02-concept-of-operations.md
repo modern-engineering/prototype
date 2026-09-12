@@ -90,6 +90,11 @@ If an apparent commonality conflicts with the accepted business mission, the mis
 In a counterfactual Elastic, an online retailer uses authorised live production telemetry to investigate payment latency through a temporary vendor-operated demonstration.
 A bounded path lets the sales engineer revise the same demonstration and remove it completely, even though some infrastructure remains shared.
 
+### [M-05-distributed-industrial-operation]
+
+In a counterfactual Siemens, one Big Hammer predictive-maintenance service spans cloud software and separately scheduled factories.
+Supported upgrade software carries routine delivery knowledge across those windows while the customer retains its existing maintenance value and the decisions about production and local use.
+
 The portfolio is not a coverage claim.
 Its value will come from the contrasts represented and the evidence each story contributes, not from the number of entries.
 
@@ -121,6 +126,7 @@ When they do, the corpus should preserve the contradiction, reconsider the affec
 [M-01-boundary]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
 [M-01-life]: M-01-business-mission-analysis.md#the-durable-handoff-and-the-life-of-a-solution
 [M-03-sales-led-demonstration]: M-03-sales-led-demonstration.md
+[M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
 [NASA-Appendix-S]: https://www.nasa.gov/reference/system-engineering-handbook-appendix/#hds-sidebar-nav-112
 [NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
 [INCOSE-RE]: https://www.incose.org/wp-content/uploads/2026/01/requirements_engineering_part_1.pdf
