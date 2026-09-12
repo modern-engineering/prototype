@@ -7,6 +7,7 @@ derives:
   - M-03-sales-led-demonstration
   - M-04-evolving-operational-solution
   - M-05-distributed-industrial-operation
+  - M-06-one-responsibility-model-across-platforms
 ---
 
 # Concept of Operations
@@ -101,6 +102,11 @@ A failed upgrade and the later removal of an experimental daemon show how the so
 In a counterfactual Siemens, one Big Hammer predictive-maintenance service spans cloud software and separately scheduled factories.
 Supported upgrade software carries routine delivery knowledge across those windows while the customer retains its existing maintenance value and the decisions about production and local use.
 
+### [M-06-one-responsibility-model-across-platforms]
+
+In a counterfactual Twilio Segment, one multi-tenant event-intake solution operates through serverless container environments in AWS, Azure and Google Cloud.
+A routine event-rule change passes from local application checks through solution selection into three distinct deployment paths using the toolkit's existing division of responsibility.
+
 The portfolio is not a coverage claim.
 Its value will come from the contrasts represented and the evidence each story contributes, not from the number of entries.
 
@@ -134,6 +140,7 @@ When they do, the corpus should preserve the contradiction, reconsider the affec
 [M-03-sales-led-demonstration]: M-03-sales-led-demonstration.md
 [M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
 [M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
+[M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
 [NASA-Appendix-S]: https://www.nasa.gov/reference/system-engineering-handbook-appendix/#hds-sidebar-nav-112
 [NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
 [INCOSE-RE]: https://www.incose.org/wp-content/uploads/2026/01/requirements_engineering_part_1.pdf
