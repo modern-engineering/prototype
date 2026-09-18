@@ -30,9 +30,10 @@ A hand-maintained `date`, read as "last modified" or "authored", only duplicates
 
 Chosen option: "per-family `status` enum with `since`." `status` follows a shared shape — not a spec'd state machine — whose wording bends per family where the domain reads better:
 
-- A **preliminary** state (`draft` for mission documents, analyses, and requirements; `proposed` for decision records) marks a document merged while still unstable, so work can land and circulate before it settles.
-  A document already settled at merge time may enter as `accepted` directly.
-- **`accepted`** is the settled state every family converges on: the load-bearing version other documents may rely on.
+- A **preliminary** state (`draft` for mission documents, analyses, and requirements; `proposed` for decision records) marks a document accepted into the canonical corpus while still incomplete or unstable.
+  It can guide subsequent work while preserving the uncertainty that later documents are expected to resolve.
+  A document already complete at merge time may enter as `accepted` directly.
+- **`accepted`** is the complete state every family converges on: the current version is considered complete for its purpose.
 - A preliminary document that does not make it is abandoned (`rejected`).
 - An `accepted` document that ages out is `deprecated`, or `superseded` by a named successor — the end-of-life states [D-01 decision records][d-01] anticipates.
 
@@ -40,8 +41,10 @@ Chosen option: "per-family `status` enum with `since`." `status` follows a share
 It moves on a transition and never on a content edit, so it states what git does not: when the status last changed.
 Authoring and last-modified dates remain git's responsibility.
 
-For a mission document, `accepted` specifically records that the sponsor approved the exact revision.
-A substantive edit returns it to `draft` until the sponsor accepts the revised content; metadata-only lifecycle and relationship updates do not alter the approved mission.
+Every mission document merged into `main` is accepted into the canonical mission corpus.
+For a mission document, `draft` records that the accepted content remains an incomplete scaffold, while `accepted` records that the document is considered complete at its current revision.
+An edit or later evidence returns a complete mission document to `draft` only when it reopens a material boundary, outcome or relationship needed for completeness.
+Refinements that preserve those conclusions, and metadata-only lifecycle or relationship updates, do not mechanically reopen the document.
 
 Recording a transition edits the frontmatter of an accepted record.
 This refines [D-01 decision records][d-01]: its immutability governs the decision body, while lifecycle and relationship metadata stay mutable so the corpus stays navigable.
