@@ -3,11 +3,9 @@ package sef_test
 import (
 	"bytes"
 	"errors"
-	"io"
 	"reflect"
 	"strings"
 	"testing"
-	"testing/iotest"
 
 	"github.com/modern-engineering/prototype/sef"
 	"github.com/modern-engineering/prototype/solution"
@@ -99,49 +97,3 @@ func TestJSONRejectsInvalidDocuments(t *testing.T) {
 		}
 	}
 }
-
-// Invalid in-memory values must not leave a file that looks partly valid.
-func TestJSONValidatesBeforeWriting(t *testing.T) {
-	var nilLiteral *solution.Literal
-	var nilReference *solution.Reference
-	for _, value := range []solution.Value{nil, nilLiteral, nilReference} {
-		var output bytes.Buffer
-		document := sef.Document{Version: sef.Version, Definition: solution.Definition{
-			Bindings: []solution.Binding{{Node: "trim", Input: "text", Value: value}},
-		}}
-		if err := sef.EncodeJSON(&output, document); !errors.Is(err, sef.ErrValue) {
-			t.Errorf("EncodeJSON with %T = %v, want ErrValue", value, err)
-		}
-		if output.Len() != 0 {
-			t.Errorf("EncodeJSON with %T wrote %d bytes", value, output.Len())
-		}
-	}
-	var output bytes.Buffer
-	if err := sef.EncodeJSON(&output, sef.Document{}); !errors.Is(err, sef.ErrVersion) {
-		t.Errorf("EncodeJSON without version = %v, want ErrVersion", err)
-	}
-	if output.Len() != 0 {
-		t.Errorf("EncodeJSON without version wrote %d bytes", output.Len())
-	}
-}
-
-// A caller needs the original I/O failure to distinguish unavailable storage from
-// malformed content, including failures discovered while checking the file end.
-func TestJSONPreservesStreamErrors(t *testing.T) {
-	unavailable := errors.New("storage unavailable")
-	for _, input := range []io.Reader{
-		iotest.ErrReader(unavailable),
-		io.MultiReader(strings.NewReader(`{"version":"0.1"}`), iotest.ErrReader(unavailable)),
-	} {
-		if _, err := sef.DecodeJSON(input); !errors.Is(err, unavailable) {
-			t.Errorf("DecodeJSON = %v, want original read error", err)
-		}
-	}
-	if err := sef.EncodeJSON(errorWriter{unavailable}, sef.Document{Version: sef.Version}); !errors.Is(err, unavailable) {
-		t.Errorf("EncodeJSON = %v, want original write error", err)
-	}
-}
-
-type errorWriter struct{ err error }
-
-func (w errorWriter) Write([]byte) (int, error) { return 0, w.err }

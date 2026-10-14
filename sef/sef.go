@@ -1,6 +1,7 @@
 // Package sef describes the information carried by a SEF document independently
 // of its encoding. JSON documents use the suffix .json.sef; gob documents use
-// .gob.sef. DecodeJSON and EncodeJSON read and write the JSON encoding.
+// .gob.sef. DecodeJSON and EncodeJSON read and write JSON; DecodeGob and
+// EncodeGob read and write gob. Both encodings carry the same information.
 //
 // A document carries solution identity, revision, and structural intent. Its
 // definition uses names to refer to Go values; runtime registrations, linked

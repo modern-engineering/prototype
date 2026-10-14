@@ -23,6 +23,14 @@ func inspect() error {
 	if err != nil {
 		return err
 	}
+	var binary bytes.Buffer
+	if err := sef.EncodeGob(&binary, document); err != nil {
+		return err
+	}
+	document, err = sef.DecodeGob(&binary)
+	if err != nil {
+		return err
+	}
 	var rewritten bytes.Buffer
 	if err := sef.EncodeJSON(&rewritten, document); err != nil {
 		return err
@@ -31,6 +39,6 @@ func inspect() error {
 	for _, binding := range document.Definition.Bindings {
 		fmt.Printf("%s.%s = %#v\n", binding.Node, binding.Input, binding.Value)
 	}
-	fmt.Printf("rewritten JSON: %d bytes\n", rewritten.Len())
+	fmt.Printf("JSON after gob round trip: %d bytes\n", rewritten.Len())
 	return nil
 }
