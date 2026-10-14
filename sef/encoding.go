@@ -16,6 +16,8 @@ var (
 	ErrVersion = errors.New("sef: unsupported version")
 	// ErrValue means a binding does not contain a supported structural value.
 	ErrValue = errors.New("sef: invalid binding value")
+	// ErrUnicode means a JSON document contains text that is not valid Unicode.
+	ErrUnicode = errors.New("sef: JSON requires valid Unicode text")
 	// ErrTrailingData means a reader contains data after its SEF document.
 	ErrTrailingData = errors.New("sef: trailing data")
 )
