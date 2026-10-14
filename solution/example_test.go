@@ -1,24 +1,24 @@
-package ast_test
+package solution_test
 
 import (
 	"fmt"
 
-	"github.com/modern-engineering/prototype/solution/ast"
+	"github.com/modern-engineering/prototype/solution"
 )
 
 // Structural inspection needs no imports from the referenced modules, including
 // definitions whose catalogue type the inspecting tool does not understand.
 func Example() {
-	model := ast.Model{
-		Modules: []ast.Module{{Path: "example.org/catalogue", Version: "v1.2.0"}},
-		Nodes: []ast.Node{
-			{Name: "database", Definition: ast.Symbol{Package: "example.org/catalogue/jobs", Name: "Database"}},
-			{Name: "backend", Definition: ast.Symbol{Package: "example.org/catalogue/apps", Name: "Backend"}},
-			{Name: "placement", Definition: ast.Symbol{Package: "example.org/catalogue/policy", Name: "Europe"}},
+	model := solution.Model{
+		Modules: []solution.Module{{Path: "example.org/catalogue", Version: "v1.2.0"}},
+		Nodes: []solution.Node{
+			{Name: "database", Definition: solution.Symbol{Package: "example.org/catalogue/jobs", Name: "Database"}},
+			{Name: "backend", Definition: solution.Symbol{Package: "example.org/catalogue/apps", Name: "Backend"}},
+			{Name: "placement", Definition: solution.Symbol{Package: "example.org/catalogue/policy", Name: "Europe"}},
 		},
-		Bindings: []ast.Binding{
-			{Node: "database", Input: "region", Value: ast.Literal("eu-west")},
-			{Node: "backend", Input: "database", Value: ast.Reference{Node: "database", Output: "address"}},
+		Bindings: []solution.Binding{
+			{Node: "database", Input: "region", Value: solution.Literal("eu-west")},
+			{Node: "backend", Input: "database", Value: solution.Reference{Node: "database", Output: "address"}},
 		},
 	}
 
@@ -27,9 +27,9 @@ func Example() {
 	}
 	for _, binding := range model.Bindings {
 		switch value := binding.Value.(type) {
-		case ast.Literal:
+		case solution.Literal:
 			fmt.Printf("%s.%s = %q\n", binding.Node, binding.Input, value)
-		case ast.Reference:
+		case solution.Reference:
 			fmt.Printf("%s.%s <- %s.%s\n", binding.Node, binding.Input, value.Node, value.Output)
 		}
 	}

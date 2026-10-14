@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/modern-engineering/prototype/solution/ast"
+	"github.com/modern-engineering/prototype/solution"
 )
 
 // ErrIdentifier means a name cannot be used in the generated declaration,
@@ -38,7 +38,7 @@ var ErrIdentifier = errors.New("unusable Go identifier")
 // bindings, and occurrence names remain structural data and are not interpreted
 // here. Symbol existence and whether a symbol denotes a value are checked by
 // the Go compiler, not by source generation.
-func Source(packageName, functionName string, model ast.Model) ([]byte, error) {
+func Source(packageName, functionName string, model solution.Model) ([]byte, error) {
 	for _, name := range []string{packageName, functionName} {
 		if !token.IsIdentifier(name) || name == "_" {
 			return nil, fmt.Errorf("%w: %q", ErrIdentifier, name)
@@ -51,7 +51,7 @@ func Source(packageName, functionName string, model ast.Model) ([]byte, error) {
 
 	const tablePath = "github.com/modern-engineering/prototype/symbol"
 	packages := map[string]string{tablePath: ""}
-	definitions := make(map[ast.Symbol]bool)
+	definitions := make(map[solution.Symbol]bool)
 	for _, node := range model.Nodes {
 		symbol := node.Definition
 		if !token.IsIdentifier(symbol.Name) || !goast.IsExported(symbol.Name) {
@@ -65,11 +65,11 @@ func Source(packageName, functionName string, model ast.Model) ([]byte, error) {
 		paths = append(paths, path)
 	}
 	slices.Sort(paths)
-	symbols := make([]ast.Symbol, 0, len(definitions))
+	symbols := make([]solution.Symbol, 0, len(definitions))
 	for symbol := range definitions {
 		symbols = append(symbols, symbol)
 	}
-	slices.SortFunc(symbols, func(a, b ast.Symbol) int {
+	slices.SortFunc(symbols, func(a, b solution.Symbol) int {
 		if a.Package != b.Package {
 			return strings.Compare(a.Package, b.Package)
 		}

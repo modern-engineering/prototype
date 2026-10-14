@@ -10,7 +10,7 @@ import (
 
 	"github.com/modern-engineering/prototype/examples/linked/design"
 	"github.com/modern-engineering/prototype/program"
-	"github.com/modern-engineering/prototype/solution/ast"
+	"github.com/modern-engineering/prototype/solution"
 	"github.com/modern-engineering/prototype/symbol"
 )
 
@@ -35,9 +35,9 @@ func inspect() error {
 	}
 	for _, binding := range design.Model.Bindings {
 		switch value := binding.Value.(type) {
-		case ast.Literal:
+		case solution.Literal:
 			fmt.Printf("%s.%s = %q\n", binding.Node, binding.Input, value)
-		case ast.Reference:
+		case solution.Reference:
 			fmt.Printf("%s.%s <- %s.%s\n", binding.Node, binding.Input, value.Node, value.Output)
 		}
 	}

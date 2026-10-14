@@ -3,16 +3,16 @@ package gen_test
 import (
 	"fmt"
 
-	"github.com/modern-engineering/prototype/solution/ast"
+	"github.com/modern-engineering/prototype/solution"
 	"github.com/modern-engineering/prototype/solution/gen"
 )
 
 // Generated selectors make Go's compiler responsible for resolving exports.
 // Their concrete types impose no common capability on the resulting values.
 func ExampleSource() {
-	model := ast.Model{Nodes: []ast.Node{
-		{Name: "input", Definition: ast.Symbol{Package: "os", Name: "Stdin"}},
-		{Name: "null", Definition: ast.Symbol{Package: "os", Name: "DevNull"}},
+	model := solution.Model{Nodes: []solution.Node{
+		{Name: "input", Definition: solution.Symbol{Package: "os", Name: "Stdin"}},
+		{Name: "null", Definition: solution.Symbol{Package: "os", Name: "DevNull"}},
 	}}
 	source, err := gen.Source("inspection", "Register", model)
 	if err != nil {
