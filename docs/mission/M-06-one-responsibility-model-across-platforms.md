@@ -7,17 +7,17 @@ derived-from:
 
 # One Responsibility Model Across Platforms
 
-Within the common frame from [M-02-concept-of-operations], this story shows how the toolkit's responsibility model applies to an established event-intake solution running in serverless environments across three clouds.
-A routine event-rule change follows the work from software engineering through solution engineering to deployment and operation.
+Within the common frame from [M-02-concept-of-operations], this story shows how the toolkit's responsibility model applies to an established service running in serverless environments across three clouds.
+The story follows a routine application change from development through solution design, deployment and operation.
 The adopting company is the business beneficiary because its product depends on receiving customer events consistently.
 
 The setting is explicitly counterfactual Twilio Segment.
-Public descriptions of Segment's [Track specification] and [HTTP Tracking API] establish event intake as a recognisable product concern, but not the operating model below.
+Public descriptions of Segment's [Track specification] and [HTTP Tracking API] establish receiving customer events as a recognisable product concern, but not the operating model below.
 The adopting organisation, toolkit adoption, internal practices, multi-cloud arrangement, responsibilities and every event in the story are invented.
 
 ## An established three-provider service
 
-A developer-focused B2B software company operates its multi-tenant event-intake service through serverless container environments in AWS, Azure and Google Cloud.
+A developer-focused B2B software company operates a multi-tenant service for receiving customer events through serverless container environments in AWS, Azure and Google Cloud.
 Customer commitments and the need to receive data near customers' chosen environments make all three providers an accepted part of the business.
 
 The service is already useful and professionally sustained.
@@ -27,7 +27,7 @@ The company already knows how to operate them.
 
 The company brings this service under the toolkit's responsibility model.
 Software engineering defines and verifies how the application handles events, what its configuration means, and how it starts and responds to a request to stop.
-Solution engineering chooses the application version and configuration that express the intended event-intake solution.
+Solution engineering chooses the application version and configuration that express the intended service.
 Platform engineering maintains the code and tools that package, configure and run the application in each cloud.
 These are responsibilities people take on, and the same person may perform work in more than one of them.
 
@@ -39,7 +39,7 @@ A software engineer adds a supported validation option for `checkout.completed` 
 When the option is selected, the application requires an order reference before accepting the event.
 This is one application decision: valid events should be accepted and malformed events rejected according to the same rule whichever provider receives them.
 
-The engineer implements the option in the reusable event-intake application and exercises it through a common local harness.
+The engineer implements the option in the reusable application and exercises it through a common local harness.
 The engineer uses the same local harness to start and configure the application and check its event handling, without running AWS, Azure or Google Cloud development tools.
 One event includes the required order reference and is accepted; another omits it and is rejected.
 
@@ -56,7 +56,7 @@ During release review, the people responsible for the release examine the select
 
 For this operation, the company identifies where the solution belongs by a compliance region with established data-handling rules.
 That region is one `Location` in its solution description, and the region's existing deployments span AWS, Azure and Google Cloud.
-The person selecting the event rule names that Location without having to specify the clouds underneath it.
+The person choosing the version and settings names that Location without having to specify the clouds underneath it.
 This uses the [corpus meaning of Location][Location definition]: the adopting organisation defines the place where the solution is available.
 Platform engineering maintains the mapping from that region to the cloud deployments, and the company remains responsible for operating them according to the region's rules.
 
@@ -99,7 +99,7 @@ Platform engineering handles how the stop request reaches the application; softw
 The cloud platform determines how much time it allows before forcing the container to stop.
 
 As each rollout completes, the engineers responsible for that environment check the running application version, its event responses and the deployment health before accepting the deployment into service.
-The person doing the solution engineering uses those results to confirm that the selected event rule is in effect throughout the compliance region.
+The person doing the solution engineering uses those results to confirm that the selected validation option is enabled throughout the compliance region.
 Acting for the company, that person accepts the result when the running service meets the intended change across the region.
 
 ## Appendix: Running the application as a serverless function
@@ -122,19 +122,19 @@ They would check the integration code separately to establish that it passes eve
 
 The example leaves these concerns outside its scope:
 
-- What happens to events after intake, including identity resolution, analytics and routing data to other services.
+- What happens after the application accepts an event, including identity resolution, analytics and routing data to other services.
 - The final Go interfaces, command-line design, and arrangement of packages and executables, including whether integration code is written by hand, generated or packaged separately.
 - How solution artefacts are divided among files, how many there are, and the structure of the Solution Exchange Format (SEF).
 - The deployment configuration, traffic-routing policy and final arrangement of the toolkit's components.
-- Matching infrastructure, latency, scaling, availability or failure behaviour across clouds; the comparison here concerns the application's event rule.
+- Matching infrastructure, latency, scaling, availability or failure behaviour across clouds; the comparison here concerns whether the application accepts and rejects the same inputs.
 
 ## The same responsibilities on different platforms
 
-The event rule is now in effect throughout the compliance region.
-The application engineer developed and checked it through one local harness, solution engineering selected it for the region, and the engineers maintaining the deployments put it into service in all three clouds.
+The selected validation option is now enabled throughout the compliance region.
+The application engineer developed and checked the change through one local harness, solution engineering enabled the option for the region, and the engineers maintaining the deployments put it into service in all three clouds.
 Each cloud required different packaging and operating work, which fitted within platform engineering's existing responsibility.
 
-That division also allowed the solution description to use the company's business language: the person choosing the event rule could name the compliance region while platform engineering handled its deployments.
+That division also allowed the solution description to use the company's business language: the person designing the solution could name the compliance region while platform engineering handled its deployments.
 The toolkit's responsibility model accommodated the whole release, from the application decision to the different ways of running it.
 The company carried the change through its established operation without needing a separate responsibility model for each cloud.
 

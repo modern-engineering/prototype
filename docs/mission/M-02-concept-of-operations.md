@@ -68,7 +68,7 @@ The toolkit supports that understanding while the adopting organisation retains 
 The operational contribution varies with the setting.
 The sales engineer gains the ability to carry routine demonstrations through their complete lifecycle, while Siemens engineers use supported software to carry more of the repeatable factory-upgrade work.
 Stripe's engineers and operators can follow a merchant's intended solution through successive changes and recovery.
-The event-intake company applies the same division of software, solution and platform responsibilities through three different cloud environments.
+The company operating in three clouds applies the same division of software, solution and platform responsibilities in each environment.
 These contrasts preserve each operation's purpose and constraints while showing how the common responsibility model fits different work.
 
 ## Promoting commonality
@@ -103,8 +103,8 @@ Supported upgrade software carries routine delivery knowledge across those windo
 
 ### [M-06-one-responsibility-model-across-platforms]
 
-In a counterfactual Twilio Segment, one multi-tenant event-intake solution operates through serverless container environments in AWS, Azure and Google Cloud.
-A routine event-rule change passes from local application checks through solution selection into three distinct deployment paths using the toolkit's existing division of responsibility.
+In a counterfactual Twilio Segment, one multi-tenant service receives customer events through serverless container environments in AWS, Azure and Google Cloud.
+A routine validation change passes from local application checks through solution selection into three distinct deployment paths using the toolkit's existing division of responsibility.
 
 ## Method tailoring
 
