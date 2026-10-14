@@ -92,3 +92,22 @@ func ExampleRename() {
 	// session-store cache
 	// cache
 }
+
+// An unresolved name must not acquire a producer or receiver as a side effect of
+// renaming another occurrence. Such repair is a separate, deliberate edit.
+func TestRenameDoesNotCaptureUnresolvedEndpoints(t *testing.T) {
+	for _, binding := range []solution.Binding{
+		{Node: "b", Input: "text", Value: solution.Literal("x")},
+		{Node: "a", Input: "text", Value: solution.Reference{Node: "b", Output: "text"}},
+		{Node: "a", Input: "text", Value: &solution.Reference{Node: "b", Output: "text"}},
+	} {
+		source := solution.Definition{Nodes: []solution.Node{{Name: "a"}}, Bindings: []solution.Binding{binding}}
+		got, err := edit.Rename(source, "a", "b")
+		if !errors.Is(err, edit.ErrNameCapture) {
+			t.Errorf("binding %#v: got %v, want ErrNameCapture", binding, err)
+		}
+		if !reflect.DeepEqual(got, solution.Definition{}) || source.Nodes[0].Name != "a" {
+			t.Fatal("failed rename changed structural data")
+		}
+	}
+}
