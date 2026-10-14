@@ -144,9 +144,19 @@ func (e *Error) Error() string {
 // Unwrap returns the checking cause.
 func (e *Error) Unwrap() error { return e.Err }
 
+// CheckStructure checks occurrence identity, binding targets, referenced
+// occurrences, and supported value forms without requiring catalogue code.
+// It returns independent findings as Errors in the same order as Check, omitting
+// registry findings. Missing symbols, fields, and execution policy are outside
+// this pass.
+func CheckStructure(source solution.Definition) error {
+	_, _, err := preflight(source, nil, false)
+	return err
+}
+
 // Check vets occurrence identity, registry presence, binding targets, referenced
 // occurrences, and supported value forms. Independent failures are returned as
-// joined *Error values in authored order, with occurrence failures before binding
+// Errors in authored order, with occurrence failures before binding
 // failures. registry must be non-nil.
 //
 // Check does not call Make, Set, Get, or Run. It cannot establish input/output
@@ -154,7 +164,7 @@ func (e *Error) Unwrap() error { return e.Err }
 // repeated assignments are valid logical relationships. A successful check says
 // nothing about later edits; Resolve checks again before constructing its graph.
 func Check(source solution.Definition, registry *program.Registry) error {
-	_, _, err := preflight(source, registry)
+	_, _, err := preflight(source, registry, true)
 	return err
 }
 
@@ -167,11 +177,11 @@ func Check(source solution.Definition, registry *program.Registry) error {
 // or Run methods are called. Actual I/O declarations and handles belong to a
 // later instantiation step; execution and resource ownership belong to loaders.
 //
-// On failure Resolve returns a nil solution and joined *Error values, without
+// On failure Resolve returns a nil solution and Errors, without
 // constructing a partial graph. The source and registry are unchanged; later
 // structural edits do not change a linked solution. registry must be non-nil.
 func Resolve(source solution.Definition, registry *program.Registry) (*Solution, error) {
-	descriptors, values, err := preflight(source, registry)
+	descriptors, values, err := preflight(source, registry, true)
 	if err != nil {
 		return nil, err
 	}
@@ -208,20 +218,22 @@ func Resolve(source solution.Definition, registry *program.Registry) (*Solution,
 	return result, nil
 }
 
-func preflight(source solution.Definition, registry *program.Registry) ([]program.Descriptor, []solution.Value, error) {
+func preflight(source solution.Definition, registry *program.Registry, checkSymbols bool) ([]program.Descriptor, []solution.Value, error) {
 	names := make(map[string]bool, len(source.Nodes))
 	descriptors := make([]program.Descriptor, 0, len(source.Nodes))
-	var diagnostics []error
+	var diagnostics Errors
 	for _, node := range source.Nodes {
 		if names[node.Name] {
 			diagnostics = append(diagnostics, &Error{Node: node.Name, Err: ErrDuplicateNode})
 		}
 		names[node.Name] = true
-		descriptor, found := registry.Lookup(node.Definition.Package, node.Definition.Name)
-		if !found {
-			diagnostics = append(diagnostics, &Error{Node: node.Name, Symbol: node.Definition, Err: ErrMissingSymbol})
+		if checkSymbols {
+			descriptor, found := registry.Lookup(node.Definition.Package, node.Definition.Name)
+			if !found {
+				diagnostics = append(diagnostics, &Error{Node: node.Name, Symbol: node.Definition, Err: ErrMissingSymbol})
+			}
+			descriptors = append(descriptors, descriptor)
 		}
-		descriptors = append(descriptors, descriptor)
 	}
 	values := make([]solution.Value, 0, len(source.Bindings))
 	for _, binding := range source.Bindings {
@@ -238,7 +250,7 @@ func preflight(source solution.Definition, registry *program.Registry) ([]progra
 		values = append(values, value)
 	}
 	if len(diagnostics) > 0 {
-		return nil, nil, errors.Join(diagnostics...)
+		return nil, nil, diagnostics
 	}
 	return descriptors, values, nil
 }

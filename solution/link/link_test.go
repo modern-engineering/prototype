@@ -162,11 +162,11 @@ func TestPreflightCollectsIndependentFailures(t *testing.T) {
 		},
 	}
 	err := link.Check(definition, &registry)
-	joined, ok := err.(interface{ Unwrap() []error })
+	findings, ok := errors.AsType[link.Errors](err)
 	if !ok {
-		t.Fatalf("Check error = %T, want joined diagnostics", err)
+		t.Fatalf("Check error = %T, want link.Errors", err)
 	}
-	got := joined.Unwrap()
+	got := findings.Unwrap()
 	want := []error{link.ErrMissingSymbol, link.ErrMissingNode, link.ErrInvalidValue}
 	if len(got) != len(want) {
 		t.Fatalf("diagnostics = %v, want three independent failures", got)
@@ -178,5 +178,24 @@ func TestPreflightCollectsIndependentFailures(t *testing.T) {
 		if _, ok := errors.AsType[*link.Error](got[i]); !ok {
 			t.Errorf("diagnostic %d has no structured context", i)
 		}
+	}
+}
+
+// Structural tools can inspect an artifact without importing its catalogue.
+func TestStructuralCheckingDoesNotRequireCatalogueCode(t *testing.T) {
+	definition := solution.Definition{
+		Nodes:    []solution.Node{{Name: "unavailable", Definition: solution.Symbol{Package: "unknown", Name: "Descriptor"}}},
+		Bindings: []solution.Binding{{Node: "unavailable", Input: "uninspected", Value: solution.Reference{Node: "unavailable", Output: "uninspected"}}},
+	}
+	if err := link.CheckStructure(definition); err != nil {
+		t.Fatal(err)
+	}
+	var registry program.Registry
+	if err := link.Check(definition, &registry); !errors.Is(err, link.ErrMissingSymbol) {
+		t.Fatalf("registry check error = %v, want ErrMissingSymbol", err)
+	}
+	definition.Bindings[0].Node = "absent"
+	if err := link.CheckStructure(definition); !errors.Is(err, link.ErrMissingNode) || errors.Is(err, link.ErrMissingSymbol) {
+		t.Fatalf("structural check error = %v, want only ErrMissingNode", err)
 	}
 }
