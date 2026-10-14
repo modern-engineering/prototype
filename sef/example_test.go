@@ -1,42 +1,40 @@
 package sef_test
 
 import (
+	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/modern-engineering/prototype/sef"
 	"github.com/modern-engineering/prototype/solution"
-	"github.com/modern-engineering/prototype/solution/link"
-	"github.com/modern-engineering/prototype/symbol"
 )
 
-// A document carries a named definition independently of its encoding. The
-// consumer supplies runtime values and links the definition when needed.
+// A SEF file carries structural intent without importing its catalogue packages.
+// An empty literal remains an assignment when the document is written and read.
 func ExampleDocument() {
 	document := sef.Document{
-		Version:  "example-schema",
-		ID:       "text-cleanup",
-		Revision: "proposal-2",
-		Definition: solution.Definition{Nodes: []solution.Node{
-			{Name: "trim", Definition: solution.Symbol{Package: "strings", Name: "TrimSpace"}},
-		}},
+		Version: sef.Version, ID: "text-cleanup", Revision: "proposal-2",
+		Definition: solution.Definition{
+			Nodes: []solution.Node{{Name: "trim", Definition: solution.Symbol{
+				Package: "example.com/catalogue", Name: "Trim",
+			}}},
+			Bindings: []solution.Binding{{Node: "trim", Input: "prefix", Value: solution.Literal("")}},
+		},
 	}
-
-	var values symbol.Table
-	if err := values.Define("strings", "TrimSpace", strings.TrimSpace); err != nil {
+	var encoded bytes.Buffer
+	if err := sef.EncodeJSON(&encoded, document); err != nil {
 		fmt.Println(err)
 		return
 	}
-	resolved, err := link.Resolve(document.Definition, &values)
+	restored, err := sef.DecodeJSON(&encoded)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	trim := resolved.Nodes[0].Definition.(func(string) string)
-	fmt.Printf("%s at %s (%s)\n", document.ID, document.Revision, document.Version)
-	fmt.Println(trim("  hello  "))
+	fmt.Printf("%s at %s (%s)\n", restored.ID, restored.Revision, restored.Version)
+	binding := restored.Definition.Bindings[0]
+	fmt.Printf("%s.%s = %q\n", binding.Node, binding.Input, binding.Value)
 
 	// Output:
-	// text-cleanup at proposal-2 (example-schema)
-	// hello
+	// text-cleanup at proposal-2 (0.1)
+	// trim.prefix = ""
 }
