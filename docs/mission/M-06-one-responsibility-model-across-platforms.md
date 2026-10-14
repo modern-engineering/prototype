@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: draft
 since: 2026-09-12
 derived-from:
   - M-02-concept-of-operations
