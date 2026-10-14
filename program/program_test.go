@@ -2,7 +2,6 @@ package program_test
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"slices"
@@ -32,13 +31,8 @@ func Example() {
 	if !ok {
 		panic("missing name input")
 	}
-	var wiring program.Wiring
-	defer func() {
-		if err := wiring.Close(); err != nil {
-			panic(err)
-		}
-	}()
-	if err := wiring.Wire(context.Background(), name.Value, program.GetterFunc(func() string { return "Ada" })); err != nil {
+	source := program.GetterFunc(func() string { return "Ada" })
+	if err := name.Value.Set(source.Get()); err != nil {
 		panic(err)
 	}
 	if err := run.Run(context.Background()); err != nil {
@@ -171,21 +165,3 @@ type partsValue []string
 func (v *partsValue) String() string         { return strings.Join(*v, ",") }
 func (v *partsValue) Get() any               { return []string(*v) }
 func (v *partsValue) Set(value string) error { *v = append(*v, value); return nil }
-
-func TestAssignmentError(t *testing.T) {
-	want := errors.New("assignment rejected")
-	target := program.SetterFunc(func(value string) error {
-		if value != "payload" {
-			t.Errorf("assigned value = %q; want payload", value)
-		}
-		return want
-	})
-	var wiring program.Wiring
-	err := wiring.Wire(t.Context(), target, program.GetterFunc(func() string { return "payload" }))
-	if !errors.Is(err, want) {
-		t.Errorf("Wire error = %v; want %v", err, want)
-	}
-	if err := wiring.Close(); err != nil {
-		t.Errorf("closing string transfer: %v", err)
-	}
-}

@@ -92,8 +92,7 @@ func (v *borrowedText) BorrowReader(reader io.Reader) error {
 }
 
 func run(ctx context.Context) (err error) {
-	// This loader stages an immutable snapshot in a file. The getter can expose
-	// the same content as a string or open independent readers over that file.
+	// The command stages an input file; the loader opens its readers separately.
 	dir, err := os.MkdirTemp("", "readers-")
 	if err != nil {
 		return err
@@ -104,28 +103,14 @@ func run(ctx context.Context) (err error) {
 	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
 		return err
 	}
-	source := &fileContent{path: path, text: text}
 	l := loader.Loader{}
-	i, err := l.Load(ctx, Inspect, map[string]program.Getter{
-		"eager": source, "borrowed": source,
-	})
-	if err != nil {
+	i := l.Make(Inspect)
+	defer func() { err = errors.Join(err, i.Close()) }()
+	if err := i.ReadFile(ctx, "eager", path); err != nil {
+		return err
+	}
+	if err := i.ReadFile(ctx, "borrowed", path); err != nil {
 		return err
 	}
 	return i.Run(ctx)
-}
-
-// fileContent offers two representations of the loader's immutable snapshot.
-// Each reader has its own file position and a separate lifetime.
-type fileContent struct {
-	path, text string
-}
-
-func (v *fileContent) Get() string { return v.text }
-
-func (v *fileContent) Open(ctx context.Context) (io.ReadCloser, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	return os.Open(v.path)
 }

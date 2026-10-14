@@ -27,8 +27,8 @@ func ExampleDescriptor() {
 		},
 	}
 
-	var factory program.Factory = app
-	runner, inputs, outputs := factory.Make()
+	var descriptor program.Descriptor = app
+	runner, inputs, outputs := descriptor.Make()
 	address, ok := inputs.Lookup("address")
 	if !ok {
 		fmt.Println("missing address input")

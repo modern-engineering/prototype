@@ -5,18 +5,25 @@ import (
 	"fmt"
 
 	"github.com/modern-engineering/prototype/examples/internal/loader"
-	"github.com/modern-engineering/prototype/program"
 )
 
 // A loader configures a finite job and wires its result into an application
-// through the same factory contract.
+// through the same descriptor contract.
 func Example() {
 	l := loader.Loader{}
-	address, err := l.Load(context.Background(), Address, map[string]program.Getter{
-		"host": literal("api.example.test:8443"),
-	})
+	address := l.Make(Address)
+	defer func() {
+		if err := address.Close(); err != nil {
+			fmt.Println("close address:", err)
+		}
+	}()
+	host, err := address.Input("host")
 	if err != nil {
-		fmt.Println("load address:", err)
+		fmt.Println("host input:", err)
+		return
+	}
+	if err := host.Set("api.example.test:8443"); err != nil {
+		fmt.Println("configure host:", err)
 		return
 	}
 	if err := address.Run(context.Background()); err != nil {
@@ -28,9 +35,19 @@ func Example() {
 		fmt.Println("address output:", err)
 		return
 	}
-	backend, err := l.Load(context.Background(), Backend, map[string]program.Getter{"address": url})
+	backend := l.Make(Backend)
+	defer func() {
+		if err := backend.Close(); err != nil {
+			fmt.Println("close backend:", err)
+		}
+	}()
+	upstream, err := backend.Input("address")
 	if err != nil {
-		fmt.Println("load backend:", err)
+		fmt.Println("upstream input:", err)
+		return
+	}
+	if err := upstream.Set(url.Get()); err != nil {
+		fmt.Println("configure upstream:", err)
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())

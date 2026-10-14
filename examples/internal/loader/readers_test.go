@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,119 +13,162 @@ import (
 	"github.com/modern-engineering/prototype/program"
 )
 
-// Configuration must leave borrowed files usable through execution, while both
-// completed and abandoned invocations release them.
-func TestBorrowedReadersCloseAtInvocationBoundary(t *testing.T) {
-	source := fileSource(os.DevNull)
-	factory := new(readProgram)
-	i, err := (loader.Loader{}).Load(t.Context(), factory, map[string]program.Getter{"borrowed": source})
-	if err != nil {
+// File inputs can consume immediately or borrow through execution, without
+// giving either destination ownership of the opened file.
+func TestFileTransferLifetimes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "payload")
+	if err := os.WriteFile(path, []byte("file contents"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	reader := factory.value.reader
-	if _, err := io.ReadAll(reader); err != nil {
-		t.Fatalf("configured reader: %v", err)
+	var eager *eagerValue
+	var borrowed *borrowedValue
+	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+		eager = &eagerValue{borrowedValue: borrowedValue{t: t}}
+		borrowed = &borrowedValue{t: t}
+		var plain string
+		inputs := program.InputList{
+			{Field: program.Field{Name: "eager"}, Value: eager},
+			{Field: program.Field{Name: "borrowed"}, Value: borrowed},
+			{Field: program.Field{Name: "plain"}, Value: program.SetterFunc(func(text string) error { plain = text; return nil })},
+		}
+		run := program.RunnerFunc(func(context.Context) error {
+			body, err := io.ReadAll(borrowed.reader)
+			if err != nil {
+				return err
+			}
+			if eager.text != "file contents" || plain != "file contents" || string(body) != "file contents" {
+				t.Errorf("input values = %q, %q, %q; want file contents", eager.text, plain, body)
+			}
+			return nil
+		})
+		return run, inputs, program.OutputList(nil)
+	})
+	i := (loader.Loader{}).Make(descriptor)
+	defer func(invocation *loader.Invocation) {
+		if err := invocation.Close(); err != nil {
+			t.Error(err)
+		}
+	}(i)
+	if err := i.ReadFile(t.Context(), "eager", path); err != nil {
+		t.Fatal(err)
+	}
+	if eager.reader != nil {
+		t.Fatal("eager input was assigned through BorrowReader instead of ReadFrom")
+	}
+	if _, err := io.ReadAll(eager.seen); !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("eager reader after assignment = %v; want closed file", err)
+	}
+	if err := i.ReadFile(t.Context(), "borrowed", path); err != nil {
+		t.Fatal(err)
+	}
+	if err := i.ReadFile(t.Context(), "plain", path); err != nil {
+		t.Fatal(err)
 	}
 	if err := i.Run(t.Context()); err != nil {
-		t.Fatalf("run with borrowed reader: %v", err)
-	}
-	if _, err := io.ReadAll(reader); !errors.Is(err, os.ErrClosed) {
-		t.Fatalf("reader after Run = %v; want closed file", err)
-	}
-
-	i, err = (loader.Loader{}).Load(t.Context(), factory, map[string]program.Getter{"borrowed": source})
-	if err != nil {
 		t.Fatal(err)
 	}
-	reader = factory.value.reader
-	if err := i.Close(); err != nil {
-		t.Fatalf("abandon invocation: %v", err)
-	}
-	if _, err := io.ReadAll(reader); !errors.Is(err, os.ErrClosed) {
-		t.Fatalf("reader after abandonment = %v; want closed file", err)
+	if _, err := io.ReadAll(borrowed.reader); !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("borrowed reader after Run = %v; want closed file", err)
 	}
 	if err := i.Close(); err != nil {
 		t.Fatalf("repeated close: %v", err)
 	}
 }
 
-// A later assignment can fail after the loader has already acquired readers;
-// those readers must be released even though no invocation reaches the caller.
-func TestBindingFailureReleasesEarlierBorrow(t *testing.T) {
+// A failed assignment releases its file, while earlier borrows stay usable
+// until the caller abandons the invocation.
+func TestAbandonedConfigurationReleasesBorrowedFiles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "payload")
+	if err := os.WriteFile(path, []byte("file contents"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	rejected := errors.New("assignment rejected")
-	var borrowed *borrowedValue
-	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
-		borrowed = &borrowedValue{}
+	var accepted, refused *borrowedValue
+	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+		accepted = &borrowedValue{t: t}
+		refused = &borrowedValue{t: t, err: rejected}
 		inputs := program.InputList{
-			{Field: program.Field{Name: "reader"}, Value: borrowed},
-			{Field: program.Field{Name: "rejected"}, Value: program.SetterFunc(func(string) error { return rejected })},
+			{Field: program.Field{Name: "accepted"}, Value: accepted},
+			{Field: program.Field{Name: "refused"}, Value: refused},
 		}
 		return program.RunnerFunc(func(context.Context) error {
-			t.Fatal("failed configuration reached the runner")
+			t.Fatal("abandoned configuration reached the runner")
 			return nil
 		}), inputs, program.OutputList(nil)
 	})
-	i, err := (loader.Loader{}).Load(t.Context(), factory, map[string]program.Getter{
-		"reader":   fileSource(os.DevNull),
-		"rejected": literal("value"),
-	})
-	if !errors.Is(err, rejected) {
-		t.Fatalf("load error = %v; want assignment rejection", err)
+	i := (loader.Loader{}).Make(descriptor)
+	defer func(invocation *loader.Invocation) {
+		if err := invocation.Close(); err != nil {
+			t.Error(err)
+		}
+	}(i)
+	if err := i.ReadFile(t.Context(), "accepted", path); err != nil {
+		t.Fatal(err)
 	}
-	if i != nil {
-		t.Fatal("failed configuration returned an invocation")
+	if err := i.ReadFile(t.Context(), "refused", path); !errors.Is(err, rejected) {
+		t.Fatalf("file assignment error = %v; want assignment rejection", err)
 	}
-	if _, err := io.ReadAll(borrowed.reader); !errors.Is(err, os.ErrClosed) {
-		t.Fatalf("reader after failed configuration = %v; want closed file", err)
+	if _, err := io.ReadAll(refused.seen); !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("refused reader after failed assignment = %v; want closed file", err)
+	}
+	value, err := io.ReadAll(accepted.reader)
+	if err != nil || string(value) != "file contents" {
+		t.Fatalf("earlier borrow = %q, %v; want file contents still available", value, err)
+	}
+	if err := i.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadAll(accepted.reader); !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("borrowed reader after abandonment = %v; want closed file", err)
 	}
 }
 
-// Cancellation alone does not end a borrow: the runner must return before the
-// loader can release a reader that the runner might still be using.
-func TestCanceledRunReleasesBorrow(t *testing.T) {
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	factory := new(readProgram)
-	i, err := (loader.Loader{}).Load(ctx, factory, map[string]program.Getter{
-		"borrowed": fileSource(os.DevNull),
-	})
-	if err != nil {
+// Cancellation prevents acquisition, but does not revoke an existing borrow
+// before the runner has finished using it.
+func TestCancellationRespectsFileLifetime(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "payload")
+	if err := os.WriteFile(path, []byte("file contents"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	reader := factory.value.reader
+	var borrowed *borrowedValue
+	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+		borrowed = &borrowedValue{t: t}
+		run := program.RunnerFunc(func(ctx context.Context) error {
+			body, err := io.ReadAll(borrowed.reader)
+			if err != nil || string(body) != "file contents" {
+				t.Errorf("reader during canceled Run = %q, %v; want file contents", body, err)
+			}
+			return ctx.Err()
+		})
+		return run, program.InputList{{Field: program.Field{Name: "body"}, Value: borrowed}}, program.OutputList(nil)
+	})
+	i := (loader.Loader{}).Make(descriptor)
+	defer func(invocation *loader.Invocation) {
+		if err := invocation.Close(); err != nil {
+			t.Error(err)
+		}
+	}(i)
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if _, err := io.ReadAll(reader); err != nil {
-		t.Fatalf("reader after cancellation before Run returns: %v", err)
+	if err := i.ReadFile(ctx, "body", filepath.Join(t.TempDir(), "missing")); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled assignment = %v; want context cancellation before opening", err)
+	}
+	if err := i.ReadFile(t.Context(), "body", path); err != nil {
+		t.Fatal(err)
 	}
 	if err := i.Run(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("run error = %v; want context cancellation", err)
 	}
-	if _, err := io.ReadAll(reader); !errors.Is(err, os.ErrClosed) {
+	if _, err := io.ReadAll(borrowed.reader); !errors.Is(err, os.ErrClosed) {
 		t.Fatalf("reader after canceled Run = %v; want closed file", err)
 	}
 }
 
-// readProgram captures the most recently constructed input so tests can observe
-// the lifetime of its borrowed file without exposing loader internals.
-type readProgram struct {
-	value *borrowedValue
-}
-
-func (p *readProgram) Make() (program.Runner, program.Inputs, program.Outputs) {
-	value := new(borrowedValue)
-	p.value = value
-	run := program.RunnerFunc(func(ctx context.Context) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		_, err := io.Copy(io.Discard, value.reader)
-		return err
-	})
-	return run, program.InputList{{Field: program.Field{Name: "borrowed"}, Value: value}}, program.OutputList(nil)
-}
-
 type borrowedValue struct {
+	t      *testing.T
 	reader io.Reader
+	seen   io.Reader
+	err    error
 }
 
 func (v *borrowedValue) Set(text string) error {
@@ -133,11 +177,28 @@ func (v *borrowedValue) Set(text string) error {
 }
 
 func (v *borrowedValue) BorrowReader(reader io.Reader) error {
+	if _, ok := reader.(io.Closer); ok {
+		v.t.Error("borrower received closing capability")
+	}
+	v.seen = reader
+	if v.err != nil {
+		return v.err
+	}
 	v.reader = reader
 	return nil
 }
 
-type fileSource string
+type eagerValue struct {
+	borrowedValue
+	text string
+}
 
-func (s fileSource) Get() string                                 { return "" }
-func (s fileSource) Open(context.Context) (io.ReadCloser, error) { return os.Open(string(s)) }
+func (v *eagerValue) ReadFrom(reader io.Reader) (int64, error) {
+	if _, ok := reader.(io.Closer); ok {
+		v.t.Error("eager consumer received closing capability")
+	}
+	v.seen = reader
+	data, err := io.ReadAll(reader)
+	v.text = string(data)
+	return int64(len(data)), err
+}

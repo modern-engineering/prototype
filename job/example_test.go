@@ -31,8 +31,8 @@ func ExampleDescriptor() {
 		},
 	}
 
-	var factory program.Factory = greeting
-	runner, inputs, outputs := factory.Make()
+	var descriptor program.Descriptor = greeting
+	runner, inputs, outputs := descriptor.Make()
 	name, ok := inputs.Lookup("name")
 	if !ok {
 		fmt.Println("missing name input")

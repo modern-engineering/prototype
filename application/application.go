@@ -16,7 +16,7 @@ func (make MakeFunc) Make() (program.Runner, program.Inputs, program.Outputs) {
 }
 
 // Descriptor identifies an application and supplies its invocation constructor.
-// It implements program.Factory through its embedded MakeFunc.
+// It implements program.Descriptor through its embedded MakeFunc.
 type Descriptor struct {
 	Name    string
 	Summary string

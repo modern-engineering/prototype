@@ -9,7 +9,7 @@ import "github.com/modern-engineering/prototype/program"
 type MakeFunc = program.MakeFunc
 
 // Descriptor identifies a job and supplies its invocation constructor.
-// It implements program.Factory through its embedded MakeFunc.
+// It implements program.Descriptor through its embedded MakeFunc.
 type Descriptor struct {
 	Name    string
 	Summary string

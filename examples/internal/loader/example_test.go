@@ -12,7 +12,7 @@ import (
 
 // A loader configures a fresh invocation, runs it, and exposes its outputs.
 func Example() {
-	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		flags := flag.NewFlagSet("uppercase", flag.ContinueOnError)
 		text := flags.String("text", "", "text to uppercase")
 		var result string
@@ -26,8 +26,18 @@ func Example() {
 		}}
 	})
 	ctx := context.Background()
-	i, err := (loader.Loader{}).Load(ctx, factory, map[string]program.Getter{"text": literal("Hello")})
+	i := (loader.Loader{}).Make(descriptor)
+	defer func() {
+		if err := i.Close(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+	text, err := i.Input("text")
 	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if err := text.Set("Hello"); err != nil {
 		fmt.Println(err)
 		return
 	}

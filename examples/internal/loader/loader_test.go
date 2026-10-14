@@ -7,6 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,38 +16,40 @@ import (
 	"github.com/modern-engineering/prototype/program"
 )
 
-// Unknown bindings must fail before a getter, setter, or runner can affect state.
-func TestUnknownBindingIsRejectedBeforeTransfer(t *testing.T) {
-	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+// An undeclared input must fail before the loader tries to acquire its file.
+func TestUnknownInputIsRejectedBeforeOpeningFile(t *testing.T) {
+	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		inputs := program.InputList{
 			program.Input{
 				Field: program.Field{Name: "host"},
 				Value: program.SetterFunc(func(string) error {
-					t.Fatal("unknown binding reached a setter")
+					t.Fatal("unknown input reached a setter")
 					return nil
 				}),
 			},
 		}
 		return program.RunnerFunc(func(context.Context) error {
-			t.Fatal("unknown binding reached the runner")
+			t.Fatal("unknown input reached the runner")
 			return nil
 		}), inputs, program.OutputList(nil)
 	})
-	source := program.GetterFunc(func() string {
-		t.Fatal("unknown binding reached a getter")
-		return ""
-	})
-	_, err := (loader.Loader{}).Load(t.Context(), factory, map[string]program.Getter{
-		"host": source,
-		"typo": source,
-	})
+	i := (loader.Loader{}).Make(descriptor)
+	defer func(invocation *loader.Invocation) {
+		if err := invocation.Close(); err != nil {
+			t.Error(err)
+		}
+	}(i)
+	err := i.ReadFile(t.Context(), "typo", filepath.Join(t.TempDir(), "missing"))
 	if !errors.Is(err, loader.ErrUnknownInput) {
-		t.Fatalf("load error = %v, want unknown input", err)
+		t.Fatalf("file assignment error = %v, want unknown input", err)
+	}
+	if _, err := i.Input("typo"); !errors.Is(err, loader.ErrUnknownInput) {
+		t.Fatalf("input lookup = %v, want unknown input", err)
 	}
 }
 
 func TestUnboundInputRetainsDefault(t *testing.T) {
-	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		flags := flag.NewFlagSet("address", flag.ContinueOnError)
 		host := flags.String("host", "localhost", "service host")
 		scheme := flags.String("scheme", "https", "service URL scheme")
@@ -60,10 +64,17 @@ func TestUnboundInputRetainsDefault(t *testing.T) {
 		})
 		return runner, program.FromFlags(flags), program.OutputList(nil)
 	})
-	i, err := (loader.Loader{}).Load(t.Context(), factory, map[string]program.Getter{
-		"host": literal("api.example.test"),
-	})
+	i := (loader.Loader{}).Make(descriptor)
+	defer func(invocation *loader.Invocation) {
+		if err := invocation.Close(); err != nil {
+			t.Error(err)
+		}
+	}(i)
+	host, err := i.Input("host")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := host.Set("api.example.test"); err != nil {
 		t.Fatal(err)
 	}
 	if err := i.Run(t.Context()); err != nil {
@@ -73,16 +84,20 @@ func TestUnboundInputRetainsDefault(t *testing.T) {
 
 // Diagnostics require an explicitly supplied logger, and assignment failures
 // retain their cause without exposing sensitive values in those diagnostics.
-func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
+func TestSensitiveFileAssignmentHidesValueAndPreservesCause(t *testing.T) {
 	var diagnostics bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&diagnostics, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	previous := slog.Default()
 	slog.SetDefault(logger)
 	t.Cleanup(func() { slog.SetDefault(previous) })
 	const secret = "private-token-value"
+	path := filepath.Join(t.TempDir(), "credential")
+	if err := os.WriteFile(path, []byte(secret), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	rejected := errors.New("credential rejected")
 	cause := fmt.Errorf("invalid credential %s: %w", secret, rejected)
-	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		inputs := program.InputList{
 			program.Input{
 				Field: program.Field{
@@ -96,11 +111,15 @@ func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
 			return nil
 		}), inputs, program.OutputList(nil)
 	})
-	_, err := (loader.Loader{}).Load(t.Context(), factory, map[string]program.Getter{
-		"credential": literal(secret),
-	})
+	i := (loader.Loader{}).Make(descriptor)
+	defer func(invocation *loader.Invocation) {
+		if err := invocation.Close(); err != nil {
+			t.Error(err)
+		}
+	}(i)
+	err := i.ReadFile(t.Context(), "credential", path)
 	if !errors.Is(err, rejected) {
-		t.Fatalf("load error = %v, want credential rejection", err)
+		t.Fatalf("file assignment error = %v, want credential rejection", err)
 	}
 	if strings.Contains(err.Error(), secret) {
 		t.Fatal("sensitive value appeared in ordinary diagnostics")
@@ -109,11 +128,15 @@ func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
 		t.Fatal("zero-value loader emitted diagnostics through the default logger")
 	}
 
-	_, err = (loader.Loader{Logger: logger}).Load(t.Context(), factory, map[string]program.Getter{
-		"credential": literal(secret),
-	})
+	i = (loader.Loader{Logger: logger}).Make(descriptor)
+	defer func(invocation *loader.Invocation) {
+		if err := invocation.Close(); err != nil {
+			t.Error(err)
+		}
+	}(i)
+	err = i.ReadFile(t.Context(), "credential", path)
 	if !errors.Is(err, rejected) {
-		t.Fatalf("load with logging error = %v, want credential rejection", err)
+		t.Fatalf("file assignment with logging error = %v, want credential rejection", err)
 	}
 	if diagnostics.Len() == 0 {
 		t.Fatal("explicit logger received no diagnostics")
@@ -122,7 +145,3 @@ func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
 		t.Fatal("sensitive value appeared in ordinary diagnostics")
 	}
 }
-
-type literal string
-
-func (value literal) Get() string { return string(value) }

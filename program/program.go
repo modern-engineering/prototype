@@ -1,7 +1,7 @@
 // Package program defines invocation and bound input/output contracts shared by
 // catalogue types and loaders.
 //
-// A factory constructs fresh state without performing I/O. A loader configures
+// A descriptor constructs fresh state without performing I/O. A loader configures
 // that state through its input handles before invoking the runner, then reads
 // the output handles after a successful finite invocation. Input mutation and
 // execution are separate phases; these handles provide no synchronization.
@@ -23,21 +23,21 @@ type RunnerFunc func(context.Context) error
 
 func (f RunnerFunc) Run(ctx context.Context) error { return f(ctx) }
 
-// Factory constructs a runner and the handles bound to the same fresh state.
+// Descriptor constructs a runner and the handles bound to the same fresh state.
 // Make is pure and infallible: it neither acquires external resources nor runs
 // the program. Repeated calls must create independent invocation state.
-type Factory interface {
+type Descriptor interface {
 	Make() (Runner, Inputs, Outputs)
 }
 
-// MakeFunc adapts a tuple constructor to Factory.
+// MakeFunc adapts a tuple constructor to Descriptor.
 type MakeFunc func() (Runner, Inputs, Outputs)
 
 func (f MakeFunc) Make() (Runner, Inputs, Outputs) { return f() }
 
-// Adapt creates a factory from a constructor whose runner optionally implements
+// Adapt creates a descriptor from a constructor whose runner optionally implements
 // Inputs() Inputs and Outputs() Outputs. Each accessor is called once per Make;
-// missing accessors produce empty surfaces. Construction follows Factory's
+// missing accessors produce empty surfaces. Construction follows Descriptor's
 // purity and fresh-state contract.
 func Adapt[T Runner](newRunner func() T) MakeFunc {
 	return func() (Runner, Inputs, Outputs) {
@@ -76,18 +76,6 @@ type SetterFunc func(string) error
 
 func (f SetterFunc) Set(value string) error { return f(value) }
 
-// Getter provides the current output value as a string. It does not distinguish
-// an unproduced value from an empty value. Implementations may expose additional
-// transfer capabilities.
-type Getter interface {
-	Get() string
-}
-
-// GetterFunc adapts a function to Getter.
-type GetterFunc func() string
-
-func (f GetterFunc) Get() string { return f() }
-
 // Input binds declaration metadata to the original setter, preserving any
 // additional transfer capabilities exposed by Value.
 type Input struct {
@@ -95,25 +83,11 @@ type Input struct {
 	Value Setter
 }
 
-// Output binds declaration metadata to the original getter, preserving any
-// additional transfer capabilities exposed by Value.
-type Output struct {
-	Field
-	Value Getter
-}
-
 // Inputs enumerates and looks up the uniquely named inputs of an invocation.
 // All and Lookup expose the same bound fields.
 type Inputs interface {
 	All() iter.Seq[Input]
 	Lookup(name string) (Input, bool)
-}
-
-// Outputs enumerates and looks up the uniquely named outputs of an invocation.
-// All and Lookup expose the same bound fields.
-type Outputs interface {
-	All() iter.Seq[Output]
-	Lookup(name string) (Output, bool)
 }
 
 // InputList is an input surface in declaration order. Field names must be
@@ -137,6 +111,32 @@ func (fields InputList) Lookup(name string) (Input, bool) {
 		}
 	}
 	return Input{}, false
+}
+
+// Getter provides the current output value as a string. It does not distinguish
+// an unproduced value from an empty value. Implementations may expose additional
+// transfer capabilities.
+type Getter interface {
+	Get() string
+}
+
+// GetterFunc adapts a function to Getter.
+type GetterFunc func() string
+
+func (f GetterFunc) Get() string { return f() }
+
+// Output binds declaration metadata to the original getter, preserving any
+// additional transfer capabilities exposed by Value.
+type Output struct {
+	Field
+	Value Getter
+}
+
+// Outputs enumerates and looks up the uniquely named outputs of an invocation.
+// All and Lookup expose the same bound fields.
+type Outputs interface {
+	All() iter.Seq[Output]
+	Lookup(name string) (Output, bool)
 }
 
 // OutputList is an output surface in declaration order. Field names must be
