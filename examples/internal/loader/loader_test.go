@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -21,7 +22,7 @@ func TestUnknownInputIsRejectedBeforeOpeningFile(t *testing.T) {
 		inputs := program.InputList{
 			program.Input{
 				Field: program.Field{Name: "host"},
-				Value: program.SetterFunc(func(string) error {
+				Value: bind.SetterFunc(func(string) error {
 					t.Fatal("unknown input reached a setter")
 					return nil
 				}),
@@ -99,7 +100,7 @@ func TestSensitiveFileAssignmentHidesValueAndPreservesCause(t *testing.T) {
 				Field: program.Field{
 					Name: "credential", Help: "access credential", Sensitive: true,
 				},
-				Value: program.SetterFunc(func(string) error { return cause }),
+				Value: bind.SetterFunc(func(string) error { return cause }),
 			},
 		}
 		return program.RunnerFunc(func(context.Context) error {

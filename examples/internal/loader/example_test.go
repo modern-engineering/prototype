@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -22,7 +23,7 @@ func Example() {
 		})
 		return run, program.FromFlags(flags), program.OutputList{{
 			Field: program.Field{Name: "result"},
-			Value: program.GetterFunc(func() string { return result }),
+			Value: bind.GetterFunc(func() string { return result }),
 		}}
 	})
 	ctx := context.Background()

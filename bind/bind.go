@@ -1,4 +1,4 @@
-// Package bind exposes Go variables through string Get and Set methods.
+// Package bind exposes Go variables and functions through string Get and Set methods.
 // Wrapping a variable preserves its current value; subsequent assignments
 // through either the variable or its binding remain visible through both.
 // Bindings provide no synchronization.
@@ -21,29 +21,6 @@ func (v *StringValue) Get() string { return string(*v) }
 // Set replaces the string with text.
 func (v *StringValue) Set(text string) error {
 	*v = StringValue(text)
-	return nil
-}
-
-// IntValue is an integer with Get and Set methods. Its zero value is zero.
-// Use Int to bind an existing int variable.
-type IntValue int
-
-// Int binds target without changing it. The pointer must be nonnil.
-func Int(target *int) *IntValue {
-	return (*IntValue)(target)
-}
-
-// Get formats the current integer in decimal using strconv.Itoa.
-func (v *IntValue) Get() string { return strconv.Itoa(int(*v)) }
-
-// Set parses text using strconv.Atoi and replaces the integer. On error the
-// integer is unchanged, and the parser's error is returned without wrapping.
-func (v *IntValue) Set(text string) error {
-	value, err := strconv.Atoi(text)
-	if err != nil {
-		return err
-	}
-	*v = IntValue(value)
 	return nil
 }
 

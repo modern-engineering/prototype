@@ -52,11 +52,6 @@ type Setter interface {
 	Set(string) error
 }
 
-// SetterFunc adapts a function to Setter.
-type SetterFunc func(string) error
-
-func (f SetterFunc) Set(value string) error { return f(value) }
-
 // Input binds declaration metadata to the original setter, preserving any
 // additional transfer capabilities exposed by Value.
 type Input struct {
@@ -100,11 +95,6 @@ func (fields InputList) Lookup(name string) (Input, bool) {
 type Getter interface {
 	Get() string
 }
-
-// GetterFunc adapts a function to Getter.
-type GetterFunc func() string
-
-func (f GetterFunc) Get() string { return f() }
 
 // Output binds declaration metadata to the original getter, preserving any
 // additional transfer capabilities exposed by Value.

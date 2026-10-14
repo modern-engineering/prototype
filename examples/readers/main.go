@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"strings"
 
+	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
@@ -34,10 +35,10 @@ func main() {
 var Inspect = job.Descriptor{
 	Name: "inspect",
 	MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
-		eager := new(eagerText)
+		var eager []byte
 		borrowed := new(borrowedText)
 		inputs := program.InputList{
-			{Field: program.Field{Name: "eager", Help: "content read during configuration"}, Value: eager},
+			{Field: program.Field{Name: "eager", Help: "content read during configuration"}, Value: bind.Bytes(&eager)},
 			{Field: program.Field{Name: "borrowed", Help: "content read during execution"}, Value: borrowed},
 		}
 		run := program.RunnerFunc(func(ctx context.Context) error {
@@ -47,7 +48,7 @@ var Inspect = job.Descriptor{
 			if borrowed.reader == nil {
 				return errors.New("borrowed content is missing")
 			}
-			if _, err := fmt.Printf("eager: %s", eager.text); err != nil {
+			if _, err := fmt.Printf("eager: %s", eager); err != nil {
 				return err
 			}
 			body, err := io.ReadAll(borrowed.reader)
@@ -59,23 +60,6 @@ var Inspect = job.Descriptor{
 		})
 		return run, inputs, program.OutputList(nil)
 	},
-}
-
-type eagerText struct {
-	text string
-}
-
-func (v *eagerText) Set(text string) error { v.text = text; return nil }
-
-// ReadFrom consumes the reader entirely during assignment. Only the copied
-// text survives into Run; this input has no reader to retain or close.
-func (v *eagerText) ReadFrom(reader io.Reader) (int64, error) {
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return int64(len(data)), err
-	}
-	v.text = string(data)
-	return int64(len(data)), nil
 }
 
 type borrowedText struct {
