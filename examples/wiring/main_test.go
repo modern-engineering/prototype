@@ -3,16 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/program"
 )
 
-// A loader discovers declarations, configures a finite job, and wires its result
-// into an application through the same factory contract.
+// A loader configures a finite job and wires its result into an application
+// through the same factory contract.
 func Example() {
-	l := loader.Loader{Trace: os.Stdout}
+	l := loader.Loader{}
 	address, err := l.Load(context.Background(), Address, map[string]program.Getter{
 		"host": literal("api.example.test:8443"),
 	})
@@ -40,8 +39,5 @@ func Example() {
 		fmt.Println("run backend:", err)
 	}
 	// Output:
-	// input host: service host and port
-	// input scheme: service URL scheme
-	// input address: upstream service URL
 	// backend configured: https://api.example.test:8443
 }

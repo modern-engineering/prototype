@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"log/slog"
 
 	"github.com/modern-engineering/prototype/program"
 )
@@ -19,8 +19,10 @@ var (
 
 // Loader configures invocations and retains their borrowed resources.
 type Loader struct {
-	// Trace receives field names and help, without values. A nil Trace disables it.
-	Trace io.Writer
+	// Logger enables debug diagnostics for assignment and execution boundaries.
+	// A nil Logger disables diagnostics, including use of slog.Default.
+	// Diagnostics contain field names and failure status, never values or causes.
+	Logger *slog.Logger
 }
 
 // Invocation holds configured state and owns the readers borrowed by its runner.
@@ -29,6 +31,7 @@ type Invocation struct {
 	runner  program.Runner
 	outputs program.Outputs
 	wiring  program.Wiring
+	logger  *slog.Logger
 }
 
 // Load constructs and configures an invocation without running it. Unbound
@@ -43,14 +46,15 @@ func (l Loader) Load(ctx context.Context, factory program.Factory, bindings map[
 			return nil, fmt.Errorf("%w: %s", ErrUnknownInput, name)
 		}
 	}
-	if err := l.describe(inputs); err != nil {
-		return nil, err
-	}
-	i := &Invocation{runner: runner, outputs: outputs}
+	i := &Invocation{runner: runner, outputs: outputs, logger: l.Logger}
 	for input := range inputs.All() {
 		name := input.Name
 		if source, bound := bindings[name]; bound {
-			if err := i.wiring.Wire(ctx, input.Value, source); err != nil {
+			err := i.wiring.Wire(ctx, input.Value, source)
+			if l.Logger != nil {
+				l.Logger.DebugContext(ctx, "input assignment completed", "input", name, "failed", err != nil)
+			}
+			if err != nil {
 				return nil, &assignmentError{name: name, cause: errors.Join(err, i.Close())}
 			}
 		}
@@ -62,7 +66,12 @@ func (l Loader) Load(ctx context.Context, factory program.Factory, bindings map[
 // until the runner and its background work have stopped, then releases them even
 // when execution fails or is canceled. Run must not follow Close.
 func (i *Invocation) Run(ctx context.Context) (err error) {
-	defer func() { err = errors.Join(err, i.Close()) }()
+	defer func() {
+		err = errors.Join(err, i.Close())
+		if i.logger != nil {
+			i.logger.DebugContext(ctx, "invocation completed", "failed", err != nil)
+		}
+	}()
 	return i.runner.Run(ctx)
 }
 
@@ -70,19 +79,6 @@ func (i *Invocation) Run(ctx context.Context) (err error) {
 // A loader that decides not to Run must call Close. Repeated calls do nothing.
 func (i *Invocation) Close() error {
 	return i.wiring.Close()
-}
-
-func (l Loader) describe(inputs program.Inputs) error {
-	if l.Trace == nil {
-		return nil
-	}
-	for input := range inputs.All() {
-		field := input.Field
-		if _, err := fmt.Fprintf(l.Trace, "input %s: %s\n", field.Name, field.Help); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Output returns a declared output handle. Read it after a successful finite Run.

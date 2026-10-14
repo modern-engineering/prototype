@@ -3,22 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 )
 
-// A loader closes an eagerly consumed reader during configuration and keeps a
-// borrowed reader open until the invocation finishes.
+// Eager and borrowed inputs provide the same content to the invocation.
 func Example() {
-	if err := run(context.Background(), os.Stdout); err != nil {
+	if err := run(context.Background()); err != nil {
 		fmt.Println(err)
 	}
 	// Output:
-	// open 1
-	// consume eager
-	// close 1
-	// open 2
-	// borrow reader
-	// run: eager = "Hello, Ada!"
-	// run: borrowed = "Hello, Ada!"
-	// close 2
+	// eager: Hello, Ada!
+	// borrowed: Hello, Ada!
 }

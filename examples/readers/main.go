@@ -20,49 +20,46 @@ import (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := run(ctx, os.Stdout); err != nil {
+	if err := run(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-// inspect reads the same content through an eager input and a borrowed input.
+// Inspect reads the same content through an eager input and a borrowed input.
 // Make only binds state; the loader acquires both readers during configuration.
-func inspect(trace io.Writer) job.Descriptor {
-	return job.Descriptor{
-		Name: "inspect",
-		MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
-			eager := &eagerText{trace: trace}
-			borrowed := &borrowedText{trace: trace}
-			inputs := program.InputList{
-				{Field: program.Field{Name: "eager", Help: "content read during configuration"}, Value: eager},
-				{Field: program.Field{Name: "borrowed", Help: "content read during execution"}, Value: borrowed},
-			}
-			run := program.RunnerFunc(func(ctx context.Context) error {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
-				if borrowed.reader == nil {
-					return errors.New("borrowed content is missing")
-				}
-				if _, err := fmt.Fprintf(trace, "run: eager = %q\n", eager.text); err != nil {
-					return err
-				}
-				body, err := io.ReadAll(borrowed.reader)
-				if err != nil {
-					return err
-				}
-				_, err = fmt.Fprintf(trace, "run: borrowed = %q\n", body)
+var Inspect = job.Descriptor{
+	Name: "inspect",
+	MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
+		eager := new(eagerText)
+		borrowed := new(borrowedText)
+		inputs := program.InputList{
+			{Field: program.Field{Name: "eager", Help: "content read during configuration"}, Value: eager},
+			{Field: program.Field{Name: "borrowed", Help: "content read during execution"}, Value: borrowed},
+		}
+		run := program.RunnerFunc(func(ctx context.Context) error {
+			if err := ctx.Err(); err != nil {
 				return err
-			})
-			return run, inputs, program.OutputList(nil)
-		},
-	}
+			}
+			if borrowed.reader == nil {
+				return errors.New("borrowed content is missing")
+			}
+			if _, err := fmt.Printf("eager: %s\n", eager.text); err != nil {
+				return err
+			}
+			body, err := io.ReadAll(borrowed.reader)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Printf("borrowed: %s\n", body)
+			return err
+		})
+		return run, inputs, program.OutputList(nil)
+	},
 }
 
 type eagerText struct {
-	text  string
-	trace io.Writer
+	text string
 }
 
 func (v *eagerText) Set(text string) error { v.text = text; return nil }
@@ -75,13 +72,11 @@ func (v *eagerText) ReadFrom(reader io.Reader) (int64, error) {
 		return int64(len(data)), err
 	}
 	v.text = string(data)
-	_, err = fmt.Fprintln(v.trace, "consume eager")
-	return int64(len(data)), err
+	return int64(len(data)), nil
 }
 
 type borrowedText struct {
 	reader io.Reader
-	trace  io.Writer
 }
 
 func (v *borrowedText) Set(text string) error {
@@ -92,14 +87,11 @@ func (v *borrowedText) Set(text string) error {
 // BorrowReader retains the handle without reading. The loader keeps it open
 // through Run and closes it afterward, including on execution failure.
 func (v *borrowedText) BorrowReader(reader io.Reader) error {
-	if _, err := fmt.Fprintln(v.trace, "borrow reader"); err != nil {
-		return err
-	}
 	v.reader = reader
 	return nil
 }
 
-func run(ctx context.Context, trace io.Writer) (err error) {
+func run(ctx context.Context) (err error) {
 	// This loader stages an immutable snapshot in a file. The getter can expose
 	// the same content as a string or open independent readers over that file.
 	dir, err := os.MkdirTemp("", "readers-")
@@ -112,9 +104,9 @@ func run(ctx context.Context, trace io.Writer) (err error) {
 	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
 		return err
 	}
-	source := &fileContent{path: path, text: text, trace: trace}
+	source := &fileContent{path: path, text: text}
 	l := loader.Loader{}
-	i, err := l.Load(ctx, inspect(trace), map[string]program.Getter{
+	i, err := l.Load(ctx, Inspect, map[string]program.Getter{
 		"eager": source, "borrowed": source,
 	})
 	if err != nil {
@@ -127,8 +119,6 @@ func run(ctx context.Context, trace io.Writer) (err error) {
 // Each reader has its own file position and a separate lifetime.
 type fileContent struct {
 	path, text string
-	trace      io.Writer
-	opens      int
 }
 
 func (v *fileContent) Get() string { return v.text }
@@ -137,25 +127,5 @@ func (v *fileContent) Open(ctx context.Context) (io.ReadCloser, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	file, err := os.Open(v.path)
-	if err != nil {
-		return nil, err
-	}
-	v.opens++
-	if _, err := fmt.Fprintf(v.trace, "open %d\n", v.opens); err != nil {
-		return nil, errors.Join(err, file.Close())
-	}
-	return &tracedFile{File: file, id: v.opens, trace: v.trace}, nil
-}
-
-type tracedFile struct {
-	*os.File
-	id    int
-	trace io.Writer
-}
-
-func (f *tracedFile) Close() error {
-	err := f.File.Close()
-	_, traceErr := fmt.Fprintf(f.trace, "close %d\n", f.id)
-	return errors.Join(err, traceErr)
+	return os.Open(v.path)
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -70,9 +71,14 @@ func TestUnboundInputRetainsDefault(t *testing.T) {
 	}
 }
 
-// Assignment failures retain their cause without exposing sensitive values in
-// ordinary diagnostics.
+// Diagnostics require an explicitly supplied logger, and assignment failures
+// retain their cause without exposing sensitive values in those diagnostics.
 func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
+	var diagnostics bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&diagnostics, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	previous := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(previous) })
 	const secret = "private-token-value"
 	rejected := errors.New("credential rejected")
 	cause := fmt.Errorf("invalid credential %s: %w", secret, rejected)
@@ -90,14 +96,29 @@ func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
 			return nil
 		}), inputs, program.OutputList(nil)
 	})
-	var trace bytes.Buffer
-	_, err := (loader.Loader{Trace: &trace}).Load(t.Context(), factory, map[string]program.Getter{
+	_, err := (loader.Loader{}).Load(t.Context(), factory, map[string]program.Getter{
 		"credential": literal(secret),
 	})
 	if !errors.Is(err, rejected) {
 		t.Fatalf("load error = %v, want credential rejection", err)
 	}
-	if strings.Contains(trace.String(), secret) || strings.Contains(err.Error(), secret) {
+	if strings.Contains(err.Error(), secret) {
+		t.Fatal("sensitive value appeared in ordinary diagnostics")
+	}
+	if diagnostics.Len() != 0 {
+		t.Fatal("zero-value loader emitted diagnostics through the default logger")
+	}
+
+	_, err = (loader.Loader{Logger: logger}).Load(t.Context(), factory, map[string]program.Getter{
+		"credential": literal(secret),
+	})
+	if !errors.Is(err, rejected) {
+		t.Fatalf("load with logging error = %v, want credential rejection", err)
+	}
+	if diagnostics.Len() == 0 {
+		t.Fatal("explicit logger received no diagnostics")
+	}
+	if strings.Contains(diagnostics.String(), secret) || strings.Contains(err.Error(), secret) {
 		t.Fatal("sensitive value appeared in ordinary diagnostics")
 	}
 }

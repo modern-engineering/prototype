@@ -75,7 +75,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	l := loader.Loader{Trace: os.Stdout}
+	l := loader.Loader{}
 	address, err := l.Load(ctx, Address, map[string]program.Getter{
 		"host": literal("api.example.test:8443"),
 	})
