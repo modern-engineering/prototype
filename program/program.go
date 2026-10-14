@@ -35,25 +35,6 @@ type MakeFunc func() (Runner, Inputs, Outputs)
 
 func (f MakeFunc) Make() (Runner, Inputs, Outputs) { return f() }
 
-// Adapt creates a descriptor from a constructor whose runner optionally implements
-// Inputs() Inputs and Outputs() Outputs. Each accessor is called once per Make;
-// missing accessors produce empty surfaces. Construction follows Descriptor's
-// purity and fresh-state contract.
-func Adapt[T Runner](newRunner func() T) MakeFunc {
-	return func() (Runner, Inputs, Outputs) {
-		runner := newRunner()
-		var inputs Inputs = InputList(nil)
-		var outputs Outputs = OutputList(nil)
-		if r, ok := any(runner).(interface{ Inputs() Inputs }); ok {
-			inputs = r.Inputs()
-		}
-		if r, ok := any(runner).(interface{ Outputs() Outputs }); ok {
-			outputs = r.Outputs()
-		}
-		return runner, inputs, outputs
-	}
-}
-
 // Field describes a named input or output. Sensitive marks values that loaders
 // must keep out of ordinary diagnostics. This package does not track assignment,
 // output production, or sensitivity flow.

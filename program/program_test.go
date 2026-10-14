@@ -46,63 +46,6 @@ func Example() {
 	// Output: Hello, Ada!
 }
 
-// Loaders retain each invocation's handles, so construction must isolate their bound state.
-func TestIndependentInvocations(t *testing.T) {
-	makeRun := program.Adapt(func() *invocation { return &invocation{value: "default"} })
-	first, firstInputs, firstOutputs := makeRun.Make()
-	second, _, secondOutputs := makeRun.Make()
-	input, ok := firstInputs.Lookup("value")
-	if !ok {
-		t.Fatal("missing value input")
-	}
-	if err := input.Value.Set("changed"); err != nil {
-		t.Fatal(err)
-	}
-	if err := first.Run(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	output, ok := firstOutputs.Lookup("value")
-	if !ok || output.Value.Get() != "CHANGED" {
-		t.Fatalf("first output = %v, %v; want CHANGED", output, ok)
-	}
-	output, ok = secondOutputs.Lookup("value")
-	if !ok || output.Value.Get() != "default" {
-		t.Fatalf("second output = %v, %v; want default", output, ok)
-	}
-	for _, runner := range []*invocation{first.(*invocation), second.(*invocation)} {
-		if runner.inputsCalled != 1 || runner.outputsCalled != 1 {
-			t.Errorf("surface calls = (%d, %d); want (1, 1)", runner.inputsCalled, runner.outputsCalled)
-		}
-	}
-	_, inputs, outputs := program.Adapt(func() program.RunnerFunc {
-		return func(context.Context) error { return nil }
-	}).Make()
-	if len(slices.Collect(inputs.All())) != 0 || len(slices.Collect(outputs.All())) != 0 {
-		t.Error("runner without accessors has nonempty surfaces")
-	}
-	if _, ok := inputs.Lookup("value"); ok {
-		t.Error("empty inputs contain value")
-	}
-	if _, ok := outputs.Lookup("value"); ok {
-		t.Error("empty outputs contain value")
-	}
-}
-
-type invocation struct {
-	value                       string
-	inputsCalled, outputsCalled int
-}
-
-func (r *invocation) Run(context.Context) error { r.value = strings.ToUpper(r.value); return nil }
-func (r *invocation) Inputs() program.Inputs {
-	r.inputsCalled++
-	return program.InputList{program.Input{Field: program.Field{Name: "value"}, Value: program.SetterFunc(func(value string) error { r.value = value; return nil })}}
-}
-func (r *invocation) Outputs() program.Outputs {
-	r.outputsCalled++
-	return program.OutputList{program.Output{Field: program.Field{Name: "value"}, Value: program.GetterFunc(func() string { return r.value })}}
-}
-
 // Loaders must see the live flag surface while retaining custom value semantics
 // and capabilities.
 func TestCustomFlagValues(t *testing.T) {

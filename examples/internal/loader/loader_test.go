@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -91,10 +90,7 @@ func TestSensitiveFileAssignmentHidesValueAndPreservesCause(t *testing.T) {
 	slog.SetDefault(logger)
 	t.Cleanup(func() { slog.SetDefault(previous) })
 	const secret = "private-token-value"
-	path := filepath.Join(t.TempDir(), "credential")
-	if err := os.WriteFile(path, []byte(secret), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	const path = "testdata/credential.txt"
 	rejected := errors.New("credential rejected")
 	cause := fmt.Errorf("invalid credential %s: %w", secret, rejected)
 	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -21,7 +22,7 @@ func ExampleDescriptor() {
 			outputs := program.OutputList{
 				program.Output{
 					Field: program.Field{Name: "message", Help: "Composed greeting."},
-					Value: program.GetterFunc(func() string { return message }),
+					Value: bind.String(&message),
 				},
 			}
 			return program.RunnerFunc(func(context.Context) error {

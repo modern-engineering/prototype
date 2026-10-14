@@ -16,10 +16,7 @@ import (
 // File inputs can consume immediately or borrow through execution, without
 // giving either destination ownership of the opened file.
 func TestFileTransferLifetimes(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "payload")
-	if err := os.WriteFile(path, []byte("file contents"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	const path = "payload.txt"
 	var eager *eagerValue
 	var borrowed *borrowedValue
 	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
@@ -36,14 +33,14 @@ func TestFileTransferLifetimes(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			if eager.text != "file contents" || plain != "file contents" || string(body) != "file contents" {
+			if eager.text != "file contents\n" || plain != "file contents\n" || string(body) != "file contents\n" {
 				t.Errorf("input values = %q, %q, %q; want file contents", eager.text, plain, body)
 			}
 			return nil
 		})
 		return run, inputs, program.OutputList(nil)
 	})
-	i := (loader.Loader{}).Make(descriptor)
+	i := (loader.Loader{FS: os.DirFS("testdata")}).Make(descriptor)
 	defer func(invocation *loader.Invocation) {
 		if err := invocation.Close(); err != nil {
 			t.Error(err)
@@ -78,10 +75,7 @@ func TestFileTransferLifetimes(t *testing.T) {
 // A failed assignment releases its file, while earlier borrows stay usable
 // until the caller abandons the invocation.
 func TestAbandonedConfigurationReleasesBorrowedFiles(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "payload")
-	if err := os.WriteFile(path, []byte("file contents"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	const path = "testdata/payload.txt"
 	rejected := errors.New("assignment rejected")
 	var accepted, refused *borrowedValue
 	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
@@ -112,7 +106,7 @@ func TestAbandonedConfigurationReleasesBorrowedFiles(t *testing.T) {
 		t.Fatalf("refused reader after failed assignment = %v; want closed file", err)
 	}
 	value, err := io.ReadAll(accepted.reader)
-	if err != nil || string(value) != "file contents" {
+	if err != nil || string(value) != "file contents\n" {
 		t.Fatalf("earlier borrow = %q, %v; want file contents still available", value, err)
 	}
 	if err := i.Close(); err != nil {
@@ -126,16 +120,13 @@ func TestAbandonedConfigurationReleasesBorrowedFiles(t *testing.T) {
 // Cancellation prevents acquisition, but does not revoke an existing borrow
 // before the runner has finished using it.
 func TestCancellationRespectsFileLifetime(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "payload")
-	if err := os.WriteFile(path, []byte("file contents"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	const path = "testdata/payload.txt"
 	var borrowed *borrowedValue
 	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		borrowed = &borrowedValue{t: t}
 		run := program.RunnerFunc(func(ctx context.Context) error {
 			body, err := io.ReadAll(borrowed.reader)
-			if err != nil || string(body) != "file contents" {
+			if err != nil || string(body) != "file contents\n" {
 				t.Errorf("reader during canceled Run = %q, %v; want file contents", body, err)
 			}
 			return ctx.Err()

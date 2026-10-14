@@ -4,18 +4,21 @@ package main
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 
 	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
 )
+
+//go:embed testdata/message.txt
+var fixtures embed.FS
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -44,14 +47,14 @@ var Inspect = job.Descriptor{
 			if borrowed.reader == nil {
 				return errors.New("borrowed content is missing")
 			}
-			if _, err := fmt.Printf("eager: %s\n", eager.text); err != nil {
+			if _, err := fmt.Printf("eager: %s", eager.text); err != nil {
 				return err
 			}
 			body, err := io.ReadAll(borrowed.reader)
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Printf("borrowed: %s\n", body)
+			_, err = fmt.Printf("borrowed: %s", body)
 			return err
 		})
 		return run, inputs, program.OutputList(nil)
@@ -92,24 +95,13 @@ func (v *borrowedText) BorrowReader(reader io.Reader) error {
 }
 
 func run(ctx context.Context) (err error) {
-	// The command stages an input file; the loader opens its readers separately.
-	dir, err := os.MkdirTemp("", "readers-")
-	if err != nil {
-		return err
-	}
-	defer func() { err = errors.Join(err, os.RemoveAll(dir)) }()
-	const text = "Hello, Ada!"
-	path := filepath.Join(dir, "content.txt")
-	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
-		return err
-	}
-	l := loader.Loader{}
+	l := loader.Loader{FS: fixtures}
 	i := l.Make(Inspect)
 	defer func() { err = errors.Join(err, i.Close()) }()
-	if err := i.ReadFile(ctx, "eager", path); err != nil {
+	if err := i.ReadFile(ctx, "eager", "testdata/message.txt"); err != nil {
 		return err
 	}
-	if err := i.ReadFile(ctx, "borrowed", path); err != nil {
+	if err := i.ReadFile(ctx, "borrowed", "testdata/message.txt"); err != nil {
 		return err
 	}
 	return i.Run(ctx)
