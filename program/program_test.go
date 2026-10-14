@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/program"
 )
 
@@ -24,7 +23,7 @@ func Example() {
 			return nil
 		})
 		return run, program.FromFlags(fs), program.OutputList{
-			program.Output{Field: program.Field{Name: "greeting"}, Value: bind.GetterFunc(func() string { return greeting })},
+			program.Output{Field: program.Field{Name: "greeting"}, Value: program.GetterFunc(func() string { return greeting })},
 		}
 	})
 	run, inputs, outputs := makeGreeting.Make()
@@ -32,7 +31,7 @@ func Example() {
 	if !ok {
 		panic("missing name input")
 	}
-	source := bind.GetterFunc(func() string { return "Ada" })
+	source := program.GetterFunc(func() string { return "Ada" })
 	if err := name.Value.Set(source.Get()); err != nil {
 		panic(err)
 	}

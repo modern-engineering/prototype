@@ -1,4 +1,4 @@
-// Package bind exposes Go variables and functions through string Get and Set methods.
+// Package bind exposes Go variables through string Get and Set methods.
 // Wrapping a variable preserves its current value; subsequent assignments
 // through either the variable or its binding remain visible through both.
 // Bindings provide no synchronization.

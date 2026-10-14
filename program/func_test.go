@@ -1,4 +1,4 @@
-package bind_test
+package program_test
 
 import (
 	"errors"
@@ -6,18 +6,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/program"
 )
 
 // Separate functions can normalize incoming text and compute an outgoing value.
 func ExampleSetterFunc() {
 	name := "Ada"
-	input := bind.SetterFunc(func(text string) error {
+	input := program.SetterFunc(func(text string) error {
 		name = strings.TrimSpace(text)
 		return nil
 	})
-	output := bind.GetterFunc(func() string { return "Hello, " + name })
+	output := program.GetterFunc(func() string { return "Hello, " + name })
 	fmt.Println(output.Get())
 	if err := input.Set(" Lin "); err != nil {
 		fmt.Println(err)
@@ -33,7 +32,7 @@ func ExampleSetterFunc() {
 func TestFunctionDirections(t *testing.T) {
 	rejected := errors.New("assignment rejected")
 	var received string
-	var input program.Setter = bind.SetterFunc(func(text string) error {
+	var input program.Setter = program.SetterFunc(func(text string) error {
 		received = text
 		return rejected
 	})
@@ -43,7 +42,7 @@ func TestFunctionDirections(t *testing.T) {
 	if _, ok := input.(program.Getter); ok {
 		t.Error("setter callback also exposes a getter")
 	}
-	var output program.Getter = bind.GetterFunc(func() string { return received })
+	var output program.Getter = program.GetterFunc(func() string { return received })
 	if _, ok := output.(program.Setter); ok {
 		t.Error("getter callback also exposes a setter")
 	}

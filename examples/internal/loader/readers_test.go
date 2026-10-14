@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -27,7 +26,7 @@ func TestFileTransferLifetimes(t *testing.T) {
 		inputs := program.InputList{
 			{Field: program.Field{Name: "eager"}, Value: eager},
 			{Field: program.Field{Name: "borrowed"}, Value: borrowed},
-			{Field: program.Field{Name: "plain"}, Value: bind.SetterFunc(func(text string) error { plain = text; return nil })},
+			{Field: program.Field{Name: "plain"}, Value: program.SetterFunc(func(text string) error { plain = text; return nil })},
 		}
 		run := program.RunnerFunc(func(context.Context) error {
 			body, err := io.ReadAll(borrowed.reader)
