@@ -1,0 +1,10 @@
+// Two independent occurrences of a compiled catalogue definition.
+sef "0.1"
+solution "service-pair"
+revision "r7"
+require "example.test/catalogue" "v1.2.3"
+
+node "producer" "example.test/catalogue" "Service"
+node "consumer" "example.test/catalogue" "Service"
+bind "producer" "name" literal "credential-not-for-inspection"
+bind "consumer" "name" reference "producer" "message"
