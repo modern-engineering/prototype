@@ -38,9 +38,9 @@ func (l loader) load(factory program.Factory, bindings map[string]program.Getter
 		return nil, err
 	}
 	for input := range inputs.All() {
-		name := input.Declaration().Name
+		name := input.Name
 		if source, bound := bindings[name]; bound {
-			if err := program.Wire(input.Value(), source); err != nil {
+			if err := program.Wire(input.Value, source); err != nil {
 				return nil, &assignmentError{name: name, cause: err}
 			}
 		}
@@ -53,7 +53,7 @@ func (l loader) describe(inputs program.Inputs) error {
 		return nil
 	}
 	for input := range inputs.All() {
-		field := input.Declaration()
+		field := input.Field
 		if _, err := fmt.Fprintf(l.trace, "input %s: %s\n", field.Name, field.Help); err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func (i *invocation) output(name string) (program.Getter, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", errUnknownOutput, name)
 	}
-	return output.Value(), nil
+	return output.Value, nil
 }
 
 // assignmentError keeps setter diagnostics out of ordinary logging while

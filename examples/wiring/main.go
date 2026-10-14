@@ -27,10 +27,10 @@ var Address = job.Descriptor{
 			address = *scheme + "://" + *host
 			return nil
 		})
-		outputs := program.OutputFields{
-			program.OutputField{
-				Field:  program.Field{Name: "url", Help: "service URL"},
-				Source: program.GetterFunc(func() string { return address }),
+		outputs := program.OutputList{
+			program.Output{
+				Field: program.Field{Name: "url", Help: "service URL"},
+				Value: program.GetterFunc(func() string { return address }),
 			},
 		}
 		return run, program.FromFlags(flags), outputs
@@ -42,10 +42,10 @@ var Backend = application.Descriptor{
 	Summary: "Report the configured service address until stopped",
 	MakeFunc: func() (program.Runner, program.Inputs) {
 		var address string
-		inputs := program.InputFields{
-			program.InputField{
+		inputs := program.InputList{
+			program.Input{
 				Field: program.Field{Name: "address", Help: "upstream service URL"},
-				Target: program.SetterFunc(func(value string) error {
+				Value: program.SetterFunc(func(value string) error {
 					address = value
 					return nil
 				}),

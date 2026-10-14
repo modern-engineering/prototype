@@ -23,8 +23,8 @@ func Example() {
 			greeting = *prefix + ", " + *name + "!"
 			return nil
 		})
-		return run, program.FromFlags(fs), program.OutputFields{
-			program.OutputField{Field: program.Field{Name: "greeting"}, Source: program.GetterFunc(func() string { return greeting })},
+		return run, program.FromFlags(fs), program.OutputList{
+			program.Output{Field: program.Field{Name: "greeting"}, Value: program.GetterFunc(func() string { return greeting })},
 		}
 	})
 	run, inputs, outputs := makeGreeting.Make()
@@ -32,7 +32,7 @@ func Example() {
 	if !ok {
 		panic("missing name input")
 	}
-	if err := program.Wire(name.Value(), program.GetterFunc(func() string { return "Ada" })); err != nil {
+	if err := program.Wire(name.Value, program.GetterFunc(func() string { return "Ada" })); err != nil {
 		panic(err)
 	}
 	if err := run.Run(context.Background()); err != nil {
@@ -42,7 +42,7 @@ func Example() {
 	if !ok {
 		panic("missing greeting output")
 	}
-	fmt.Println(greeting.Value().Get())
+	fmt.Println(greeting.Value.Get())
 	// Output: Hello, Ada!
 }
 
@@ -55,18 +55,18 @@ func TestIndependentInvocations(t *testing.T) {
 	if !ok {
 		t.Fatal("missing value input")
 	}
-	if err := input.Value().Set("changed"); err != nil {
+	if err := input.Value.Set("changed"); err != nil {
 		t.Fatal(err)
 	}
 	if err := first.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	output, ok := firstOutputs.Lookup("value")
-	if !ok || output.Value().Get() != "CHANGED" {
+	if !ok || output.Value.Get() != "CHANGED" {
 		t.Fatalf("first output = %v, %v; want CHANGED", output, ok)
 	}
 	output, ok = secondOutputs.Lookup("value")
-	if !ok || output.Value().Get() != "default" {
+	if !ok || output.Value.Get() != "default" {
 		t.Fatalf("second output = %v, %v; want default", output, ok)
 	}
 	for _, runner := range []*invocation{first.(*invocation), second.(*invocation)} {
@@ -96,14 +96,15 @@ type invocation struct {
 func (r *invocation) Run(context.Context) error { r.value = strings.ToUpper(r.value); return nil }
 func (r *invocation) Inputs() program.Inputs {
 	r.inputsCalled++
-	return program.InputFields{program.InputField{Field: program.Field{Name: "value"}, Target: program.SetterFunc(func(value string) error { r.value = value; return nil })}}
+	return program.InputList{program.Input{Field: program.Field{Name: "value"}, Value: program.SetterFunc(func(value string) error { r.value = value; return nil })}}
 }
 func (r *invocation) Outputs() program.Outputs {
 	r.outputsCalled++
-	return program.OutputFields{program.OutputField{Field: program.Field{Name: "value"}, Source: program.GetterFunc(func() string { return r.value })}}
+	return program.OutputList{program.Output{Field: program.Field{Name: "value"}, Value: program.GetterFunc(func() string { return r.value })}}
 }
 
-// The adapter must retain custom flag semantics and capabilities used by loaders.
+// Loaders must see the live flag surface while retaining custom value semantics
+// and capabilities.
 func TestCustomFlagValues(t *testing.T) {
 	fs := flag.NewFlagSet("parts", flag.ContinueOnError)
 	value := partsValue{"seed"}
@@ -114,20 +115,20 @@ func TestCustomFlagValues(t *testing.T) {
 	if !ok {
 		t.Fatal("missing part input")
 	}
-	if got := input.Declaration(); got != declaration {
+	if got := input.Field; got != declaration {
 		t.Errorf("declaration = %+v; want %+v", got, declaration)
 	}
-	getter, ok := input.Value().(flag.Getter)
+	getter, ok := input.Value.(flag.Getter)
 	if !ok {
 		t.Fatal("flag.Getter capability lost")
 	}
 	if got := getter.Get().([]string); !slices.Equal(got, []string{"seed"}) {
 		t.Fatalf("default = %v; want [seed]", got)
 	}
-	if err := input.Value().Set("one"); err != nil {
+	if err := input.Value.Set("one"); err != nil {
 		t.Fatal(err)
 	}
-	if err := input.Value().Set("two"); err != nil {
+	if err := input.Value.Set("two"); err != nil {
 		t.Fatal(err)
 	}
 	if got := getter.Get().([]string); !slices.Equal(got, []string{"seed", "one", "two"}) {
@@ -135,6 +136,27 @@ func TestCustomFlagValues(t *testing.T) {
 	}
 	if got := fs.Lookup("part").DefValue; got != "seed" {
 		t.Errorf("flag default = %q; want seed", got)
+	}
+
+	fs.String("suffix", "end", "trailing part")
+	suffix, ok := inputs.Lookup("suffix")
+	if !ok || suffix.Value != fs.Lookup("suffix").Value {
+		t.Fatal("flag declared after wrapping is missing or lost its original value")
+	}
+	if suffix.Help != "trailing part" {
+		t.Errorf("flag help = %q; want trailing part", suffix.Help)
+	}
+	all := slices.Collect(inputs.All())
+	if len(all) != 2 || all[0].Name != "part" || all[1].Name != "suffix" {
+		t.Fatalf("enumerated inputs = %v; want part and suffix in lexical order", all)
+	}
+	yields := 0
+	inputs.All()(func(program.Input) bool {
+		yields++
+		return false
+	})
+	if yields != 1 {
+		t.Errorf("yields after early stop = %d; want 1", yields)
 	}
 }
 

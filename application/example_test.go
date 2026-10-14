@@ -34,7 +34,7 @@ func ExampleDescriptor() {
 		fmt.Println("missing address input")
 		return
 	}
-	if err := address.Value().Set(":9090"); err != nil {
+	if err := address.Value.Set(":9090"); err != nil {
 		fmt.Println("configure:", err)
 		return
 	}
@@ -47,7 +47,7 @@ func ExampleDescriptor() {
 	}
 	fmt.Println("stopped")
 	for output := range outputs.All() {
-		fmt.Println("output:", output.Declaration().Name)
+		fmt.Println("output:", output.Name)
 	}
 	// Output:
 	// configured address: :9090

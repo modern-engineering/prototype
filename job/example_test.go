@@ -18,10 +18,10 @@ func ExampleDescriptor() {
 			var name, message string
 			flags := flag.NewFlagSet("greeting", flag.ContinueOnError)
 			flags.StringVar(&name, "name", "World", "Person to greet.")
-			outputs := program.OutputFields{
-				program.OutputField{
-					Field:  program.Field{Name: "message", Help: "Composed greeting."},
-					Source: program.GetterFunc(func() string { return message }),
+			outputs := program.OutputList{
+				program.Output{
+					Field: program.Field{Name: "message", Help: "Composed greeting."},
+					Value: program.GetterFunc(func() string { return message }),
 				},
 			}
 			return program.RunnerFunc(func(context.Context) error {
@@ -38,7 +38,7 @@ func ExampleDescriptor() {
 		fmt.Println("missing name input")
 		return
 	}
-	if err := name.Value().Set("Ada"); err != nil {
+	if err := name.Value.Set("Ada"); err != nil {
 		fmt.Println("configure:", err)
 		return
 	}
@@ -51,6 +51,6 @@ func ExampleDescriptor() {
 		fmt.Println("missing message output")
 		return
 	}
-	fmt.Println(message.Value().Get())
+	fmt.Println(message.Value.Get())
 	// Output: Hello, Ada.
 }

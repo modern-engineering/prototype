@@ -53,10 +53,10 @@ func Example() {
 // Unknown bindings must fail before a getter, setter, or runner can affect state.
 func TestUnknownBindingIsRejectedBeforeTransfer(t *testing.T) {
 	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
-		inputs := program.InputFields{
-			program.InputField{
+		inputs := program.InputList{
+			program.Input{
 				Field: program.Field{Name: "host"},
-				Target: program.SetterFunc(func(string) error {
+				Value: program.SetterFunc(func(string) error {
 					t.Fatal("unknown binding reached a setter")
 					return nil
 				}),
@@ -65,7 +65,7 @@ func TestUnknownBindingIsRejectedBeforeTransfer(t *testing.T) {
 		return program.RunnerFunc(func(context.Context) error {
 			t.Fatal("unknown binding reached the runner")
 			return nil
-		}), inputs, program.OutputFields(nil)
+		}), inputs, program.OutputList(nil)
 	})
 	source := program.GetterFunc(func() string {
 		t.Fatal("unknown binding reached a getter")
@@ -94,7 +94,7 @@ func TestUnboundInputRetainsDefault(t *testing.T) {
 			}
 			return nil
 		})
-		return runner, program.FromFlags(flags), program.OutputFields(nil)
+		return runner, program.FromFlags(flags), program.OutputList(nil)
 	})
 	i, err := (loader{}).load(factory, map[string]program.Getter{
 		"host": literal("api.example.test"),
@@ -114,18 +114,18 @@ func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
 	rejected := errors.New("credential rejected")
 	cause := fmt.Errorf("invalid credential %s: %w", secret, rejected)
 	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
-		inputs := program.InputFields{
-			program.InputField{
+		inputs := program.InputList{
+			program.Input{
 				Field: program.Field{
 					Name: "credential", Help: "access credential", Sensitive: true,
 				},
-				Target: program.SetterFunc(func(string) error { return cause }),
+				Value: program.SetterFunc(func(string) error { return cause }),
 			},
 		}
 		return program.RunnerFunc(func(context.Context) error {
 			t.Fatal("assignment failure reached the runner")
 			return nil
-		}), inputs, program.OutputFields(nil)
+		}), inputs, program.OutputList(nil)
 	})
 	var trace bytes.Buffer
 	_, err := (loader{trace: &trace}).load(factory, map[string]program.Getter{

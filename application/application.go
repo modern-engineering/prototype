@@ -12,7 +12,7 @@ type MakeFunc func() (program.Runner, program.Inputs)
 // Make constructs a fresh application invocation for the common program contract.
 func (make MakeFunc) Make() (program.Runner, program.Inputs, program.Outputs) {
 	runner, inputs := make()
-	return runner, inputs, program.OutputFields(nil)
+	return runner, inputs, program.OutputList(nil)
 }
 
 // Descriptor identifies an application and supplies its invocation constructor.

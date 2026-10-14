@@ -42,8 +42,8 @@ func (f MakeFunc) Make() (Runner, Inputs, Outputs) { return f() }
 func Adapt[T Runner](newRunner func() T) MakeFunc {
 	return func() (Runner, Inputs, Outputs) {
 		runner := newRunner()
-		var inputs Inputs = InputFields(nil)
-		var outputs Outputs = OutputFields(nil)
+		var inputs Inputs = InputList(nil)
+		var outputs Outputs = OutputList(nil)
 		if r, ok := any(runner).(interface{ Inputs() Inputs }); ok {
 			inputs = r.Inputs()
 		}
@@ -88,20 +88,18 @@ type GetterFunc func() string
 
 func (f GetterFunc) Get() string { return f() }
 
-// Input combines declaration metadata with a bound setter. Adopter-specific
-// declaration capabilities may be implemented on Input; transfer capabilities
-// belong to its Value.
-type Input interface {
-	Declaration() Field
-	Value() Setter
+// Input binds declaration metadata to the original setter, preserving any
+// additional transfer capabilities exposed by Value.
+type Input struct {
+	Field
+	Value Setter
 }
 
-// Output combines declaration metadata with a bound getter. Adopter-specific
-// declaration capabilities may be implemented on Output; transfer capabilities
-// belong to its Value.
-type Output interface {
-	Declaration() Field
-	Value() Getter
+// Output binds declaration metadata to the original getter, preserving any
+// additional transfer capabilities exposed by Value.
+type Output struct {
+	Field
+	Value Getter
 }
 
 // Inputs enumerates and looks up the uniquely named inputs of an invocation.
@@ -116,4 +114,50 @@ type Inputs interface {
 type Outputs interface {
 	All() iter.Seq[Output]
 	Lookup(name string) (Output, bool)
+}
+
+// InputList is an input surface in declaration order. Field names must be
+// unique. A nil slice is an empty surface.
+type InputList []Input
+
+func (fields InputList) All() iter.Seq[Input] {
+	return func(yield func(Input) bool) {
+		for _, field := range fields {
+			if !yield(field) {
+				return
+			}
+		}
+	}
+}
+
+func (fields InputList) Lookup(name string) (Input, bool) {
+	for _, field := range fields {
+		if field.Name == name {
+			return field, true
+		}
+	}
+	return Input{}, false
+}
+
+// OutputList is an output surface in declaration order. Field names must be
+// unique. A nil slice is an empty surface.
+type OutputList []Output
+
+func (fields OutputList) All() iter.Seq[Output] {
+	return func(yield func(Output) bool) {
+		for _, field := range fields {
+			if !yield(field) {
+				return
+			}
+		}
+	}
+}
+
+func (fields OutputList) Lookup(name string) (Output, bool) {
+	for _, field := range fields {
+		if field.Name == name {
+			return field, true
+		}
+	}
+	return Output{}, false
 }
