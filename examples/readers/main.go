@@ -18,7 +18,7 @@ import (
 	"github.com/modern-engineering/prototype/program"
 )
 
-//go:embed testdata/message.txt
+//go:embed message.txt
 var fixtures embed.FS
 
 func main() {
@@ -82,10 +82,10 @@ func run(ctx context.Context) (err error) {
 	l := loader.Loader{FS: fixtures}
 	i := l.Make(Inspect)
 	defer func() { err = errors.Join(err, i.Close()) }()
-	if err := i.ReadFile(ctx, "eager", "testdata/message.txt"); err != nil {
+	if err := i.ReadFile(ctx, "eager", "message.txt"); err != nil {
 		return err
 	}
-	if err := i.ReadFile(ctx, "borrowed", "testdata/message.txt"); err != nil {
+	if err := i.ReadFile(ctx, "borrowed", "message.txt"); err != nil {
 		return err
 	}
 	return i.Run(ctx)

@@ -90,7 +90,7 @@ func TestSensitiveFileAssignmentHidesValueAndPreservesCause(t *testing.T) {
 	slog.SetDefault(logger)
 	t.Cleanup(func() { slog.SetDefault(previous) })
 	const secret = "private-token-value"
-	const path = "testdata/credential.txt"
+	const path = "credential.txt"
 	rejected := errors.New("credential rejected")
 	cause := fmt.Errorf("invalid credential %s: %w", secret, rejected)
 	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {

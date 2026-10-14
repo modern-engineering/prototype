@@ -40,7 +40,7 @@ func TestFileTransferLifetimes(t *testing.T) {
 		})
 		return run, inputs, program.OutputList(nil)
 	})
-	i := (loader.Loader{FS: os.DirFS("testdata")}).Make(descriptor)
+	i := (loader.Loader{FS: os.DirFS(".")}).Make(descriptor)
 	defer func(invocation *loader.Invocation) {
 		if err := invocation.Close(); err != nil {
 			t.Error(err)
@@ -75,7 +75,7 @@ func TestFileTransferLifetimes(t *testing.T) {
 // A failed assignment releases its file, while earlier borrows stay usable
 // until the caller abandons the invocation.
 func TestAbandonedConfigurationReleasesBorrowedFiles(t *testing.T) {
-	const path = "testdata/payload.txt"
+	const path = "payload.txt"
 	rejected := errors.New("assignment rejected")
 	var accepted, refused *borrowedValue
 	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
@@ -120,7 +120,7 @@ func TestAbandonedConfigurationReleasesBorrowedFiles(t *testing.T) {
 // Cancellation prevents acquisition, but does not revoke an existing borrow
 // before the runner has finished using it.
 func TestCancellationRespectsFileLifetime(t *testing.T) {
-	const path = "testdata/payload.txt"
+	const path = "payload.txt"
 	var borrowed *borrowedValue
 	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		borrowed = &borrowedValue{t: t}
