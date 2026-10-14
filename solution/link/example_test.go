@@ -9,35 +9,37 @@ import (
 	"github.com/modern-engineering/prototype/solution/link"
 )
 
-// Definitions can be linked through handwritten registration. The resulting
-// binding refers to the same occurrence objects held in the linked solution.
+// A consumer can inspect relationships and concrete descriptor types without
+// constructing any program invocations.
 func ExampleResolve() {
-	var values program.Registry
+	var registry program.Registry
 	for _, entry := range []struct {
-		name  string
-		value program.Descriptor
+		name       string
+		descriptor program.Descriptor
 	}{
 		{"Database", catalogue.Database},
 		{"Backend", catalogue.Backend},
 	} {
-		if err := values.Register(design.CataloguePath, entry.name, entry.value); err != nil {
+		if err := registry.Register(design.CataloguePath, entry.name, entry.descriptor); err != nil {
 			fmt.Println(err)
 			return
 		}
 	}
-	resolved, err := link.Resolve(design.Definition, &values)
+	resolved, err := link.Resolve(design.Definition, &registry)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	binding := resolved.Bindings[1]
-	reference := binding.Value.(link.Reference)
-	fmt.Println("receiver is backend:", binding.Node == resolved.Nodes[1])
-	fmt.Println("source is database:", reference.Node == resolved.Nodes[0])
-	fmt.Printf("source definition: %T\n", reference.Node.Definition)
+	backend, _ := resolved.Lookup("backend")
+	for dependency := range backend.Dependencies() {
+		fmt.Printf("backend depends on %s (%T)\n", dependency.Name(), dependency.Descriptor())
+	}
+	database, _ := resolved.Lookup("database")
+	for binding := range database.Consumers("address") {
+		fmt.Printf("database.address configures %s.%s\n", binding.Node().Name(), binding.Input())
+	}
 
 	// Output:
-	// receiver is backend: true
-	// source is database: true
-	// source definition: job.Descriptor
+	// backend depends on database (job.Descriptor)
+	// database.address configures backend.database
 }

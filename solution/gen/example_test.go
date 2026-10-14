@@ -11,8 +11,8 @@ import (
 // The generated calls require each export to implement program.Descriptor.
 func ExampleSource() {
 	model := solution.Definition{Nodes: []solution.Node{
-		{Name: "input", Definition: solution.Symbol{Package: "example.org/catalogue", Name: "Database"}},
-		{Name: "null", Definition: solution.Symbol{Package: "example.org/catalogue", Name: "Backend"}},
+		{Name: "database", Definition: solution.Symbol{Package: "example.org/catalogue", Name: "Database"}},
+		{Name: "backend", Definition: solution.Symbol{Package: "example.org/catalogue", Name: "Backend"}},
 	}}
 	source, err := gen.Source("inspection", "Register", model)
 	if err != nil {

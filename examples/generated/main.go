@@ -28,16 +28,15 @@ func inspect() error {
 	if err != nil {
 		return err
 	}
-	for _, node := range resolved.Nodes {
-		_, canMake := node.Definition.(program.Descriptor)
-		fmt.Printf("%s: %T, can instantiate: %t\n", node.Name, node.Definition, canMake)
+	for node := range resolved.Nodes() {
+		fmt.Printf("%s: %T\n", node.Name(), node.Descriptor())
 	}
-	for _, binding := range resolved.Bindings {
-		switch value := binding.Value.(type) {
+	for binding := range resolved.Bindings() {
+		switch value := binding.Value().(type) {
 		case link.Literal:
-			fmt.Printf("%s.%s = %q\n", binding.Node.Name, binding.Input, value)
+			fmt.Printf("%s.%s = %q\n", binding.Node().Name(), binding.Input(), value)
 		case link.Reference:
-			fmt.Printf("%s.%s <- %s.%s\n", binding.Node.Name, binding.Input, value.Node.Name, value.Output)
+			fmt.Printf("%s.%s <- %s.%s\n", binding.Node().Name(), binding.Input(), value.Node.Name(), value.Output)
 		}
 	}
 	return nil

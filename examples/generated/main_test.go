@@ -10,8 +10,8 @@ import (
 func Example() {
 	main()
 	// Output:
-	// database: job.Descriptor, can instantiate: true
-	// backend: application.Descriptor, can instantiate: true
+	// database: job.Descriptor
+	// backend: application.Descriptor
 	// database.region = "eu-west"
 	// backend.database <- database.address
 }
