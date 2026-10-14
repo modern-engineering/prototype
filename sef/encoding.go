@@ -68,7 +68,7 @@ type wireReference struct {
 	Output string `json:"output"`
 }
 
-func marshalDocument(document Document) (wireDocument, error) {
+func marshalDocument(document solution.Artifact) (wireDocument, error) {
 	if document.Version != Version {
 		return wireDocument{}, fmt.Errorf("%w: %q", ErrVersion, document.Version)
 	}
@@ -111,11 +111,11 @@ func marshalValue(value solution.Value) (wireValue, error) {
 	return wireValue{}, fmt.Errorf("%w: %T", ErrValue, value)
 }
 
-func unmarshalDocument(wire wireDocument) (Document, error) {
+func unmarshalDocument(wire wireDocument) (solution.Artifact, error) {
 	if wire.Version != Version {
-		return Document{}, fmt.Errorf("%w: %q", ErrVersion, wire.Version)
+		return solution.Artifact{}, fmt.Errorf("%w: %q", ErrVersion, wire.Version)
 	}
-	document := Document{Version: wire.Version, ID: wire.ID, Revision: wire.Revision}
+	document := solution.Artifact{Version: wire.Version, ID: wire.ID, Revision: wire.Revision}
 	for _, module := range wire.Definition.Modules {
 		document.Definition.Modules = append(document.Definition.Modules, solution.Module(module))
 	}
@@ -137,7 +137,7 @@ func unmarshalDocument(wire wireDocument) (Document, error) {
 			}
 		}
 		if value == nil {
-			return Document{}, fmt.Errorf("binding %d (%s.%s): %w", i, binding.Node, binding.Input, ErrValue)
+			return solution.Artifact{}, fmt.Errorf("binding %d (%s.%s): %w", i, binding.Node, binding.Input, ErrValue)
 		}
 		document.Definition.Bindings = append(document.Definition.Bindings, solution.Binding{
 			Node: binding.Node, Input: binding.Input, Value: value,

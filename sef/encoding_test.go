@@ -14,8 +14,8 @@ import (
 
 var encodings = []struct {
 	name   string
-	encode func(io.Writer, sef.Document) error
-	decode func(io.Reader) (sef.Document, error)
+	encode func(io.Writer, solution.Artifact) error
+	decode func(io.Reader) (solution.Artifact, error)
 }{
 	{name: "JSON", encode: sef.EncodeJSON, decode: sef.DecodeJSON},
 	{name: "Gob", encode: sef.EncodeGob, decode: sef.DecodeGob},
@@ -26,7 +26,7 @@ var encodings = []struct {
 func TestEncodingsPreserveAssignments(t *testing.T) {
 	literal := solution.Literal("")
 	reference := solution.Reference{}
-	document := sef.Document{
+	document := solution.Artifact{
 		Version: sef.Version, ID: "cleanup", Revision: "proposal-2",
 		Definition: solution.Definition{
 			Modules: []solution.Module{{Path: "example.com/catalogue", Version: "v1.2.0"}},
@@ -97,7 +97,7 @@ func TestEncodingsValidateBeforeWriting(t *testing.T) {
 			var nilReference *solution.Reference
 			for _, value := range []solution.Value{nil, nilLiteral, nilReference} {
 				var output bytes.Buffer
-				document := sef.Document{Version: sef.Version, Definition: solution.Definition{
+				document := solution.Artifact{Version: sef.Version, Definition: solution.Definition{
 					Bindings: []solution.Binding{{Node: "trim", Input: "text", Value: value}},
 				}}
 				if err := codec.encode(&output, document); !errors.Is(err, sef.ErrValue) {
@@ -108,7 +108,7 @@ func TestEncodingsValidateBeforeWriting(t *testing.T) {
 				}
 			}
 			var output bytes.Buffer
-			if err := codec.encode(&output, sef.Document{}); !errors.Is(err, sef.ErrVersion) {
+			if err := codec.encode(&output, solution.Artifact{}); !errors.Is(err, sef.ErrVersion) {
 				t.Errorf("Encode without version = %v, want ErrVersion", err)
 			}
 			if output.Len() != 0 {
@@ -125,7 +125,7 @@ func TestEncodingsPreserveStreamErrors(t *testing.T) {
 		t.Run(codec.name, func(t *testing.T) {
 			unavailable := errors.New("storage unavailable")
 			var valid bytes.Buffer
-			if err := codec.encode(&valid, sef.Document{Version: sef.Version}); err != nil {
+			if err := codec.encode(&valid, solution.Artifact{Version: sef.Version}); err != nil {
 				t.Fatal(err)
 			}
 			for _, input := range []io.Reader{
@@ -136,7 +136,7 @@ func TestEncodingsPreserveStreamErrors(t *testing.T) {
 					t.Errorf("Decode = %v, want original read error", err)
 				}
 			}
-			if err := codec.encode(errorWriter{unavailable}, sef.Document{Version: sef.Version}); !errors.Is(err, unavailable) {
+			if err := codec.encode(errorWriter{unavailable}, solution.Artifact{Version: sef.Version}); !errors.Is(err, unavailable) {
 				t.Errorf("Encode = %v, want original write error", err)
 			}
 		})

@@ -28,7 +28,7 @@ func TestJSONPreservesStructuralIntent(t *testing.T) {
 			]
 		}
 	}`
-	want := sef.Document{
+	want := solution.Artifact{
 		Version: sef.Version, ID: "cleanup", Revision: "proposal-2",
 		Definition: solution.Definition{
 			Modules: []solution.Module{{Path: "example.com/catalogue", Version: "v1.2.0"}},
@@ -82,7 +82,7 @@ func TestJSONRejectsInvalidDocuments(t *testing.T) {
 			if !errors.Is(err, test.want) {
 				t.Fatalf("DecodeJSON = %v, want %v", err, test.want)
 			}
-			if !reflect.DeepEqual(got, sef.Document{}) {
+			if !reflect.DeepEqual(got, solution.Artifact{}) {
 				t.Errorf("DecodeJSON returned a partial document: %#v", got)
 			}
 		})

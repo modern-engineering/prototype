@@ -9,13 +9,14 @@ import (
 	"testing"
 
 	"github.com/modern-engineering/prototype/sef"
+	"github.com/modern-engineering/prototype/solution"
 )
 
 // A gob file contains one document, not a prefix of a stream that happens to
 // begin with one. Both another gob item and malformed suffixes must fail.
 func TestGobRejectsTrailingDataAndTruncation(t *testing.T) {
 	var encoded bytes.Buffer
-	if err := sef.EncodeGob(&encoded, sef.Document{Version: sef.Version}); err != nil {
+	if err := sef.EncodeGob(&encoded, solution.Artifact{Version: sef.Version}); err != nil {
 		t.Fatal(err)
 	}
 	for _, suffix := range [][]byte{encoded.Bytes(), []byte("garbage")} {

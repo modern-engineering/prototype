@@ -10,8 +10,8 @@ import (
 
 // A SEF file carries structural intent without importing its catalogue packages.
 // An empty literal remains an assignment when the document is written and read.
-func ExampleDocument() {
-	document := sef.Document{
+func ExampleEncodeJSON() {
+	document := solution.Artifact{
 		Version: sef.Version, ID: "text-cleanup", Revision: "proposal-2",
 		Definition: solution.Definition{
 			Nodes: []solution.Node{{Name: "trim", Definition: solution.Symbol{
