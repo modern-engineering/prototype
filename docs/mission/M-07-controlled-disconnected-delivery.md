@@ -36,37 +36,38 @@ At the plant, a customer engineer uses a local maintenance workstation to perfor
 
 ```mermaid
 flowchart LR
-    subgraph Cisco["Cisco — connected environment"]
-        Solution["Cisco solution engineer's<br/>workstation"]
-        Support["Cisco support engineer's<br/>workstation"]
+    subgraph Cisco["Cisco — connected"]
+        direction TB
+        Solution["Solution engineer's<br/>connected workstation"]
+        Support["Support engineer's<br/>connected workstation"]
+        Solution ~~~ Support
     end
 
     subgraph Customer["North Basin Water"]
+        direction TB
         Contact["North Basin Water<br/>support contact"]
 
         subgraph Plant["Isolated treatment plant"]
+            direction TB
             Maintenance["Plant engineer's<br/>maintenance workstation"]
             Center["Cyber Vision Center"]
             Sensors["Cyber Vision sensors"]
-            Network["Plant control network"]
             Controllers["Water-pump controllers"]
             ControlRoom["Control-room workstation"]
 
             Maintenance --- Center
             Center --- Sensors
-            Sensors --- Network
-            Network --- Controllers
-            Network --- ControlRoom
+            Sensors --- Controllers
+            ControlRoom --- Controllers
         end
 
-        Contact -.- Maintenance
+        Contact -.- Plant
     end
 
-    Solution -.- Contact
-    Support -.- Contact
+    Cisco -.- Customer
 ```
 
-The diagram shows placement and local connections, with network detail omitted.
+The diagram shows placement and local communication or observation relationships, with network detail omitted.
 Dashed lines represent customer-arranged transfers of delivery material or selected evidence.
 Cisco's workstations have no live connection into the plant.
 
@@ -120,8 +121,9 @@ Neither organisation assumes that the later maintenance session can consult Cisc
 ## A missing procedure is found before the change
 
 At the plant, the customer engineer opens the handoff on the maintenance workstation.
-The local delivery tool identifies the treatment-plant solution, compares the recorded installation with the revision's prerequisites and checks the available application and procedure versions.
+The local delivery tool matches the handoff to the plant's existing solution record, compares the installed applications with the revision's prerequisites and checks the available procedure versions.
 The required provisioning procedure is newer than the executable installed on that workstation.
+The newer executable was omitted from the software transferred to the plant.
 
 The engineer defers the affected work before changing the installation.
 Through the customer's support contact, the engineer returns the solution identity, the intended revision and the missing procedure version to Cisco.
