@@ -65,9 +65,17 @@ var Backend = application.Descriptor{
 }
 
 func main() {
+	readers := flag.Bool("readers", false, "demonstrate eager and borrowed readers")
+	flag.Parse()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := run(ctx); err != nil {
+	var err error
+	if *readers {
+		err = runReaders(ctx, os.Stdout)
+	} else {
+		err = run(ctx)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -75,24 +83,24 @@ func main() {
 
 func run(ctx context.Context) error {
 	l := loader{trace: os.Stdout}
-	address, err := l.load(Address, map[string]program.Getter{
+	address, err := l.load(ctx, Address, map[string]program.Getter{
 		"host": literal("api.example.test:8443"),
 	})
 	if err != nil {
 		return err
 	}
-	if err := address.runner.Run(ctx); err != nil {
+	if err := address.Run(ctx); err != nil {
 		return err
 	}
 	url, err := address.output("url")
 	if err != nil {
 		return err
 	}
-	backend, err := l.load(Backend, map[string]program.Getter{
+	backend, err := l.load(ctx, Backend, map[string]program.Getter{
 		"address": url,
 	})
 	if err != nil {
 		return err
 	}
-	return backend.runner.Run(ctx)
+	return backend.Run(ctx)
 }

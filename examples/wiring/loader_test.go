@@ -17,14 +17,14 @@ import (
 // into an application through the same factory contract.
 func Example() {
 	l := loader{trace: os.Stdout}
-	address, err := l.load(Address, map[string]program.Getter{
+	address, err := l.load(context.Background(), Address, map[string]program.Getter{
 		"host": literal("api.example.test:8443"),
 	})
 	if err != nil {
 		fmt.Println("load address:", err)
 		return
 	}
-	if err := address.runner.Run(context.Background()); err != nil {
+	if err := address.Run(context.Background()); err != nil {
 		fmt.Println("run address:", err)
 		return
 	}
@@ -33,14 +33,14 @@ func Example() {
 		fmt.Println("address output:", err)
 		return
 	}
-	backend, err := l.load(Backend, map[string]program.Getter{"address": url})
+	backend, err := l.load(context.Background(), Backend, map[string]program.Getter{"address": url})
 	if err != nil {
 		fmt.Println("load backend:", err)
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := backend.runner.Run(ctx); err != nil {
+	if err := backend.Run(ctx); err != nil {
 		fmt.Println("run backend:", err)
 	}
 	// Output:
@@ -71,7 +71,7 @@ func TestUnknownBindingIsRejectedBeforeTransfer(t *testing.T) {
 		t.Fatal("unknown binding reached a getter")
 		return ""
 	})
-	_, err := (loader{}).load(factory, map[string]program.Getter{
+	_, err := (loader{}).load(t.Context(), factory, map[string]program.Getter{
 		"host": source,
 		"typo": source,
 	})
@@ -96,13 +96,13 @@ func TestUnboundInputRetainsDefault(t *testing.T) {
 		})
 		return runner, program.FromFlags(flags), program.OutputList(nil)
 	})
-	i, err := (loader{}).load(factory, map[string]program.Getter{
+	i, err := (loader{}).load(t.Context(), factory, map[string]program.Getter{
 		"host": literal("api.example.test"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := i.runner.Run(t.Context()); err != nil {
+	if err := i.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -128,7 +128,7 @@ func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
 		}), inputs, program.OutputList(nil)
 	})
 	var trace bytes.Buffer
-	_, err := (loader{trace: &trace}).load(factory, map[string]program.Getter{
+	_, err := (loader{trace: &trace}).load(t.Context(), factory, map[string]program.Getter{
 		"credential": literal(secret),
 	})
 	if !errors.Is(err, rejected) {

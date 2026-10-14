@@ -32,8 +32,12 @@ func Example() {
 	if !ok {
 		panic("missing name input")
 	}
-	if err := program.Wire(name.Value, program.GetterFunc(func() string { return "Ada" })); err != nil {
+	cleanup, err := program.Wire(context.Background(), name.Value, program.GetterFunc(func() string { return "Ada" }))
+	if err != nil {
 		panic(err)
+	}
+	if cleanup != nil {
+		panic("string transfer acquired a resource")
 	}
 	if err := run.Run(context.Background()); err != nil {
 		panic(err)
@@ -174,8 +178,11 @@ func TestAssignmentError(t *testing.T) {
 		}
 		return want
 	})
-	err := program.Wire(target, program.GetterFunc(func() string { return "payload" }))
+	cleanup, err := program.Wire(t.Context(), target, program.GetterFunc(func() string { return "payload" }))
 	if !errors.Is(err, want) {
 		t.Errorf("Wire error = %v; want %v", err, want)
+	}
+	if cleanup != nil {
+		t.Error("string transfer returned a cleanup resource")
 	}
 }

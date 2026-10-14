@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -18,16 +19,18 @@ type loader struct {
 }
 
 type invocation struct {
-	runner  program.Runner
-	inputs  program.Inputs
-	outputs program.Outputs
+	runner   program.Runner
+	inputs   program.Inputs
+	outputs  program.Outputs
+	borrowed []io.Closer
 }
 
 // load constructs and configures an invocation without running it. Unbound
 // inputs retain their constructor values. Bindings provide one assignment per
 // field, applied in declaration order. Binding names are checked before reading
-// any source or assigning any target.
-func (l loader) load(factory program.Factory, bindings map[string]program.Getter) (*invocation, error) {
+// any source or assigning any target. A failed configuration releases all readers
+// borrowed so far. The caller must Run or Close a successfully loaded invocation.
+func (l loader) load(ctx context.Context, factory program.Factory, bindings map[string]program.Getter) (*invocation, error) {
 	runner, inputs, outputs := factory.Make()
 	for name := range bindings {
 		if _, ok := inputs.Lookup(name); !ok {
@@ -37,15 +40,39 @@ func (l loader) load(factory program.Factory, bindings map[string]program.Getter
 	if err := l.describe(inputs); err != nil {
 		return nil, err
 	}
+	i := &invocation{runner: runner, inputs: inputs, outputs: outputs}
 	for input := range inputs.All() {
 		name := input.Name
 		if source, bound := bindings[name]; bound {
-			if err := program.Wire(input.Value, source); err != nil {
-				return nil, &assignmentError{name: name, cause: err}
+			closer, err := program.Wire(ctx, input.Value, source)
+			if err != nil {
+				return nil, &assignmentError{name: name, cause: errors.Join(err, i.Close())}
+			}
+			if closer != nil {
+				i.borrowed = append(i.borrowed, closer)
 			}
 		}
 	}
-	return &invocation{runner: runner, inputs: inputs, outputs: outputs}, nil
+	return i, nil
+}
+
+// Run executes a configured invocation once. It keeps borrowed readers alive
+// until the runner and its background work have stopped, then releases them even
+// when execution fails or is canceled. Run must not follow Close.
+func (i *invocation) Run(ctx context.Context) (err error) {
+	defer func() { err = errors.Join(err, i.Close()) }()
+	return i.runner.Run(ctx)
+}
+
+// Close abandons a configured invocation or releases its completed execution.
+// A loader that decides not to Run must call Close. Repeated calls do nothing.
+func (i *invocation) Close() error {
+	var err error
+	for index := len(i.borrowed) - 1; index >= 0; index-- {
+		err = errors.Join(err, i.borrowed[index].Close())
+	}
+	i.borrowed = nil
+	return err
 }
 
 func (l loader) describe(inputs program.Inputs) error {
