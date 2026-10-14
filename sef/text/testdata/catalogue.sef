@@ -1,0 +1,18 @@
+// The receiver appears first; declaration order is not execution order.
+sef "0.1"
+solution "catalogue demo"
+revision "candidate-3"
+
+require (
+    example.com/catalogue v1.2.0
+)
+node (
+    "print" example.com/catalogue Print // The field name remains unresolved.
+    "trim" example.com/catalogue Trim
+)
+bind (
+    print prefix literal ""
+    print text reference trim text
+    trim text literal "  hello\nworld  "
+    trim text literal "a second assignment"
+)
