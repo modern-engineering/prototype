@@ -19,6 +19,7 @@ The optional field names the sponsor who personally ratified the content; mergin
 | [M-04-evolving-operational-solution] | ConOps Story: Evolving an Operational Solution |
 | [M-05-distributed-industrial-operation] | ConOps Story: Distributed Industrial Operation |
 | [M-06-one-responsibility-model-across-platforms] | ConOps Story: One Responsibility Model Across Platforms |
+| [M-07-controlled-disconnected-delivery] | ConOps Story: Controlled Disconnected Delivery |
 
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-02-concept-of-operations]: M-02-concept-of-operations.md
@@ -26,4 +27,5 @@ The optional field names the sponsor who personally ratified the content; mergin
 [M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
 [M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
 [M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
+[M-07-controlled-disconnected-delivery]: M-07-controlled-disconnected-delivery.md
 [D-06-sponsor-ratification]: ../adr/D-06-sponsor-ratification.md

@@ -8,6 +8,7 @@ derives:
   - M-04-evolving-operational-solution
   - M-05-distributed-industrial-operation
   - M-06-one-responsibility-model-across-platforms
+  - M-07-controlled-disconnected-delivery
 ---
 
 # Concept of Operations
@@ -106,6 +107,12 @@ Supported upgrade software carries routine delivery knowledge across those windo
 In a counterfactual Twilio Segment, one multi-tenant service receives customer events through serverless container environments in AWS, Azure and Google Cloud.
 A routine validation change passes from local application checks through solution selection into three distinct deployment paths using the toolkit's existing division of responsibility.
 
+### [M-07-controlled-disconnected-delivery]
+
+In a counterfactual Cisco, North Basin Water extends Cyber Vision monitoring at an isolated treatment plant using a handoff prepared in Cisco's connected environment.
+Customer engineers perform the local change, and evidence from a later standby-pump alert returns through the customer to inform a correction to the same solution.
+Portable delivery knowledge reduces the customer-specific expertise needed to bridge the separation while the customer controls its environment and accepts deployment.
+
 ## Method tailoring
 
 This frame draws on public NASA and INCOSE systems-engineering material without claiming compliance with either body.
@@ -137,6 +144,7 @@ The common concept remains incomplete while those material differences and their
 [M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
 [M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
 [M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
+[M-07-controlled-disconnected-delivery]: M-07-controlled-disconnected-delivery.md
 [NASA-Appendix-S]: https://www.nasa.gov/reference/system-engineering-handbook-appendix/#hds-sidebar-nav-112
 [NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
 [INCOSE-RE]: https://www.incose.org/wp-content/uploads/2026/01/requirements_engineering_part_1.pdf
