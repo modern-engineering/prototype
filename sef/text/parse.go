@@ -173,6 +173,7 @@ func (f *File) apply(name string, args []string, position Position, seen map[str
 
 func lexLine(source string, start Position) ([]token, string, *Error) {
 	var tokens []token
+	column, columnOffset := start.Column, 0
 	for i := 0; i < len(source); {
 		r, size := utf8.DecodeRuneInString(source[i:])
 		if unicode.IsSpace(r) {
@@ -180,7 +181,9 @@ func lexLine(source string, start Position) ([]token, string, *Error) {
 			continue
 		}
 		position := start
-		position.Column += utf8.RuneCountInString(source[:i])
+		column += utf8.RuneCountInString(source[columnOffset:i])
+		columnOffset = i
+		position.Column = column
 		position.Offset += i
 		if strings.HasPrefix(source[i:], "//") {
 			return tokens, strings.TrimRight(source[i:], " \t\r"), nil
