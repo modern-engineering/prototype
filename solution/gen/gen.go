@@ -1,11 +1,11 @@
 // Package gen optionally generates Go code registering catalogue values in a
-// caller-owned symbol.Table. Runtime lookup uses package symbol independently
+// caller-owned program.Registry. Runtime lookup uses package program independently
 // of this generator or the structural model.
 //
 // Generation is not module resolution or execution. The caller compiles the
 // source in a Go build whose module requirements select the referenced code.
-// Missing packages, missing exports, and exports that are not values fail that
-// build. An unfamiliar concrete type can register without exposing I/O.
+// Missing packages, missing exports, and exports that do not implement
+// program.Descriptor fail that build.
 // Importing catalogue packages runs their initializers when the binary starts;
 // registration does not invoke descriptor constructors or runners.
 package gen
@@ -29,15 +29,15 @@ import (
 var ErrIdentifier = errors.New("unusable Go identifier")
 
 // Source generates a Go file in packageName containing functionName with the
-// signature func(*symbol.Table) error. The function registers the definitions
-// used by definition.Nodes through Table.Define. Repeated occurrences of a definition
-// cause one registration, in package-path then name order. Registration stops
-// at the first error; earlier definitions remain in the caller's table.
+// signature func(*program.Registry) error. The function registers the definitions
+// used by definition.Nodes through Registry.Register. Repeated occurrences cause
+// one registration, in package-path then name order. Registration stops
+// at the first error; earlier definitions remain in the caller's registry.
 //
 // The source is deterministic for a set of definitions. Module requirements,
 // bindings, and occurrence names remain structural data and are not interpreted
-// here. Symbol existence and whether a symbol denotes a value are checked by
-// the Go compiler, not by source generation.
+// here. The Go compiler checks symbol existence and implementation of
+// program.Descriptor.
 func Source(packageName, functionName string, definition solution.Definition) ([]byte, error) {
 	for _, name := range []string{packageName, functionName} {
 		if !token.IsIdentifier(name) || name == "_" {
@@ -49,8 +49,8 @@ func Source(packageName, functionName string, definition solution.Definition) ([
 		return nil, fmt.Errorf("%w: %q", ErrIdentifier, functionName)
 	}
 
-	const tablePath = "github.com/modern-engineering/prototype/symbol"
-	packages := map[string]string{tablePath: ""}
+	const registryPath = "github.com/modern-engineering/prototype/program"
+	packages := map[string]string{registryPath: ""}
 	definitions := make(map[solution.Symbol]bool)
 	for _, node := range definition.Nodes {
 		symbol := node.Definition
@@ -86,9 +86,9 @@ func Source(packageName, functionName string, definition solution.Definition) ([
 		packages[path] = alias
 		fmt.Fprintf(&source, "%s %s\n", alias, strconv.Quote(path))
 	}
-	fmt.Fprintf(&source, ")\n\n// %s registers referenced Go values. It stops at the first error;\n// earlier successful definitions remain in values.\nfunc %s(values *%s.Table) error {\n", functionName, functionName, packages[tablePath])
+	fmt.Fprintf(&source, ")\n\n// %s registers referenced program descriptors. It stops at the first error;\n// earlier successful definitions remain in values.\nfunc %s(values *%s.Registry) error {\n", functionName, functionName, packages[registryPath])
 	for _, symbol := range symbols {
-		fmt.Fprintf(&source, "if err := values.Define(%q, %q, %s.%s); err != nil { return err }\n", symbol.Package, symbol.Name, packages[symbol.Package], symbol.Name)
+		fmt.Fprintf(&source, "if err := values.Register(%q, %q, %s.%s); err != nil { return err }\n", symbol.Package, symbol.Name, packages[symbol.Package], symbol.Name)
 	}
 	source.WriteString("return nil\n}\n")
 	return format.Source(source.Bytes())

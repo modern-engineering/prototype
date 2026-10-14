@@ -1,5 +1,4 @@
-// Package catalogue exports values from three implicit catalogues: jobs,
-// applications, and placement policies.
+// Package catalogue exports descriptors from the job and application catalogues.
 package catalogue
 
 import (
@@ -44,11 +43,3 @@ var Backend = application.Descriptor{
 		}
 	},
 }
-
-// Placement describes a regional deployment preference. It has no program I/O.
-type Placement struct {
-	Region string
-}
-
-// Europe requests placement in a European region.
-var Europe = Placement{Region: "eu-west"}

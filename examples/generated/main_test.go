@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/modern-engineering/prototype/program"
-	"github.com/modern-engineering/prototype/symbol"
 )
 
 func Example() {
@@ -13,7 +12,6 @@ func Example() {
 	// Output:
 	// database: job.Descriptor, can instantiate: true
 	// backend: application.Descriptor, can instantiate: true
-	// placement: catalogue.Placement, can instantiate: false
 	// database.region = "eu-west"
 	// backend.database <- database.address
 }
@@ -23,29 +21,27 @@ func Example() {
 // successfully registered predecessors.
 func TestRegistrationsRetainSuccessfulDefinitions(t *testing.T) {
 	const cataloguePath = "github.com/modern-engineering/prototype/examples/catalogue"
-	var values symbol.Table
-	config := &struct{ Region string }{Region: "eu-west"}
-	if err := values.Define("example.org/operator", "Config", config); err != nil {
+	var values program.Registry
+	manual := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) { return nil, nil, nil })
+	config := &manual
+	if err := values.Register("example.org/operator", "Config", config); err != nil {
 		t.Fatal(err)
 	}
-	if err := values.Define(cataloguePath, "Database", "manual definition"); err != nil {
+	if err := values.Register(cataloguePath, "Database", config); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := registerDefinitions(&values); !errors.Is(err, symbol.ErrDuplicate) {
+	if err := registerDefinitions(&values); !errors.Is(err, program.ErrDuplicate) {
 		t.Fatalf("registration error = %v, want ErrDuplicate", err)
 	}
 	if value, found := values.Lookup("example.org/operator", "Config"); !found || value != config {
 		t.Fatalf("manual configuration = %v, %t, want original pointer", value, found)
 	}
 	value, found := values.Lookup(cataloguePath, "Backend")
-	if _, ok := value.(program.Descriptor); !found || !ok {
-		t.Fatalf("earlier definition = %T, %t, want program.Descriptor", value, found)
+	if !found || value == nil {
+		t.Fatalf("earlier descriptor = %T, %t, want a registered descriptor", value, found)
 	}
-	if value, found := values.Lookup(cataloguePath, "Database"); !found || value != "manual definition" {
+	if value, found := values.Lookup(cataloguePath, "Database"); !found || value != config {
 		t.Fatalf("duplicate definition = %v, %t, want original value", value, found)
-	}
-	if _, found := values.Lookup(cataloguePath, "Europe"); found {
-		t.Fatal("definition after the duplicate was registered")
 	}
 }

@@ -1,6 +1,6 @@
-// Package link resolves structural intent through a runtime symbol table.
+// Package link resolves structural intent through a descriptor registry.
 // Resolved occurrences and bindings form a distinct representation without
-// invoking catalogue values or requiring them to expose any capabilities.
+// invoking their constructors or runners.
 package link
 
 import (
@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/modern-engineering/prototype/program"
 	"github.com/modern-engineering/prototype/solution"
-	"github.com/modern-engineering/prototype/symbol"
 )
 
 // Solution contains resolved occurrences and their logical bindings. Modules are
@@ -27,7 +27,7 @@ type Solution struct {
 type Node struct {
 	Name       string
 	Symbol     solution.Symbol
-	Definition any
+	Definition program.Descriptor
 }
 
 // Binding points to its receiving occurrence. Input names remain uninterpreted
@@ -94,8 +94,8 @@ func (e *Error) Unwrap() error { return e.Err }
 // Resolve resolves catalogue symbols and occurrence references using values.
 // It copies structural records in authored order and normalizes literal and
 // reference values, including their non-nil pointer forms. Registered Go values
-// are retained with their original types and capabilities, including nil values.
-// values must be non-nil.
+// are retained with their concrete types and capabilities through the common
+// program.Descriptor contract. values must be non-nil.
 //
 // Names use exact registry and occurrence lookup; they need not be Go
 // identifiers. Forward, self, and cyclic references are allowed. Resolve does
@@ -105,7 +105,7 @@ func (e *Error) Unwrap() error { return e.Err }
 // On failure Resolve returns a nil solution and an *Error. It does not change the
 // source or the registry. Mutating the source's structural records after a
 // successful call does not change the returned solution.
-func Resolve(source solution.Definition, values *symbol.Table) (*Solution, error) {
+func Resolve(source solution.Definition, values *program.Registry) (*Solution, error) {
 	result := &Solution{
 		Modules:  slices.Clone(source.Modules),
 		Nodes:    make([]*Node, 0, len(source.Nodes)),

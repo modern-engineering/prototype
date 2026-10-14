@@ -7,7 +7,6 @@ import (
 	"github.com/modern-engineering/prototype/program"
 	"github.com/modern-engineering/prototype/solution"
 	"github.com/modern-engineering/prototype/solution/link"
-	"github.com/modern-engineering/prototype/symbol"
 )
 
 // Occurrence identity belongs to the authored definition, while runtime values
@@ -18,15 +17,8 @@ func TestOccurrencesResolveWithoutInvocation(t *testing.T) {
 		panic("descriptor instantiated during linking")
 	})
 	key := solution.Symbol{Package: "local", Name: "shared descriptor"}
-	var values symbol.Table
-	if err := values.Define(key.Package, key.Name, &factory); err != nil {
-		t.Fatal(err)
-	}
-	if err := values.Define("local", "nil", nil); err != nil {
-		t.Fatal(err)
-	}
-	var pointer *int
-	if err := values.Define("local", "typed nil", pointer); err != nil {
+	var values program.Registry
+	if err := values.Register(key.Package, key.Name, &factory); err != nil {
 		t.Fatal(err)
 	}
 	literal := solution.Literal("")
@@ -36,8 +28,6 @@ func TestOccurrencesResolveWithoutInvocation(t *testing.T) {
 		Nodes: []solution.Node{
 			{Name: "consumer", Definition: key},
 			{Name: "producer", Definition: key},
-			{Name: "opaque", Definition: solution.Symbol{Package: "local", Name: "nil"}},
-			{Name: "typed-nil", Definition: solution.Symbol{Package: "local", Name: "typed nil"}},
 		},
 		Bindings: []solution.Binding{
 			{Node: "consumer", Input: "forward", Value: &reference},
@@ -56,9 +46,6 @@ func TestOccurrencesResolveWithoutInvocation(t *testing.T) {
 	}
 	if consumer.Definition != &factory || producer.Definition != &factory {
 		t.Fatal("linked occurrences do not retain the registered descriptor")
-	}
-	if resolved.Nodes[2].Definition != nil || resolved.Nodes[3].Definition == nil || resolved.Nodes[3].Definition.(*int) != nil {
-		t.Fatal("registered nil values lost presence or concrete type")
 	}
 	if resolved.Bindings[0].Node != consumer || resolved.Bindings[0].Value.(link.Reference).Node != producer {
 		t.Fatal("forward reference does not point to the canonical occurrences")
@@ -85,12 +72,12 @@ func TestOccurrencesResolveWithoutInvocation(t *testing.T) {
 }
 
 // Resolution reports incomplete or ambiguous structure without returning a
-// partially linked solution, and without confusing a missing symbol with nil.
+// partially linked solution, and without invoking descriptors.
 func TestResolutionFailuresHaveContext(t *testing.T) {
 	key := solution.Symbol{Package: "local", Name: "present"}
 	node := solution.Node{Name: "present", Definition: key}
-	var values symbol.Table
-	if err := values.Define(key.Package, key.Name, nil); err != nil {
+	var values program.Registry
+	if err := values.Register(key.Package, key.Name, program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) { return nil, nil, nil })); err != nil {
 		t.Fatal(err)
 	}
 	var nilLiteral *solution.Literal

@@ -5,23 +5,22 @@ import (
 
 	"github.com/modern-engineering/prototype/examples/catalogue"
 	"github.com/modern-engineering/prototype/examples/design"
+	"github.com/modern-engineering/prototype/program"
 	"github.com/modern-engineering/prototype/solution/link"
-	"github.com/modern-engineering/prototype/symbol"
 )
 
 // Definitions can be linked through handwritten registration. The resulting
 // binding refers to the same occurrence objects held in the linked solution.
 func ExampleResolve() {
-	var values symbol.Table
+	var values program.Registry
 	for _, entry := range []struct {
 		name  string
-		value any
+		value program.Descriptor
 	}{
 		{"Database", catalogue.Database},
 		{"Backend", catalogue.Backend},
-		{"Europe", catalogue.Europe},
 	} {
-		if err := values.Define(design.CataloguePath, entry.name, entry.value); err != nil {
+		if err := values.Register(design.CataloguePath, entry.name, entry.value); err != nil {
 			fmt.Println(err)
 			return
 		}

@@ -11,7 +11,6 @@ import (
 	"github.com/modern-engineering/prototype/examples/design"
 	"github.com/modern-engineering/prototype/program"
 	"github.com/modern-engineering/prototype/solution/link"
-	"github.com/modern-engineering/prototype/symbol"
 )
 
 func main() {
@@ -21,7 +20,7 @@ func main() {
 }
 
 func inspect() error {
-	var values symbol.Table
+	var values program.Registry
 	if err := registerDefinitions(&values); err != nil {
 		return err
 	}

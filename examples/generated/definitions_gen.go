@@ -4,19 +4,16 @@ package main
 
 import (
 	pkg0 "github.com/modern-engineering/prototype/examples/catalogue"
-	pkg1 "github.com/modern-engineering/prototype/symbol"
+	pkg1 "github.com/modern-engineering/prototype/program"
 )
 
-// registerDefinitions registers referenced Go values. It stops at the first error;
+// registerDefinitions registers referenced program descriptors. It stops at the first error;
 // earlier successful definitions remain in values.
-func registerDefinitions(values *pkg1.Table) error {
-	if err := values.Define("github.com/modern-engineering/prototype/examples/catalogue", "Backend", pkg0.Backend); err != nil {
+func registerDefinitions(values *pkg1.Registry) error {
+	if err := values.Register("github.com/modern-engineering/prototype/examples/catalogue", "Backend", pkg0.Backend); err != nil {
 		return err
 	}
-	if err := values.Define("github.com/modern-engineering/prototype/examples/catalogue", "Database", pkg0.Database); err != nil {
-		return err
-	}
-	if err := values.Define("github.com/modern-engineering/prototype/examples/catalogue", "Europe", pkg0.Europe); err != nil {
+	if err := values.Register("github.com/modern-engineering/prototype/examples/catalogue", "Database", pkg0.Database); err != nil {
 		return err
 	}
 	return nil
