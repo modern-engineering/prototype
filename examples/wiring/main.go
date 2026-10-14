@@ -20,10 +20,11 @@ var Address = job.Descriptor{
 	MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
 		flags := flag.NewFlagSet("address", flag.ContinueOnError)
 		host := flags.String("host", "localhost:8080", "service host and port")
+		scheme := flags.String("scheme", "https", "service URL scheme")
 		var address string
 
 		run := program.RunnerFunc(func(context.Context) error {
-			address = "https://" + *host
+			address = *scheme + "://" + *host
 			return nil
 		})
 		outputs := program.OutputFields{
@@ -32,7 +33,11 @@ var Address = job.Descriptor{
 				Source: program.GetterFunc(func() string { return address }),
 			},
 		}
-		return run, program.FromFlags(flags), outputs
+		inputs := program.FromFlags(flags,
+			program.Field{Name: "host", Requirement: program.Required},
+			program.Field{Name: "scheme", Requirement: program.Optional},
+		)
+		return run, inputs, outputs
 	},
 }
 
@@ -40,20 +45,44 @@ var Backend = application.Descriptor{
 	Name:    "backend",
 	Summary: "Report the configured service address until stopped",
 	MakeFunc: func() (program.Runner, program.Inputs) {
-		flags := flag.NewFlagSet("backend", flag.ContinueOnError)
-		address := flags.String("address", "", "upstream service URL")
+		var address string
+		inputs := program.InputFields{
+			suggestedInput{
+				InputField: program.InputField{
+					Field: program.Field{
+						Name:        "address",
+						Help:        "upstream service URL",
+						Requirement: program.Required,
+					},
+					Target: program.SetterFunc(func(value string) error {
+						address = value
+						return nil
+					}),
+				},
+				suggestions: []string{"https://api.example.test:8443"},
+			},
+		}
 
 		run := program.RunnerFunc(func(ctx context.Context) error {
-			if *address == "" {
+			if address == "" {
 				return fmt.Errorf("upstream service URL is empty")
 			}
-			fmt.Println("backend configured:", *address)
+			fmt.Println("backend configured:", address)
 			<-ctx.Done()
 			return nil
 		})
-		return run, program.FromFlags(flags)
+		return run, inputs
 	},
 }
+
+// suggestedInput adds a declaration capability independently of its Setter.
+// Suggestions are display hints; the bound Setter controls value acceptance.
+type suggestedInput struct {
+	program.InputField
+	suggestions []string
+}
+
+func (input suggestedInput) SuggestedValues() []string { return input.suggestions }
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -65,22 +94,25 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	var factory program.Factory = Address
-	address, inputs, outputs := factory.Make()
-	host, _ := inputs.Lookup("host")
-	if err := host.Value().Set("api.example.test:8443"); err != nil {
+	l := loader{trace: os.Stdout}
+	address, err := l.load(Address, map[string]program.Getter{
+		"host": literal("api.example.test:8443"),
+	})
+	if err != nil {
 		return err
 	}
-	if err := address.Run(ctx); err != nil {
+	if err := address.runner.Run(ctx); err != nil {
 		return err
 	}
-
-	factory = Backend
-	backend, backendInputs, _ := factory.Make()
-	url, _ := outputs.Lookup("url")
-	upstream, _ := backendInputs.Lookup("address")
-	if err := program.Wire(upstream.Value(), url.Value()); err != nil {
+	url, err := address.output("url")
+	if err != nil {
 		return err
 	}
-	return backend.Run(ctx)
+	backend, err := l.load(Backend, map[string]program.Getter{
+		"address": url,
+	})
+	if err != nil {
+		return err
+	}
+	return backend.runner.Run(ctx)
 }

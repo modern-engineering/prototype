@@ -108,7 +108,7 @@ func TestCustomFlagValues(t *testing.T) {
 	fs := flag.NewFlagSet("parts", flag.ContinueOnError)
 	value := partsValue{"seed"}
 	fs.Var(&value, "part", "part to append")
-	declaration := program.Field{Name: "part", Help: "private part", Required: true, Sensitive: true}
+	declaration := program.Field{Name: "part", Help: "private part", Requirement: program.Required, Sensitive: true}
 	inputs := program.FromFlags(fs, declaration)
 	input, ok := inputs.Lookup("part")
 	if !ok {
