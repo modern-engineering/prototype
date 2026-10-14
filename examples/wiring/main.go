@@ -33,11 +33,7 @@ var Address = job.Descriptor{
 				Source: program.GetterFunc(func() string { return address }),
 			},
 		}
-		inputs := program.FromFlags(flags,
-			program.Field{Name: "host", Requirement: program.Required},
-			program.Field{Name: "scheme", Requirement: program.Optional},
-		)
-		return run, inputs, outputs
+		return run, program.FromFlags(flags), outputs
 	},
 }
 
@@ -47,19 +43,12 @@ var Backend = application.Descriptor{
 	MakeFunc: func() (program.Runner, program.Inputs) {
 		var address string
 		inputs := program.InputFields{
-			suggestedInput{
-				InputField: program.InputField{
-					Field: program.Field{
-						Name:        "address",
-						Help:        "upstream service URL",
-						Requirement: program.Required,
-					},
-					Target: program.SetterFunc(func(value string) error {
-						address = value
-						return nil
-					}),
-				},
-				suggestions: []string{"https://api.example.test:8443"},
+			program.InputField{
+				Field: program.Field{Name: "address", Help: "upstream service URL"},
+				Target: program.SetterFunc(func(value string) error {
+					address = value
+					return nil
+				}),
 			},
 		}
 
@@ -74,15 +63,6 @@ var Backend = application.Descriptor{
 		return run, inputs
 	},
 }
-
-// suggestedInput adds a declaration capability independently of its Setter.
-// Suggestions are display hints; the bound Setter controls value acceptance.
-type suggestedInput struct {
-	program.InputField
-	suggestions []string
-}
-
-func (input suggestedInput) SuggestedValues() []string { return input.suggestions }
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

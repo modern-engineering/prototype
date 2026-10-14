@@ -54,28 +54,13 @@ func Adapt[T Runner](newRunner func() T) MakeFunc {
 	}
 }
 
-// Requirement records an explicit requiredness declaration. Its zero value
-// leaves the unmarked case undecided. How a loader determines that a required
-// value is available belongs to its input/output resolution policy.
-type Requirement uint8
-
-const (
-	// Unspecified leaves requiredness to an explicitly chosen loader policy.
-	Unspecified Requirement = iota
-	// Required declares that the field's value is required.
-	Required
-	// Optional declares that the field's value is optional.
-	Optional
-)
-
-// Field describes a named input or output. Requirement and Sensitive communicate
-// declaration semantics to loaders. Their enforcement is loader policy; this
-// package does not track assignment, output production, or sensitivity flow.
+// Field describes a named input or output. Sensitive marks values that loaders
+// must keep out of ordinary diagnostics. This package does not track assignment,
+// output production, or sensitivity flow.
 type Field struct {
-	Name        string
-	Help        string
-	Requirement Requirement
-	Sensitive   bool
+	Name      string
+	Help      string
+	Sensitive bool
 }
 
 // Setter receives a string into the Go state used by a runner. If Set is never

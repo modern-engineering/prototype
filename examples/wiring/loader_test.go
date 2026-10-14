@@ -47,63 +47,40 @@ func Example() {
 	// input host: service host and port
 	// input scheme: service URL scheme
 	// input address: upstream service URL
-	//   suggestions: [https://api.example.test:8443]
 	// backend configured: https://api.example.test:8443
 }
 
-// Invalid bindings must fail before a getter, setter, or runner can affect state.
-func TestBindingsAreValidatedBeforeTransfer(t *testing.T) {
-	for _, test := range []struct {
-		name        string
-		requirement program.Requirement
-		bindings    []string
-		want        error
-	}{
-		{
-			name: "UnknownInput", requirement: program.Required,
-			bindings: []string{"bound", "typo"}, want: errUnknownInput,
-		},
-		{
-			name: "MissingRequired", requirement: program.Required,
-			bindings: []string{"bound"}, want: errMissingInput,
-		},
-		{
-			name: "MissingUnmarked", requirement: program.Unspecified,
-			bindings: []string{"bound"}, want: errUndecidedInput,
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			setter := program.SetterFunc(func(string) error {
-				t.Fatal("invalid bindings reached a setter")
-				return nil
-			})
-			factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
-				inputs := program.InputFields{
-					program.InputField{Field: program.Field{Name: "bound", Requirement: program.Required}, Target: setter},
-					program.InputField{Field: program.Field{Name: "absent", Requirement: test.requirement}, Target: setter},
-				}
-				runner := program.RunnerFunc(func(context.Context) error {
-					t.Fatal("invalid bindings reached the runner")
+// Unknown bindings must fail before a getter, setter, or runner can affect state.
+func TestUnknownBindingIsRejectedBeforeTransfer(t *testing.T) {
+	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+		inputs := program.InputFields{
+			program.InputField{
+				Field: program.Field{Name: "host"},
+				Target: program.SetterFunc(func(string) error {
+					t.Fatal("unknown binding reached a setter")
 					return nil
-				})
-				return runner, inputs, program.OutputFields(nil)
-			})
-			bindings := make(map[string]program.Getter)
-			for _, name := range test.bindings {
-				bindings[name] = program.GetterFunc(func() string {
-					t.Fatal("invalid bindings reached a getter")
-					return ""
-				})
-			}
-			_, err := (loader{}).load(factory, bindings)
-			if !errors.Is(err, test.want) {
-				t.Fatalf("load error = %v, want %v", err, test.want)
-			}
-		})
+				}),
+			},
+		}
+		return program.RunnerFunc(func(context.Context) error {
+			t.Fatal("unknown binding reached the runner")
+			return nil
+		}), inputs, program.OutputFields(nil)
+	})
+	source := program.GetterFunc(func() string {
+		t.Fatal("unknown binding reached a getter")
+		return ""
+	})
+	_, err := (loader{}).load(factory, map[string]program.Getter{
+		"host": source,
+		"typo": source,
+	})
+	if !errors.Is(err, errUnknownInput) {
+		t.Fatalf("load error = %v, want unknown input", err)
 	}
 }
 
-func TestAssignedUnmarkedInputRetainsOptionalDefaults(t *testing.T) {
+func TestUnboundInputRetainsDefault(t *testing.T) {
 	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		flags := flag.NewFlagSet("address", flag.ContinueOnError)
 		host := flags.String("host", "localhost", "service host")
@@ -117,9 +94,7 @@ func TestAssignedUnmarkedInputRetainsOptionalDefaults(t *testing.T) {
 			}
 			return nil
 		})
-		return runner, program.FromFlags(flags,
-			program.Field{Name: "scheme", Requirement: program.Optional},
-		), program.OutputFields(nil)
+		return runner, program.FromFlags(flags), program.OutputFields(nil)
 	})
 	i, err := (loader{}).load(factory, map[string]program.Getter{
 		"host": literal("api.example.test"),
@@ -133,22 +108,18 @@ func TestAssignedUnmarkedInputRetainsOptionalDefaults(t *testing.T) {
 }
 
 // Assignment failures retain their cause without exposing sensitive values in
-// ordinary diagnostics or declaration hints.
+// ordinary diagnostics.
 func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
 	const secret = "private-token-value"
 	rejected := errors.New("credential rejected")
 	cause := fmt.Errorf("invalid credential %s: %w", secret, rejected)
 	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		inputs := program.InputFields{
-			suggestedInput{
-				InputField: program.InputField{
-					Field: program.Field{
-						Name: "credential", Help: "access credential",
-						Requirement: program.Required, Sensitive: true,
-					},
-					Target: program.SetterFunc(func(string) error { return cause }),
+			program.InputField{
+				Field: program.Field{
+					Name: "credential", Help: "access credential", Sensitive: true,
 				},
-				suggestions: []string{secret},
+				Target: program.SetterFunc(func(string) error { return cause }),
 			},
 		}
 		return program.RunnerFunc(func(context.Context) error {
