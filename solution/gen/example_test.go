@@ -10,7 +10,7 @@ import (
 // Generated selectors make Go's compiler responsible for resolving exports.
 // Their concrete types impose no common capability on the resulting values.
 func ExampleSource() {
-	model := solution.Model{Nodes: []solution.Node{
+	model := solution.Definition{Nodes: []solution.Node{
 		{Name: "input", Definition: solution.Symbol{Package: "os", Name: "Stdin"}},
 		{Name: "null", Definition: solution.Symbol{Package: "os", Name: "DevNull"}},
 	}}

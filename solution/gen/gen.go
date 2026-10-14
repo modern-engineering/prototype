@@ -30,7 +30,7 @@ var ErrIdentifier = errors.New("unusable Go identifier")
 
 // Source generates a Go file in packageName containing functionName with the
 // signature func(*symbol.Table) error. The function registers the definitions
-// used by model.Nodes through Table.Define. Repeated occurrences of a definition
+// used by definition.Nodes through Table.Define. Repeated occurrences of a definition
 // cause one registration, in package-path then name order. Registration stops
 // at the first error; earlier definitions remain in the caller's table.
 //
@@ -38,7 +38,7 @@ var ErrIdentifier = errors.New("unusable Go identifier")
 // bindings, and occurrence names remain structural data and are not interpreted
 // here. Symbol existence and whether a symbol denotes a value are checked by
 // the Go compiler, not by source generation.
-func Source(packageName, functionName string, model solution.Model) ([]byte, error) {
+func Source(packageName, functionName string, definition solution.Definition) ([]byte, error) {
 	for _, name := range []string{packageName, functionName} {
 		if !token.IsIdentifier(name) || name == "_" {
 			return nil, fmt.Errorf("%w: %q", ErrIdentifier, name)
@@ -52,7 +52,7 @@ func Source(packageName, functionName string, model solution.Model) ([]byte, err
 	const tablePath = "github.com/modern-engineering/prototype/symbol"
 	packages := map[string]string{tablePath: ""}
 	definitions := make(map[solution.Symbol]bool)
-	for _, node := range model.Nodes {
+	for _, node := range definition.Nodes {
 		symbol := node.Definition
 		if !token.IsIdentifier(symbol.Name) || !goast.IsExported(symbol.Name) {
 			return nil, fmt.Errorf("%w: %q", ErrIdentifier, symbol.Name)

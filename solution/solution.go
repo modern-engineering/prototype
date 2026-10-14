@@ -1,5 +1,5 @@
 // Package solution describes logical solution relationships without loading catalogue
-// implementations. A Model carries references to exported Go values, named
+// implementations. A Definition carries references to exported Go values, named
 // occurrences of those values, and authored input bindings.
 //
 // A catalogue is implicit in the concrete Go type of its exported values.
@@ -7,18 +7,18 @@
 // A reference can be represented even when its package, symbol, or field does
 // not exist. Go linkage and catalogue-aware inspection establish those facts.
 //
-// Models carry no invocation state or physical resource ownership. They are
+// Definitions carry no invocation state or physical resource ownership. They are
 // independent of the encoding, solution identity, and revision used to carry
 // them in a solution artifact.
 package solution
 
-// Model is structural intent. Its slices preserve authored order, not execution
+// Definition is structural intent. Its slices preserve authored order, not execution
 // order. Node names identify occurrences within the model; two nodes may name
 // the same exported definition without sharing invocation state.
 //
-// A Model is ordinary mutable data. Editing it does not update any linked or
+// A Definition is ordinary mutable data. Editing it does not update any linked or
 // derived view produced from an earlier version.
-type Model struct {
+type Definition struct {
 	Modules  []Module
 	Nodes    []Node
 	Bindings []Binding
@@ -33,7 +33,8 @@ type Module struct {
 	Version string
 }
 
-// Symbol identifies an exported Go value by import path and identifier.
+// Symbol names a definition by package path and name. Exported Go values are
+// the usual source; a runtime registry may also supply caller-defined aliases.
 // A symbol's module is selected by the Go build, not by the symbol itself.
 type Symbol struct {
 	Package string

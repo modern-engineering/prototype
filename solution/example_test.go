@@ -9,7 +9,7 @@ import (
 // Structural inspection needs no imports from the referenced modules, including
 // definitions whose catalogue type the inspecting tool does not understand.
 func Example() {
-	model := solution.Model{
+	model := solution.Definition{
 		Modules: []solution.Module{{Path: "example.org/catalogue", Version: "v1.2.0"}},
 		Nodes: []solution.Node{
 			{Name: "database", Definition: solution.Symbol{Package: "example.org/catalogue/jobs", Name: "Database"}},
