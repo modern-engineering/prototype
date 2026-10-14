@@ -14,7 +14,7 @@ func ExampleSource() {
 		{Name: "input", Definition: ir.Symbol{Package: "os", Name: "Stdin"}},
 		{Name: "null", Definition: ir.Symbol{Package: "os", Name: "DevNull"}},
 	}}
-	source, err := link.Source("inspection", "Definitions", model)
+	source, err := link.Source("inspection", "Register", model)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -27,14 +27,19 @@ func ExampleSource() {
 	// package inspection
 	//
 	// import (
-	// 	catalogue0 "github.com/modern-engineering/prototype/ir"
-	// 	catalogue1 "os"
+	// 	pkg0 "github.com/modern-engineering/prototype/symbol"
+	// 	pkg1 "os"
 	// )
 	//
-	// func Definitions() map[catalogue0.Symbol]any {
-	// 	return map[catalogue0.Symbol]any{
-	// 		{Package: "os", Name: "DevNull"}: catalogue1.DevNull,
-	// 		{Package: "os", Name: "Stdin"}:   catalogue1.Stdin,
+	// // Register registers referenced Go values. It stops at the first error;
+	// // earlier successful definitions remain in values.
+	// func Register(values *pkg0.Table) error {
+	// 	if err := values.Define("os", "DevNull", pkg1.DevNull); err != nil {
+	// 		return err
 	// 	}
+	// 	if err := values.Define("os", "Stdin", pkg1.Stdin); err != nil {
+	// 		return err
+	// 	}
+	// 	return nil
 	// }
 }

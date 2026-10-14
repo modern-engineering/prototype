@@ -53,7 +53,8 @@ func TestIdentifierErrors(t *testing.T) {
 
 func TestGeneratedFunctionNames(t *testing.T) {
 	for _, test := range []struct{ pkg, function string }{
-		{"inspection", "any"},
+		{"inspection", "error"},
+		{"inspection", "nil"},
 		{"inspection", "init"},
 		{"main", "main"},
 	} {

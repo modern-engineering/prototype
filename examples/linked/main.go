@@ -11,6 +11,7 @@ import (
 	"github.com/modern-engineering/prototype/examples/linked/design"
 	"github.com/modern-engineering/prototype/ir"
 	"github.com/modern-engineering/prototype/program"
+	"github.com/modern-engineering/prototype/symbol"
 )
 
 func main() {
@@ -20,9 +21,12 @@ func main() {
 }
 
 func inspect() error {
-	values := definitions()
+	var values symbol.Table
+	if err := registerDefinitions(&values); err != nil {
+		return err
+	}
 	for _, node := range design.Model.Nodes {
-		value, ok := values[node.Definition]
+		value, ok := values.Lookup(node.Definition.Package, node.Definition.Name)
 		if !ok {
 			return fmt.Errorf("unlinked definition %s.%s", node.Definition.Package, node.Definition.Name)
 		}

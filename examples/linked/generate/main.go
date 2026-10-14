@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	source, err := link.Source("main", "definitions", design.Model)
+	source, err := link.Source("main", "registerDefinitions", design.Model)
 	if err != nil {
 		log.Fatal(err)
 	}

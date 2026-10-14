@@ -3,14 +3,21 @@
 package main
 
 import (
-	catalogue0 "github.com/modern-engineering/prototype/examples/linked/catalogue"
-	catalogue1 "github.com/modern-engineering/prototype/ir"
+	pkg0 "github.com/modern-engineering/prototype/examples/linked/catalogue"
+	pkg1 "github.com/modern-engineering/prototype/symbol"
 )
 
-func definitions() map[catalogue1.Symbol]any {
-	return map[catalogue1.Symbol]any{
-		{Package: "github.com/modern-engineering/prototype/examples/linked/catalogue", Name: "Backend"}:  catalogue0.Backend,
-		{Package: "github.com/modern-engineering/prototype/examples/linked/catalogue", Name: "Database"}: catalogue0.Database,
-		{Package: "github.com/modern-engineering/prototype/examples/linked/catalogue", Name: "Europe"}:   catalogue0.Europe,
+// registerDefinitions registers referenced Go values. It stops at the first error;
+// earlier successful definitions remain in values.
+func registerDefinitions(values *pkg1.Table) error {
+	if err := values.Define("github.com/modern-engineering/prototype/examples/linked/catalogue", "Backend", pkg0.Backend); err != nil {
+		return err
 	}
+	if err := values.Define("github.com/modern-engineering/prototype/examples/linked/catalogue", "Database", pkg0.Database); err != nil {
+		return err
+	}
+	if err := values.Define("github.com/modern-engineering/prototype/examples/linked/catalogue", "Europe", pkg0.Europe); err != nil {
+		return err
+	}
+	return nil
 }
