@@ -10,6 +10,7 @@ import (
 	"os/signal"
 
 	"github.com/modern-engineering/prototype/application"
+	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -65,25 +66,17 @@ var Backend = application.Descriptor{
 }
 
 func main() {
-	readers := flag.Bool("readers", false, "demonstrate eager and borrowed readers")
-	flag.Parse()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	var err error
-	if *readers {
-		err = runReaders(ctx, os.Stdout)
-	} else {
-		err = run(ctx)
-	}
-	if err != nil {
+	if err := run(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context) error {
-	l := loader{trace: os.Stdout}
-	address, err := l.load(ctx, Address, map[string]program.Getter{
+	l := loader.Loader{Trace: os.Stdout}
+	address, err := l.Load(ctx, Address, map[string]program.Getter{
 		"host": literal("api.example.test:8443"),
 	})
 	if err != nil {
@@ -92,11 +85,11 @@ func run(ctx context.Context) error {
 	if err := address.Run(ctx); err != nil {
 		return err
 	}
-	url, err := address.output("url")
+	url, err := address.Output("url")
 	if err != nil {
 		return err
 	}
-	backend, err := l.load(ctx, Backend, map[string]program.Getter{
+	backend, err := l.Load(ctx, Backend, map[string]program.Getter{
 		"address": url,
 	})
 	if err != nil {
@@ -104,3 +97,7 @@ func run(ctx context.Context) error {
 	}
 	return backend.Run(ctx)
 }
+
+type literal string
+
+func (value literal) Get() string { return string(value) }

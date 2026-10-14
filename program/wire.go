@@ -29,41 +29,66 @@ type ReaderBorrower interface {
 	BorrowReader(io.Reader) error
 }
 
+// Wiring holds resources borrowed while configuring an invocation. Its zero
+// value is ready to use. The loader owns its lifetime: call Close after Run has
+// returned, or when abandoning configuration before Run. Cancellation alone is
+// not proof that a runner has finished using its readers.
+//
+// Wiring does not synchronize access. Do not copy it after use, or call Close
+// while an assignment or invocation is still using its readers.
+type Wiring struct {
+	borrowed []io.Closer
+}
+
 // Wire assigns source to destination, preferring a reader transfer when source
 // implements ReaderGetter and destination implements io.ReaderFrom or
 // ReaderBorrower. If both destination capabilities exist, ReadFrom wins. Without
 // a matching pair, Wire uses destination.Set(source.Get()). A reader acquisition
 // or transfer failure is returned without retrying through strings.
 //
-// Eager readers are closed before Wire returns. A successful borrow returns a
-// closer that the loader must retain: close it after the destination's Run has
-// returned, or if configuration is abandoned before Run. Cancellation alone is
-// not proof that a runner has finished using its reader. All other paths return
-// a nil closer. Transfer and cleanup errors are joined, preserving both causes.
-// Destinations receive only io.Reader; closing remains the loader's responsibility.
-func Wire(ctx context.Context, destination Setter, source Getter) (borrowed io.Closer, err error) {
+// Eager readers and failed borrows are closed before Wire returns. Successful
+// borrows are retained until Close. A failed assignment leaves earlier successful
+// borrows in the scope; the loader decides whether to abandon configuration.
+// Transfer and cleanup errors are joined, preserving both causes. Destinations
+// receive only io.Reader; closing remains the loader's responsibility.
+func (w *Wiring) Wire(ctx context.Context, destination Setter, source Getter) (err error) {
 	readerSource, canOpen := source.(ReaderGetter)
 	eager, canRead := destination.(io.ReaderFrom)
 	borrower, canBorrow := destination.(ReaderBorrower)
 	if !canOpen || (!canRead && !canBorrow) {
-		return nil, destination.Set(source.Get())
+		return destination.Set(source.Get())
 	}
 	reader, err := readerSource.Open(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	retained := false
 	defer func() {
-		if borrowed == nil {
+		if !retained {
 			err = errors.Join(err, reader.Close())
 		}
 	}()
 	view := struct{ io.Reader }{reader}
 	if canRead {
 		_, err := eager.ReadFrom(view)
-		return nil, err
+		return err
 	}
 	if err := borrower.BorrowReader(view); err != nil {
-		return nil, err
+		return err
 	}
-	return reader, nil
+	w.borrowed = append(w.borrowed, reader)
+	retained = true
+	return nil
+}
+
+// Close releases retained readers in reverse acquisition order, attempting every
+// close and joining failures. It drains the scope, so repeated calls do nothing
+// until Wire retains another reader. Readers must no longer be in use.
+func (w *Wiring) Close() error {
+	var err error
+	for index := len(w.borrowed) - 1; index >= 0; index-- {
+		err = errors.Join(err, w.borrowed[index].Close())
+	}
+	w.borrowed = nil
+	return err
 }

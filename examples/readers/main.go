@@ -1,3 +1,5 @@
+// Command readers demonstrates eager consumption and borrowed readers with
+// resource lifetimes owned by the loader.
 package main
 
 import (
@@ -6,12 +8,23 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 
+	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
 )
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if err := run(ctx, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
 // inspect reads the same content through an eager input and a borrowed input.
 // Make only binds state; the loader acquires both readers during configuration.
@@ -86,10 +99,10 @@ func (v *borrowedText) BorrowReader(reader io.Reader) error {
 	return nil
 }
 
-func runReaders(ctx context.Context, trace io.Writer) (err error) {
+func run(ctx context.Context, trace io.Writer) (err error) {
 	// This loader stages an immutable snapshot in a file. The getter can expose
 	// the same content as a string or open independent readers over that file.
-	dir, err := os.MkdirTemp("", "wiring-readers-")
+	dir, err := os.MkdirTemp("", "readers-")
 	if err != nil {
 		return err
 	}
@@ -100,8 +113,8 @@ func runReaders(ctx context.Context, trace io.Writer) (err error) {
 		return err
 	}
 	source := &fileContent{path: path, text: text, trace: trace}
-	l := loader{}
-	i, err := l.load(ctx, inspect(trace), map[string]program.Getter{
+	l := loader.Loader{}
+	i, err := l.Load(ctx, inspect(trace), map[string]program.Getter{
 		"eager": source, "borrowed": source,
 	})
 	if err != nil {

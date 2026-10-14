@@ -1,4 +1,4 @@
-package main
+package loader_test
 
 import (
 	"bytes"
@@ -6,49 +6,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
+	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/program"
 )
-
-// A loader discovers declarations, configures a finite job, and wires its result
-// into an application through the same factory contract.
-func Example() {
-	l := loader{trace: os.Stdout}
-	address, err := l.load(context.Background(), Address, map[string]program.Getter{
-		"host": literal("api.example.test:8443"),
-	})
-	if err != nil {
-		fmt.Println("load address:", err)
-		return
-	}
-	if err := address.Run(context.Background()); err != nil {
-		fmt.Println("run address:", err)
-		return
-	}
-	url, err := address.output("url")
-	if err != nil {
-		fmt.Println("address output:", err)
-		return
-	}
-	backend, err := l.load(context.Background(), Backend, map[string]program.Getter{"address": url})
-	if err != nil {
-		fmt.Println("load backend:", err)
-		return
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if err := backend.Run(ctx); err != nil {
-		fmt.Println("run backend:", err)
-	}
-	// Output:
-	// input host: service host and port
-	// input scheme: service URL scheme
-	// input address: upstream service URL
-	// backend configured: https://api.example.test:8443
-}
 
 // Unknown bindings must fail before a getter, setter, or runner can affect state.
 func TestUnknownBindingIsRejectedBeforeTransfer(t *testing.T) {
@@ -71,11 +34,11 @@ func TestUnknownBindingIsRejectedBeforeTransfer(t *testing.T) {
 		t.Fatal("unknown binding reached a getter")
 		return ""
 	})
-	_, err := (loader{}).load(t.Context(), factory, map[string]program.Getter{
+	_, err := (loader.Loader{}).Load(t.Context(), factory, map[string]program.Getter{
 		"host": source,
 		"typo": source,
 	})
-	if !errors.Is(err, errUnknownInput) {
+	if !errors.Is(err, loader.ErrUnknownInput) {
 		t.Fatalf("load error = %v, want unknown input", err)
 	}
 }
@@ -96,7 +59,7 @@ func TestUnboundInputRetainsDefault(t *testing.T) {
 		})
 		return runner, program.FromFlags(flags), program.OutputList(nil)
 	})
-	i, err := (loader{}).load(t.Context(), factory, map[string]program.Getter{
+	i, err := (loader.Loader{}).Load(t.Context(), factory, map[string]program.Getter{
 		"host": literal("api.example.test"),
 	})
 	if err != nil {
@@ -128,7 +91,7 @@ func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
 		}), inputs, program.OutputList(nil)
 	})
 	var trace bytes.Buffer
-	_, err := (loader{trace: &trace}).load(t.Context(), factory, map[string]program.Getter{
+	_, err := (loader.Loader{Trace: &trace}).Load(t.Context(), factory, map[string]program.Getter{
 		"credential": literal(secret),
 	})
 	if !errors.Is(err, rejected) {
@@ -138,3 +101,7 @@ func TestSensitiveAssignmentFailureHidesValueAndPreservesCause(t *testing.T) {
 		t.Fatal("sensitive value appeared in ordinary diagnostics")
 	}
 }
+
+type literal string
+
+func (value literal) Get() string { return string(value) }
