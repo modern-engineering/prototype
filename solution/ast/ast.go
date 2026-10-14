@@ -1,4 +1,4 @@
-// Package ir describes logical solution relationships without loading catalogue
+// Package ast describes logical solution relationships without loading catalogue
 // implementations. A Model carries references to exported Go values, named
 // occurrences of those values, and authored input bindings.
 //
@@ -10,7 +10,7 @@
 // Models carry no invocation state or physical resource ownership. They are
 // independent of the encoding, solution identity, and revision used to carry
 // them in a solution artifact.
-package ir
+package ast
 
 // Model is structural intent. Its slices preserve authored order, not execution
 // order. Node names identify occurrences within the model; two nodes may name

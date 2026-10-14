@@ -6,11 +6,11 @@ import (
 	"os"
 
 	"github.com/modern-engineering/prototype/examples/linked/design"
-	"github.com/modern-engineering/prototype/ir/link"
+	"github.com/modern-engineering/prototype/solution/gen"
 )
 
 func main() {
-	source, err := link.Source("main", "registerDefinitions", design.Model)
+	source, err := gen.Source("main", "registerDefinitions", design.Model)
 	if err != nil {
 		log.Fatal(err)
 	}

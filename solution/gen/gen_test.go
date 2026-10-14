@@ -1,4 +1,4 @@
-package link_test
+package gen_test
 
 import (
 	"bytes"
@@ -6,26 +6,26 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/modern-engineering/prototype/ir"
-	"github.com/modern-engineering/prototype/ir/link"
+	"github.com/modern-engineering/prototype/solution/ast"
+	"github.com/modern-engineering/prototype/solution/gen"
 )
 
 // Occurrences remain distinct in the model, while linkage needs each exported
 // definition only once and should not churn when occurrences are reordered.
 func TestOccurrenceOrderDoesNotAffectLinkage(t *testing.T) {
-	stdin := ir.Symbol{Package: "os", Name: "Stdin"}
-	model := ir.Model{Nodes: []ir.Node{
+	stdin := ast.Symbol{Package: "os", Name: "Stdin"}
+	model := ast.Model{Nodes: []ast.Node{
 		{Name: "first", Definition: stdin},
 		{Name: "second", Definition: stdin},
-		{Name: "eof", Definition: ir.Symbol{Package: "io", Name: "EOF"}},
+		{Name: "eof", Definition: ast.Symbol{Package: "io", Name: "EOF"}},
 	}}
-	original, err := link.Source("inspection", "Definitions", model)
+	original, err := gen.Source("inspection", "Definitions", model)
 	if err != nil {
 		t.Fatal(err)
 	}
 	slices.Reverse(model.Nodes)
 	model.Nodes = model.Nodes[:2]
-	changed, err := link.Source("inspection", "Definitions", model)
+	changed, err := gen.Source("inspection", "Definitions", model)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,16 +36,16 @@ func TestOccurrenceOrderDoesNotAffectLinkage(t *testing.T) {
 
 func TestIdentifierErrors(t *testing.T) {
 	for _, name := range []string{"", "lowercase", "a.B", "if"} {
-		model := ir.Model{Nodes: []ir.Node{{Definition: ir.Symbol{Package: "os", Name: name}}}}
-		if _, err := link.Source("inspection", "Definitions", model); !errors.Is(err, link.ErrIdentifier) {
+		model := ast.Model{Nodes: []ast.Node{{Definition: ast.Symbol{Package: "os", Name: name}}}}
+		if _, err := gen.Source("inspection", "Definitions", model); !errors.Is(err, gen.ErrIdentifier) {
 			t.Errorf("symbol %q: error = %v, want ErrIdentifier", name, err)
 		}
 	}
 	for _, name := range []string{"", "_", "a.B", "if"} {
-		if _, err := link.Source(name, "Definitions", ir.Model{}); !errors.Is(err, link.ErrIdentifier) {
+		if _, err := gen.Source(name, "Definitions", ast.Model{}); !errors.Is(err, gen.ErrIdentifier) {
 			t.Errorf("package %q: error = %v, want ErrIdentifier", name, err)
 		}
-		if _, err := link.Source("inspection", name, ir.Model{}); !errors.Is(err, link.ErrIdentifier) {
+		if _, err := gen.Source("inspection", name, ast.Model{}); !errors.Is(err, gen.ErrIdentifier) {
 			t.Errorf("function %q: error = %v, want ErrIdentifier", name, err)
 		}
 	}
@@ -58,7 +58,7 @@ func TestGeneratedFunctionNames(t *testing.T) {
 		{"inspection", "init"},
 		{"main", "main"},
 	} {
-		if _, err := link.Source(test.pkg, test.function, ir.Model{}); !errors.Is(err, link.ErrIdentifier) {
+		if _, err := gen.Source(test.pkg, test.function, ast.Model{}); !errors.Is(err, gen.ErrIdentifier) {
 			t.Errorf("package %q, function %q: error = %v, want ErrIdentifier", test.pkg, test.function, err)
 		}
 	}
