@@ -32,6 +32,7 @@ The customer needs useful monitoring during ordinary plant operation; Cisco want
 
 Cisco's solution engineer prepares the change on a connected workstation.
 A Cisco support engineer may later examine evidence that North Basin Water supplies.
+The support engineer can use a separate Cyber Vision test installation in Cisco's environment to investigate the customer's software configuration.
 At the plant, a customer engineer uses a local maintenance workstation to perform the change, while operators use the control-room workstation during water-treatment operation.
 
 ```mermaid
@@ -40,7 +41,9 @@ flowchart LR
         direction TB
         Solution["Solution engineer's<br/>connected workstation"]
         Support["Support engineer's<br/>connected workstation"]
+        Test["Cyber Vision<br/>support test installation"]
         Solution ~~~ Support
+        Support --- Test
     end
 
     subgraph Customer["North Basin Water"]
@@ -84,14 +87,21 @@ The difficulty is coordinating the work across the separation.
 A solution engineer may prepare configuration against one software release, a delivery specialist may adapt local scripts, and the plant engineer may receive the material weeks later with an older procedure still installed on the maintenance workstation.
 Questions return through the customer's support contact, often after the specialist who prepared the change has moved to another delivery.
 
+North Basin Water also advances on its own schedule.
+The plant remains on an older supported software release while Cisco's usual test environment moves on.
+Its accepted monitoring settings differ from current defaults.
+Starting a support investigation with Cisco's latest standard setup would therefore mean examining a different software configuration before considering the customer's alert.
+
 Completing the change then depends on people who remember which configuration, procedure and installed state belong together.
 Cisco needs staff familiar with each customer's arrangements, and both organisations need an established working relationship to resolve omissions across delayed exchanges.
-Repeating that coordination for more customers increases the demand for customer-specific expertise even when the monitoring change uses existing software capabilities.
+Without a reliable record of the retained versions and settings, engineers can struggle even to establish what they would need to reproduce.
+Repeating that coordination across customers with different retained deployments increases the demand for customer-specific expertise even when the monitoring change uses existing software capabilities.
 
 Cisco adopts the toolkit at the handoff between connected preparation and local execution.
 Its delivery tooling uses the toolkit's shared semantics and supported capabilities to produce a portable solution artefact that can stand alone when the preparation session and its live systems are unavailable.
 The artefact preserves the solution's durable identity, approved revision and intended software, configuration and relationships, together with versioned instructions for putting that revision into operation.
 Local tooling can inspect the meaning of the handoff and check whether the required software and procedure versions are at hand.
+Alongside the handoff, Cisco uses the project's tracking tools to retain each prepared design revision and associate customer-returned installation evidence with it.
 
 Cisco implements the reusable delivery procedures in Go and supplies supported precompiled executables for this episode.
 The customer engineer can run them without compiling Go or adapting delivery scripts at the plant.
@@ -139,8 +149,14 @@ This provides the relevant software provenance from intended applications and ve
 
 The engineer and operators confirm that the new controllers are visible and that existing plant coverage remains available.
 They capture a commissioning baseline during the daytime run and check that local alerts can be reviewed.
-The operations lead accepts the deployed change on that evidence, and the customer returns the acceptance record to Cisco.
+The local tool retains the monitoring settings and commissioning baseline alongside the revision's observed application versions.
+The operations lead accepts the deployed change on that evidence.
 The record describes the scope actually exercised; the standby pump has not yet run through its normal night-shift changeover.
+
+The customer returns the accepted revision, observed application versions and commissioning scope to Cisco.
+Cisco's tracking tools associate that received record with the treatment-plant solution.
+A newer prepared revision can await local acceptance while this remains the last installation confirmed by the customer.
+Cisco's knowledge of the plant remains bounded by those customer-approved observations.
 
 ## The night shift exposes an incomplete baseline
 
@@ -153,15 +169,22 @@ The plant engineer checks the commissioning record.
 The controller belongs to the approved monitoring revision, but the recorded baseline was captured while only the duty pump was running.
 Before changing the monitoring settings, the engineer asks North Basin Water's support contact to open a case with Cisco.
 
-The customer selects the alert and relevant activity records, adds the accepted solution revision and observed application versions, and explains when the pump switch occurred.
-It releases that material through its support contact.
+The customer selects the alert, relevant activity records, and the monitoring settings and commissioning baseline used for the new pump group.
+It adds the accepted solution revision, observed application versions and an account of the pump switch, then releases that material through its support contact.
 Cisco's support engineer receives a bounded account of the installation and event, rather than access to the plant or a continuous feed of its telemetry.
 If more evidence is needed, the request returns to the customer for local collection and a further release decision.
 
-The support engineer relates the evidence to the delivered design and identifies the missing operating state in the monitoring configuration.
-The intended coverage includes the new pump controllers, but commissioning represented only duty-pump operation.
+Cisco's support engineer selects the retained customer revision and observed application versions in the toolkit-based delivery tooling.
+Using Cisco's supported lab procedure, the tool recreates the relevant monitoring applications at those versions in the support test installation.
+The engineer applies the customer-released monitoring settings and commissioning baseline, then examines them alongside the supplied activity records.
+The support record identifies the customer revision and observations on which this reproduction is based.
+
+With that setup running, the engineer can inspect which operating baseline is active and compare its coverage with the customer's changeover records.
+The intended coverage includes the new pump controllers, but the active baseline represents only duty-pump operation.
+The reproduction covers the monitoring software and settings; actual controller traffic and pump operation are evidenced by the customer-supplied records.
 Cyber Vision already supports baselines for known operating states and alerts on deviations, as explained in [Cisco's monitoring guide][Cisco-monitoring-guide].
-The toolkit has helped preserve the context needed to use that capability; it has not supplied the monitoring analysis or decided which plant behaviour is normal.
+The project's tracking and repeatable-deployment capabilities make the retained software setup available for investigation through Cisco's supported tooling.
+Cisco's engineer performs the analysis, and the customer judges which plant behaviour is normal.
 
 Cisco recommends a correction that includes reviewed standby operation while retaining alerts for unexpected communications.
 North Basin Water's plant engineer and operators assess that recommendation against their operating practice.
@@ -184,6 +207,7 @@ Here, platform/service engineering work crosses the organisational boundary: Cis
 The common allocation of these responsibilities across vendor-operated and customer-operated settings remains unresolved.
 
 The episode assumes an existing Cyber Vision installation and supported means of making the required software and executables locally usable.
+Reproduction depends on access to the selected software versions and enough customer-released configuration to reconstruct the part under investigation.
 It does not establish that a particular product release or commercial offering supports every disconnected arrangement described here.
 Transfer media, package composition, cryptographic mechanisms, offline dependency distribution, schemas, protocols and reconciliation implementation remain open.
 Those choices must preserve the handoff's meaning and local usability, but this account does not select them.
@@ -193,18 +217,21 @@ Those choices must preserve the handoff's meaning and local usability, but this 
 Cyber Vision supplies the plant's visibility and alerts, and customer operators turn those observations into useful operational decisions.
 The project changes the delivery work needed to maintain that value across the separation.
 The plant engineer can identify a missing executable before changing the installation, carry out a supported procedure when it becomes available and return evidence that Cisco can relate to the intended revision.
-A support engineer can investigate the later alert without asking a customer-specific delivery specialist to reconstruct the installation.
+A support engineer can recreate the relevant older software configuration through supported tooling and investigate the later alert without asking a customer-specific delivery specialist to rebuild the setup from memory.
 
-Cisco still has to develop and support the reusable procedures, and both organisations have to maintain the local tooling and arrange transfers.
+Cisco still has to develop and support the reusable procedures, retain access to supported software versions, and maintain its test environment.
+Both organisations have to maintain the delivery tooling and arrange transfers.
 Missing prerequisites can delay a maintenance window, and unfamiliar operational behaviour can still need specialist support.
 The initial acceptance also shows the limit of a technically complete handoff: preserving approved intent cannot make incomplete commissioning evidence cover an untested operating state.
 
 The intended organisational gain is a lower level of customer-specific expertise and coordination needed to achieve the same delivery and support outcome.
-Assessing that gain would require observing how often routine deliveries complete through the supported path, why specialists are still needed and how much installation context has to be reconstructed during support.
+Assessing that gain would require observing how often routine deliveries complete through the supported path and why specialists are still needed.
+Support evidence would also show whether retained customer deployments can be identified and reproduced through supported tooling, and how much manual reconstruction remains.
 One invented episode supplies no measured reduction or portfolio-wide proof.
 
 The operational significance is the continuity of one customer solution through connected preparation, delayed local execution and customer-mediated support.
-The solution artefact lets people act on approved delivery knowledge when its authors and live systems are absent, and lets the evidence from plant use return to the same solution's history and subsequent design.
+The solution artefact lets people act on approved delivery knowledge when its authors and live systems are absent.
+Tracking the customer's confirmed deployment makes an older software configuration reproducible for support while evidence from plant use informs the same solution's history and subsequent design.
 
 [M-01-boundary]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
 [Cisco Cyber Vision data sheet]: https://www.cisco.com/c/en/us/products/collateral/security/cyber-vision/cyber-vision-ds.html
