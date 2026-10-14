@@ -81,6 +81,8 @@ func (e ErrorList) Unwrap() []error {
 type File struct {
 	artifact solution.Artifact
 	lines    []line
+	nodes    []Position
+	bindings []Position
 	errors   ErrorList
 }
 
@@ -92,6 +94,24 @@ func (f *File) Artifact() solution.Artifact {
 	artifact.Definition.Nodes = slices.Clone(artifact.Definition.Nodes)
 	artifact.Definition.Bindings = slices.Clone(artifact.Definition.Bindings)
 	return artifact
+}
+
+// NodePosition locates the node at index in Artifact().Definition.Nodes.
+// It reports false when index is outside that collection.
+func (f *File) NodePosition(index int) (Position, bool) {
+	if index < 0 || index >= len(f.nodes) {
+		return Position{}, false
+	}
+	return f.nodes[index], true
+}
+
+// BindingPosition locates the binding at index in Artifact().Definition.Bindings.
+// It reports false when index is outside that collection.
+func (f *File) BindingPosition(index int) (Position, bool) {
+	if index < 0 || index >= len(f.bindings) {
+		return Position{}, false
+	}
+	return f.bindings[index], true
 }
 
 type line struct {

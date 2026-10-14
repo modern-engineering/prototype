@@ -156,6 +156,7 @@ func (f *File) apply(name string, args []string, position Position, seen map[str
 	case "require":
 		f.artifact.Definition.Modules = append(f.artifact.Definition.Modules, solution.Module{Path: args[0], Version: args[1]})
 	case "node":
+		f.nodes = append(f.nodes, position)
 		f.artifact.Definition.Nodes = append(f.artifact.Definition.Nodes, solution.Node{
 			Name: args[0], Definition: solution.Symbol{Package: args[1], Name: args[2]},
 		})
@@ -164,6 +165,7 @@ func (f *File) apply(name string, args []string, position Position, seen map[str
 		if args[2] == "reference" {
 			value = solution.Reference{Node: args[3], Output: args[4]}
 		}
+		f.bindings = append(f.bindings, position)
 		f.artifact.Definition.Bindings = append(f.artifact.Definition.Bindings, solution.Binding{Node: args[0], Input: args[1], Value: value})
 	}
 	return true
