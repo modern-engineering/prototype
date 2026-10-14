@@ -83,6 +83,9 @@ If an apparent commonality conflicts with the accepted business mission, the mis
 
 ## Story portfolio
 
+The portfolio is not a coverage claim.
+Its value lies in the contrasts represented and the operational consequences each story makes visible.
+
 ### [M-03-sales-led-demonstration]
 
 In a counterfactual Elastic, an online retailer uses authorised live production telemetry to investigate payment latency through a temporary vendor-operated demonstration.
@@ -102,9 +105,6 @@ Supported upgrade software carries routine delivery knowledge across those windo
 
 In a counterfactual Twilio Segment, one multi-tenant event-intake solution operates through serverless container environments in AWS, Azure and Google Cloud.
 A routine event-rule change passes from local application checks through solution selection into three distinct deployment paths using the toolkit's existing division of responsibility.
-
-The portfolio is not a coverage claim.
-Its value lies in the contrasts represented and the operational consequences each story makes visible.
 
 ## Method tailoring
 
