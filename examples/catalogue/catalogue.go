@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/modern-engineering/prototype/application"
-	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/fields"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
@@ -18,9 +17,9 @@ var Database = job.Descriptor{
 	MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
 		var region, address string
 		var inputs fields.Inputs
-		inputs.Var(bind.String(&region), "region", "")
+		inputs.StringVar(&region, "region", "")
 		var outputs fields.Outputs
-		outputs.Var(bind.String(&address), "address", "")
+		outputs.StringVar(&address, "address", "")
 		return program.RunnerFunc(func(context.Context) error {
 			address = "database." + region + ".example"
 			return nil
@@ -34,7 +33,7 @@ var Backend = application.Descriptor{
 	MakeFunc: func() (program.Runner, program.Inputs) {
 		var address string
 		var inputs fields.Inputs
-		inputs.Var(bind.String(&address), "database", "")
+		inputs.StringVar(&address, "database", "")
 		return program.RunnerFunc(func(ctx context.Context) error {
 			if address == "" {
 				return errors.New("database address is empty")

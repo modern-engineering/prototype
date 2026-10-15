@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/fields"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -14,14 +13,13 @@ import (
 // The loader sees handles bound to those same variables.
 func Example() {
 	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
-		name := "world"
 		var greeting string
 		var inputs fields.Inputs
 		var outputs fields.Outputs
-		inputs.Var(bind.String(&name), "name", "recipient")
-		outputs.Var(bind.String(&greeting), "greeting", "uppercase greeting")
+		name := inputs.String("name", "world", "recipient")
+		outputs.StringVar(&greeting, "greeting", "uppercase greeting")
 		run := program.RunnerFunc(func(context.Context) error {
-			greeting = "Hello, " + strings.ToUpper(name)
+			greeting = "Hello, " + strings.ToUpper(*name)
 			return nil
 		})
 		return run, &inputs, &outputs

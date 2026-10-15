@@ -11,7 +11,6 @@ import (
 	"os/signal"
 
 	"github.com/modern-engineering/prototype/application"
-	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/fields"
 	"github.com/modern-engineering/prototype/job"
@@ -32,7 +31,7 @@ var Address = job.Descriptor{
 			return nil
 		})
 		var outputs fields.Outputs
-		outputs.Var(bind.String(&address), "url", "service URL")
+		outputs.StringVar(&address, "url", "service URL")
 		return run, program.FromFlags(flags), &outputs
 	},
 }
@@ -43,7 +42,7 @@ var Backend = application.Descriptor{
 	MakeFunc: func() (program.Runner, program.Inputs) {
 		var address string
 		var inputs fields.Inputs
-		inputs.Var(bind.String(&address), "address", "upstream service URL")
+		inputs.StringVar(&address, "address", "upstream service URL")
 
 		run := program.RunnerFunc(func(ctx context.Context) error {
 			if address == "" {

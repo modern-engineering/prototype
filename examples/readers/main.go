@@ -12,7 +12,6 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/fields"
 	"github.com/modern-engineering/prototype/job"
@@ -39,7 +38,7 @@ var Inspect = job.Descriptor{
 		var eager []byte
 		borrowed := new(borrowedText)
 		var inputs fields.Inputs
-		inputs.Var(bind.Bytes(&eager), "eager", "content read during configuration")
+		inputs.BytesVar(&eager, "eager", "content read during configuration")
 		inputs.Var(borrowed, "borrowed", "content read during execution")
 		run := program.RunnerFunc(func(ctx context.Context) error {
 			if err := ctx.Err(); err != nil {

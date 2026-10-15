@@ -131,7 +131,7 @@ func TestDeclarationsPreserveBoundValues(t *testing.T) {
 // Invalid declarations fail before replacing an existing field or leaving a
 // partially registered field visible to loaders.
 func TestInvalidDeclarationsLeaveSurfacesUntouched(t *testing.T) {
-	for _, kind := range []string{"duplicate input", "duplicate output", "nil input", "nil output"} {
+	for _, kind := range []string{"duplicate input", "duplicate output", "nil input", "nil output", "nil input target", "nil output target"} {
 		t.Run(kind, func(t *testing.T) {
 			var inputValue, outputValue string
 			input, output := bind.String(&inputValue), bind.String(&outputValue)
@@ -161,6 +161,10 @@ func TestInvalidDeclarationsLeaveSurfacesUntouched(t *testing.T) {
 				inputs.Var(nil, "new", "nil")
 			case "nil output":
 				outputs.Var(nil, "new", "nil")
+			case "nil input target":
+				inputs.StringVar(nil, "new", "nil")
+			case "nil output target":
+				outputs.BoolVar(nil, "new", "nil")
 			}
 		})
 	}

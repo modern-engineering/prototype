@@ -2,9 +2,12 @@
 // constructs an invocation. Inputs and Outputs have usable empty zero values.
 // Their pointers implement program.Inputs and program.Outputs respectively.
 //
-// Var follows flag's value/name/help registration shape. Use bind adapters for
-// Go variables, program.SetterFunc and program.GetterFunc for functions, or pass
-// custom handles directly. Define accepts explicit declaration metadata.
+// String, Bool, and Bytes allocate initialized variables. Their Var siblings
+// bind existing variables without changing them; target pointers must be nonnil.
+// Numeric helpers are generic functions, such as InputInt and OutputIntVar.
+// Var follows flag's value/name/help registration shape for custom handles,
+// including program.SetterFunc and program.GetterFunc. Define accepts explicit
+// declaration metadata.
 // Registration copies metadata but retains the original handle, including its
 // additional capabilities. It never calls Set or Get, so constructor defaults
 // and output state are unchanged.
@@ -24,7 +27,7 @@ import (
 // Inputs collects input declarations in registration order. Its zero value is
 // an empty input surface. An Inputs must not be copied after its first use.
 type Inputs struct {
-	list program.InputList
+	list []program.Input
 }
 
 // Var defines an input with name and help, retaining value unchanged.
@@ -51,20 +54,29 @@ func (inputs *Inputs) Define(field program.Field, value program.Setter) {
 // not change the declarations; each Value remains the original bound handle.
 func (inputs *Inputs) All() iter.Seq[program.Input] {
 	return func(yield func(program.Input) bool) {
-		inputs.list.All()(yield)
+		for _, field := range inputs.list {
+			if !yield(field) {
+				return
+			}
+		}
 	}
 }
 
 // Lookup returns the named input and whether it exists. The returned metadata
 // is a copy; Value is the original bound handle.
 func (inputs *Inputs) Lookup(name string) (program.Input, bool) {
-	return inputs.list.Lookup(name)
+	for _, field := range inputs.list {
+		if field.Name == name {
+			return field, true
+		}
+	}
+	return program.Input{}, false
 }
 
 // Outputs collects output declarations in registration order. Its zero value is
 // an empty output surface. An Outputs must not be copied after its first use.
 type Outputs struct {
-	list program.OutputList
+	list []program.Output
 }
 
 // Var defines an output with name and help, retaining value unchanged.
@@ -91,12 +103,21 @@ func (outputs *Outputs) Define(field program.Field, value program.Getter) {
 // not change the declarations; each Value remains the original bound handle.
 func (outputs *Outputs) All() iter.Seq[program.Output] {
 	return func(yield func(program.Output) bool) {
-		outputs.list.All()(yield)
+		for _, field := range outputs.list {
+			if !yield(field) {
+				return
+			}
+		}
 	}
 }
 
 // Lookup returns the named output and whether it exists. The returned metadata
 // is a copy; Value is the original bound handle.
 func (outputs *Outputs) Lookup(name string) (program.Output, bool) {
-	return outputs.list.Lookup(name)
+	for _, field := range outputs.list {
+		if field.Name == name {
+			return field, true
+		}
+	}
+	return program.Output{}, false
 }
