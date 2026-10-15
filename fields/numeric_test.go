@@ -17,18 +17,18 @@ func TestNumericSurfacesShareTypedStorage(t *testing.T) {
 
 	var inputs fields.Inputs
 	var outputs fields.Outputs
-	limit := fields.InputInt(&inputs, "limit", quota(200), "maximum items")
-	fields.OutputIntVar(&outputs, limit, "limit", "maximum items")
-	offset := fields.OutputInt(&outputs, "offset", count(-3), "item offset")
-	fields.InputIntVar(&inputs, offset, "offset", "item offset")
-	ratio := fields.InputFloat(&inputs, "ratio", fraction(0.5), "sampling fraction")
-	fields.OutputFloatVar(&outputs, ratio, "ratio", "sampling fraction")
-	score := fields.OutputFloat(&outputs, "score", 1.25, "weight")
-	fields.InputFloatVar(&inputs, score, "score", "weight")
-	phase := fields.InputComplex(&inputs, "phase", complex64(1+2i), "phase")
-	fields.OutputComplexVar(&outputs, phase, "phase", "phase")
-	gain := fields.OutputComplex(&outputs, "gain", phasor(3-4i), "gain")
-	fields.InputComplexVar(&inputs, gain, "gain", "gain")
+	limit := inputs.Int("limit", quota(200), "maximum items")
+	outputs.IntVar(limit, "limit", "maximum items")
+	offset := outputs.Int("offset", count(-3), "item offset")
+	inputs.IntVar(offset, "offset", "item offset")
+	ratio := inputs.Float("ratio", fraction(0.5), "sampling fraction")
+	outputs.FloatVar(ratio, "ratio", "sampling fraction")
+	score := outputs.Float("score", 1.25, "weight")
+	inputs.FloatVar(score, "score", "weight")
+	phase := inputs.Complex("phase", complex64(1+2i), "phase")
+	outputs.ComplexVar(phase, "phase", "phase")
+	gain := outputs.Complex("gain", phasor(3-4i), "gain")
+	inputs.ComplexVar(gain, "gain", "gain")
 
 	for _, tc := range []struct {
 		name, initial, loaded string

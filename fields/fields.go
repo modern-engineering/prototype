@@ -4,7 +4,7 @@
 //
 // String, Bool, and Bytes allocate initialized variables. Their Var siblings
 // bind existing variables without changing them; target pointers must be nonnil.
-// Numeric helpers are generic functions, such as InputInt and OutputIntVar.
+// Int, Float, and Complex preserve the chosen numeric type through generics.
 // Var follows flag's value/name/help registration shape for custom handles,
 // including program.SetterFunc and program.GetterFunc. Define accepts explicit
 // declaration metadata.
