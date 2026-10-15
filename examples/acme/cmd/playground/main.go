@@ -37,19 +37,10 @@ func main() {
 func run(ctx context.Context, output io.Writer) error {
 	logger := log.New(output, "", 0)
 	var registry program.Registry
-	for _, entry := range []struct {
-		name       string
-		descriptor program.Descriptor
-	}{
-		{"Environment", catalogue.Environment},
-		{"Database", catalogue.Database},
-		{"API", catalogue.API},
-		{"Reports", catalogue.Reports},
-	} {
-		if err := registry.Register(cataloguePath, entry.name, entry.descriptor); err != nil {
-			return err
-		}
-	}
+	registry.MustRegister(cataloguePath, "Environment", catalogue.Environment)
+	registry.MustRegister(cataloguePath, "Database", catalogue.Database)
+	registry.MustRegister(cataloguePath, "API", catalogue.API)
+	registry.MustRegister(cataloguePath, "Reports", catalogue.Reports)
 	file, err := text.Parse("service.sef", strings.NewReader(serviceSource))
 	if err != nil {
 		return err

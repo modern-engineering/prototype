@@ -21,17 +21,8 @@ func main() {
 
 func inspect() error {
 	var registry program.Registry
-	for _, entry := range []struct {
-		name       string
-		descriptor program.Descriptor
-	}{
-		{"Database", catalogue.Database},
-		{"Backend", catalogue.Backend},
-	} {
-		if err := registry.Register(design.CataloguePath, entry.name, entry.descriptor); err != nil {
-			return err
-		}
-	}
+	registry.MustRegister(design.CataloguePath, "Database", catalogue.Database)
+	registry.MustRegister(design.CataloguePath, "Backend", catalogue.Backend)
 	// Resolve checks the structure and registered names before you inspect the
 	// graph. It leaves the caller free to apply catalogue-specific policies.
 	resolved, err := link.Resolve(design.Definition, &registry)

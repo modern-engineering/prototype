@@ -38,14 +38,8 @@ func ExampleRun() {
 		}), &inputs, nil
 	}}
 	var registry program.Registry
-	if err := registry.Register("example.org/catalogue", "Greet", greet); err != nil {
-		fmt.Println(err)
-		return
-	}
-	if err := registry.Register("example.org/catalogue", "Print", print); err != nil {
-		fmt.Println(err)
-		return
-	}
+	registry.MustRegister("example.org/catalogue", "Greet", greet)
+	registry.MustRegister("example.org/catalogue", "Print", print)
 	graph, err := link.Resolve(solution.Definition{
 		Nodes: []solution.Node{
 			{Name: "print", Definition: solution.Symbol{Package: "example.org/catalogue", Name: "Print"}},

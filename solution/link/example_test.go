@@ -13,18 +13,8 @@ import (
 // constructing any program invocations.
 func ExampleResolve() {
 	var registry program.Registry
-	for _, entry := range []struct {
-		name       string
-		descriptor program.Descriptor
-	}{
-		{"Database", catalogue.Database},
-		{"Backend", catalogue.Backend},
-	} {
-		if err := registry.Register(design.CataloguePath, entry.name, entry.descriptor); err != nil {
-			fmt.Println(err)
-			return
-		}
-	}
+	registry.MustRegister(design.CataloguePath, "Database", catalogue.Database)
+	registry.MustRegister(design.CataloguePath, "Backend", catalogue.Backend)
 	resolved, err := link.Resolve(design.Definition, &registry)
 	if err != nil {
 		fmt.Println(err)
