@@ -16,9 +16,7 @@ func TestRegistryPreservesDescriptors(t *testing.T) {
 		calls++
 		return nil, nil, nil
 	})
-	if err := registry.Register("local", "shared descriptor", descriptor); err != nil {
-		t.Fatal(err)
-	}
+	registry.MustRegister("local", "shared descriptor", descriptor)
 	replacement := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		panic("duplicate replaced the original descriptor")
 	})
@@ -60,6 +58,40 @@ func TestRegistryRejectsOnlyNilInterface(t *testing.T) {
 		t.Fatalf("typed nil lookup = %#v, %t", value, found)
 	}
 	value.Make()
+}
+
+// Static declarations must fail without discarding earlier registrations or
+// leaving an entry for a rejected declaration.
+func TestStaticRegistrationPanicsWithoutChanges(t *testing.T) {
+	var registry program.Registry
+	var descriptor *nilDescriptor
+	registry.MustRegister("local", "existing", descriptor)
+	for _, test := range []struct {
+		name       string
+		address    string
+		descriptor program.Descriptor
+		want       error
+	}{
+		{name: "duplicate", address: "existing", descriptor: &nilDescriptor{}, want: program.ErrDuplicate},
+		{name: "nil", address: "absent", descriptor: nil, want: program.ErrNilDescriptor},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			defer func() {
+				value := recover()
+				err, ok := value.(error)
+				if !ok || !errors.Is(err, test.want) {
+					t.Fatalf("panic = %v, want error wrapping %v", value, test.want)
+				}
+				if value, found := registry.Lookup("local", "existing"); !found || value != descriptor {
+					t.Fatalf("existing descriptor = %v, %t; want original descriptor", value, found)
+				}
+				if _, found := registry.Lookup("local", "absent"); found {
+					t.Error("failed registration added a descriptor")
+				}
+			}()
+			registry.MustRegister("local", test.address, test.descriptor)
+		})
+	}
 }
 
 type nilDescriptor struct{}

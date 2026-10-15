@@ -52,6 +52,14 @@ func (r *Registry) Register(packagePath, name string, descriptor Descriptor) err
 	return nil
 }
 
+// MustRegister calls [Registry.Register] and panics with its error on failure.
+// It is intended for static descriptor declarations.
+func (r *Registry) MustRegister(packagePath, name string, descriptor Descriptor) {
+	if err := r.Register(packagePath, name, descriptor); err != nil {
+		panic(err)
+	}
+}
+
 // Lookup returns the descriptor registered at packagePath and name and whether
 // the address is present. It does not instantiate the descriptor.
 func (r *Registry) Lookup(packagePath, name string) (Descriptor, bool) {
