@@ -9,7 +9,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/modern-engineering/prototype/application"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/playground"
 	"github.com/modern-engineering/prototype/program"
@@ -111,9 +110,6 @@ func TestPreflightRejectsBeforeHandleAccess(t *testing.T) {
 		{name: "unknown catalogue", descriptor: program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 			return program.RunnerFunc(func(context.Context) error { return nil }), nil, nil
 		}), want: playground.ErrUnsupportedDescriptor},
-		{name: "application pending", descriptor: &application.Descriptor{MakeFunc: func() (program.Runner, program.Inputs) {
-			return program.RunnerFunc(func(context.Context) error { return nil }), nil
-		}}, want: playground.ErrApplicationsPending},
 		{name: "self cycle", bindings: []solution.Binding{{Node: "first", Input: "text", Value: solution.Reference{Node: "first", Output: "result"}}}, want: playground.ErrDependencyCycle},
 		{name: "mutual cycle", bindings: []solution.Binding{
 			{Node: "first", Input: "text", Value: solution.Reference{Node: "second", Output: "result"}},
@@ -167,8 +163,9 @@ func TestFailuresStopExecutionWithoutDisclosingCauses(t *testing.T) {
 				return program.RunnerFunc(func(context.Context) error { t.Fatal("ran after a failure"); return nil }),
 					program.InputList{{Field: program.Field{Name: "text"}, Value: program.SetterFunc(func(string) error { t.Fatal("assigned after a failure"); return nil })}}, nil
 			}}
-			instance := instantiate(t, map[string]program.Descriptor{"Broken": broken, "Later": later}, solution.Definition{
-				Nodes: []solution.Node{node("broken", "Broken"), node("later", "Later")},
+			app := forbiddenApplication(t)
+			instance := instantiate(t, map[string]program.Descriptor{"Broken": broken, "Later": later, "App": app}, solution.Definition{
+				Nodes: []solution.Node{node("broken", "Broken"), node("later", "Later"), node("app", "App")},
 				Bindings: []solution.Binding{
 					{Node: "broken", Input: "text", Value: solution.Literal("private-literal-value")},
 					{Node: "later", Input: "text", Value: solution.Reference{Node: "broken", Output: "result"}},
@@ -202,7 +199,7 @@ func TestJobDeadlinesAreCooperative(t *testing.T) {
 				expired := job.Descriptor{MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
 					return program.RunnerFunc(func(ctx context.Context) error {
 						deadline, ok := ctx.Deadline()
-						if !ok || deadline.Sub(time.Now()) != wantTimeout {
+						if !ok || time.Until(deadline) != wantTimeout {
 							t.Errorf("job deadline = %v, %v; want %v from now", deadline, ok, wantTimeout)
 						}
 						<-ctx.Done()

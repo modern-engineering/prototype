@@ -7,13 +7,14 @@ import (
 	"github.com/modern-engineering/prototype/solution/link"
 )
 
-// Execution errors distinguish invalid policies and unsupported solution graphs.
+// Execution errors distinguish invalid policies, unsupported solution graphs,
+// and applications that return before shutdown.
 var (
 	ErrInvalidTimeout        = errors.New("negative job timeout")
 	ErrUnsupportedDescriptor = errors.New("unsupported descriptor type")
 	ErrApplicationReference  = errors.New("application cannot produce referenced outputs")
 	ErrDependencyCycle       = errors.New("dependency cycle")
-	ErrApplicationsPending   = errors.New("application execution is not yet supported")
+	ErrUnexpectedExit        = errors.New("application returned before shutdown")
 )
 
 // Error identifies the occurrence and operation that failed.

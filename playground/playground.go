@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/modern-engineering/prototype/application"
@@ -34,7 +35,6 @@ type Options struct {
 // references produced by applications, and dependency cycles.
 // Only job.Descriptor, *job.Descriptor, application.Descriptor, and
 // *application.Descriptor identify supported catalogue kinds.
-// Application execution is not supported and is rejected before any job starts.
 //
 // Jobs execute sequentially in dependency order.
 // Among jobs whose dependencies have succeeded, the earliest authored occurrence
@@ -47,8 +47,16 @@ type Options struct {
 // Outputs of failed or timed-out jobs are not read.
 //
 // Each job receives a context bounded by Options.JobTimeout.
-// A failure or deadline stops execution before later jobs run.
-// Run waits for each runner to return after cancellation.
+// A failure or deadline stops execution before later jobs run or applications start.
+// After every job succeeds, all applications are configured before any is started.
+// Applications then run concurrently until shutdown.
+// Returning before shutdown, with or without an error, is ErrUnexpectedExit and
+// cancels the remaining applications.
+// With no applications, Run returns after the jobs complete.
+//
+// Cancellation is cooperative: Run waits for every started runner to return.
+// Runners must finish their background work and release resources they acquire
+// before returning.
 // Cancellation of ctx returns ctx.Err().
 // Invalid options return ErrInvalidTimeout.
 // Other failures return an *Error identifying the affected occurrence or binding.
@@ -90,7 +98,12 @@ func Run(ctx context.Context, instance *load.Instance, options Options) error {
 			values[output.key] = output.value.Get()
 		}
 	}
-	return ctx.Err()
+	for _, invocation := range plan.apps {
+		if err := configure(ctx, instance, invocation, values); err != nil {
+			return err
+		}
+	}
+	return runApplications(ctx, plan.apps)
 }
 
 type outputKey struct {
@@ -181,9 +194,6 @@ func prepare(instance *load.Instance) (*execution, error) {
 		ordered[next.Node()] = true
 		plan.jobs = append(plan.jobs, next)
 	}
-	if len(plan.apps) != 0 {
-		return nil, &Error{Node: plan.apps[0].Node(), Operation: "run application", Err: ErrApplicationsPending}
-	}
 	return plan, nil
 }
 
@@ -210,4 +220,35 @@ func configure(ctx context.Context, instance *load.Instance, invocation *load.In
 		}
 	}
 	return ctx.Err()
+}
+
+func runApplications(ctx context.Context, apps []*load.Invocation) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	appCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var runners sync.WaitGroup
+	var mu sync.Mutex
+	var stopping bool
+	var failure error
+	for _, invocation := range apps {
+		runners.Go(func() {
+			err := invocation.Runner().Run(appCtx)
+			mu.Lock()
+			defer mu.Unlock()
+			if !stopping {
+				stopping = true
+				if ctx.Err() == nil {
+					failure = &Error{Node: invocation.Node(), Operation: "run application", Err: errors.Join(ErrUnexpectedExit, err)}
+				}
+				cancel()
+			}
+		})
+	}
+	runners.Wait()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return failure
 }
