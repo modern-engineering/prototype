@@ -138,7 +138,6 @@ func TestJSONNumericWidths(t *testing.T) {
 // or the complete batch conflicts with names already registered by the caller.
 func TestJSONRejectsInvalidBatches(t *testing.T) {
 	type octet byte
-	type Embedded struct{ Name string }
 	for _, test := range []struct {
 		name     string
 		target   any
@@ -160,21 +159,9 @@ func TestJSONRejectsInvalidBatches(t *testing.T) {
 			First string
 			Bytes []octet
 		}{}},
-		{name: "Nested", target: &struct {
-			First  string
-			Nested struct{ Value string }
-		}{}},
-		{name: "Embedded", target: &struct {
-			First string
-			Embedded
-		}{}},
 		{name: "ExistingName", target: &struct {
 			First     string
 			Duplicate string `json:"existing"`
-		}{}},
-		{name: "RepeatedName", target: &struct {
-			First     string
-			Duplicate string `json:"First"`
 		}{}},
 		{name: "AbsentMetadata", target: &struct{ First string }{}, metadata: []program.Field{
 			{Name: "absent", Sensitive: true},

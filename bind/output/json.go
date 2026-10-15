@@ -5,9 +5,10 @@ import (
 	"github.com/modern-engineering/prototype/program"
 )
 
-// JSON registers the immediate exported fields of target using JSON names.
+// JSON registers target's exported fields using flattened JSON names.
 // It delegates binding to [bind.JSONOutputs]; metadata supplies Help and Sensitive
-// by the resulting field name. It appends declarations in struct field order.
+// by the resulting field name. It appends declarations in depth-first field order.
+// Binding initializes nil nested struct pointers before list registration.
 // JSON validates the entire batch before adding any declarations and panics
 // if binding fails or a name conflicts with an existing output.
 func (l *List) JSON(target any, metadata ...program.Field) {
