@@ -39,6 +39,18 @@ var ErrIdentifier = errors.New("unusable Go identifier")
 // here. The Go compiler checks symbol existence and implementation of
 // program.Descriptor.
 func Source(packageName, functionName string, definition solution.Definition) ([]byte, error) {
+	return source(packageName, functionName, definition, false)
+}
+
+// Main generates a complete command host for the referenced descriptors. The
+// host reads a gob-encoded solution.Artifact on stdin and supports linked check
+// and inspect operations through solution/host. Only symbolic addresses are
+// embedded; authored literals and other artifact data are supplied at runtime.
+func Main(definition solution.Definition) ([]byte, error) {
+	return source("main", "registerDefinitions", definition, true)
+}
+
+func source(packageName, functionName string, definition solution.Definition, main bool) ([]byte, error) {
 	for _, name := range []string{packageName, functionName} {
 		if !token.IsIdentifier(name) || name == "_" {
 			return nil, fmt.Errorf("%w: %q", ErrIdentifier, name)
@@ -51,6 +63,12 @@ func Source(packageName, functionName string, definition solution.Definition) ([
 
 	const registryPath = "github.com/modern-engineering/prototype/program"
 	packages := map[string]string{registryPath: ""}
+	const hostPath = "github.com/modern-engineering/prototype/solution/host"
+	if main {
+		packages[hostPath] = ""
+		packages["fmt"] = ""
+		packages["os"] = ""
+	}
 	definitions := make(map[solution.Symbol]bool)
 	for _, node := range definition.Nodes {
 		symbol := node.Definition
@@ -91,5 +109,18 @@ func Source(packageName, functionName string, definition solution.Definition) ([
 		fmt.Fprintf(&source, "if err := values.Register(%q, %q, %s.%s); err != nil { return err }\n", symbol.Package, symbol.Name, packages[symbol.Package], symbol.Name)
 	}
 	source.WriteString("return nil\n}\n")
+	if main {
+		fmt.Fprintf(&source, `
+func main() {
+	var registry %s.Registry
+	if err := registerDefinitions(&registry); err != nil {
+		%s.Fprintln(%s.Stderr, "register descriptors:", err)
+		%s.Exit(1)
+	}
+	command := %s.Command{Registry: &registry, Stdin: %s.Stdin, Stdout: %s.Stdout, Stderr: %s.Stderr}
+	%s.Exit(command.Run(%s.Args[1:]))
+}
+`, packages[registryPath], packages["fmt"], packages["os"], packages["os"], packages[hostPath], packages["os"], packages["os"], packages["os"], packages["os"], packages["os"])
+	}
 	return format.Source(source.Bytes())
 }
