@@ -5,6 +5,9 @@
 // that state through its input handles before invoking the runner, then reads
 // the output handles after a successful finite invocation. Input mutation and
 // execution are separate phases; these handles provide no synchronization.
+//
+// TODO: Move InputList and OutputList out of this contract package. Keep the
+// implementations here until their callers can be migrated in a separate refactor.
 package program
 
 import (
