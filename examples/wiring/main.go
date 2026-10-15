@@ -13,6 +13,7 @@ import (
 	"github.com/modern-engineering/prototype/application"
 	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
+	"github.com/modern-engineering/prototype/fields"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -30,13 +31,9 @@ var Address = job.Descriptor{
 			address = *scheme + "://" + *host
 			return nil
 		})
-		outputs := program.OutputList{
-			program.Output{
-				Field: program.Field{Name: "url", Help: "service URL"},
-				Value: bind.String(&address),
-			},
-		}
-		return run, program.FromFlags(flags), outputs
+		var outputs fields.Outputs
+		outputs.Var(bind.String(&address), "url", "service URL")
+		return run, program.FromFlags(flags), &outputs
 	},
 }
 
@@ -45,12 +42,8 @@ var Backend = application.Descriptor{
 	Summary: "Report the configured service address until stopped",
 	MakeFunc: func() (program.Runner, program.Inputs) {
 		var address string
-		inputs := program.InputList{
-			program.Input{
-				Field: program.Field{Name: "address", Help: "upstream service URL"},
-				Value: bind.String(&address),
-			},
-		}
+		var inputs fields.Inputs
+		inputs.Var(bind.String(&address), "address", "upstream service URL")
 
 		run := program.RunnerFunc(func(ctx context.Context) error {
 			if address == "" {
@@ -60,7 +53,7 @@ var Backend = application.Descriptor{
 			<-ctx.Done()
 			return nil
 		})
-		return run, inputs
+		return run, &inputs
 	},
 }
 

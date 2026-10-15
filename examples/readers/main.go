@@ -14,6 +14,7 @@ import (
 
 	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
+	"github.com/modern-engineering/prototype/fields"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -37,10 +38,9 @@ var Inspect = job.Descriptor{
 	MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
 		var eager []byte
 		borrowed := new(borrowedText)
-		inputs := program.InputList{
-			{Field: program.Field{Name: "eager", Help: "content read during configuration"}, Value: bind.Bytes(&eager)},
-			{Field: program.Field{Name: "borrowed", Help: "content read during execution"}, Value: borrowed},
-		}
+		var inputs fields.Inputs
+		inputs.Var(bind.Bytes(&eager), "eager", "content read during configuration")
+		inputs.Var(borrowed, "borrowed", "content read during execution")
 		run := program.RunnerFunc(func(ctx context.Context) error {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -58,7 +58,7 @@ var Inspect = job.Descriptor{
 			_, err = fmt.Printf("borrowed: %s", body)
 			return err
 		})
-		return run, inputs, program.OutputList(nil)
+		return run, &inputs, nil
 	},
 }
 

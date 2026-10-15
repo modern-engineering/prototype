@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/modern-engineering/prototype/examples/internal/loader"
+	"github.com/modern-engineering/prototype/fields"
 	"github.com/modern-engineering/prototype/program"
 )
 
@@ -20,10 +21,9 @@ func Example() {
 			result = strings.ToUpper(*text)
 			return nil
 		})
-		return run, program.FromFlags(flags), program.OutputList{{
-			Field: program.Field{Name: "result"},
-			Value: program.GetterFunc(func() string { return result }),
-		}}
+		var outputs fields.Outputs
+		outputs.Var(program.GetterFunc(func() string { return result }), "result", "")
+		return run, program.FromFlags(flags), &outputs
 	})
 	ctx := context.Background()
 	i := (loader.Loader{}).Make(descriptor)
