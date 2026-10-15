@@ -64,7 +64,7 @@ func Parse(filename string, r io.Reader) (*File, error) {
 			}
 			arguments = tokens[1:]
 			if len(arguments) == 1 && arguments[0].kind == '(' {
-				if name != "require" && name != "node" && name != "bind" {
+				if name != "require" && name != "node" && name != "bind" && name != "module-require" && name != "module-exclude" && name != "module-replace" && name != "module-sum" {
 					file.diagnose(tokens[0].pos, "directive does not support a block: "+name)
 				}
 				block, blockStart = name, tokens[0].pos
@@ -108,10 +108,20 @@ func (f *File) diagnose(position Position, message string) {
 func (f *File) apply(name string, args []string, position Position, seen map[string]bool) bool {
 	count := -1
 	switch name {
-	case "sef", "solution", "revision":
+	case "sef", "solution", "revision", "module", "go", "toolchain":
 		count = 1
-	case "require":
+	case "require", "module-require", "module-exclude":
 		count = 2
+		if len(args) == 3 {
+			count = 3
+		}
+	case "module-replace":
+		count = 4
+		if len(args) == 6 {
+			count = 6
+		}
+	case "module-sum":
+		count = 3
 	case "node":
 		count = 3
 	case "bind":
@@ -135,7 +145,7 @@ func (f *File) apply(name string, args []string, position Position, seen map[str
 		f.diagnose(position, fmt.Sprintf("%s expects %d arguments, found %d", name, count, len(args)))
 		return false
 	}
-	if name == "sef" || name == "solution" || name == "revision" {
+	if name == "sef" || name == "solution" || name == "revision" || name == "module" || name == "go" || name == "toolchain" {
 		if seen[name] {
 			f.diagnose(position, "repeated "+name+" directive")
 			return false
@@ -153,8 +163,48 @@ func (f *File) apply(name string, args []string, position Position, seen map[str
 		f.artifact.ID = args[0]
 	case "revision":
 		f.artifact.Revision = args[0]
-	case "require":
-		f.artifact.Definition.Modules = append(f.artifact.Definition.Modules, solution.Module{Path: args[0], Version: args[1]})
+	case "module":
+		f.artifact.Module.Path = args[0]
+	case "go":
+		f.artifact.Module.Go = args[0]
+	case "toolchain":
+		f.artifact.Module.Toolchain = args[0]
+	case "require", "module-require", "module-exclude":
+		entry := solution.Module{Path: args[0], Version: args[1]}
+		if len(args) == 3 {
+			var err error
+			entry.Indirect, err = strconv.ParseBool(args[2])
+			if err != nil {
+				f.diagnose(position, "expected indirect boolean")
+				return false
+			}
+		}
+		switch name {
+		case "require":
+			f.artifact.Definition.Modules = append(f.artifact.Definition.Modules, entry)
+		case "module-require":
+			f.artifact.Module.Require = append(f.artifact.Module.Require, entry)
+		case "module-exclude":
+			f.artifact.Module.Exclude = append(f.artifact.Module.Exclude, entry)
+		}
+	case "module-replace":
+		entry := solution.ModuleReplacement{Old: solution.Module{Path: args[0], Version: args[1]}, New: solution.Module{Path: args[2], Version: args[3]}}
+		if len(args) == 6 {
+			var err error
+			entry.Old.Indirect, err = strconv.ParseBool(args[4])
+			if err != nil {
+				f.diagnose(position, "expected old indirect boolean")
+				return false
+			}
+			entry.New.Indirect, err = strconv.ParseBool(args[5])
+			if err != nil {
+				f.diagnose(position, "expected new indirect boolean")
+				return false
+			}
+		}
+		f.artifact.Module.Replace = append(f.artifact.Module.Replace, entry)
+	case "module-sum":
+		f.artifact.Module.Sum = append(f.artifact.Module.Sum, solution.ModuleSum{Path: args[0], Version: args[1], Hash: args[2]})
 	case "node":
 		f.nodes = append(f.nodes, position)
 		f.artifact.Definition.Nodes = append(f.artifact.Definition.Nodes, solution.Node{

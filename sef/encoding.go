@@ -26,10 +26,11 @@ var (
 // without registering Go types. Kind preserves an explicit empty literal even
 // when an encoding omits zero-valued fields.
 type wireDocument struct {
-	Version    string         `json:"version"`
-	ID         string         `json:"id"`
-	Revision   string         `json:"revision"`
-	Definition wireDefinition `json:"definition"`
+	Version    string             `json:"version"`
+	ID         string             `json:"id"`
+	Revision   string             `json:"revision"`
+	Module     *wireModuleContext `json:"module,omitempty"`
+	Definition wireDefinition     `json:"definition"`
 }
 
 type wireDefinition struct {
@@ -39,8 +40,9 @@ type wireDefinition struct {
 }
 
 type wireModule struct {
-	Path    string `json:"path"`
-	Version string `json:"version"`
+	Path     string `json:"path"`
+	Version  string `json:"version"`
+	Indirect bool   `json:"indirect,omitempty"`
 }
 
 type wireSymbol struct {
@@ -74,7 +76,7 @@ func marshalDocument(document solution.Artifact) (wireDocument, error) {
 	if document.Version != Version {
 		return wireDocument{}, fmt.Errorf("%w: %q", ErrVersion, document.Version)
 	}
-	wire := wireDocument{Version: document.Version, ID: document.ID, Revision: document.Revision}
+	wire := wireDocument{Version: document.Version, ID: document.ID, Revision: document.Revision, Module: marshalModule(document.Module)}
 	for _, module := range document.Definition.Modules {
 		wire.Definition.Modules = append(wire.Definition.Modules, wireModule(module))
 	}
@@ -117,7 +119,7 @@ func unmarshalDocument(wire wireDocument) (solution.Artifact, error) {
 	if wire.Version != Version {
 		return solution.Artifact{}, fmt.Errorf("%w: %q", ErrVersion, wire.Version)
 	}
-	document := solution.Artifact{Version: wire.Version, ID: wire.ID, Revision: wire.Revision}
+	document := solution.Artifact{Version: wire.Version, ID: wire.ID, Revision: wire.Revision, Module: unmarshalModule(wire.Module)}
 	for _, module := range wire.Definition.Modules {
 		document.Definition.Modules = append(document.Definition.Modules, solution.Module(module))
 	}

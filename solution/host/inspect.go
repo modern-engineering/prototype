@@ -43,8 +43,20 @@ func Inspect(output io.Writer, artifact solution.Artifact, registry *program.Reg
 		}
 	}
 	_, _ = fmt.Fprintf(w, "solution %q revision %q schema %q\n", artifact.ID, artifact.Revision, artifact.Version)
-	for _, module := range artifact.Definition.Modules {
-		_, _ = fmt.Fprintf(w, "require %q %q\n", module.Path, module.Version)
+	if artifact.Module.Path != "" {
+		_, _ = fmt.Fprintf(w, "module %q go %q toolchain %q\n", artifact.Module.Path, artifact.Module.Go, artifact.Module.Toolchain)
+	}
+	for _, module := range artifact.Module.Require {
+		_, _ = fmt.Fprintf(w, "require %q %q indirect=%t\n", module.Path, module.Version, module.Indirect)
+	}
+	for _, module := range artifact.Module.Exclude {
+		_, _ = fmt.Fprintf(w, "exclude %q %q\n", module.Path, module.Version)
+	}
+	for _, replacement := range artifact.Module.Replace {
+		_, _ = fmt.Fprintf(w, "replace %q %q => %q %q\n", replacement.Old.Path, replacement.Old.Version, replacement.New.Path, replacement.New.Version)
+	}
+	if len(artifact.Module.Sum) > 0 {
+		_, _ = fmt.Fprintf(w, "checksums %d\n", len(artifact.Module.Sum))
 	}
 	for _, node := range artifact.Definition.Nodes {
 		_, _ = fmt.Fprintf(w, "node %q = %s.%s\n", node.Name, node.Definition.Package, node.Definition.Name)

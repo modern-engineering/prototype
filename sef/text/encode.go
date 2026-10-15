@@ -12,7 +12,7 @@ import (
 )
 
 // Encode writes the canonical textual representation of an artifact. The three
-// header directives are followed by require, node, and bind blocks in that order;
+// header directives and module context precede legacy require, node, and bind blocks;
 // authored order within each collection is retained. It validates version and
 // binding forms before writing, but does not vet solution relationships. It leaves
 // w open. A write failure may leave partial output.
@@ -24,10 +24,36 @@ func Encode(w io.Writer, artifact solution.Artifact) error {
 	statement(&output, "sef", []string{artifact.Version}, false)
 	statement(&output, "solution", []string{artifact.ID}, false)
 	statement(&output, "revision", []string{artifact.Revision}, false)
+	m := artifact.Module
+	if m.Path != "" {
+		statement(&output, "module", []string{m.Path}, false)
+	}
+	if m.Go != "" {
+		statement(&output, "go", []string{m.Go}, false)
+	}
+	if m.Toolchain != "" {
+		statement(&output, "toolchain", []string{m.Toolchain}, false)
+	}
+	for _, entry := range m.Require {
+		statement(&output, "module-require", moduleArguments(entry), false)
+	}
+	for _, entry := range m.Exclude {
+		statement(&output, "module-exclude", moduleArguments(entry), false)
+	}
+	for _, entry := range m.Replace {
+		args := []string{entry.Old.Path, entry.Old.Version, entry.New.Path, entry.New.Version}
+		if entry.Old.Indirect || entry.New.Indirect {
+			args = append(args, strconv.FormatBool(entry.Old.Indirect), strconv.FormatBool(entry.New.Indirect))
+		}
+		statement(&output, "module-replace", args, false)
+	}
+	for _, entry := range m.Sum {
+		statement(&output, "module-sum", []string{entry.Path, entry.Version, entry.Hash}, false)
+	}
 	if len(artifact.Definition.Modules) > 0 {
 		output.WriteString("\nrequire (\n")
 		for _, module := range artifact.Definition.Modules {
-			statement(&output, "require", []string{module.Path, module.Version}, true)
+			statement(&output, "require", moduleArguments(module), true)
 		}
 		output.WriteString(")\n")
 	}
@@ -94,4 +120,12 @@ func arguments(directive string, args []string) string {
 		}
 	}
 	return strings.Join(quoted, " ")
+}
+
+func moduleArguments(m solution.Module) []string {
+	args := []string{m.Path, m.Version}
+	if m.Indirect {
+		args = append(args, "true")
+	}
+	return args
 }

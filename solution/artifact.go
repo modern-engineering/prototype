@@ -19,7 +19,11 @@ type Artifact struct {
 	// semantic-version, or content-hash interpretation is imposed here.
 	Revision string
 
-	// Definition carries module requirements, named catalogue occurrences,
-	// and authored logical bindings. Linking produces a separate graph.
+	// Module is the authoritative Go module context for compiling this artifact.
+	// It carries authored requirements and expected checksums, not build results.
+	Module ModuleContext
+
+	// Definition carries named catalogue occurrences and authored logical
+	// bindings. Linking produces a separate graph.
 	Definition Definition
 }
