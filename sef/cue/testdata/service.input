@@ -1,0 +1,22 @@
+// A source definition can be shared without becoming a graph node.
+import "strings"
+#Package: "example.com/catalogue"
+#Trim: {package: #Package,name: "Trim"}
+
+version: "0.1"
+id: strings.ToLower("SERVICE")
+revision: "draft"
+definition: {
+ modules: [{path: #Package,version: "v1.2.0"}]
+ nodes: [{name:"trim", definition:#Trim}, {name:"print",definition:{package:#Package,name:"Print"}}]
+ bindings: [
+   // Text is evaluated by CUE; the graph edge below remains data.
+   {node:"trim", input:"text", value:{kind:"literal", text: strings.Join(["hello", "world"], " ")}},
+   {node:"print",input:"text",value:{kind:"reference",reference:{node:"trim",output:"text"}}},
+   {node:"print",input:"prefix",value:{kind:"literal",text:""}},
+   {node:"trim",input:"code",value:{kind:"literal",text: """
+      package main
+      func main() { println("hello") }
+      """}},
+ ]
+}
