@@ -1,4 +1,4 @@
-package program_test
+package command_test
 
 import (
 	"context"
@@ -9,10 +9,12 @@ import (
 	"testing"
 
 	"github.com/modern-engineering/prototype/program"
+	"github.com/modern-engineering/prototype/program/command"
 )
 
-// A loader can configure flag-bound state through a getter before running and reading its output.
-func Example() {
+// If your package already declares configuration with flag, expose those same
+// variables as descriptor inputs without translating their value types.
+func ExampleFromFlags() {
 	makeGreeting := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		fs := flag.NewFlagSet("greeting", flag.ContinueOnError)
 		name := fs.String("name", "world", "person to greet")
@@ -22,7 +24,7 @@ func Example() {
 			greeting = *prefix + ", " + *name + "!"
 			return nil
 		})
-		return run, program.FromFlags(fs), program.OutputList{
+		return run, command.FromFlags(fs), program.OutputList{
 			program.Output{Field: program.Field{Name: "greeting"}, Value: program.GetterFunc(func() string { return greeting })},
 		}
 	})
@@ -53,7 +55,7 @@ func TestCustomFlagValues(t *testing.T) {
 	value := partsValue{"seed"}
 	fs.Var(&value, "part", "part to append")
 	declaration := program.Field{Name: "part", Help: "private part", Sensitive: true}
-	inputs := program.FromFlags(fs, declaration)
+	inputs := command.FromFlags(fs, declaration)
 	input, ok := inputs.Lookup("part")
 	if !ok {
 		t.Fatal("missing part input")

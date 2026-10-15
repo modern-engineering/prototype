@@ -1,5 +1,5 @@
-// Command wiring demonstrates a finite job configuring a long-running
-// application through their bound input and output handles.
+// Command wiring shows how your executable can compose two known descriptors:
+// a finite job supplies the address used by a long-running application.
 package main
 
 import (
@@ -14,8 +14,11 @@ import (
 	"github.com/modern-engineering/prototype/bind/output"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
+	"github.com/modern-engineering/prototype/program/command"
 )
 
+// Address keeps the package's flag-based configuration usable as program inputs.
+// You can expose your existing flags this way without duplicating defaults.
 var Address = job.Descriptor{
 	Name:    "address",
 	Summary: "Construct a service address from a configured host",
@@ -31,10 +34,11 @@ var Address = job.Descriptor{
 		})
 		var outputs output.List
 		outputs.StringVar(&address, "url", "service URL")
-		return run, program.FromFlags(flags), &outputs
+		return run, command.FromFlags(flags), &outputs
 	},
 }
 
+// Backend gives the executable control over the upstream address and shutdown.
 var Backend = application.Descriptor{
 	Name:    "backend",
 	Summary: "Report the configured service address until stopped",
@@ -65,6 +69,8 @@ func main() {
 }
 
 func run(ctx context.Context) error {
+	// These field names express the composition this executable owns. A generic
+	// CLI can enumerate declarations instead; see the Acme fetch command.
 	address, inputs, outputs := Address.Make()
 	host, _ := inputs.Lookup("host")
 	if err := host.Value.Set("api.example.test:8443"); err != nil {

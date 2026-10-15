@@ -1,8 +1,10 @@
-package program
+package command
 
 import (
 	"flag"
 	"iter"
+
+	"github.com/modern-engineering/prototype/program"
 )
 
 // FromFlags exposes fs as a live input surface, including flags declared after
@@ -15,8 +17,8 @@ import (
 // Help overrides. Other flags retain their Usage and unmarked
 // metadata. The adapter does not change flag defaults or parse arguments.
 // Declaration names must be unique and name flags already present in fs.
-func FromFlags(fs *flag.FlagSet, declarations ...Field) Inputs {
-	metadata := make(map[string]Field, len(declarations))
+func FromFlags(fs *flag.FlagSet, declarations ...program.Field) program.Inputs {
+	metadata := make(map[string]program.Field, len(declarations))
 	for _, declaration := range declarations {
 		metadata[declaration.Name] = declaration
 	}
@@ -25,11 +27,11 @@ func FromFlags(fs *flag.FlagSet, declarations ...Field) Inputs {
 
 type flagInputs struct {
 	flags    *flag.FlagSet
-	metadata map[string]Field
+	metadata map[string]program.Field
 }
 
-func (inputs flagInputs) All() iter.Seq[Input] {
-	return func(yield func(Input) bool) {
+func (inputs flagInputs) All() iter.Seq[program.Input] {
+	return func(yield func(program.Input) bool) {
 		more := true
 		inputs.flags.VisitAll(func(f *flag.Flag) {
 			if more {
@@ -39,19 +41,19 @@ func (inputs flagInputs) All() iter.Seq[Input] {
 	}
 }
 
-func (inputs flagInputs) Lookup(name string) (Input, bool) {
+func (inputs flagInputs) Lookup(name string) (program.Input, bool) {
 	f := inputs.flags.Lookup(name)
 	if f == nil {
-		return Input{}, false
+		return program.Input{}, false
 	}
 	return inputs.input(f), true
 }
 
-func (inputs flagInputs) input(f *flag.Flag) Input {
+func (inputs flagInputs) input(f *flag.Flag) program.Input {
 	declaration := inputs.metadata[f.Name]
 	declaration.Name = f.Name
 	if declaration.Help == "" {
 		declaration.Help = f.Usage
 	}
-	return Input{Field: declaration, Value: f.Value}
+	return program.Input{Field: declaration, Value: f.Value}
 }
