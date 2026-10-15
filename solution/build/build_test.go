@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/modern-engineering/prototype/sef"
@@ -106,6 +107,116 @@ func TestCatalogueHost(t *testing.T) {
 	if _, err := os.Stat(unrelated); err != nil {
 		t.Fatalf("caller directory removed: %v", err)
 	}
+}
+
+// A compiled host gives the playground cooperative signal handling while
+// inspection retains ordinary process termination when its input blocks.
+func TestHostShutdown(t *testing.T) {
+	artifact := localArtifact(t)
+	artifact.Definition.Nodes[0].Definition.Name = "Lifecycle"
+	artifact.Definition.Bindings = nil
+	result, err := build.Host(t.Context(), artifact, build.Options{Dev: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := result.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	var input bytes.Buffer
+	if err := sef.EncodeGob(&input, artifact); err != nil {
+		t.Fatal(err)
+	}
+	t.Run("cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		output := &lifecycleOutput{onStart: cancel}
+		var diagnostics bytes.Buffer
+		err := result.Run(ctx, []string{"playground"}, bytes.NewReader(input.Bytes()), output, &diagnostics)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("canceled playground = %v: %s", err, &diagnostics)
+		}
+		if output.String() != "started\nstopped\n" {
+			t.Fatalf("application lifecycle = %q", output.String())
+		}
+	})
+	t.Run("SIGTERM", func(t *testing.T) {
+		command := exec.CommandContext(t.Context(), result.Binary, "playground")
+		output := &lifecycleOutput{onStart: func() {
+			if err := command.Process.Signal(syscall.SIGTERM); err != nil {
+				t.Error(err)
+			}
+		}}
+		var diagnostics bytes.Buffer
+		command.Stdin = bytes.NewReader(input.Bytes())
+		command.Stdout, command.Stderr = output, &diagnostics
+		err := command.Run()
+		if exit, ok := errors.AsType[*exec.ExitError](err); !ok || exit.ExitCode() != 1 {
+			t.Fatalf("terminated playground = %v: %s", err, &diagnostics)
+		}
+		if output.String() != "started\nstopped\n" {
+			t.Fatalf("application lifecycle = %q", output.String())
+		}
+	})
+	var incomplete bytes.Buffer
+	artifact.Definition.Bindings = []solution.Binding{{Node: "service", Input: "name", Value: solution.Literal(strings.Repeat("x", 4<<20))}}
+	if err := sef.EncodeGob(&incomplete, artifact); err != nil {
+		t.Fatal(err)
+	}
+	for _, operation := range []string{"inspect", "playground"} {
+		t.Run(operation+"-input", func(t *testing.T) {
+			command := exec.CommandContext(t.Context(), result.Binary, operation)
+			var diagnostics bytes.Buffer
+			command.Stderr = &diagnostics
+			stdin, err := command.StdinPipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = stdin.Close() }()
+			if err := command.Start(); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = command.Process.Kill() })
+			// Exceeding the pipe's capacity makes Write wait for the host's decoder.
+			// Leaving the final byte unwritten keeps the command blocked on stdin.
+			if _, err := stdin.Write(incomplete.Bytes()[:incomplete.Len()-1]); err != nil {
+				t.Fatal(err)
+			}
+			if err := command.Process.Signal(syscall.SIGTERM); err != nil {
+				t.Fatal(err)
+			}
+			err = command.Wait()
+			exit, ok := errors.AsType[*exec.ExitError](err)
+			if !ok {
+				t.Fatalf("terminated %s = %v: %s", operation, err, &diagnostics)
+			}
+			if operation == "inspect" {
+				status, ok := exit.Sys().(syscall.WaitStatus)
+				if !ok || status.Signal() != syscall.SIGTERM {
+					t.Fatalf("inspect process state = %v, want SIGTERM", exit.ProcessState)
+				}
+			} else if exit.ExitCode() != 1 {
+				t.Fatalf("playground exit status = %v, want 1: %s", exit.ProcessState, &diagnostics)
+			}
+		})
+	}
+}
+
+type lifecycleOutput struct {
+	buffer  bytes.Buffer
+	onStart func()
+}
+
+func (w *lifecycleOutput) String() string { return w.buffer.String() }
+
+func (w *lifecycleOutput) Write(data []byte) (int, error) {
+	n, err := w.buffer.Write(data)
+	if w.onStart != nil && strings.Contains(w.String(), "started\n") {
+		w.onStart()
+		w.onStart = nil
+	}
+	return n, err
 }
 
 // An output directory belongs to its caller, including when compilation fails.

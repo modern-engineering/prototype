@@ -43,9 +43,11 @@ func Source(packageName, functionName string, definition solution.Definition) ([
 }
 
 // Main generates a complete command host for the referenced descriptors. The
-// host reads a gob-encoded solution.Artifact on stdin and supports linked check
-// and inspect operations through solution/host. Only symbolic addresses are
-// embedded; authored literals and other artifact data are supplied at runtime.
+// host reads a gob-encoded solution.Artifact on stdin and supports linked check,
+// inspect, and playground operations through solution/host. Interrupt and SIGTERM
+// cancel the playground's invocation contexts and interrupt artifact decoding.
+// Only symbolic addresses are embedded; authored literals and other artifact
+// data are supplied at runtime.
 func Main(definition solution.Definition) ([]byte, error) {
 	return source("main", "registerDefinitions", definition, true)
 }
@@ -66,8 +68,12 @@ func source(packageName, functionName string, definition solution.Definition, ma
 	const hostPath = "github.com/modern-engineering/prototype/solution/host"
 	if main {
 		packages[hostPath] = ""
+		packages["context"] = ""
 		packages["fmt"] = ""
+		packages["io"] = ""
 		packages["os"] = ""
+		packages["os/signal"] = ""
+		packages["syscall"] = ""
 	}
 	definitions := make(map[solution.Symbol]bool)
 	for _, node := range definition.Nodes {
@@ -112,15 +118,35 @@ func source(packageName, functionName string, definition solution.Definition, ma
 	if main {
 		fmt.Fprintf(&source, `
 func main() {
+	ctx := %s.Background()
+	stop := func() {}
+	input := %s.Reader(%s.Stdin)
+	if len(%s.Args) > 1 && %s.Args[1] == "playground" {
+		reader, writer := %s.Pipe()
+		input = reader
+		// The executable owns this bridge and the stdin copy goroutine.
+		go func() {
+			_, err := %s.Copy(writer, %s.Stdin)
+			_ = writer.CloseWithError(err)
+		}()
+		ctx, stop = %s.NotifyContext(ctx, %s.Interrupt, %s.SIGTERM)
+		go func() {
+			<-ctx.Done()
+			_ = reader.CloseWithError(ctx.Err())
+		}()
+	}
 	var registry %s.Registry
 	if err := registerDefinitions(&registry); err != nil {
 		%s.Fprintln(%s.Stderr, "register descriptors:", err)
+		stop()
 		%s.Exit(1)
 	}
-	command := %s.Command{Registry: &registry, Stdin: %s.Stdin, Stdout: %s.Stdout, Stderr: %s.Stderr}
-	%s.Exit(command.Run(%s.Args[1:]))
+	command := %s.Command{Context: ctx, Registry: &registry, Stdin: input, Stdout: %s.Stdout, Stderr: %s.Stderr}
+	status := command.Run(%s.Args[1:])
+	stop()
+	%s.Exit(status)
 }
-`, packages[registryPath], packages["fmt"], packages["os"], packages["os"], packages[hostPath], packages["os"], packages["os"], packages["os"], packages["os"], packages["os"])
+`, packages["context"], packages["io"], packages["os"], packages["os"], packages["os"], packages["io"], packages["io"], packages["os"], packages["os/signal"], packages["os"], packages["syscall"], packages[registryPath], packages["fmt"], packages["os"], packages["os"], packages[hostPath], packages["os"], packages["os"], packages["os"], packages["os"])
 	}
 	return format.Source(source.Bytes())
 }
