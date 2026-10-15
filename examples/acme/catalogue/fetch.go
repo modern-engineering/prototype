@@ -23,14 +23,18 @@ var Fetch = job.Descriptor{
 		var inputs input.List
 		var outputs output.List
 		worker.BindInputs(&inputs)
-		outputs.Struct(worker)
+		outputs.JSON(&worker.result, program.Field{Name: "body", Help: "response body"})
 		return worker, &inputs, &outputs
 	},
 }
 
 type fetch struct {
 	httpclient.Endpoint
-	Body []byte `output:"body" help:"response body"`
+	// Your result has its own surface so output binding cannot publish client
+	// configuration or credentials alongside the response.
+	result struct {
+		Body []byte `json:"body"`
+	}
 }
 
 func (f *fetch) Run(ctx context.Context) error {
@@ -38,6 +42,6 @@ func (f *fetch) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	f.Body = body
+	f.result.Body = body
 	return nil
 }

@@ -6,6 +6,7 @@
 // Int, Float, and Complex preserve the chosen numeric type through generics.
 // Var accepts custom handles, including program.GetterFunc. Helpers and Var accept
 // trailing metadata options such as Sensitive; Define accepts explicit metadata.
+// JSON registers a result struct using JSON field names via bind.JSONOutputs.
 // Registration copies metadata and retains the original handle, including
 // its additional capabilities. It never calls Get, so output state remains
 // unchanged.

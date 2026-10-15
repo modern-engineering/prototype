@@ -11,14 +11,15 @@ import (
 	"net/http"
 
 	"github.com/modern-engineering/prototype/bind/input"
+	"github.com/modern-engineering/prototype/program"
 )
 
 // Endpoint configures authenticated GET requests. BindInputs exposes its URL
 // and token without opening a connection. A client must be supplied before Get.
 // The client remains owned by its supplier; Endpoint never closes or changes it.
 type Endpoint struct {
-	URL   string `input:"url" help:"service URL"`
-	Token string `input:"token,sensitive" help:"bearer credential"`
+	URL   string `json:"url"`
+	Token string `json:"token,omitempty"`
 
 	client *http.Client
 }
@@ -27,7 +28,12 @@ type Endpoint struct {
 // If your program uses several endpoints, bind their fields individually under
 // distinct names or choose a collection that supplies your naming convention.
 func (e *Endpoint) BindInputs(inputs *input.List) {
-	inputs.Struct(e)
+	// Your existing JSON names work for binding too. Keep help and sensitivity
+	// here so they describe the program's declarations, not its JSON encoding.
+	inputs.JSON(e,
+		program.Field{Name: "url", Help: "service URL"},
+		program.Field{Name: "token", Help: "bearer credential", Sensitive: true},
+	)
 }
 
 // UseHTTPClient retains client for subsequent requests without performing I/O.
