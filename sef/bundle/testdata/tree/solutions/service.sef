@@ -1,0 +1,4 @@
+// All artifacts share the root module context.
+sef "0.1"
+solution "service"
+node "backend" "example.test/catalogue" "Backend"
