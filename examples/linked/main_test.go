@@ -9,6 +9,8 @@ import (
 	"github.com/modern-engineering/prototype/solution/link"
 )
 
+// You can inspect dependencies and output consumers before allocating program
+// state, for example to explain a deployment plan to an operator.
 func Example() {
 	main()
 	// Output:
@@ -18,7 +20,7 @@ func Example() {
 }
 
 // The structural relationship can be resolved, but knowledge of the application
-// catalogue rejects it before any invocation is constructed.
+// catalogue rejects it before any program state is constructed.
 func TestApplicationCannotProduceConfiguration(t *testing.T) {
 	var registry program.Registry
 	descriptor := application.Descriptor{MakeFunc: func() (program.Runner, program.Inputs) {

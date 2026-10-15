@@ -1,5 +1,5 @@
-// Command readers demonstrates eager consumption and borrowed readers with
-// resource lifetimes owned by the command that opens them.
+// Command readers shows how your loading code can supply file content to a
+// descriptor while choosing when each file can close.
 package main
 
 import (
@@ -18,7 +18,10 @@ import (
 	"github.com/modern-engineering/prototype/program"
 )
 
-//go:embed message.txt
+// Embed the sample input so the command and its tests run from any directory.
+// Your loading code can supply another fs.FS, including os.DirFS.
+//
+//go:embed testdata/message.txt
 var fixtures embed.FS
 
 func main() {
@@ -31,7 +34,7 @@ func main() {
 }
 
 // Inspect reads the same content through an eager input and a borrowed input.
-// Make only binds state; the command opens both files during configuration.
+// Keep acquisitions in your loading code: Make only allocates and binds state.
 var Inspect = job.Descriptor{
 	Name: "inspect",
 	MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
@@ -70,8 +73,9 @@ func (v *borrowedText) Set(text string) error {
 	return nil
 }
 
-// BorrowReader retains the handle without reading. The caller keeps it open
-// through Run and closes it afterward, including on execution failure.
+// BorrowReader is a capability agreed between this descriptor and its loading
+// code. If you introduce one in your organization, document its lifetime:
+// this method retains the reader, and the caller keeps it open through Run.
 func (v *borrowedText) BorrowReader(reader io.Reader) error {
 	v.reader = reader
 	return nil
@@ -85,11 +89,11 @@ func run(ctx context.Context, files fs.FS) (err error) {
 	eager, _ := inputs.Lookup("eager")
 	borrowed, _ := inputs.Lookup("borrowed")
 
-	file, err := files.Open("message.txt")
+	file, err := files.Open("testdata/message.txt")
 	if err != nil {
 		return err
 	}
-	// Eager consumption needs the file only while ReadFrom is running.
+	// An eager input lets your loading code release the file immediately.
 	_, readErr := eager.Value.(io.ReaderFrom).ReadFrom(struct{ io.Reader }{file})
 	if err := errors.Join(readErr, file.Close()); err != nil {
 		return err
@@ -98,13 +102,13 @@ func run(ctx context.Context, files fs.FS) (err error) {
 		return err
 	}
 
-	file, err = files.Open("message.txt")
+	file, err = files.Open("testdata/message.txt")
 	if err != nil {
 		return err
 	}
 	defer func() { err = errors.Join(err, file.Close()) }()
-	// The borrowed handle stays usable until Run returns, even on failure.
-	// Only the loading code receives the file's closing capability.
+	// Keep a borrowed source open until Run returns, including on failure.
+	// Pass only io.Reader so the descriptor cannot close your file.
 	borrower := borrowed.Value.(interface{ BorrowReader(io.Reader) error })
 	if err := borrower.BorrowReader(struct{ io.Reader }{file}); err != nil {
 		return err

@@ -1,5 +1,5 @@
-// Command linked checks, links, and inspects a solution using manually registered
-// descriptors. No program invocations are constructed.
+// Command linked shows how your tooling can inspect dependencies and consumers
+// after resolving descriptor names, without calling Make or running programs.
 package main
 
 import (
@@ -32,7 +32,8 @@ func inspect() error {
 			return err
 		}
 	}
-	// Resolve performs structural and registry checks before building the graph.
+	// Resolve checks the structure and registered names before you inspect the
+	// graph. It leaves the caller free to apply catalogue-specific policies.
 	resolved, err := link.Resolve(design.Definition, &registry)
 	if err != nil {
 		return err
@@ -56,9 +57,9 @@ func inspect() error {
 	return nil
 }
 
-// verify understands the application catalogue's no-output contract. This check
-// needs concrete descriptors but no Make calls; exact field existence remains
-// for the loader to check when it instantiates each program.
+// Add checks here for conventions your organization places on its catalogues.
+// This one uses the application descriptor's no-output contract without calling
+// Make. Instantiation checks the exact fields when it constructs each program.
 func verify(resolved *link.Solution) error {
 	for binding := range resolved.Bindings() {
 		reference, ok := binding.Value().(link.Reference)

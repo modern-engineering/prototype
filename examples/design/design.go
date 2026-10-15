@@ -1,4 +1,6 @@
-// Package design supplies structural intent without importing its catalogue.
+// Package design defines a solution without importing its catalogue.
+// Your authoring tools can produce the same structural data and serialize it
+// before a loading tool has the catalogue's executable code available.
 package design
 
 import "github.com/modern-engineering/prototype/solution"
@@ -7,6 +9,8 @@ import "github.com/modern-engineering/prototype/solution"
 const CataloguePath = "github.com/modern-engineering/prototype/examples/catalogue"
 
 // Definition connects a database job to an application.
+// References name the catalogue's declared fields; instantiation checks them
+// against the actual fields returned by each descriptor's Make function.
 var Definition = solution.Definition{
 	Nodes: []solution.Node{
 		{Name: "database", Definition: solution.Symbol{Package: CataloguePath, Name: "Database"}},

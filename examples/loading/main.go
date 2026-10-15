@@ -1,5 +1,5 @@
-// Command loading instantiates a solution, runs its finite database job, and
-// explicitly transfers its output into the application's input.
+// Command loading shows where your loading code chooses execution order and
+// transfers a finite job's output into an application's input.
 package main
 
 import (
@@ -42,8 +42,8 @@ func run() error {
 		return err
 	}
 
-	// This caller chooses the finite job and the point at which its outputs are
-	// ready. Instantiation neither schedules programs nor transfers values.
+	// Your loading code chooses when to run a job and when its outputs are ready.
+	// Instantiate checks and binds fields; scheduling and value transfer stay here.
 	database, _ := instance.Lookup("database")
 	for source := range database.Node().Bindings() {
 		binding, _ := instance.Binding(source)
@@ -57,6 +57,8 @@ func run() error {
 	}
 
 	backend, _ := instance.Lookup("backend")
+	// Read this output after the job succeeds. An application input keeps the
+	// assigned value, so your command can start the application when it is ready.
 	for source := range backend.Node().Bindings() {
 		binding, _ := instance.Binding(source)
 		output, _ := binding.Output()

@@ -8,7 +8,8 @@ import (
 	"testing"
 )
 
-// Eager and borrowed inputs provide the same content at different stages.
+// Your command can read an eager input during configuration and let the runner
+// consume a borrowed input later, while owning both files itself.
 func Example() {
 	if err := run(context.Background(), fixtures); err != nil {
 		fmt.Println(err)

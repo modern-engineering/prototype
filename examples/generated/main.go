@@ -1,5 +1,5 @@
-// Command generated inspects compiled catalogue capabilities without constructing
-// or running any program invocations.
+// Command generated shows how generated imports and registrations make your
+// catalogue available for inspection without constructing or running programs.
 package main
 
 //go:generate go run ./generate
@@ -21,6 +21,8 @@ func main() {
 
 func inspect() error {
 	var values program.Registry
+	// Generated registration uses ordinary Go imports, so the compiler checks
+	// that your catalogue exports each descriptor named by the solution.
 	if err := registerDefinitions(&values); err != nil {
 		return err
 	}

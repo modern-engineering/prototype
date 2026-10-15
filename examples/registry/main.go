@@ -1,5 +1,5 @@
-// Command registry looks up a descriptor and constructs an invocation without
-// a solution definition or generated registration.
+// Command registry shows how your loading code can find a descriptor by name
+// and run it directly, without a solution definition or generated registration.
 package main
 
 import (
@@ -18,6 +18,8 @@ func main() {
 }
 
 func run() error {
+	// Register the catalogue entries your executable supports. Registration
+	// stores descriptors; each Make call creates fresh program state.
 	var registry program.Registry
 	if err := registry.Register("example.org/catalogue", "Database", catalogue.Database); err != nil {
 		return err

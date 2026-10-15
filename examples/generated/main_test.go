@@ -7,6 +7,8 @@ import (
 	"github.com/modern-engineering/prototype/program"
 )
 
+// You can inspect your solution using generated catalogue registration while
+// leaving program construction and execution to a separate loading step.
 func Example() {
 	main()
 	// Output:
