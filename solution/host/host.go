@@ -41,7 +41,7 @@ func (c Command) Run(args []string) int {
 		c.Stderr = io.Discard
 	}
 	if len(args) == 0 || (args[0] != "check" && args[0] != "inspect") {
-		fmt.Fprintln(c.Stderr, "usage: sef-host <check|inspect> [-inputs] < artifact.gob")
+		_, _ = fmt.Fprintln(c.Stderr, "usage: sef-host <check|inspect> [-inputs] < artifact.gob")
 		return 2
 	}
 	flags := flag.NewFlagSet("sef-host "+args[0], flag.ContinueOnError)
@@ -57,12 +57,12 @@ func (c Command) Run(args []string) int {
 		return 2
 	}
 	if flags.NArg() != 0 || c.Registry == nil {
-		fmt.Fprintln(c.Stderr, "host requires a compiled registry and reads its artifact from stdin")
+		_, _ = fmt.Fprintln(c.Stderr, "host requires a compiled registry and reads its artifact from stdin")
 		return 2
 	}
 	artifact, err := sef.DecodeGob(c.Stdin)
 	if err != nil {
-		fmt.Fprintln(c.Stderr, "decode artifact:", err)
+		_, _ = fmt.Fprintln(c.Stderr, "decode artifact:", err)
 		return 1
 	}
 	if args[0] == "check" {
@@ -74,7 +74,7 @@ func (c Command) Run(args []string) int {
 		err = Inspect(c.Stdout, artifact, c.Registry, inputs)
 	}
 	if err != nil {
-		fmt.Fprintln(c.Stderr, args[0]+" artifact:", err)
+		_, _ = fmt.Fprintln(c.Stderr, args[0]+" artifact:", err)
 		return 1
 	}
 	return 0
