@@ -11,8 +11,9 @@ import (
 	"os/signal"
 
 	"github.com/modern-engineering/prototype/application"
+	"github.com/modern-engineering/prototype/bind/input"
+	"github.com/modern-engineering/prototype/bind/output"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
-	"github.com/modern-engineering/prototype/fields"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -30,7 +31,7 @@ var Address = job.Descriptor{
 			address = *scheme + "://" + *host
 			return nil
 		})
-		var outputs fields.Outputs
+		var outputs output.List
 		outputs.StringVar(&address, "url", "service URL")
 		return run, program.FromFlags(flags), &outputs
 	},
@@ -41,7 +42,7 @@ var Backend = application.Descriptor{
 	Summary: "Report the configured service address until stopped",
 	MakeFunc: func() (program.Runner, program.Inputs) {
 		var address string
-		var inputs fields.Inputs
+		var inputs input.List
 		inputs.StringVar(&address, "address", "upstream service URL")
 
 		run := program.RunnerFunc(func(ctx context.Context) error {

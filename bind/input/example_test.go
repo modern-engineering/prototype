@@ -1,11 +1,12 @@
-package fields_test
+package input_test
 
 import (
 	"context"
 	"fmt"
 	"strings"
 
-	"github.com/modern-engineering/prototype/fields"
+	"github.com/modern-engineering/prototype/bind/input"
+	"github.com/modern-engineering/prototype/bind/output"
 	"github.com/modern-engineering/prototype/program"
 )
 
@@ -14,8 +15,8 @@ import (
 func Example() {
 	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
 		var greeting string
-		var inputs fields.Inputs
-		var outputs fields.Outputs
+		var inputs input.List
+		var outputs output.List
 		name := inputs.String("name", "world", "recipient")
 		outputs.StringVar(&greeting, "greeting", "uppercase greeting")
 		run := program.RunnerFunc(func(context.Context) error {

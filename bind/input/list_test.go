@@ -1,4 +1,4 @@
-package fields_test
+package input_test
 
 import (
 	"bytes"
@@ -8,7 +8,8 @@ import (
 	"testing"
 
 	"github.com/modern-engineering/prototype/bind"
-	"github.com/modern-engineering/prototype/fields"
+	"github.com/modern-engineering/prototype/bind/input"
+	"github.com/modern-engineering/prototype/bind/output"
 	"github.com/modern-engineering/prototype/program"
 )
 
@@ -16,8 +17,8 @@ import (
 // It must expose custom transfer capabilities on the original handles, with
 // copied metadata and a consistent declaration order for lookup and enumeration.
 func TestDeclarationsPreserveBoundValues(t *testing.T) {
-	var inputs fields.Inputs
-	var outputs fields.Outputs
+	var inputs input.List
+	var outputs output.List
 	var in program.Inputs = &inputs
 	var out program.Outputs = &outputs
 	if got := slices.Collect(in.All()); len(got) != 0 {
@@ -133,10 +134,10 @@ func TestDeclarationsPreserveBoundValues(t *testing.T) {
 func TestInvalidDeclarationsLeaveSurfacesUntouched(t *testing.T) {
 	for _, kind := range []string{"duplicate input", "duplicate output", "nil input", "nil output", "nil input target", "nil output target"} {
 		t.Run(kind, func(t *testing.T) {
+			var inputs input.List
+			var outputs output.List
 			var inputValue, outputValue string
 			input, output := bind.String(&inputValue), bind.String(&outputValue)
-			var inputs fields.Inputs
-			var outputs fields.Outputs
 			inputs.Var(input, "value", "original input")
 			outputs.Var(output, "value", "original output")
 			defer func() {

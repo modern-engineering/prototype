@@ -1,9 +1,10 @@
-package fields_test
+package input_test
 
 import (
 	"testing"
 
-	"github.com/modern-engineering/prototype/fields"
+	"github.com/modern-engineering/prototype/bind/input"
+	"github.com/modern-engineering/prototype/bind/output"
 )
 
 // Numeric declarations retain the caller's chosen types and initial values.
@@ -15,8 +16,8 @@ func TestNumericSurfacesShareTypedStorage(t *testing.T) {
 	type fraction float32
 	type phasor complex128
 
-	var inputs fields.Inputs
-	var outputs fields.Outputs
+	var inputs input.List
+	var outputs output.List
 	limit := inputs.Int("limit", quota(200), "maximum items")
 	outputs.IntVar(limit, "limit", "maximum items")
 	offset := outputs.Int("offset", count(-3), "item offset")

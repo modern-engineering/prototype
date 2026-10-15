@@ -1,4 +1,4 @@
-package fields_test
+package input_test
 
 import (
 	"bytes"
@@ -6,15 +6,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modern-engineering/prototype/fields"
+	"github.com/modern-engineering/prototype/bind/input"
+	"github.com/modern-engineering/prototype/bind/output"
 )
 
 // Allocating and variable helpers must refer to the same ordinary Go state on
 // both surfaces. Declaration preserves defaults; loader assignments and runner
 // assignments remain visible through the handles, including byte transfers.
 func TestTypedDeclarationsShareGoState(t *testing.T) {
-	var inputs fields.Inputs
-	var outputs fields.Outputs
+	var inputs input.List
+	var outputs output.List
 	name := inputs.String("name", "world", "recipient")
 	outputs.StringVar(name, "name", "recipient")
 	enabled := outputs.Bool("enabled", true, "delivery enabled")
