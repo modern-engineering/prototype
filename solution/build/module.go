@@ -7,125 +7,175 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/modern-engineering/prototype/solution"
+	"golang.org/x/mod/modfile"
 )
 
-func moduleArguments(ctx context.Context, definition solution.Definition, options Options) (requirements, replacements []string, err error) {
-	modules := make(map[string]string)
-	for _, module := range definition.Modules {
-		if module.Path == "" || module.Version == "" {
-			return nil, nil, fmt.Errorf("%w: empty requirement path or version", ErrModule)
-		}
-		if _, exists := modules[module.Path]; exists {
-			return nil, nil, fmt.Errorf("%w: repeated requirement %q", ErrModule, module.Path)
-		}
-		modules[module.Path] = module.Version
-		requirements = append(requirements, "-require="+module.Path+"@"+module.Version)
+func hostModule(ctx context.Context, artifact solution.Artifact, options Options) (solution.ModuleContext, error) {
+	if err := ctx.Err(); err != nil {
+		return solution.ModuleContext{}, err
 	}
-	if _, declared := modules[ToolkitModule]; !declared {
-		version := options.ToolkitVersion
-		if options.ToolkitDir != "" {
-			version = "v0.0.0"
-		}
-		if version == "" {
-			return nil, nil, ErrToolkitVersion
-		}
-		modules[ToolkitModule] = version
-		requirements = append(requirements, "-require="+ToolkitModule+"@"+version)
+	module := artifact.Module.Clone()
+	if err := module.Write(io.Discard, io.Discard); err != nil {
+		return module, errors.Join(ErrModule, err)
 	}
-	for _, node := range definition.Nodes {
+	declared := make(map[string]bool)
+	for _, requirement := range module.Require {
+		declared[requirement.Path] = true
+	}
+	if !declared[ToolkitModule] {
+		return module, fmt.Errorf("%w: toolkit %q has no requirement", ErrModule, ToolkitModule)
+	}
+	for _, node := range artifact.Definition.Nodes {
 		covered := false
-		for module := range modules {
-			if node.Definition.Package == module || strings.HasPrefix(node.Definition.Package, module+"/") {
+		for path := range declared {
+			if node.Definition.Package == path || strings.HasPrefix(node.Definition.Package, path+"/") {
 				covered = true
 				break
 			}
 		}
 		if !covered {
-			return nil, nil, fmt.Errorf("%w: catalogue package %q has no requirement", ErrModule, node.Definition.Package)
+			return module, fmt.Errorf("%w: catalogue package %q has no requirement", ErrModule, node.Definition.Package)
 		}
 	}
-	explicit := append([]Replacement(nil), options.Replacements...)
-	if options.ToolkitDir != "" {
-		explicit = append(explicit, Replacement{Module: ToolkitModule, Dir: options.ToolkitDir})
+	base, err := filepath.Abs(options.Dir)
+	if err != nil {
+		return module, err
 	}
-	seen := make(map[string]bool)
-	for _, replacement := range explicit {
-		if replacement.Module == "" || replacement.Dir == "" || seen[replacement.Module] {
-			return nil, nil, fmt.Errorf("%w: empty or repeated replacement %q", ErrModule, replacement.Module)
+	for i := range module.Replace {
+		replacement := &module.Replace[i]
+		if replacement.New.Version != "" {
+			continue
 		}
-		seen[replacement.Module] = true
-		dir, err := filepath.Abs(replacement.Dir)
-		if err != nil {
-			return nil, nil, err
+		if !options.Dev {
+			return module, fmt.Errorf("%w: local replacement %q requires development mode", ErrModule, replacement.Old.Path)
 		}
-		if replacement.Module == ToolkitModule {
-			// Reading -json does not modify the selected source manifest.
-			command := exec.CommandContext(ctx, "go", "mod", "edit", "-json", filepath.Join(dir, "go.mod"))
-			command.Env = buildEnvironment()
-			output, err := command.Output()
-			if err != nil {
-				return nil, nil, commandError(ctx, "toolkit module", err, nil)
-			}
-			var manifest struct{ Module struct{ Path string } }
-			if err := json.Unmarshal(output, &manifest); err != nil {
-				return nil, nil, err
-			}
-			if manifest.Module.Path != ToolkitModule {
-				return nil, nil, fmt.Errorf("%w: toolkit directory declares %q", ErrModule, manifest.Module.Path)
-			}
+		if !filepath.IsAbs(replacement.New.Path) {
+			replacement.New.Path = filepath.Join(base, replacement.New.Path)
 		}
-		replacements = append(replacements, "-replace="+replacement.Module+"="+dir)
 	}
-	return requirements, replacements, nil
+	if options.Dev {
+		if err := overlayDevelopment(&module, base, declared); err != nil {
+			return module, err
+		}
+	}
+	return module, nil
 }
 
-// Tidy may discard requirements not used by this host, but they remain part of
-// the artifact's selected module context. Preserve them without lowering any
-// requirements increased by Go's module selection.
-func retainRequirements(ctx context.Context, work string, environment, requirements []string) error {
-	command := exec.CommandContext(ctx, "go", "mod", "edit", "-json")
-	command.Dir, command.Env = work, environment
-	output, err := command.CombinedOutput()
-	if err != nil {
-		return commandError(ctx, "module", err, output)
+func writeModule(result *Result, module solution.ModuleContext) error {
+	var mod, sum bytes.Buffer
+	if err := module.Write(&mod, &sum); err != nil {
+		return err
 	}
-	var manifest struct{ Require []struct{ Path string } }
-	if err := json.Unmarshal(output, &manifest); err != nil {
-		return &Error{Stage: "module", Err: err}
+	if err := os.WriteFile(result.ModFile, mod.Bytes(), 0o600); err != nil {
+		return err
 	}
-	present := make(map[string]bool)
-	for _, requirement := range manifest.Require {
-		present[requirement.Path] = true
+	return os.WriteFile(result.SumFile, sum.Bytes(), 0o600)
+}
+
+// Local source substitutions belong only to this build. The workspace itself is
+// never rewritten, and a local module cannot introduce a missing requirement.
+func overlayDevelopment(module *solution.ModuleContext, base string, declared map[string]bool) error {
+	var directories []string
+	workspace := os.Getenv("GOWORK")
+	if workspace == "" || workspace == "auto" {
+		workspace = enclosingFile(base, "go.work")
 	}
-	args := []string{"mod", "edit"}
-	for _, requirement := range requirements {
-		path, _, _ := strings.Cut(strings.TrimPrefix(requirement, "-require="), "@")
-		if !present[path] {
-			args = append(args, requirement)
+	if workspace != "" && workspace != "off" {
+		if !filepath.IsAbs(workspace) {
+			return fmt.Errorf("%w: GOWORK must be an absolute path", ErrModule)
+		}
+		data, err := os.ReadFile(workspace)
+		if err != nil {
+			return err
+		}
+		work, err := modfile.ParseWork(workspace, data, nil)
+		if err != nil {
+			return errors.Join(ErrModule, err)
+		}
+		for _, use := range work.Use {
+			dir := use.Path
+			if !filepath.IsAbs(dir) {
+				dir = filepath.Join(filepath.Dir(workspace), dir)
+			}
+			directories = append(directories, dir)
+		}
+		for _, replacement := range work.Replace {
+			if !declared[replacement.Old.Path] {
+				continue
+			}
+			next := solution.ModuleReplacement{Old: solution.Module{Path: replacement.Old.Path, Version: replacement.Old.Version}, New: solution.Module{Path: replacement.New.Path, Version: replacement.New.Version}}
+			if next.New.Version == "" && !filepath.IsAbs(next.New.Path) {
+				next.New.Path = filepath.Join(filepath.Dir(workspace), next.New.Path)
+			}
+			setReplacement(module, next)
 		}
 	}
-	if len(args) == 2 {
-		return nil
+	if file := enclosingFile(base, "go.mod"); file != "" {
+		directories = append(directories, filepath.Dir(file))
 	}
-	command = exec.CommandContext(ctx, "go", args...)
-	command.Dir, command.Env = work, environment
-	output, err = command.CombinedOutput()
-	if err != nil {
-		return commandError(ctx, "module", err, output)
+	seen := make(map[string]string)
+	for _, dir := range directories {
+		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+		if err != nil {
+			return err
+		}
+		manifest, err := modfile.Parse(filepath.Join(dir, "go.mod"), data, nil)
+		if err != nil {
+			return errors.Join(ErrModule, err)
+		}
+		if manifest.Module == nil {
+			return fmt.Errorf("%w: %s has no module directive", ErrModule, dir)
+		}
+		path := manifest.Module.Mod.Path
+		if !declared[path] {
+			continue
+		}
+		if previous, exists := seen[path]; exists && previous != dir {
+			return fmt.Errorf("%w: module %q occurs in multiple workspace directories", ErrModule, path)
+		}
+		seen[path] = dir
+		setReplacement(module, solution.ModuleReplacement{Old: solution.Module{Path: path}, New: solution.Module{Path: dir}})
 	}
 	return nil
 }
 
-// Module graph selection precedes package discovery. In particular, a missing
-// catalogue package must not upgrade its containing module merely to find code.
+func enclosingFile(dir, name string) string {
+	for {
+		file := filepath.Join(dir, name)
+		if info, err := os.Stat(file); err == nil && !info.IsDir() {
+			return file
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func setReplacement(module *solution.ModuleContext, next solution.ModuleReplacement) {
+	// A workspace's module-wide replacement supersedes version-specific ones.
+	module.Replace = slices.DeleteFunc(module.Replace, func(previous solution.ModuleReplacement) bool {
+		return previous.Old.Path == next.Old.Path && (next.Old.Version == "" || previous.Old.Version == next.Old.Version)
+	})
+	module.Replace = append(module.Replace, next)
+}
+
+// Module graph selection precedes package discovery. A missing catalogue package
+// must fail at the selected version instead of discovering a newer release.
 func selectedModules(ctx context.Context, work string, environment []string) (map[string]string, error) {
-	command := exec.CommandContext(ctx, "go", "list", "-mod=mod", "-m", "-json", "all")
+	return moduleGraph(ctx, work, environment, "-mod=readonly")
+}
+
+func moduleGraph(ctx context.Context, work string, environment []string, mode string) (map[string]string, error) {
+	command := exec.CommandContext(ctx, "go", "list", mode, "-m", "-json", "all")
 	command.Dir, command.Env = work, environment
 	output, err := command.Output()
 	if err != nil {
@@ -137,38 +187,29 @@ func selectedModules(ctx context.Context, work string, environment []string) (ma
 		var module struct{ Path, Version string }
 		if err := decoder.Decode(&module); err != nil {
 			if errors.Is(err, io.EOF) {
-				break
+				return selected, nil
 			}
 			return nil, &Error{Stage: "dependencies", Err: err}
 		}
 		selected[module.Path] = module.Version
 	}
-	return selected, nil
 }
 
-func checkCatalogueModules(ctx context.Context, work string, environment []string, definition solution.Definition, selected map[string]string) error {
+func checkCatalogueModules(ctx context.Context, work string, environment []string, definition solution.Definition, module solution.ModuleContext, selected map[string]string) error {
 	current, err := selectedModules(ctx, work, environment)
 	if err != nil {
 		return err
 	}
-	pathsChanged := make([]string, 0, len(current))
-	for path := range current {
-		pathsChanged = append(pathsChanged, path)
-	}
-	slices.Sort(pathsChanged)
-	for _, path := range pathsChanged {
-		version := current[path]
+	for path, version := range current {
 		previous, present := selected[path]
-		if !present || version != previous {
+		if present && version != previous {
 			return &Error{Stage: "dependencies", Err: fmt.Errorf("%w: package discovery changed module %q from %q to %q", ErrModule, path, previous, version)}
 		}
 	}
-	declared := map[string]bool{ToolkitModule: true}
-	for _, module := range definition.Modules {
-		declared[module.Path] = true
+	declared := make(map[string]bool)
+	for _, requirement := range module.Require {
+		declared[requirement.Path] = true
 	}
-	// Include the host itself so a missing host API in an older toolkit cannot
-	// silently select a newer toolkit release during tidy.
 	paths := []string{ToolkitModule + "/solution/host"}
 	seen := map[string]bool{paths[0]: true}
 	for _, node := range definition.Nodes {
@@ -183,7 +224,7 @@ func checkCatalogueModules(ctx context.Context, work string, environment []strin
 	command.Dir, command.Env = work, environment
 	output, err := command.Output()
 	if err != nil {
-		return commandError(ctx, "dependencies", err, nil)
+		return commandError(ctx, "dependencies", errors.Join(ErrModule, err), nil)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(output))
 	for {

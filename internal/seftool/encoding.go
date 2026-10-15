@@ -68,6 +68,10 @@ func decode(path, format string, data []byte) (solution.Artifact, error) {
 func encode(w io.Writer, format string, artifact solution.Artifact) error {
 	switch format {
 	case "cue":
+		m := artifact.Module
+		if m.Path != "" || m.Go != "" || m.Toolchain != "" || len(m.Require)+len(m.Exclude)+len(m.Replace)+len(m.Sum) != 0 {
+			return errors.New("CUE encoding does not yet carry artifact module context; use JSON, gob, or text for a standalone snapshot")
+		}
 		return sefcue.Encode(w, artifact)
 	case "json":
 		return sef.EncodeJSON(w, artifact)

@@ -11,14 +11,30 @@ import (
 	"github.com/modern-engineering/prototype/solution/build"
 )
 
-// A locally developed toolkit can supply a compiled catalogue host without a
-// separately authored command. The materialized artifact is sent through stdin;
-// compilation and logical checking do not construct or execute the database job.
+// An authoring project keeps dependency intent in go.mod. Tidy prepares the
+// complete context for an artifact, and Host builds without further changes.
+// Development mode explicitly enables the project's local toolkit replacement.
 func ExampleHost() {
-	artifact := solution.Artifact{Version: "0.1", Definition: solution.Definition{
+	manifest, err := os.ReadFile("testdata/service/go.mod")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	module, err := solution.ParseModule(bytes.NewReader(manifest), nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	artifact := solution.Artifact{Version: "0.1", Module: module, Definition: solution.Definition{
 		Nodes: []solution.Node{{Name: "database", Definition: solution.Symbol{Package: build.ToolkitModule + "/examples/catalogue", Name: "Database"}}},
 	}}
-	result, err := build.Host(context.Background(), artifact.Definition, build.Options{ToolkitDir: "../.."})
+	options := build.Options{Dev: true, Dir: "testdata/service"}
+	artifact.Module, err = build.Tidy(context.Background(), artifact, options)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	result, err := build.Host(context.Background(), artifact, options)
 	if err != nil {
 		fmt.Println(err)
 		return

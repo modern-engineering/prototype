@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime/debug"
 
 	"github.com/modern-engineering/prototype/sef"
 	"github.com/modern-engineering/prototype/solution"
@@ -15,28 +14,7 @@ import (
 	"github.com/modern-engineering/prototype/solution/link"
 )
 
-func toolkitVersion() string {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		return ""
-	}
-	const module = "github.com/modern-engineering/prototype"
-	version := ""
-	if info.Main.Path == module {
-		version = info.Main.Version
-	}
-	for _, dependency := range info.Deps {
-		if dependency.Path == module {
-			version = dependency.Version
-		}
-	}
-	if version == "(devel)" {
-		return ""
-	}
-	return version
-}
-
-func (c Command) generated(name string, artifact solution.Artifact, inputs bool, output string, options build.Options, dev bool) (status int, err error) {
+func (c Command) generated(name string, artifact solution.Artifact, inputs bool, output string, options build.Options) (status int, err error) {
 	if err := link.CheckStructure(artifact.Definition); err != nil {
 		return 1, err
 	}
@@ -44,17 +22,10 @@ func (c Command) generated(name string, artifact solution.Artifact, inputs bool,
 	if err := sef.EncodeGob(&materialized, artifact); err != nil {
 		return 1, err
 	}
-	definition := artifact.Definition
-	if dev {
-		definition, options, err = development(c.Context, definition, options)
-		if err != nil {
-			return 1, err
-		}
-	}
-	result, err := build.Host(c.Context, definition, options)
+	result, err := build.Host(c.Context, artifact, options)
 	if result != nil {
-		if options.KeepWork {
-			_, _ = fmt.Fprintf(c.Stderr, "WORK=%s\n", result.WorkDir)
+		if options.OutDir != "" {
+			_, _ = fmt.Fprintf(c.Stderr, "OUTDIR=%s\n", result.WorkDir)
 		} else {
 			defer func() {
 				err = errors.Join(err, result.Close())

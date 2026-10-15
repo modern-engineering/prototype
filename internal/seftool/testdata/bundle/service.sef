@@ -1,0 +1,13 @@
+// The backend consumes the database job's address after its value is available.
+sef "0.1"
+solution "regional-service"
+revision "r1"
+
+node (
+ "database" "github.com/modern-engineering/prototype/examples/catalogue" "Database"
+ "backend" "github.com/modern-engineering/prototype/examples/catalogue" "Backend"
+)
+bind (
+ "database" "region" literal "eu-west"
+ "backend" "database" reference "database" "address"
+)
