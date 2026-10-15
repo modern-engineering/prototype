@@ -1,5 +1,6 @@
 // Package httpclient provides Acme's HTTP conventions.
-// Endpoint declares configuration separately from its borrowed HTTP client.
+// Your shared integration packages can expose bindable configuration while
+// leaving client construction and lifetime to the consuming executable.
 package httpclient
 
 import (
@@ -23,8 +24,8 @@ type Endpoint struct {
 }
 
 // BindInputs registers the endpoint's configuration without changing it.
-// The declarations use url and token; a program with several endpoints can bind
-// their fields individually under distinct names instead.
+// If your program uses several endpoints, bind their fields individually under
+// distinct names or choose a collection that supplies your naming convention.
 func (e *Endpoint) BindInputs(inputs *input.List) {
 	inputs.Struct(e)
 }
