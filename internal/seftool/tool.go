@@ -1,9 +1,11 @@
 // Package seftool hosts the SEF command with caller-supplied streams and an
-// optional compiled descriptor registry. It does not dynamically import Go code.
+// optional compiled descriptor registry. Linked commands can generate and build
+// a separate Go host from the descriptors named by an artifact.
 package seftool
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,38 +13,47 @@ import (
 	"strings"
 
 	"github.com/modern-engineering/prototype/program"
+	sefcue "github.com/modern-engineering/prototype/sef/cue"
 	seftext "github.com/modern-engineering/prototype/sef/text"
+	"github.com/modern-engineering/prototype/solution/build"
 	"github.com/modern-engineering/prototype/solution/edit"
 	"github.com/modern-engineering/prototype/solution/gen"
 	"github.com/modern-engineering/prototype/solution/link"
 )
 
 // Command supplies streams and the catalogue available to one command host.
-// Nil streams mean empty input or discarded output. Registry is needed only
-// for -linked or -inputs operations; the caller owns its registrations.
+// Nil streams mean empty input or discarded output. A nil Registry selects
+// generated hosts for linked operations. Context cancels host builds and runs;
+// nil uses context.Background. The caller owns a supplied registry.
 type Command struct {
+	Context  context.Context
 	Stdin    io.Reader
 	Stdout   io.Writer
 	Stderr   io.Writer
 	Registry *program.Registry
 }
 
-// Run processes fmt, convert, check, inspect, dump, rename, or gen. It returns 0 on
+// Run processes fmt, convert, check, inspect, dump, rename, gen, or build. It returns 0 on
 // success, 1 on data or operation failure, and 2 on invalid command usage.
 // Flags precede the optional input filename. A missing filename or "-" reads
 // Stdin; missing output or "-" writes Stdout. Formats are inferred from
-// .json.sef, .gob.sef, or .sef; stdin defaults to text, overridable by -from.
+// .cue.sef, .cue, .json.sef, .gob.sef, or .sef; stdin defaults to text,
+// overridable by -from. CUE formatting checks syntax without evaluating data.
 // Streams are left open. Each Run operates independently.
 //
 // fmt preserves text comments and can replace a named file with -w. convert
 // and dump preserve semantic content, not source comments. check validates
 // structural relationships; -linked additionally checks the registry.
 // inspect -inputs instantiates fresh I/O declarations, but never assigns,
-// reads values, or executes runners. gen emits registration source for a later
-// Go build. rename rewrites an occurrence and all its relationships, preserving
+// reads values, or executes runners. gen emits registration source; -main emits
+// a complete host. build compiles a host without running it. rename rewrites an occurrence and all its relationships, preserving
 // the input encoding on stdout or inferring it from the output filename. Module
-// selection and execution are outside these commands.
+// requirements select the isolated generated module. -toolkit and -replace
+// provide explicit local source overrides, and -work retains generated files.
 func (c Command) Run(args []string) int {
+	if c.Context == nil {
+		c.Context = context.Background()
+	}
 	if c.Stdin == nil {
 		c.Stdin = strings.NewReader("")
 	}
@@ -61,7 +72,7 @@ func (c Command) Run(args []string) int {
 		return 0
 	}
 	switch args[0] {
-	case "fmt", "convert", "check", "inspect", "dump", "rename", "gen":
+	case "fmt", "convert", "check", "inspect", "dump", "rename", "gen", "build":
 	default:
 		_, _ = fmt.Fprintf(c.Stderr, "sef: unknown command %q\n", args[0])
 		c.usage()
@@ -75,33 +86,38 @@ func (c Command) Run(args []string) int {
 }
 
 func (c Command) usage() {
-	_, _ = fmt.Fprintln(c.Stderr, "usage: sef <fmt|convert|check|inspect|dump|rename|gen> [flags] [file|-]")
-	_, _ = fmt.Fprintln(c.Stderr, "use sef <command> -h for flags; linked inspection needs a host with a compiled registry")
+	_, _ = fmt.Fprintln(c.Stderr, "usage: sef <fmt|convert|check|inspect|dump|rename|gen|build> [flags] [file|-]")
+	_, _ = fmt.Fprintln(c.Stderr, "use sef <command> -h for flags; linked commands build a host when no registry is supplied")
 }
 
 func (c Command) run(name string, args []string) (int, error) {
 	flags := flag.NewFlagSet("sef "+name, flag.ContinueOnError)
 	flags.SetOutput(c.Stderr)
 	from, to, output, packageName, functionName := "auto", "auto", "-", "catalogue", "Register"
-	write, linked, inputs := false, false, false
+	write, linked, inputs, mainSource := false, false, false, false
+	buildOptions := build.Options{ToolkitVersion: toolkitVersion()}
 	oldName, newName := "", ""
 	flags.Usage = func() {
 		_, _ = fmt.Fprintf(c.Stderr, "usage: sef %s [flags] [file|-]\n", name)
 		flags.PrintDefaults()
 	}
 	if name == "fmt" {
-		flags.BoolVar(&write, "w", false, "replace a named text file")
-	} else if name != "rename" {
-		flags.StringVar(&from, "from", "auto", "input format: auto, text, json, gob")
+		flags.BoolVar(&write, "w", false, "replace a named source file")
+	}
+	if name != "rename" {
+		flags.StringVar(&from, "from", "auto", "input format: auto, text, cue, json, gob")
 	}
 	if name == "convert" {
-		flags.StringVar(&to, "to", "auto", "output format: text, json, gob (default: output suffix, otherwise json)")
+		flags.StringVar(&to, "to", "auto", "output format: text, cue, json, gob (default: output suffix, otherwise json)")
 	}
-	if name == "convert" || name == "dump" || name == "rename" || name == "gen" {
-		flags.StringVar(&output, "o", "-", "output file or - for stdout")
+	if name == "build" {
+		output = "solution.host"
+	}
+	if name == "convert" || name == "dump" || name == "rename" || name == "gen" || name == "build" {
+		flags.StringVar(&output, "o", output, "output file (build requires a new named file)")
 	}
 	if name == "check" || name == "inspect" {
-		flags.BoolVar(&linked, "linked", false, "resolve descriptors through the host's compiled registry")
+		flags.BoolVar(&linked, "linked", false, "resolve descriptors through a compiled registry, building a host if needed")
 	}
 	if name == "inspect" {
 		flags.BoolVar(&inputs, "inputs", false, "instantiate and display I/O declarations (implies -linked)")
@@ -110,7 +126,20 @@ func (c Command) run(name string, args []string) (int, error) {
 		flags.StringVar(&oldName, "from", "", "existing occurrence name")
 		flags.StringVar(&newName, "to", "", "new occurrence name")
 	}
+	if name == "build" || name == "check" || name == "inspect" {
+		flags.BoolVar(&buildOptions.KeepWork, "work", false, "retain generated source, module, and binary")
+		flags.StringVar(&buildOptions.ToolkitDir, "toolkit", "", "local toolkit module directory for generated hosts")
+		flags.Func("replace", "local module replacement: module=directory (repeatable)", func(value string) error {
+			module, dir, ok := strings.Cut(value, "=")
+			if !ok || module == "" || dir == "" {
+				return errors.New("replacement must be module=directory")
+			}
+			buildOptions.Replacements = append(buildOptions.Replacements, build.Replacement{Module: module, Dir: dir})
+			return nil
+		})
+	}
 	if name == "gen" {
+		flags.BoolVar(&mainSource, "main", false, "generate a complete descriptor host")
 		flags.StringVar(&packageName, "package", "catalogue", "generated Go package name")
 		flags.StringVar(&functionName, "func", "Register", "generated registration function")
 	}
@@ -136,10 +165,16 @@ func (c Command) run(name string, args []string) (int, error) {
 		return 2, errors.New("fmt -w requires a named file")
 	}
 	if !validFormat(from) || !validFormat(to) {
-		return 2, errors.New("format must be auto, text, json, or gob")
+		return 2, errors.New("format must be auto, text, cue, json, or gob")
 	}
-	if (linked || inputs) && c.Registry == nil {
-		return 2, errors.New("this host has no compiled descriptor registry; use structural inspection or build a catalogue-aware host")
+	if name == "build" && output == "-" {
+		return 2, errors.New("build requires a named output file")
+	}
+	if mainSource && (renaming["package"] || renaming["func"]) {
+		return 2, errors.New("gen -main cannot be combined with -package or -func")
+	}
+	if (buildOptions.KeepWork || renaming["toolkit"] || renaming["replace"]) && name != "build" && (!(linked || inputs) || c.Registry != nil) {
+		return 2, errors.New("build options require a generated host")
 	}
 	data, err := c.read(path)
 	if err != nil {
@@ -147,11 +182,23 @@ func (c Command) run(name string, args []string) (int, error) {
 	}
 	var result bytes.Buffer
 	if name == "fmt" {
-		file, err := seftext.Parse(path, bytes.NewReader(data))
-		if err != nil {
-			return 1, err
+		format := from
+		if format == "auto" {
+			format = formatFor(path)
 		}
-		if err := seftext.Format(&result, file); err != nil {
+		switch format {
+		case "cue":
+			err = sefcue.FormatSource(&result, path, bytes.NewReader(data))
+		case "text":
+			var file *seftext.File
+			file, err = seftext.Parse(path, bytes.NewReader(data))
+			if err == nil {
+				err = seftext.Format(&result, file)
+			}
+		default:
+			return 2, errors.New("fmt requires text or cue source")
+		}
+		if err != nil {
 			return 1, err
 		}
 		if write {
@@ -161,6 +208,9 @@ func (c Command) run(name string, args []string) (int, error) {
 		artifact, err := decode(path, from, data)
 		if err != nil {
 			return 1, err
+		}
+		if name == "build" || (c.Registry == nil && (linked || inputs)) {
+			return c.generated(name, artifact, inputs, output, buildOptions)
 		}
 		switch name {
 		case "convert", "dump":
@@ -196,7 +246,11 @@ func (c Command) run(name string, args []string) (int, error) {
 			err = c.inspect(&result, artifact, linked || inputs, inputs)
 		case "gen":
 			var source []byte
-			source, err = gen.Source(packageName, functionName, artifact.Definition)
+			if mainSource {
+				source, err = gen.Main(artifact.Definition)
+			} else {
+				source, err = gen.Source(packageName, functionName, artifact.Definition)
+			}
 			if err == nil {
 				_, err = result.Write(source)
 			}

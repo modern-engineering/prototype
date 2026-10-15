@@ -10,16 +10,19 @@ import (
 	"strings"
 
 	"github.com/modern-engineering/prototype/sef"
+	sefcue "github.com/modern-engineering/prototype/sef/cue"
 	seftext "github.com/modern-engineering/prototype/sef/text"
 	"github.com/modern-engineering/prototype/solution"
 )
 
 func validFormat(format string) bool {
-	return format == "auto" || format == "text" || format == "json" || format == "gob"
+	return format == "auto" || format == "text" || format == "json" || format == "gob" || format == "cue"
 }
 
 func formatFor(path string) string {
 	switch {
+	case strings.HasSuffix(path, ".cue.sef"), strings.HasSuffix(path, ".cue"):
+		return "cue"
 	case strings.HasSuffix(path, ".json.sef"):
 		return "json"
 	case strings.HasSuffix(path, ".gob.sef"):
@@ -35,6 +38,12 @@ func decode(path, format string, data []byte) (solution.Artifact, error) {
 	}
 	reader := bytes.NewReader(data)
 	switch format {
+	case "cue":
+		file, err := sefcue.Parse(path, reader)
+		if err != nil {
+			return solution.Artifact{}, err
+		}
+		return file.Artifact(), nil
 	case "json", "gob":
 		var artifact solution.Artifact
 		var err error
@@ -58,6 +67,8 @@ func decode(path, format string, data []byte) (solution.Artifact, error) {
 
 func encode(w io.Writer, format string, artifact solution.Artifact) error {
 	switch format {
+	case "cue":
+		return sefcue.Encode(w, artifact)
 	case "json":
 		return sef.EncodeJSON(w, artifact)
 	case "gob":

@@ -1,8 +1,9 @@
 # Working with solution artifacts
 
 Run these commands from the module root.
-The `.sef` text grammar and schema version `"0.1"` are experimental.
-JSON and gob encode the same logical `solution.Artifact`; JSON requires Unicode strings, while text and gob also preserve arbitrary bytes.
+The `.sef` text grammar, CUE frontend and schema version `"0.1"` are experimental.
+All encodings produce the same logical `solution.Artifact`.
+JSON requires Unicode strings; text, gob and CUE also preserve arbitrary bytes.
 
 ## Inspect and edit without catalogue code
 
@@ -13,9 +14,10 @@ go run ./cmd/sef inspect internal/seftool/testdata/service.sef
 go run ./cmd/sef rename -from database -to storage internal/seftool/testdata/service.sef
 ```
 
-Formatting preserves source comments and statement order.
+Formatting preserves source comments.
+Text formatting retains statement order; CUE formatting retains expressions and definitions without evaluating them.
 Renaming rewrites the occurrence and its references; it rejects ambiguous names and capture of unresolved endpoints.
-Renaming and encoding conversion preserve logical content but do not retain source comments.
+Renaming and encoding conversion preserve logical content but do not retain source comments or CUE expressions.
 `fmt -w` replaces a named text file only after successful parsing and formatting.
 Named output replacement preserves existing permissions and rejects symlinks.
 
@@ -34,7 +36,54 @@ For `rename`, `-from` and `-to` instead name occurrences; its input encoding fol
 `dump` writes normalized JSON, including authored literal values.
 `inspect` displays relationships without printing literal contents.
 
-## Inspect compiled descriptors and actual fields
+
+## Author with CUE
+
+```sh
+go run ./cmd/sef fmt internal/seftool/testdata/service.cue.sef
+go run ./cmd/sef check internal/seftool/testdata/service.cue.sef
+go run ./cmd/sef convert -to json internal/seftool/testdata/service.cue.sef
+```
+
+The CUE source shares a catalogue path and region using local declarations.
+Evaluation produces concrete artifact records; output references remain ordinary node/output data.
+The frontend embeds its information schema and requires an explicit version string.
+It accepts a single source file and CUE builtin imports, without a CUE module loader.
+Both `.cue` and `.cue.sef` select CUE; use `-from cue` for stdin.
+`fmt -from cue` can format incomplete constraints, while checking and conversion require concrete data.
+
+## Generate and build descriptor hosts
+
+```sh
+go run ./cmd/sef gen -main internal/seftool/testdata/service.sef
+go run ./cmd/sef check -linked -toolkit . internal/seftool/testdata/service.sef
+go run ./cmd/sef inspect -inputs -toolkit . internal/seftool/testdata/service.cue.sef
+go run ./cmd/sef build -toolkit . -work -o /tmp/service.host internal/seftool/testdata/service.sef
+go run ./cmd/sef convert -to gob internal/seftool/testdata/service.sef | /tmp/service.host inspect -inputs
+```
+
+Linked commands generate a small Go main that registers the referenced descriptors and compile it in a private module.
+The generated `go.mod` uses the artifact's module requirements, with ordinary Go minimal version selection.
+The caller's module and workspace do not select the build's dependencies.
+Missing-package discovery cannot silently introduce another module or select a newer version outside that initial module graph.
+Module downloads use the normal Go proxy and checksum configuration.
+
+A versioned toolkit command supplies its own module version when the artifact does not specify one.
+This unreleased source checkout uses the explicit `-toolkit .` development override in the examples.
+Other local overrides use repeated `-replace module=directory` flags and require declared modules.
+The independent module follows ordinary Go internal-package visibility rules.
+
+`build` compiles without starting the host and requires a new output path.
+`-work` prints and retains the generated source, module files and binary, including failed build work for diagnosis.
+Other temporary work is removed automatically.
+A retained host reads gob artifacts from stdin and serves `check` or `inspect [-inputs]`.
+It can inspect another artifact using the descriptors compiled into that host.
+
+Compilation does not execute catalogue code.
+Starting a host runs imported package initializers; `check` and ordinary inspection do not call `Make`.
+Only `inspect -inputs` constructs invocations, and no command sets inputs, reads output values or runs programs.
+
+## Supply a compiled registry
 
 ```sh
 go run ./cmd/solution-demo check -linked internal/seftool/testdata/service.sef
@@ -56,7 +105,8 @@ go run ./cmd/sef gen -package cataloguehost -func Register internal/seftool/test
 ```
 
 Generated registration is an optional way to name compiled Go descriptors.
-It does not download modules, verify the selected module versions, or execute catalogue programs.
+Registration source generation does not resolve or download modules.
+The generated-host build path above selects and compiles them.
 
 Commands return status 0 on success, 1 for invalid artifacts or operation failures, and 2 for invalid usage.
 Diagnostics go to stderr; successful tool output goes to stdout or the requested file.
