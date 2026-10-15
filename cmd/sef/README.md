@@ -174,6 +174,12 @@ Job results remain in memory for this run.
 
 For a bespoke host with a compiled private catalogue, use `program.Registry`, `solution/link`, and `solution/load`, then pass the instance to `playground.Run`.
 The host can inspect concrete runners and explicitly supply clients before execution; ownership of those clients remains with the host.
+Acme's example compiles its catalogue and reads an embedded artifact containing a job chain and two applications:
+
+```sh
+cd examples/acme
+go run ./cmd/playground
+```
 
 ## Use local modules during development
 
