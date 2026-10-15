@@ -19,12 +19,7 @@ var Fetch = job.Descriptor{
 	Name:    "fetch",
 	Summary: "Fetch an authenticated HTTP resource",
 	MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
-		worker := &fetch{Endpoint: httpclient.Endpoint{URL: "http://localhost:8080"}}
-		var inputs input.List
-		var outputs output.List
-		worker.BindInputs(&inputs)
-		outputs.JSON(&worker.result, program.Field{Name: "body", Help: "response body"})
-		return worker, &inputs, &outputs
+		return job.From(&fetch{Endpoint: httpclient.Endpoint{URL: "http://localhost:8080"}})
 	},
 }
 
@@ -35,6 +30,18 @@ type fetch struct {
 	result struct {
 		Body []byte `json:"body"`
 	}
+}
+
+func (f *fetch) Inputs() program.Inputs {
+	var inputs input.List
+	f.BindInputs(&inputs)
+	return &inputs
+}
+
+func (f *fetch) Outputs() program.Outputs {
+	var outputs output.List
+	outputs.JSON(&f.result, program.Field{Name: "body", Help: "response body"})
+	return &outputs
 }
 
 func (f *fetch) Run(ctx context.Context) error {
