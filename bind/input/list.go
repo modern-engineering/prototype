@@ -4,10 +4,11 @@
 // String, Bool, and Bytes allocate initialized variables. Their Var siblings
 // bind existing variables without changing them; target pointers must be nonnil.
 // Int, Float, and Complex preserve the chosen numeric type through generics.
-// Var accepts custom handles, including program.SetterFunc; Define accepts
-// explicit declaration metadata. Registration copies metadata and retains the
-// original handle, including its additional capabilities. It never calls
-// Set, so constructor defaults remain unchanged.
+// Var accepts custom handles, including program.SetterFunc. Helpers and Var accept
+// trailing metadata options such as Sensitive; Define accepts explicit metadata.
+// Registration copies metadata and retains the original handle, including
+// its additional capabilities. It never calls Set, so constructor defaults
+// remain unchanged.
 //
 // Names are unique within a list. Duplicate names and nil handle interfaces panic
 // as declaration mistakes. Typed nil handles are retained as supplied; their
@@ -27,9 +28,17 @@ type List struct {
 }
 
 // Var defines an input with name and help, retaining value unchanged.
-// Use Define to supply Sensitive or other explicit declaration metadata.
-func (l *List) Var(value program.Setter, name, help string) {
-	l.Define(program.Field{Name: name, Help: help}, value)
+// Options modify the declaration in argument order before Define validates it.
+// A nil option panics before registration.
+func (l *List) Var(value program.Setter, name, help string, options ...Option) {
+	field := program.Field{Name: name, Help: help}
+	for _, option := range options {
+		if option == nil {
+			panic("input: nil declaration option")
+		}
+		option(&field)
+	}
+	l.Define(field, value)
 }
 
 // Define registers an input with a copy of field and the original value. It
