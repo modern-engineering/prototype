@@ -79,3 +79,17 @@ func TestGeneratedHostWorkflow(t *testing.T) {
 		t.Fatalf("automatic host differs from retained host:\n%s\nwant:\n%s", &output, report)
 	}
 }
+
+// An explicit replacement has precedence over development-mode discovery, while
+// an unreleased toolkit still needs a requirement for that local replacement.
+func TestDevelopmentToolkitReplacement(t *testing.T) {
+	toolkit, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output, diagnostics bytes.Buffer
+	command := seftool.Command{Context: t.Context(), Stdout: &output, Stderr: &diagnostics}
+	if status := command.Run([]string{"check", "-linked", "-dev", "-replace", "github.com/modern-engineering/prototype=" + toolkit, "testdata/service.sef"}); status != 0 {
+		t.Fatalf("explicit development replacement status=%d: %s", status, &diagnostics)
+	}
+}

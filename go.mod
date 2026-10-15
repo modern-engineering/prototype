@@ -2,7 +2,10 @@ module github.com/modern-engineering/prototype
 
 go 1.27.0
 
-require cuelang.org/go v0.17.1
+require (
+	cuelang.org/go v0.17.1
+	golang.org/x/mod v0.37.0
+)
 
 require (
 	github.com/cockroachdb/apd/v3 v3.2.3 // indirect
@@ -12,7 +15,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20260420112717-c39628bde8b5 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/mod v0.37.0
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect

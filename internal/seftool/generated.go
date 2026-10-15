@@ -36,7 +36,7 @@ func toolkitVersion() string {
 	return version
 }
 
-func (c Command) generated(name string, artifact solution.Artifact, inputs bool, output string, options build.Options) (status int, err error) {
+func (c Command) generated(name string, artifact solution.Artifact, inputs bool, output string, options build.Options, dev bool) (status int, err error) {
 	if err := link.CheckStructure(artifact.Definition); err != nil {
 		return 1, err
 	}
@@ -44,10 +44,17 @@ func (c Command) generated(name string, artifact solution.Artifact, inputs bool,
 	if err := sef.EncodeGob(&materialized, artifact); err != nil {
 		return 1, err
 	}
-	result, err := build.Host(c.Context, artifact.Definition, options)
+	definition := artifact.Definition
+	if dev {
+		definition, options, err = development(c.Context, definition, options)
+		if err != nil {
+			return 1, err
+		}
+	}
+	result, err := build.Host(c.Context, definition, options)
 	if result != nil {
 		if options.KeepWork {
-			fmt.Fprintf(c.Stderr, "WORK=%s\n", result.WorkDir)
+			_, _ = fmt.Fprintf(c.Stderr, "WORK=%s\n", result.WorkDir)
 		} else {
 			defer func() {
 				err = errors.Join(err, result.Close())
@@ -84,7 +91,7 @@ func saveExecutable(path, source string) error {
 	if err != nil {
 		return err
 	}
-	defer input.Close()
+	defer func() { _ = input.Close() }()
 	output, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o700)
 	if err != nil {
 		return err

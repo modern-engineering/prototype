@@ -1,0 +1,3 @@
+sef "0.1"
+solution "local-development"
+node "service" "example.test/local/v2" "Service"

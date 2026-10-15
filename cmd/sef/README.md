@@ -83,6 +83,24 @@ Compilation does not execute catalogue code.
 Starting a host runs imported package initializers; `check` and ordinary inspection do not call `Make`.
 Only `inspect -inputs` constructs invocations, and no command sets inputs, reads output values or runs programs.
 
+## Use caller descriptors during development
+
+```sh
+go run ./cmd/sef inspect -inputs -dev internal/seftool/testdata/service.cue.sef
+```
+
+The default build uses the artifact's requirements and a separate module.
+`-dev` opts into the current caller module's source when its descriptors are referenced.
+It adds a local `replace` in the generated `go.mod`, retaining any authored version requirement.
+An undeclared caller module receives a placeholder version compatible with its module path, used only with that local replacement.
+Running from this toolkit's source module also supplies the local toolkit implementation.
+Explicit `-toolkit` and `-replace` overrides take precedence.
+
+Development mode does not copy unrelated caller requirements, workspace modules or replacement directives.
+Dependencies of the replaced module still participate in normal Go module selection.
+The source artifact and caller manifests are left untouched.
+`-dev=false` is equivalent to omitting the flag.
+
 ## Supply a compiled registry
 
 ```sh

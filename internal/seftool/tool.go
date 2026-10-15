@@ -48,7 +48,9 @@ type Command struct {
 // reads values, or executes runners. gen emits registration source; -main emits
 // a complete host. build compiles a host without running it. rename rewrites an occurrence and all its relationships, preserving
 // the input encoding on stdout or inferring it from the output filename. Module
-// requirements select the isolated generated module. -toolkit and -replace
+// requirements select the isolated generated module. -dev opts into caller
+// module source for its descriptors without inheriting its dependency graph.
+// -toolkit and -replace
 // provide explicit local source overrides, and -work retains generated files.
 func (c Command) Run(args []string) int {
 	if c.Context == nil {
@@ -94,7 +96,7 @@ func (c Command) run(name string, args []string) (int, error) {
 	flags := flag.NewFlagSet("sef "+name, flag.ContinueOnError)
 	flags.SetOutput(c.Stderr)
 	from, to, output, packageName, functionName := "auto", "auto", "-", "catalogue", "Register"
-	write, linked, inputs, mainSource := false, false, false, false
+	write, linked, inputs, mainSource, dev := false, false, false, false, false
 	buildOptions := build.Options{ToolkitVersion: toolkitVersion()}
 	oldName, newName := "", ""
 	flags.Usage = func() {
@@ -127,6 +129,7 @@ func (c Command) run(name string, args []string) (int, error) {
 		flags.StringVar(&newName, "to", "", "new occurrence name")
 	}
 	if name == "build" || name == "check" || name == "inspect" {
+		flags.BoolVar(&dev, "dev", false, "use caller module source for its referenced descriptors")
 		flags.BoolVar(&buildOptions.KeepWork, "work", false, "retain generated source, module, and binary")
 		flags.StringVar(&buildOptions.ToolkitDir, "toolkit", "", "local toolkit module directory for generated hosts")
 		flags.Func("replace", "local module replacement: module=directory (repeatable)", func(value string) error {
@@ -173,7 +176,7 @@ func (c Command) run(name string, args []string) (int, error) {
 	if mainSource && (renaming["package"] || renaming["func"]) {
 		return 2, errors.New("gen -main cannot be combined with -package or -func")
 	}
-	if (buildOptions.KeepWork || renaming["toolkit"] || renaming["replace"]) && name != "build" && (!(linked || inputs) || c.Registry != nil) {
+	if (dev || buildOptions.KeepWork || renaming["toolkit"] || renaming["replace"]) && name != "build" && (!linked && !inputs || c.Registry != nil) {
 		return 2, errors.New("build options require a generated host")
 	}
 	data, err := c.read(path)
@@ -210,7 +213,7 @@ func (c Command) run(name string, args []string) (int, error) {
 			return 1, err
 		}
 		if name == "build" || (c.Registry == nil && (linked || inputs)) {
-			return c.generated(name, artifact, inputs, output, buildOptions)
+			return c.generated(name, artifact, inputs, output, buildOptions, dev)
 		}
 		switch name {
 		case "convert", "dump":
