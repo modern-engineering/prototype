@@ -1,0 +1,69 @@
+// Package companyhttp shows an adopting organization's HTTP conventions.
+// Endpoint declares configuration separately from its borrowed HTTP client.
+package companyhttp
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+
+	"github.com/modern-engineering/prototype/bind/input"
+)
+
+// Endpoint configures authenticated GET requests. BindInputs exposes its URL
+// and token without opening a connection. A client must be supplied before Get.
+// The client remains owned by its supplier; Endpoint never closes or changes it.
+type Endpoint struct {
+	URL   string `input:"url" help:"service URL"`
+	Token string `input:"token,sensitive" help:"bearer credential"`
+
+	client *http.Client
+}
+
+// BindInputs registers the endpoint's configuration without changing it.
+// The declarations use url and token; a program with several endpoints can bind
+// their fields individually under distinct names instead.
+func (e *Endpoint) BindInputs(inputs *input.List) {
+	inputs.Struct(e)
+}
+
+// ClientReceiver opts a runner into accepting a borrowed HTTP client from its
+// loader. Embedding Endpoint supplies this capability through ordinary Go method
+// promotion. Programs with several endpoints can configure each explicitly.
+type ClientReceiver interface {
+	UseHTTPClient(*http.Client)
+}
+
+// UseHTTPClient retains client for subsequent requests without performing I/O.
+// Passing nil clears the client; Get then returns an error.
+func (e *Endpoint) UseHTTPClient(client *http.Client) {
+	e.client = client
+}
+
+// Get fetches the configured URL and returns its response body. A nonempty token
+// is sent as a bearer credential. Get rejects non-2xx responses and closes each
+// response body before returning, including on a read or status error. A body
+// closing error is joined with any request error.
+func (e *Endpoint) Get(ctx context.Context) (body []byte, err error) {
+	if e.client == nil {
+		return nil, errors.New("HTTP client has not been supplied")
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, e.URL, nil)
+	if err != nil {
+		return nil, err
+	}
+	if e.Token != "" {
+		request.Header.Set("Authorization", "Bearer "+e.Token)
+	}
+	response, err := e.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { err = errors.Join(err, response.Body.Close()) }()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("HTTP request failed: %s", response.Status)
+	}
+	return io.ReadAll(response.Body)
+}
