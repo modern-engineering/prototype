@@ -1,4 +1,4 @@
-package companyhttp_test
+package httpclient_test
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"example.com/acme/httpclient"
 	"github.com/modern-engineering/prototype/bind/input"
-	"github.com/modern-engineering/prototype/examples/internal/companyhttp"
 )
 
 // Configuration binds through the usual input surface; the HTTP client is
@@ -24,7 +24,7 @@ func ExampleEndpoint() {
 	}))
 	defer server.Close()
 
-	endpoint := companyhttp.Endpoint{URL: server.URL}
+	endpoint := httpclient.Endpoint{URL: server.URL}
 	var inputs input.List
 	endpoint.BindInputs(&inputs)
 	token, _ := inputs.Lookup("token")

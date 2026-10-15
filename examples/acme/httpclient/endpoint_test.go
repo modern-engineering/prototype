@@ -1,4 +1,4 @@
-package companyhttp_test
+package httpclient_test
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"testing/iotest"
 
-	"github.com/modern-engineering/prototype/examples/internal/companyhttp"
+	"example.com/acme/httpclient"
 )
 
 // Responses belong to each request even when its client is borrowed for a
@@ -34,7 +34,7 @@ func TestResponsesCloseWithoutClosingTheClient(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			body := &responseBody{Reader: test.reader, closeErr: test.closeErr}
 			transport := &responseTransport{status: test.status, body: body}
-			endpoint := companyhttp.Endpoint{URL: "https://service.example"}
+			endpoint := httpclient.Endpoint{URL: "https://service.example"}
 			endpoint.UseHTTPClient(&http.Client{Transport: transport})
 			got, err := endpoint.Get(t.Context())
 			if (err != nil) != test.wantErr {

@@ -1,6 +1,6 @@
-// Package companyhttp shows an adopting organization's HTTP conventions.
+// Package httpclient provides Acme's HTTP conventions.
 // Endpoint declares configuration separately from its borrowed HTTP client.
-package companyhttp
+package httpclient
 
 import (
 	"context"
@@ -27,13 +27,6 @@ type Endpoint struct {
 // their fields individually under distinct names instead.
 func (e *Endpoint) BindInputs(inputs *input.List) {
 	inputs.Struct(e)
-}
-
-// ClientReceiver opts a runner into accepting a borrowed HTTP client from its
-// loader. Embedding Endpoint supplies this capability through ordinary Go method
-// promotion. Programs with several endpoints can configure each explicitly.
-type ClientReceiver interface {
-	UseHTTPClient(*http.Client)
 }
 
 // UseHTTPClient retains client for subsequent requests without performing I/O.
