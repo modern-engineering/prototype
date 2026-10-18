@@ -11,6 +11,7 @@ import (
 	"os/signal"
 
 	"github.com/modern-engineering/prototype/application"
+	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
@@ -32,7 +33,7 @@ var Address = job.Descriptor{
 		outputs := program.OutputList{
 			program.Output{
 				Field: program.Field{Name: "url", Help: "service URL"},
-				Value: program.GetterFunc(func() string { return address }),
+				Value: bind.String(&address),
 			},
 		}
 		return run, program.FromFlags(flags), outputs
@@ -47,10 +48,7 @@ var Backend = application.Descriptor{
 		inputs := program.InputList{
 			program.Input{
 				Field: program.Field{Name: "address", Help: "upstream service URL"},
-				Value: program.SetterFunc(func(value string) error {
-					address = value
-					return nil
-				}),
+				Value: bind.String(&address),
 			},
 		}
 

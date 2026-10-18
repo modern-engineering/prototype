@@ -35,25 +35,6 @@ type MakeFunc func() (Runner, Inputs, Outputs)
 
 func (f MakeFunc) Make() (Runner, Inputs, Outputs) { return f() }
 
-// Adapt creates a descriptor from a constructor whose runner optionally implements
-// Inputs() Inputs and Outputs() Outputs. Each accessor is called once per Make;
-// missing accessors produce empty surfaces. Construction follows Descriptor's
-// purity and fresh-state contract.
-func Adapt[T Runner](newRunner func() T) MakeFunc {
-	return func() (Runner, Inputs, Outputs) {
-		runner := newRunner()
-		var inputs Inputs = InputList(nil)
-		var outputs Outputs = OutputList(nil)
-		if r, ok := any(runner).(interface{ Inputs() Inputs }); ok {
-			inputs = r.Inputs()
-		}
-		if r, ok := any(runner).(interface{ Outputs() Outputs }); ok {
-			outputs = r.Outputs()
-		}
-		return runner, inputs, outputs
-	}
-}
-
 // Field describes a named input or output. Sensitive marks values that loaders
 // must keep out of ordinary diagnostics. This package does not track assignment,
 // output production, or sensitivity flow.
@@ -71,10 +52,13 @@ type Setter interface {
 	Set(string) error
 }
 
-// SetterFunc adapts a function to Setter.
+// SetterFunc receives an assignment through a function. It implements Set only;
+// the function decides how to validate and store each value.
+// A nil SetterFunc is not usable.
 type SetterFunc func(string) error
 
-func (f SetterFunc) Set(value string) error { return f(value) }
+// Set calls f with text and returns its error unchanged.
+func (f SetterFunc) Set(text string) error { return f(text) }
 
 // Input binds declaration metadata to the original setter, preserving any
 // additional transfer capabilities exposed by Value.
@@ -120,9 +104,12 @@ type Getter interface {
 	Get() string
 }
 
-// GetterFunc adapts a function to Getter.
+// GetterFunc supplies a value through a function. It implements Get only;
+// each call invokes the function again.
+// A nil GetterFunc is not usable.
 type GetterFunc func() string
 
+// Get calls f and returns its result.
 func (f GetterFunc) Get() string { return f() }
 
 // Output binds declaration metadata to the original getter, preserving any

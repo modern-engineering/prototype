@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 
@@ -19,10 +20,13 @@ var (
 	ErrUnknownOutput = errors.New("unknown output")
 )
 
-// Loader constructs invocations with optional diagnostics. Its zero value is
-// ready to use and produces no diagnostics.
+// Loader constructs invocations and supplies files for their configuration.
+// The zero value uses the operating system's filesystem and emits no diagnostics.
 type Loader struct {
-	// Logger enables debug diagnostics for file assignment and execution.
+	// FS supplies files to ReadFile. A nil FS uses os.Open.
+	FS fs.FS
+
+	// Logger enables debug diagnostics for assignment and execution boundaries.
 	// A nil Logger disables diagnostics, including use of slog.Default.
 	// Diagnostics contain field names and failure status, never values or causes.
 	Logger *slog.Logger
@@ -31,25 +35,23 @@ type Loader struct {
 // Invocation holds configured state and owns the readers borrowed by its runner.
 // The caller must run or close each invocation.
 type Invocation struct {
-	runner  program.Runner
-	inputs  program.Inputs
-	outputs program.Outputs
-	files   []*os.File
-	logger  *slog.Logger
+	runner   program.Runner
+	inputs   program.Inputs
+	outputs  program.Outputs
+	fs       fs.FS
+	borrowed []io.Closer
+	logger   *slog.Logger
 }
 
-// Make constructs fresh invocation state without I/O or assignment. Configure
-// its inputs before Run; untouched inputs retain their constructor values.
-// The caller must Run or Close each invocation, including on setup failure.
+// Make constructs a fresh invocation without acquiring resources or running it.
+// Unbound inputs retain their constructor values.
+// The caller must Run or Close the invocation after configuring it.
 func (l Loader) Make(descriptor program.Descriptor) *Invocation {
 	runner, inputs, outputs := descriptor.Make()
-	return &Invocation{runner: runner, inputs: inputs, outputs: outputs, logger: l.Logger}
+	return &Invocation{runner: runner, inputs: inputs, outputs: outputs, fs: l.FS, logger: l.Logger}
 }
 
-// Input returns the original setter for a declared input. The caller can assign
-// literals or copy an output with input.Set(output.Get()). Additional transfer
-// capabilities remain available on that setter. The caller handles its errors;
-// these direct assignments produce no loader diagnostics.
+// Input returns a declared input's setter for explicit assignment.
 func (i *Invocation) Input(name string) (program.Setter, error) {
 	input, ok := i.inputs.Lookup(name)
 	if !ok {
@@ -58,78 +60,67 @@ func (i *Invocation) Input(name string) (program.Setter, error) {
 	return input.Value, nil
 }
 
-// ReadFile configures an input from the contents of path. It checks the input
-// name and context before opening the file, and owns every file it opens.
-//
-// An io.ReaderFrom consumes the file during this call. A setter implementing
-// BorrowReader(io.Reader) error may retain the reader through Run. If both
-// capabilities exist, ReadFrom wins. Otherwise ReadFile reads the whole file
-// and calls Set with its contents. Destinations receive only io.Reader and must
-// not close it. Eager destinations must finish using it before returning; a
-// borrower must finish before Run returns, including its background work.
-//
-// Eager reads and failed assignments close the file before returning. A successful
-// borrow stays open until Run returns or Close abandons the invocation. Failure
-// leaves earlier borrows intact; the caller must close an abandoned invocation.
-// Assignment and close errors are joined. A failed assignment is not retried
-// through another capability. The context does not make file reads cancelable.
+// ReadFile opens a file and assigns its contents to an input.
+// An io.ReaderFrom consumes eagerly; otherwise BorrowReader(io.Reader) error
+// borrows through Run. Other setters receive the file contents as a string.
+// Readers expose no closing capability: this invocation closes eager readers
+// immediately and retains successful borrows until Run returns or Close is called.
+// A failed assignment closes its file; earlier borrows remain usable.
+// Cancellation is checked before opening the file, but does not interrupt file I/O.
 func (i *Invocation) ReadFile(ctx context.Context, name, path string) (err error) {
-	target, err := i.Input(name)
+	defer func() {
+		if i.logger != nil {
+			i.logger.DebugContext(ctx, "input assignment completed", "input", name, "failed", err != nil)
+		}
+	}()
+	destination, err := i.Input(name)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if i.logger != nil {
-			i.logger.DebugContext(ctx, "file assignment completed", "input", name, "failed", err != nil)
-		}
-		if err != nil {
-			err = &assignmentError{name: name, cause: err}
-		}
-	}()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	file, err := os.Open(path)
+	var file fs.File
+	if i.fs == nil {
+		file, err = os.Open(path)
+	} else {
+		file, err = i.fs.Open(path)
+	}
 	if err != nil {
-		return err
+		return &assignmentError{name: name, cause: err}
 	}
 	retained := false
 	defer func() {
 		if !retained {
 			err = errors.Join(err, file.Close())
 		}
+		if err != nil {
+			err = &assignmentError{name: name, cause: err}
+		}
 	}()
 	reader := struct{ io.Reader }{file}
-	switch target := target.(type) {
+	switch destination := destination.(type) {
 	case io.ReaderFrom:
-		_, err = target.ReadFrom(reader)
-		return err
-	case readerBorrower:
-		if err := target.BorrowReader(reader); err != nil {
-			return err
+		_, err = destination.ReadFrom(reader)
+	case interface{ BorrowReader(io.Reader) error }:
+		err = destination.BorrowReader(reader)
+		if err == nil {
+			i.borrowed = append(i.borrowed, file)
+			retained = true
 		}
-		i.files = append(i.files, file)
-		retained = true
-		return nil
 	default:
-		data, err := io.ReadAll(reader)
-		if err != nil {
-			return err
+		var content []byte
+		content, err = io.ReadAll(reader)
+		if err == nil {
+			err = destination.Set(string(content))
 		}
-		return target.Set(string(data))
 	}
-}
-
-// readerBorrower is the reader convention understood by this loader. A failed
-// call must stop using the reader before returning.
-type readerBorrower interface {
-	BorrowReader(io.Reader) error
+	return err
 }
 
 // Run executes a configured invocation once. It keeps borrowed readers alive
 // until the runner and its background work have stopped, then releases them even
-// when execution fails or is canceled. Cancellation alone does not release files;
-// Run must return first. Run must not follow Close.
+// when execution fails or is canceled. Run must not follow Close.
 func (i *Invocation) Run(ctx context.Context) (err error) {
 	defer func() {
 		err = errors.Join(err, i.Close())
@@ -142,12 +133,11 @@ func (i *Invocation) Run(ctx context.Context) (err error) {
 
 // Close abandons a configured invocation or releases its completed execution.
 // A loader that decides not to Run must call Close. Repeated calls do nothing.
-func (i *Invocation) Close() error {
-	var err error
-	for index := len(i.files) - 1; index >= 0; index-- {
-		err = errors.Join(err, i.files[index].Close())
+func (i *Invocation) Close() (err error) {
+	for n := len(i.borrowed) - 1; n >= 0; n-- {
+		err = errors.Join(err, i.borrowed[n].Close())
 	}
-	i.files = nil
+	i.borrowed = nil
 	return err
 }
 
