@@ -2,5 +2,5 @@ package main
 
 func Example() {
 	main()
-	// Output: HELLO FROM NAMED GO VALUES
+	// Output: database.eu-west.example
 }

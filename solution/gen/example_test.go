@@ -8,11 +8,11 @@ import (
 )
 
 // Generated selectors make Go's compiler responsible for resolving exports.
-// Their concrete types impose no common capability on the resulting values.
+// The generated calls require each export to implement program.Descriptor.
 func ExampleSource() {
 	model := solution.Definition{Nodes: []solution.Node{
-		{Name: "input", Definition: solution.Symbol{Package: "os", Name: "Stdin"}},
-		{Name: "null", Definition: solution.Symbol{Package: "os", Name: "DevNull"}},
+		{Name: "database", Definition: solution.Symbol{Package: "example.org/catalogue", Name: "Database"}},
+		{Name: "backend", Definition: solution.Symbol{Package: "example.org/catalogue", Name: "Backend"}},
 	}}
 	source, err := gen.Source("inspection", "Register", model)
 	if err != nil {
@@ -27,17 +27,17 @@ func ExampleSource() {
 	// package inspection
 	//
 	// import (
-	// 	pkg0 "github.com/modern-engineering/prototype/symbol"
-	// 	pkg1 "os"
+	// 	pkg0 "example.org/catalogue"
+	// 	pkg1 "github.com/modern-engineering/prototype/program"
 	// )
 	//
-	// // Register registers referenced Go values. It stops at the first error;
+	// // Register registers referenced program descriptors. It stops at the first error;
 	// // earlier successful definitions remain in values.
-	// func Register(values *pkg0.Table) error {
-	// 	if err := values.Define("os", "DevNull", pkg1.DevNull); err != nil {
+	// func Register(values *pkg1.Registry) error {
+	// 	if err := values.Register("example.org/catalogue", "Backend", pkg0.Backend); err != nil {
 	// 		return err
 	// 	}
-	// 	if err := values.Define("os", "Stdin", pkg1.Stdin); err != nil {
+	// 	if err := values.Register("example.org/catalogue", "Database", pkg0.Database); err != nil {
 	// 		return err
 	// 	}
 	// 	return nil

@@ -2,31 +2,23 @@ package link_test
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/modern-engineering/prototype/program"
 	"github.com/modern-engineering/prototype/solution"
 	"github.com/modern-engineering/prototype/solution/link"
-	"github.com/modern-engineering/prototype/symbol"
 )
 
-// Occurrence identity belongs to the authored definition, while runtime values
-// retain their identity in the registry. Resolving either must not instantiate
-// descriptors or turn cycles into an execution-policy decision.
-func TestOccurrencesResolveWithoutInvocation(t *testing.T) {
-	factory := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
-		panic("descriptor instantiated during linking")
+// A linked graph indexes authored relationships without constructing programs,
+// interpreting repeated assignments, or turning cycles into a scheduling policy.
+func TestLogicalGraphPreservesIdentityAndAssignmentOrder(t *testing.T) {
+	var registry program.Registry
+	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+		panic("checking or linking called Make")
 	})
 	key := solution.Symbol{Package: "local", Name: "shared descriptor"}
-	var values symbol.Table
-	if err := values.Define(key.Package, key.Name, &factory); err != nil {
-		t.Fatal(err)
-	}
-	if err := values.Define("local", "nil", nil); err != nil {
-		t.Fatal(err)
-	}
-	var pointer *int
-	if err := values.Define("local", "typed nil", pointer); err != nil {
+	if err := registry.Register(key.Package, key.Name, &descriptor); err != nil {
 		t.Fatal(err)
 	}
 	literal := solution.Literal("")
@@ -36,61 +28,96 @@ func TestOccurrencesResolveWithoutInvocation(t *testing.T) {
 		Nodes: []solution.Node{
 			{Name: "consumer", Definition: key},
 			{Name: "producer", Definition: key},
-			{Name: "opaque", Definition: solution.Symbol{Package: "local", Name: "nil"}},
-			{Name: "typed-nil", Definition: solution.Symbol{Package: "local", Name: "typed nil"}},
 		},
 		Bindings: []solution.Binding{
-			{Node: "consumer", Input: "forward", Value: &reference},
-			{Node: "producer", Input: "cycle", Value: solution.Reference{Node: "consumer", Output: "uninspected"}},
-			{Node: "producer", Input: "self", Value: solution.Reference{Node: "producer", Output: "uninspected"}},
-			{Node: "consumer", Input: "empty", Value: &literal},
+			{Node: "consumer", Input: "a", Value: &literal},
+			{Node: "consumer", Input: "b", Value: &reference},
+			{Node: "producer", Input: "a", Value: solution.Reference{Node: "consumer", Output: "uninspected"}},
+			{Node: "consumer", Input: "a", Value: solution.Reference{Node: "producer", Output: "uninspected"}},
+			{Node: "producer", Input: "b", Value: solution.Reference{Node: "producer", Output: "uninspected"}},
 		},
 	}
-	resolved, err := link.Resolve(source, &values)
+	if err := link.Check(source, &registry); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := link.Resolve(source, &registry)
 	if err != nil {
 		t.Fatal(err)
 	}
-	consumer, producer := resolved.Nodes[0], resolved.Nodes[1]
-	if consumer == producer || consumer.Name != "consumer" || producer.Name != "producer" {
-		t.Fatalf("occurrences lost identity or order: %v, %v", consumer, producer)
+	nodes := slices.Collect(resolved.Nodes())
+	consumer, producer := nodes[0], nodes[1]
+	if consumer == producer || consumer.Name() != "consumer" || producer.Name() != "producer" {
+		t.Fatal("occurrences lost their authored identity or order")
 	}
-	if consumer.Definition != &factory || producer.Definition != &factory {
-		t.Fatal("linked occurrences do not retain the registered descriptor")
+	if found, ok := resolved.Lookup("consumer"); !ok || found != consumer {
+		t.Fatal("name lookup did not return the canonical occurrence")
 	}
-	if resolved.Nodes[2].Definition != nil || resolved.Nodes[3].Definition == nil || resolved.Nodes[3].Definition.(*int) != nil {
-		t.Fatal("registered nil values lost presence or concrete type")
+	if _, found := resolved.Lookup("absent"); found {
+		t.Fatal("lookup found an absent occurrence")
 	}
-	if resolved.Bindings[0].Node != consumer || resolved.Bindings[0].Value.(link.Reference).Node != producer {
-		t.Fatal("forward reference does not point to the canonical occurrences")
+	if consumer.Descriptor() != &descriptor || producer.Descriptor() != &descriptor || consumer.Symbol() != key {
+		t.Fatal("occurrence lost its original descriptor or provenance")
 	}
-	if resolved.Bindings[1].Value.(link.Reference).Node != consumer || resolved.Bindings[2].Value.(link.Reference).Node != producer {
-		t.Fatal("cyclic or self reference does not point to the canonical occurrence")
+	bindings := slices.Collect(resolved.Bindings())
+	if bindings[0].Value() != link.Literal("") || bindings[0].Node() != consumer || bindings[0].Input() != "a" {
+		t.Fatal("binding lost its receiver or explicit empty literal")
+	}
+	for _, i := range []int{1, 3, 4} {
+		if got := bindings[i].Value().(link.Reference); got.Node != producer || got.Output != "uninspected" {
+			t.Fatalf("binding %d did not reference the canonical producer: %+v", i, got)
+		}
+	}
+	if got := slices.Collect(consumer.Bindings()); !slices.Equal(got, []*link.Binding{bindings[0], bindings[1], bindings[3]}) {
+		t.Fatal("per-occurrence assignments lost authored order")
+	}
+	if got := slices.Collect(consumer.BindingsFor("a")); !slices.Equal(got, []*link.Binding{bindings[0], bindings[3]}) {
+		t.Fatal("repeated input assignments were overwritten or reordered")
+	}
+	if got := slices.Collect(producer.Consumers("uninspected")); !slices.Equal(got, []*link.Binding{bindings[1], bindings[3], bindings[4]}) {
+		t.Fatal("output consumers lost assignment identity or authored order")
+	}
+	if got := slices.Collect(consumer.Dependencies()); !slices.Equal(got, []*link.Node{producer}) {
+		t.Fatal("direct producers were not deduplicated")
+	}
+	if got := slices.Collect(producer.Dependencies()); !slices.Equal(got, []*link.Node{consumer, producer}) {
+		t.Fatal("cycle or self dependency lost first-binding order")
+	}
+	if len(slices.Collect(consumer.BindingsFor("unbound"))) != 0 || len(slices.Collect(producer.Consumers("unused"))) != 0 {
+		t.Fatal("a query without authored relationships was not empty")
 	}
 
-	// Changes to authored data do not change an already resolved solution.
+	// Source and returned value edits cannot corrupt a linked graph's indexes.
 	source.Modules[0].Version = "v2.0.0"
 	source.Nodes[0].Name = "changed"
 	source.Bindings[0].Input = "changed"
-	reference.Node, reference.Output = "changed", "changed"
 	literal = "changed"
-	if resolved.Modules[0].Version != "v1.0.0" || consumer.Name != "consumer" || resolved.Bindings[0].Input != "forward" {
+	reference.Node, reference.Output = "changed", "changed"
+	copy := bindings[1].Value().(link.Reference)
+	copy.Node, copy.Output = consumer, "changed"
+	if got := slices.Collect(resolved.Modules()); got[0].Version != "v1.0.0" || consumer.Name() != "consumer" || bindings[0].Input() != "a" {
 		t.Fatal("source mutation changed linked structural records")
 	}
-	if got := resolved.Bindings[0].Value.(link.Reference); got.Node != producer || got.Output != "uninspected" {
-		t.Fatalf("source mutation changed linked reference: %+v", got)
+	if bindings[0].Value() != link.Literal("") || bindings[1].Value().(link.Reference).Node != producer {
+		t.Fatal("external mutation changed linked assignments")
 	}
-	if got := resolved.Bindings[3].Value.(link.Literal); got != "" {
-		t.Fatalf("source mutation changed explicit empty literal to %q", got)
+	if found, ok := resolved.Lookup("consumer"); !ok || found != consumer {
+		t.Fatal("source mutation corrupted occurrence lookup")
+	}
+	if _, err := link.Resolve(source, &registry); !errors.Is(err, link.ErrMissingNode) {
+		t.Fatalf("Resolve trusted the earlier Check after an edit: %v", err)
 	}
 }
 
-// Resolution reports incomplete or ambiguous structure without returning a
-// partially linked solution, and without confusing a missing symbol with nil.
-func TestResolutionFailuresHaveContext(t *testing.T) {
+// Check and Resolve share preflight diagnostics. Neither can instantiate a
+// descriptor to discover fields, and a failure exposes no partial graph.
+func TestPreflightFailuresHaveContext(t *testing.T) {
 	key := solution.Symbol{Package: "local", Name: "present"}
 	node := solution.Node{Name: "present", Definition: key}
-	var values symbol.Table
-	if err := values.Define(key.Package, key.Name, nil); err != nil {
+	var registry program.Registry
+	descriptor := program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+		panic("checking or linking called Make")
+	})
+	if err := registry.Register(key.Package, key.Name, descriptor); err != nil {
 		t.Fatal(err)
 	}
 	var nilLiteral *solution.Literal
@@ -100,7 +127,7 @@ func TestResolutionFailuresHaveContext(t *testing.T) {
 		source solution.Definition
 		want   error
 	}{
-		{"missing symbol", solution.Definition{Nodes: []solution.Node{{Name: "missing", Definition: solution.Symbol{Package: "local", Name: "absent"}}}}, link.ErrMissingSymbol},
+		{"missing descriptor", solution.Definition{Nodes: []solution.Node{{Name: "missing", Definition: solution.Symbol{Package: "local", Name: "absent"}}}}, link.ErrMissingSymbol},
 		{"duplicate occurrence", solution.Definition{Nodes: []solution.Node{node, node}}, link.ErrDuplicateNode},
 		{"missing target", solution.Definition{Nodes: []solution.Node{node}, Bindings: []solution.Binding{{Node: "absent", Input: "input", Value: solution.Literal("")}}}, link.ErrMissingNode},
 		{"missing source", solution.Definition{Nodes: []solution.Node{node}, Bindings: []solution.Binding{{Node: "present", Input: "input", Value: solution.Reference{Node: "absent", Output: "output"}}}}, link.ErrMissingNode},
@@ -109,7 +136,10 @@ func TestResolutionFailuresHaveContext(t *testing.T) {
 		{"nil reference", solution.Definition{Nodes: []solution.Node{node}, Bindings: []solution.Binding{{Node: "present", Input: "input", Value: nilReference}}}, link.ErrInvalidValue},
 		{"unknown form", solution.Definition{Nodes: []solution.Node{node}, Bindings: []solution.Binding{{Node: "present", Input: "input", Value: struct{ solution.Value }{}}}}, link.ErrInvalidValue},
 	} {
-		resolved, err := link.Resolve(test.source, &values)
+		if err := link.Check(test.source, &registry); !errors.Is(err, test.want) {
+			t.Errorf("%s: Check error = %v, want %v", test.name, err, test.want)
+		}
+		resolved, err := link.Resolve(test.source, &registry)
 		if resolved != nil || !errors.Is(err, test.want) {
 			t.Errorf("%s: solution = %v, error = %v; want nil, %v", test.name, resolved, err, test.want)
 		}
@@ -117,5 +147,55 @@ func TestResolutionFailuresHaveContext(t *testing.T) {
 		if !ok || context.Node == "" {
 			t.Errorf("%s: error has no occurrence context: %v", test.name, err)
 		}
+	}
+}
+
+// Independent diagnostics let an editor report several problems in one pass.
+// A declared occurrence with unavailable code is still known structurally.
+func TestPreflightCollectsIndependentFailures(t *testing.T) {
+	var registry program.Registry
+	definition := solution.Definition{
+		Nodes: []solution.Node{{Name: "present", Definition: solution.Symbol{Package: "missing", Name: "Descriptor"}}},
+		Bindings: []solution.Binding{
+			{Node: "present", Input: "first", Value: solution.Reference{Node: "present", Output: "output"}},
+			{Node: "absent", Input: "second", Value: nil},
+		},
+	}
+	err := link.Check(definition, &registry)
+	findings, ok := errors.AsType[link.Errors](err)
+	if !ok {
+		t.Fatalf("Check error = %T, want link.Errors", err)
+	}
+	got := findings.Unwrap()
+	want := []error{link.ErrMissingSymbol, link.ErrMissingNode, link.ErrInvalidValue}
+	if len(got) != len(want) {
+		t.Fatalf("diagnostics = %v, want three independent failures", got)
+	}
+	for i, cause := range want {
+		if !errors.Is(got[i], cause) {
+			t.Errorf("diagnostic %d = %v, want %v", i, got[i], cause)
+		}
+		if _, ok := errors.AsType[*link.Error](got[i]); !ok {
+			t.Errorf("diagnostic %d has no structured context", i)
+		}
+	}
+}
+
+// Structural tools can inspect an artifact without importing its catalogue.
+func TestStructuralCheckingDoesNotRequireCatalogueCode(t *testing.T) {
+	definition := solution.Definition{
+		Nodes:    []solution.Node{{Name: "unavailable", Definition: solution.Symbol{Package: "unknown", Name: "Descriptor"}}},
+		Bindings: []solution.Binding{{Node: "unavailable", Input: "uninspected", Value: solution.Reference{Node: "unavailable", Output: "uninspected"}}},
+	}
+	if err := link.CheckStructure(definition); err != nil {
+		t.Fatal(err)
+	}
+	var registry program.Registry
+	if err := link.Check(definition, &registry); !errors.Is(err, link.ErrMissingSymbol) {
+		t.Fatalf("registry check error = %v, want ErrMissingSymbol", err)
+	}
+	definition.Bindings[0].Node = "absent"
+	if err := link.CheckStructure(definition); !errors.Is(err, link.ErrMissingNode) || errors.Is(err, link.ErrMissingSymbol) {
+		t.Fatalf("structural check error = %v, want only ErrMissingNode", err)
 	}
 }

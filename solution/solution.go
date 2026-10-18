@@ -1,9 +1,9 @@
 // Package solution describes logical solution relationships without loading catalogue
-// implementations. A Definition carries references to exported Go values, named
-// occurrences of those values, and authored input bindings.
+// implementations. A Definition carries references to program descriptors, named
+// occurrences of those descriptors, and authored input bindings.
 //
 // A catalogue is implicit in the concrete Go type of its exported values.
-// Structural nodes do not classify those types or require I/O capabilities.
+// Structural nodes do not classify those types or carry their I/O handles.
 // A reference can be represented even when its package, symbol, or field does
 // not exist. Go linkage and catalogue-aware inspection establish those facts.
 //

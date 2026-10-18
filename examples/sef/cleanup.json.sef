@@ -1,0 +1,17 @@
+{
+  "version": "0.1",
+  "id": "text-cleanup",
+  "revision": "proposal-2",
+  "definition": {
+    "modules": [{"path": "example.com/catalogue", "version": "v1.2.0"}],
+    "nodes": [
+      {"name": "trim", "definition": {"package": "example.com/catalogue", "name": "Trim"}},
+      {"name": "print", "definition": {"package": "example.com/catalogue", "name": "Print"}}
+    ],
+    "bindings": [
+      {"node": "trim", "input": "text", "value": {"kind": "literal", "text": "  hello  "}},
+      {"node": "print", "input": "prefix", "value": {"kind": "literal", "text": ""}},
+      {"node": "print", "input": "text", "value": {"kind": "reference", "reference": {"node": "trim", "output": "text"}}}
+    ]
+  }
+}
