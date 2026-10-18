@@ -21,6 +21,8 @@ package solution
 // A Definition is ordinary mutable data. Editing it does not update any linked or
 // derived view produced from an earlier version.
 type Definition struct {
+	// Modules is retained for earlier source adapters.
+	// Deprecated: use Artifact.Module.Require. Build tooling ignores this field.
 	Modules  []Module
 	Nodes    []Node
 	Bindings []Binding
@@ -33,6 +35,9 @@ type Definition struct {
 type Module struct {
 	Path    string
 	Version string
+	// Indirect marks a requirement retained for its effect on dependency selection.
+	// It applies only within ModuleContext.Require.
+	Indirect bool
 }
 
 // Symbol names a definition by package path and name. Exported Go values are

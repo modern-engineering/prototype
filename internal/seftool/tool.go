@@ -33,8 +33,8 @@ type Command struct {
 	Registry *program.Registry
 }
 
-// Run processes fmt, convert, check, inspect, dump, rename, gen, or build. It returns 0 on
-// success, 1 on data or operation failure, and 2 on invalid command usage.
+// Run processes artifact, bundle, and module commands. It returns 0 on success,
+// 1 on data or operation failure, and 2 on invalid command usage.
 // Flags precede the optional input filename. A missing filename or "-" reads
 // Stdin; missing output or "-" writes Stdout. Formats are inferred from
 // .cue.sef, .cue, .json.sef, .gob.sef, or .sef; stdin defaults to text,
@@ -48,10 +48,9 @@ type Command struct {
 // reads values, or executes runners. gen emits registration source; -main emits
 // a complete host. build compiles a host without running it. rename rewrites an occurrence and all its relationships, preserving
 // the input encoding on stdout or inferring it from the output filename. Module
-// requirements select the isolated generated module. -dev opts into caller
-// module source for its descriptors without inheriting its dependency graph.
-// -toolkit and -replace
-// provide explicit local source overrides, and -work retains generated files.
+// context comes from a standalone artifact or a bundle directory/archive.
+// -artifact selects a bundle member when several exist. -dev opts into local
+// module source; -outdir retains generated files in a named directory.
 func (c Command) Run(args []string) int {
 	if c.Context == nil {
 		c.Context = context.Background()
@@ -74,6 +73,12 @@ func (c Command) Run(args []string) int {
 		return 0
 	}
 	switch args[0] {
+	case "pack", "unpack", "mod":
+		status, err := c.bundleCommand(args[0], args[1:])
+		if err != nil {
+			_, _ = fmt.Fprintf(c.Stderr, "sef: %v\n", err)
+		}
+		return status
 	case "fmt", "convert", "check", "inspect", "dump", "rename", "gen", "build":
 	default:
 		_, _ = fmt.Fprintf(c.Stderr, "sef: unknown command %q\n", args[0])
@@ -88,7 +93,7 @@ func (c Command) Run(args []string) int {
 }
 
 func (c Command) usage() {
-	_, _ = fmt.Fprintln(c.Stderr, "usage: sef <fmt|convert|check|inspect|dump|rename|gen|build> [flags] [file|-]")
+	_, _ = fmt.Fprintln(c.Stderr, "usage: sef <fmt|convert|check|inspect|dump|rename|gen|build|pack|unpack|mod> [flags] [file|-]")
 	_, _ = fmt.Fprintln(c.Stderr, "use sef <command> -h for flags; linked commands build a host when no registry is supplied")
 }
 
@@ -96,12 +101,16 @@ func (c Command) run(name string, args []string) (int, error) {
 	flags := flag.NewFlagSet("sef "+name, flag.ContinueOnError)
 	flags.SetOutput(c.Stderr)
 	from, to, output, packageName, functionName := "auto", "auto", "-", "catalogue", "Register"
-	write, linked, inputs, mainSource, dev := false, false, false, false, false
-	buildOptions := build.Options{ToolkitVersion: toolkitVersion()}
+	write, linked, inputs, mainSource := false, false, false, false
+	buildOptions := build.Options{}
+	member := ""
 	oldName, newName := "", ""
 	flags.Usage = func() {
 		_, _ = fmt.Fprintf(c.Stderr, "usage: sef %s [flags] [file|-]\n", name)
 		flags.PrintDefaults()
+	}
+	if name != "fmt" {
+		flags.StringVar(&member, "artifact", "", "artifact path within a bundle (default: its only artifact)")
 	}
 	if name == "fmt" {
 		flags.BoolVar(&write, "w", false, "replace a named source file")
@@ -129,17 +138,8 @@ func (c Command) run(name string, args []string) (int, error) {
 		flags.StringVar(&newName, "to", "", "new occurrence name")
 	}
 	if name == "build" || name == "check" || name == "inspect" {
-		flags.BoolVar(&dev, "dev", false, "use caller module source for its referenced descriptors")
-		flags.BoolVar(&buildOptions.KeepWork, "work", false, "retain generated source, module, and binary")
-		flags.StringVar(&buildOptions.ToolkitDir, "toolkit", "", "local toolkit module directory for generated hosts")
-		flags.Func("replace", "local module replacement: module=directory (repeatable)", func(value string) error {
-			module, dir, ok := strings.Cut(value, "=")
-			if !ok || module == "" || dir == "" {
-				return errors.New("replacement must be module=directory")
-			}
-			buildOptions.Replacements = append(buildOptions.Replacements, build.Replacement{Module: module, Dir: dir})
-			return nil
-		})
+		flags.BoolVar(&buildOptions.Dev, "dev", false, "enable local replacements and development workspace modules")
+		flags.StringVar(&buildOptions.OutDir, "outdir", "", "retain generated source, manifests, and binary in this new or empty directory")
 	}
 	if name == "gen" {
 		flags.BoolVar(&mainSource, "main", false, "generate a complete descriptor host")
@@ -176,15 +176,15 @@ func (c Command) run(name string, args []string) (int, error) {
 	if mainSource && (renaming["package"] || renaming["func"]) {
 		return 2, errors.New("gen -main cannot be combined with -package or -func")
 	}
-	if (dev || buildOptions.KeepWork || renaming["toolkit"] || renaming["replace"]) && name != "build" && (!linked && !inputs || c.Registry != nil) {
+	if (buildOptions.Dev || buildOptions.OutDir != "") && name != "build" && (!linked && !inputs || c.Registry != nil) {
 		return 2, errors.New("build options require a generated host")
-	}
-	data, err := c.read(path)
-	if err != nil {
-		return 1, err
 	}
 	var result bytes.Buffer
 	if name == "fmt" {
+		data, err := c.read(path)
+		if err != nil {
+			return 1, err
+		}
 		format := from
 		if format == "auto" {
 			format = formatFor(path)
@@ -208,12 +208,16 @@ func (c Command) run(name string, args []string) (int, error) {
 			output = path
 		}
 	} else {
-		artifact, err := decode(path, from, data)
+		artifact, directory, err := c.readArtifact(path, from, member)
 		if err != nil {
 			return 1, err
 		}
 		if name == "build" || (c.Registry == nil && (linked || inputs)) {
-			return c.generated(name, artifact, inputs, output, buildOptions, dev)
+			if buildOptions.Dev && directory == "" && path != "-" {
+				return 1, errors.New("development builds require a directory; unpack the archive first")
+			}
+			buildOptions.Dir = directory
+			return c.generated(name, artifact, inputs, output, buildOptions)
 		}
 		switch name {
 		case "convert", "dump":

@@ -10,46 +10,66 @@ import (
 
 	"github.com/modern-engineering/prototype/internal/seftool"
 	"github.com/modern-engineering/prototype/sef"
-	seftext "github.com/modern-engineering/prototype/sef/text"
+	"github.com/modern-engineering/prototype/solution"
 )
 
-// A standalone command must discover the named descriptors through generated
-// Go code, without requiring the adopting module to maintain an executable.
-func TestGeneratedHostWorkflow(t *testing.T) {
+// Authoring resolves one module context for all bundled artifacts. Packing and
+// standalone export must retain it, while local source remains an explicit
+// development choice and builds leave the author's files untouched.
+func TestBundleHostWorkflow(t *testing.T) {
 	toolkit, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatal(err)
 	}
-	source, err := os.ReadFile("testdata/service.sef")
+	root := t.TempDir()
+	project := filepath.Join(root, "project")
+	if err := os.CopyFS(project, os.DirFS("testdata/bundle")); err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := solution.OpenBundle(os.DirFS(project))
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err := seftext.Parse("service.sef", bytes.NewReader(source))
-	if err != nil {
+	bundle.Module.Replace[0].New.Path = toolkit
+	var manifest, sums bytes.Buffer
+	if err := bundle.Module.Write(&manifest, &sums); err != nil {
 		t.Fatal(err)
 	}
-	var materialized bytes.Buffer
-	if err := sef.EncodeGob(&materialized, file.Artifact()); err != nil {
+	authored := append([]byte("// Catalogue dependencies for the service bundle.\n"), manifest.Bytes()...)
+	if err := os.WriteFile(filepath.Join(project, "go.mod"), authored, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var output, diagnostics bytes.Buffer
 	command := seftool.Command{Context: t.Context(), Stdout: &output, Stderr: &diagnostics}
-	binary := filepath.Join(t.TempDir(), "service.host")
-	if status := command.Run([]string{"build", "-toolkit", toolkit, "-work", "-o", binary, "testdata/service.sef"}); status != 0 {
-		t.Fatalf("build status=%d: %s", status, &diagnostics)
+	if status := command.Run([]string{"mod", "tidy", "-dev", project}); status != 0 {
+		t.Fatalf("tidy status=%d: %s", status, &diagnostics)
 	}
-	var work string
-	for line := range strings.SplitSeq(diagnostics.String(), "\n") {
-		if strings.HasPrefix(line, "WORK=") {
-			work = strings.TrimPrefix(line, "WORK=")
+	original, err := os.ReadFile(filepath.Join(project, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(original, []byte("// Catalogue dependencies for the service bundle.")) {
+		t.Fatal("module editing discarded authoring comments")
+	}
+	originalSums, err := os.ReadFile(filepath.Join(project, "go.sum"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"check", "-linked", project}, {"check", "-linked", "-dev=false", project}} {
+		if status := command.Run(args); status != 1 {
+			t.Fatalf("production status=%d: %s", status, &diagnostics)
 		}
 	}
-	if work == "" {
-		t.Fatal("build did not report retained work")
+	diagnostics.Reset()
+	binary, outdir := filepath.Join(root, "service.host"), filepath.Join(root, "generated")
+	if status := command.Run([]string{"build", "-dev", "-outdir", outdir, "-o", binary, project}); status != 0 {
+		t.Fatalf("build status=%d: %s", status, &diagnostics)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(work) })
-	for _, name := range []string{"main.go", "go.mod"} {
-		data, err := os.ReadFile(filepath.Join(work, name))
+	if !strings.Contains(diagnostics.String(), "OUTDIR="+outdir) {
+		t.Fatalf("missing output directory: %s", &diagnostics)
+	}
+	for _, name := range []string{"main.go", "go.mod", "go.sum"} {
+		data, err := os.ReadFile(filepath.Join(outdir, name))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -57,39 +77,95 @@ func TestGeneratedHostWorkflow(t *testing.T) {
 			t.Fatalf("%s contains a literal", name)
 		}
 	}
+	output.Reset()
+	standalone := filepath.Join(root, "service.gob.sef")
+	if status := command.Run([]string{"convert", "-to", "gob", "-o", standalone, project}); status != 0 {
+		t.Fatalf("snapshot status=%d: %s", status, &diagnostics)
+	}
+	data, err := os.ReadFile(standalone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := sef.DecodeGob(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if artifact.Module.Path != "example.test/service-solution" || len(artifact.Module.Sum) == 0 {
+		t.Fatalf("missing module context: %#v", artifact.Module)
+	}
 	run := exec.CommandContext(t.Context(), binary, "inspect", "-inputs")
-	run.Stdin = bytes.NewReader(materialized.Bytes())
+	run.Stdin = bytes.NewReader(data)
 	report, err := run.CombinedOutput()
 	if err != nil {
 		t.Fatalf("retained host: %v: %s", err, report)
 	}
 	if !bytes.Contains(report, []byte(`input "region"`)) || !bytes.Contains(report, []byte(`output "address"`)) {
-		t.Fatalf("missing actual fields: %s", report)
+		t.Fatalf("missing fields: %s", report)
 	}
 	if bytes.Contains(report, []byte("eu-west")) {
 		t.Fatal("inspection disclosed a literal")
 	}
-
-	output.Reset()
-	diagnostics.Reset()
-	if status := command.Run([]string{"inspect", "-inputs", "-toolkit", toolkit, "testdata/service.cue.sef"}); status != 0 {
-		t.Fatalf("automatic host status=%d: %s", status, &diagnostics)
+	for _, suffix := range []string{".tar", ".tar.gz"} {
+		archive := filepath.Join(root, "bundle"+suffix)
+		if status := command.Run([]string{"pack", "-o", archive, project}); status != 0 {
+			t.Fatalf("pack status=%d: %s", status, &diagnostics)
+		}
+		output.Reset()
+		if status := command.Run([]string{"inspect", archive}); status != 0 {
+			t.Fatalf("archive inspect status=%d: %s", status, &diagnostics)
+		}
+		if status := command.Run([]string{"inspect", "-inputs", "-dev", archive}); status != 1 {
+			t.Fatalf("archive borrowed a development directory: %d", status)
+		}
+		destination := filepath.Join(root, "unpacked"+suffix)
+		if status := command.Run([]string{"unpack", "-outdir", destination, archive}); status != 0 {
+			t.Fatalf("unpack status=%d: %s", status, &diagnostics)
+		}
+		got, err := os.ReadFile(filepath.Join(destination, "service.sef"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := os.ReadFile(filepath.Join(project, "service.sef"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatal("archive changed authored source")
+		}
+		output.Reset()
+		if status := command.Run([]string{"inspect", "-inputs", "-dev", destination}); status != 0 {
+			t.Fatalf("unpacked inspection status=%d: %s", status, &diagnostics)
+		}
+		if !bytes.Equal(output.Bytes(), report) {
+			t.Fatalf("unpacked artifact differs from standalone:\n%s\nwant:\n%s", &output, report)
+		}
+		if status := command.Run([]string{"unpack", "-outdir", destination, archive}); status != 1 {
+			t.Fatalf("unpack overwrote destination: %d", status)
+		}
 	}
-	if !bytes.Equal(output.Bytes(), report) {
-		t.Fatalf("automatic host differs from retained host:\n%s\nwant:\n%s", &output, report)
-	}
-}
-
-// An explicit replacement has precedence over development-mode discovery, while
-// an unreleased toolkit still needs a requirement for that local replacement.
-func TestDevelopmentToolkitReplacement(t *testing.T) {
-	toolkit, err := filepath.Abs("../..")
+	unchanged, err := os.ReadFile(filepath.Join(project, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var output, diagnostics bytes.Buffer
-	command := seftool.Command{Context: t.Context(), Stdout: &output, Stderr: &diagnostics}
-	if status := command.Run([]string{"check", "-linked", "-dev", "-replace", "github.com/modern-engineering/prototype=" + toolkit, "testdata/service.sef"}); status != 0 {
-		t.Fatalf("explicit development replacement status=%d: %s", status, &diagnostics)
+	unchangedSums, err := os.ReadFile(filepath.Join(project, "go.sum"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(original, unchanged) || !bytes.Equal(originalSums, unchangedSums) {
+		t.Fatal("build changed authoring module files")
+	}
+}
+
+// Removed overrides must fail as usage errors, rather than silently choosing a
+// different dependency context. Outdir only applies to generated builds.
+func TestModuleFlagUsage(t *testing.T) {
+	for _, args := range [][]string{
+		{"build", "-work"}, {"build", "-toolkit", "."}, {"build", "-replace", "example.test/m=."},
+		{"check", "-outdir", "generated"}, {"inspect", "-dev"},
+	} {
+		var diagnostics bytes.Buffer
+		if status := (seftool.Command{Stderr: &diagnostics}).Run(args); status != 2 {
+			t.Errorf("%v status=%d: %s", args, status, &diagnostics)
+		}
 	}
 }

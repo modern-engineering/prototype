@@ -2,7 +2,11 @@
 //
 // A file contains line-oriented directives. The sef directive supplies the schema
 // version; solution and revision supply artifact identity. Repeated require,
-// node, and bind directives may be grouped in parenthesized blocks:
+// node, and bind directives may be grouped in parenthesized blocks.
+// Module context uses module, go, and toolchain headers with module-require,
+// module-exclude, module-replace, and module-sum collections. The older require
+// directive retains legacy Definition.Modules data; it does not select code.
+// For example:
 //
 //	sef "0.1"
 //	solution "cleanup"
@@ -90,6 +94,7 @@ type File struct {
 // artifact do not modify the source file or the result of formatting it.
 func (f *File) Artifact() solution.Artifact {
 	artifact := f.artifact
+	artifact.Module = artifact.Module.Clone()
 	artifact.Definition.Modules = slices.Clone(artifact.Definition.Modules)
 	artifact.Definition.Nodes = slices.Clone(artifact.Definition.Nodes)
 	artifact.Definition.Bindings = slices.Clone(artifact.Definition.Bindings)

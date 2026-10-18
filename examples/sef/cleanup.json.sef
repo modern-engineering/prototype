@@ -2,8 +2,12 @@
   "version": "0.1",
   "id": "text-cleanup",
   "revision": "proposal-2",
+  "module": {
+    "path": "example.test/text-cleanup",
+    "go": "1.27.0",
+    "require": [{"path": "example.com/catalogue", "version": "v1.2.0"}]
+  },
   "definition": {
-    "modules": [{"path": "example.com/catalogue", "version": "v1.2.0"}],
     "nodes": [
       {"name": "trim", "definition": {"package": "example.com/catalogue", "name": "Trim"}},
       {"name": "print", "definition": {"package": "example.com/catalogue", "name": "Print"}}

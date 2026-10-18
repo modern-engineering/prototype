@@ -1,0 +1,16 @@
+// Package host supplies a command surface for module-resolution fixtures.
+package host
+
+import (
+	"io"
+
+	"github.com/modern-engineering/prototype/program"
+)
+
+type Command struct {
+	Registry       *program.Registry
+	Stdin          io.Reader
+	Stdout, Stderr io.Writer
+}
+
+func (Command) Run([]string) int { return 0 }

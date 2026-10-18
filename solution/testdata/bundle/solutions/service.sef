@@ -1,0 +1,4 @@
+// The bundle root supplies module selection.
+sef "0.1"
+solution "service"
+node "backend" "example.test/catalogue" "Backend"

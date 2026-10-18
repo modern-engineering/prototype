@@ -75,6 +75,28 @@ func checkJSONStrings(wire wireDocument) error {
 	if !valid(wire.Version, wire.ID, wire.Revision) {
 		return ErrUnicode
 	}
+	if m := wire.Module; m != nil {
+		if !valid(m.Path, m.Go, m.Toolchain) {
+			return ErrUnicode
+		}
+		for _, collection := range [][]wireModule{m.Require, m.Exclude} {
+			for _, entry := range collection {
+				if !valid(entry.Path, entry.Version) {
+					return ErrUnicode
+				}
+			}
+		}
+		for _, entry := range m.Replace {
+			if !valid(entry.Old.Path, entry.Old.Version, entry.New.Path, entry.New.Version) {
+				return ErrUnicode
+			}
+		}
+		for _, entry := range m.Sum {
+			if !valid(entry.Path, entry.Version, entry.Hash) {
+				return ErrUnicode
+			}
+		}
+	}
 	for i, module := range wire.Definition.Modules {
 		if !valid(module.Path, module.Version) {
 			return fmt.Errorf("%w: module %d", ErrUnicode, i)
