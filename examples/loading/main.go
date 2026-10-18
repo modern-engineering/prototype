@@ -22,17 +22,8 @@ func main() {
 
 func run() error {
 	var registry program.Registry
-	for _, entry := range []struct {
-		name       string
-		descriptor program.Descriptor
-	}{
-		{"Database", catalogue.Database},
-		{"Backend", catalogue.Backend},
-	} {
-		if err := registry.Register(design.CataloguePath, entry.name, entry.descriptor); err != nil {
-			return err
-		}
-	}
+	registry.MustRegister(design.CataloguePath, "Database", catalogue.Database)
+	registry.MustRegister(design.CataloguePath, "Backend", catalogue.Backend)
 	graph, err := link.Resolve(design.Definition, &registry)
 	if err != nil {
 		return err

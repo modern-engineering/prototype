@@ -93,6 +93,20 @@ func TestBundleHostWorkflow(t *testing.T) {
 	if artifact.Module.Path != "example.test/service-solution" || len(artifact.Module.Sum) == 0 {
 		t.Fatalf("missing module context: %#v", artifact.Module)
 	}
+	jobs := artifact
+	jobs.Definition.Nodes = jobs.Definition.Nodes[:1]
+	jobs.Definition.Bindings = jobs.Definition.Bindings[:1]
+	var jobData bytes.Buffer
+	if err := sef.EncodeGob(&jobData, jobs); err != nil {
+		t.Fatal(err)
+	}
+	jobPath := filepath.Join(root, "job.gob.sef")
+	if err := os.WriteFile(jobPath, jobData.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if status := command.Run([]string{"playground", "-dev", "-job-timeout", "2s", jobPath}); status != 0 {
+		t.Fatalf("generated playground status=%d: %s", status, &diagnostics)
+	}
 	run := exec.CommandContext(t.Context(), binary, "inspect", "-inputs")
 	run.Stdin = bytes.NewReader(data)
 	report, err := run.CombinedOutput()

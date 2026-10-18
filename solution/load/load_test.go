@@ -181,16 +181,12 @@ func TestInstantiationCollectsDeclarationAndBindingFindings(t *testing.T) {
 func TestEmptySurfacesAndTypedNilHandles(t *testing.T) {
 	var registry program.Registry
 	var value *nilValue
-	for name, descriptor := range map[string]program.Descriptor{
-		"Empty": program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) { return value, nil, nil }),
-		"TypedNil": program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
-			return value, program.InputList{{Field: program.Field{Name: "input"}, Value: value}}, program.OutputList{{Field: program.Field{Name: "output"}, Value: value}}
-		}),
-	} {
-		if err := registry.Register("local", name, descriptor); err != nil {
-			t.Fatal(err)
-		}
-	}
+	registry.MustRegister("local", "Empty", program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+		return value, nil, nil
+	}))
+	registry.MustRegister("local", "TypedNil", program.MakeFunc(func() (program.Runner, program.Inputs, program.Outputs) {
+		return value, program.InputList{{Field: program.Field{Name: "input"}, Value: value}}, program.OutputList{{Field: program.Field{Name: "output"}, Value: value}}
+	}))
 	graph, err := link.Resolve(solution.Definition{Nodes: []solution.Node{
 		{Name: "empty", Definition: solution.Symbol{Package: "local", Name: "Empty"}},
 		{Name: "typed", Definition: solution.Symbol{Package: "local", Name: "TypedNil"}},

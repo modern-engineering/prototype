@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/modern-engineering/prototype/sef"
 	"github.com/modern-engineering/prototype/solution"
@@ -14,7 +15,7 @@ import (
 	"github.com/modern-engineering/prototype/solution/link"
 )
 
-func (c Command) generated(name string, artifact solution.Artifact, inputs bool, output string, options build.Options) (status int, err error) {
+func (c Command) generated(name string, artifact solution.Artifact, inputs bool, jobTimeout time.Duration, output string, options build.Options) (status int, err error) {
 	if err := link.CheckStructure(artifact.Definition); err != nil {
 		return 1, err
 	}
@@ -47,6 +48,9 @@ func (c Command) generated(name string, artifact solution.Artifact, inputs bool,
 	args := []string{name}
 	if inputs {
 		args = append(args, "-inputs")
+	}
+	if name == "playground" {
+		args = append(args, "-job-timeout", jobTimeout.String())
 	}
 	if err := result.Run(c.Context, args, &materialized, c.Stdout, c.Stderr); err != nil {
 		if exited, ok := errors.AsType[*exec.ExitError](err); ok && c.Context.Err() == nil && exited.ExitCode() > 0 {

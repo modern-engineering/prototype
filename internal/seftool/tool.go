@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
+	"github.com/modern-engineering/prototype/playground"
 	"github.com/modern-engineering/prototype/program"
 	sefcue "github.com/modern-engineering/prototype/sef/cue"
 	seftext "github.com/modern-engineering/prototype/sef/text"
@@ -19,6 +21,7 @@ import (
 	"github.com/modern-engineering/prototype/solution/edit"
 	"github.com/modern-engineering/prototype/solution/gen"
 	"github.com/modern-engineering/prototype/solution/link"
+	"github.com/modern-engineering/prototype/solution/load"
 )
 
 // Command supplies streams and the catalogue available to one command host.
@@ -51,6 +54,8 @@ type Command struct {
 // context comes from a standalone artifact or a bundle directory/archive.
 // -artifact selects a bundle member when several exist. -dev opts into local
 // module source; -outdir retains generated files in a named directory.
+// playground configures and runs jobs before supervising applications until
+// cancellation or failure. -job-timeout bounds each job through its context.
 func (c Command) Run(args []string) int {
 	if c.Context == nil {
 		c.Context = context.Background()
@@ -79,7 +84,7 @@ func (c Command) Run(args []string) int {
 			_, _ = fmt.Fprintf(c.Stderr, "sef: %v\n", err)
 		}
 		return status
-	case "fmt", "convert", "check", "inspect", "dump", "rename", "gen", "build":
+	case "fmt", "convert", "check", "inspect", "dump", "rename", "gen", "build", "playground":
 	default:
 		_, _ = fmt.Fprintf(c.Stderr, "sef: unknown command %q\n", args[0])
 		c.usage()
@@ -93,7 +98,7 @@ func (c Command) Run(args []string) int {
 }
 
 func (c Command) usage() {
-	_, _ = fmt.Fprintln(c.Stderr, "usage: sef <fmt|convert|check|inspect|dump|rename|gen|build|pack|unpack|mod> [flags] [file|-]")
+	_, _ = fmt.Fprintln(c.Stderr, "usage: sef <fmt|convert|check|inspect|dump|rename|gen|build|playground|pack|unpack|mod> [flags] [file|-]")
 	_, _ = fmt.Fprintln(c.Stderr, "use sef <command> -h for flags; linked commands build a host when no registry is supplied")
 }
 
@@ -103,6 +108,7 @@ func (c Command) run(name string, args []string) (int, error) {
 	from, to, output, packageName, functionName := "auto", "auto", "-", "catalogue", "Register"
 	write, linked, inputs, mainSource := false, false, false, false
 	buildOptions := build.Options{}
+	jobTimeout := time.Minute
 	member := ""
 	oldName, newName := "", ""
 	flags.Usage = func() {
@@ -137,9 +143,12 @@ func (c Command) run(name string, args []string) (int, error) {
 		flags.StringVar(&oldName, "from", "", "existing occurrence name")
 		flags.StringVar(&newName, "to", "", "new occurrence name")
 	}
-	if name == "build" || name == "check" || name == "inspect" {
+	if name == "build" || name == "check" || name == "inspect" || name == "playground" {
 		flags.BoolVar(&buildOptions.Dev, "dev", false, "enable local replacements and development workspace modules")
 		flags.StringVar(&buildOptions.OutDir, "outdir", "", "retain generated source, manifests, and binary in this new or empty directory")
+	}
+	if name == "playground" {
+		flags.DurationVar(&jobTimeout, "job-timeout", time.Minute, "cooperative execution deadline for each job (must be positive)")
 	}
 	if name == "gen" {
 		flags.BoolVar(&mainSource, "main", false, "generate a complete descriptor host")
@@ -173,10 +182,14 @@ func (c Command) run(name string, args []string) (int, error) {
 	if name == "build" && output == "-" {
 		return 2, errors.New("build requires a named output file")
 	}
+	if name == "playground" && jobTimeout <= 0 {
+		return 2, errors.New("job-timeout must be positive")
+	}
 	if mainSource && (renaming["package"] || renaming["func"]) {
 		return 2, errors.New("gen -main cannot be combined with -package or -func")
 	}
-	if (buildOptions.Dev || buildOptions.OutDir != "") && name != "build" && (!linked && !inputs || c.Registry != nil) {
+	generatedHost := name == "build" || c.Registry == nil && (name == "playground" || linked || inputs)
+	if (buildOptions.Dev || buildOptions.OutDir != "") && !generatedHost {
 		return 2, errors.New("build options require a generated host")
 	}
 	var result bytes.Buffer
@@ -212,14 +225,24 @@ func (c Command) run(name string, args []string) (int, error) {
 		if err != nil {
 			return 1, err
 		}
-		if name == "build" || (c.Registry == nil && (linked || inputs)) {
+		if generatedHost {
 			if buildOptions.Dev && directory == "" && path != "-" {
 				return 1, errors.New("development builds require a directory; unpack the archive first")
 			}
 			buildOptions.Dir = directory
-			return c.generated(name, artifact, inputs, output, buildOptions)
+			return c.generated(name, artifact, inputs, jobTimeout, output, buildOptions)
 		}
 		switch name {
+		case "playground":
+			graph, linkErr := link.Resolve(artifact.Definition, c.Registry)
+			if linkErr != nil {
+				return 1, linkErr
+			}
+			instance, loadErr := load.Instantiate(graph)
+			if loadErr != nil {
+				return 1, loadErr
+			}
+			err = playground.Run(c.Context, instance, playground.Options{JobTimeout: jobTimeout})
 		case "convert", "dump":
 			if name == "dump" {
 				to = "json"

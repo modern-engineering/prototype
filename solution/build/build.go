@@ -66,10 +66,15 @@ func (r *Result) Close() error {
 }
 
 // Run executes the compiled host with caller-supplied arguments and streams.
-// It preserves *exec.ExitError and context cancellation. It does not invoke
-// program runners or remove generated files.
+// Playground invokes program runners and forwards context cancellation as an
+// interrupt, waiting for cooperative shutdown. Other commands terminate
+// immediately on cancellation. Run preserves *exec.ExitError and context
+// cancellation and does not remove generated files.
 func (r *Result) Run(ctx context.Context, args []string, input io.Reader, output, diagnostics io.Writer) error {
 	command := exec.CommandContext(ctx, r.Binary, args...)
+	if len(args) > 0 && args[0] == "playground" {
+		command.Cancel = func() error { return command.Process.Signal(os.Interrupt) }
+	}
 	command.Dir = r.dir
 	command.Stdin, command.Stdout, command.Stderr = input, output, diagnostics
 	err := command.Run()

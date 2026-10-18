@@ -1,0 +1,16 @@
+sef "0.1"
+solution "acme-backend"
+revision "1"
+
+node (
+    "api" "example.com/acme/catalogue" "API"
+    "reports" "example.com/acme/catalogue" "Reports"
+    "database" "example.com/acme/catalogue" "Database"
+    "environment" "example.com/acme/catalogue" "Environment"
+)
+bind (
+    "environment" "environment" literal "development"
+    "database" "region" reference "environment" "region"
+    "api" "database" reference "database" "address"
+    "reports" "database" reference "database" "address"
+)

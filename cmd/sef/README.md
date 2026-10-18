@@ -131,12 +131,55 @@ The independent module follows ordinary Go internal-package visibility rules.
 `build` compiles without starting the host and requires a new binary output path.
 `-outdir DIR` retains generated source, module files and binary in a new or empty directory, including failed build work for diagnosis.
 Other temporary build directories are removed automatically.
-A retained host reads gob artifacts from stdin and serves `check` or `inspect [-inputs]`.
+A retained host reads gob artifacts from stdin and serves `check`, `inspect [-inputs]`, or `playground [-job-timeout DURATION]`.
 It can inspect another artifact using the descriptors compiled into that host.
 
 Compilation does not execute catalogue code.
 Starting a host runs imported package initializers; `check` and ordinary inspection do not call `Make`.
-Only `inspect -inputs` constructs invocations, and no command sets inputs, reads output values or runs programs.
+`inspect -inputs` constructs invocations without setting inputs, reading output values or running programs.
+`playground` explicitly executes them.
+
+## Run a playground
+
+```sh
+go run ./cmd/sef playground -dev internal/seftool/testdata/bundle
+go run ./cmd/sef playground -job-timeout 5m /path/to/production-bundle
+```
+
+The command accepts a standalone artifact, bundle directory, or bundle archive.
+It compiles the referenced catalogue packages into one host process that runs every job and application.
+The production command uses the bundle's declared module versions; `-dev` opts into local source as with inspection and builds.
+Use `-artifact` to select a member when a bundle contains several artifacts.
+
+The playground supports `job.Descriptor` and `application.Descriptor`, including pointers to those types.
+It rejects unsupported descriptor types and dependency cycles before assigning values or executing programs.
+Jobs run sequentially in dependency order, choosing the earliest authored occurrence when several are ready.
+Each job receives a context deadline, one minute by default; `-job-timeout` accepts any positive duration.
+A successful job's referenced outputs are read once and reused for all consumers.
+Assignments retain their authored order, and unassigned inputs retain constructor defaults.
+This playground transfers string values through `Get` and `Set`.
+
+Every job must succeed before applications start.
+All application inputs are configured before any application runs, then applications run concurrently.
+An application that returns before shutdown fails the playground, including when it returns nil.
+A failed job prevents application startup; an application failure cancels its peers.
+An artifact containing only jobs returns after those jobs complete.
+
+Interrupt or SIGTERM cancels the execution context, and the playground waits for every started runner to return.
+Runners use that context to stop and finish their own cleanup before returning.
+When the command builds a host, cancellation is forwarded to it cooperatively.
+The supervisor's diagnostics identify occurrences and operations without printing transferred values or underlying operational error messages.
+Catalogue code controls its own logging.
+Job results remain in memory for this run.
+
+For a bespoke host with a compiled private catalogue, use `program.Registry`, `solution/link`, and `solution/load`, then pass the instance to `playground.Run`.
+The host can inspect concrete runners and explicitly supply clients before execution; ownership of those clients remains with the host.
+Acme's example compiles its catalogue and reads an embedded artifact containing a job chain and two applications:
+
+```sh
+cd examples/acme
+go run ./cmd/playground
+```
 
 ## Use local modules during development
 

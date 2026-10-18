@@ -21,9 +21,7 @@ func run() error {
 	// Register the catalogue entries your executable supports. Registration
 	// stores descriptors; each Make call creates fresh program state.
 	var registry program.Registry
-	if err := registry.Register("example.org/catalogue", "Database", catalogue.Database); err != nil {
-		return err
-	}
+	registry.MustRegister("example.org/catalogue", "Database", catalogue.Database)
 	descriptor, _ := registry.Lookup("example.org/catalogue", "Database")
 	runner, inputs, outputs := descriptor.Make()
 	region, _ := inputs.Lookup("region")
