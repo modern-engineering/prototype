@@ -2,16 +2,18 @@ package httpclient_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 
 	"example.com/acme/httpclient"
 	"github.com/modern-engineering/prototype/bind/input"
+	"github.com/modern-engineering/prototype/program/command"
 )
 
-// Configuration binds through the usual input surface; the HTTP client is
-// supplied separately and stays owned by the caller.
+// Your shared package can expose configuration to CLI consumers while accepting
+// an HTTP client chosen by each executable. The caller owns the client lifetime.
 func ExampleEndpoint() {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer example-token" {
@@ -27,8 +29,8 @@ func ExampleEndpoint() {
 	endpoint := httpclient.Endpoint{URL: server.URL}
 	var inputs input.List
 	endpoint.BindInputs(&inputs)
-	token, _ := inputs.Lookup("token")
-	if err := token.Value.Set("example-token"); err != nil {
+	flags := flag.NewFlagSet("request", flag.ContinueOnError)
+	if err := command.Parse(flags, &inputs, []string{"-token=example-token"}); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -38,9 +40,7 @@ func ExampleEndpoint() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("sensitive:", token.Sensitive)
 	fmt.Print(string(body))
 	// Output:
-	// sensitive: true
 	// ready
 }

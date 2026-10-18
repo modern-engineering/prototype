@@ -2,15 +2,18 @@ package catalogue_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 
 	"example.com/acme/catalogue"
+	"github.com/modern-engineering/prototype/program/command"
 )
 
-// Configuration is available through the descriptor's inputs; the calling
-// executable chooses the HTTP client and retains ownership of its transport.
+// Your executable can expose the catalogue's fields as flags and formatted
+// results. It still chooses the client and owns its transport independently.
 func ExampleFetch() {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, err := fmt.Fprintln(w, "ready"); err != nil {
@@ -20,8 +23,8 @@ func ExampleFetch() {
 	defer server.Close()
 
 	runner, inputs, outputs := catalogue.Fetch.Make()
-	url, _ := inputs.Lookup("url")
-	if err := url.Value.Set(server.URL); err != nil {
+	flags := flag.NewFlagSet(catalogue.Fetch.Name, flag.ContinueOnError)
+	if err := command.Parse(flags, inputs, []string{"-url=" + server.URL}); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -30,8 +33,9 @@ func ExampleFetch() {
 		fmt.Println(err)
 		return
 	}
-	body, _ := outputs.Lookup("body")
-	fmt.Print(body.Value.Get())
+	if err := command.WriteOutputs(os.Stdout, outputs); err != nil {
+		fmt.Println(err)
+	}
 	// Output:
-	// ready
+	// {"body":"ready\n"}
 }

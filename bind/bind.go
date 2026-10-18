@@ -36,6 +36,10 @@ func Bool(target *bool) *BoolValue {
 // Get returns "true" or "false" using strconv.FormatBool.
 func (v *BoolValue) Get() string { return strconv.FormatBool(bool(*v)) }
 
+// IsBoolFlag permits command-line adapters to accept the flag package's
+// boolean shorthand: a bare flag sets the value to true.
+func (v *BoolValue) IsBoolFlag() bool { return true }
+
 // Set parses text using strconv.ParseBool and replaces the boolean. On error the
 // boolean is unchanged, and the parser's error is returned without wrapping.
 func (v *BoolValue) Set(text string) error {

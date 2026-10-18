@@ -8,9 +8,11 @@ import (
 
 	"github.com/modern-engineering/prototype/application"
 	"github.com/modern-engineering/prototype/program"
+	"github.com/modern-engineering/prototype/program/command"
 )
 
-// A loader configures an application through the handles bound to its runner.
+// Your package can expose an existing flag-based configuration as descriptor
+// inputs while the executable chooses when to start and stop the application.
 func ExampleDescriptor() {
 	app := application.Descriptor{
 		Name:    "server",
@@ -23,7 +25,7 @@ func ExampleDescriptor() {
 				fmt.Println("configured address:", address)
 				<-ctx.Done()
 				return ctx.Err()
-			}), program.FromFlags(flags)
+			}), command.FromFlags(flags)
 		},
 	}
 

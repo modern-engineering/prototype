@@ -8,9 +8,11 @@ import (
 	"github.com/modern-engineering/prototype/bind"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
+	"github.com/modern-engineering/prototype/program/command"
 )
 
-// A loader sets a job's inputs and reads its outputs after execution succeeds.
+// Your executable can configure a finite job through its declared inputs and
+// read the results after Run succeeds.
 func ExampleDescriptor() {
 	greeting := job.Descriptor{
 		Name:    "greeting",
@@ -28,7 +30,7 @@ func ExampleDescriptor() {
 			return program.RunnerFunc(func(context.Context) error {
 				message = "Hello, " + name + "."
 				return nil
-			}), program.FromFlags(flags), outputs
+			}), command.FromFlags(flags), outputs
 		},
 	}
 

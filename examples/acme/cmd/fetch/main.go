@@ -1,4 +1,5 @@
-// Command fetch fetches an HTTP resource using the Acme catalogue.
+// Command fetch shows how your organization can expose a catalogue descriptor
+// as a CLI while keeping client configuration and shutdown in the executable.
 package main
 
 import (
@@ -12,26 +13,24 @@ import (
 	"time"
 
 	"example.com/acme/catalogue"
+	"github.com/modern-engineering/prototype/program/command"
 )
 
 func main() {
-	if err := command(); err != nil {
+	if err := runCommand(); err != nil && err != flag.ErrHelp {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func command() error {
-	url := flag.String("url", "http://localhost:8080", "service URL")
-	token := flag.String("token", "", "bearer credential")
-	flag.Parse()
+func runCommand() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: 10 * time.Second}
-	return run(ctx, client, *url, *token, os.Stdout)
+	return run(ctx, client, os.Args[1:], os.Stdout, os.Stderr)
 }
 
 // httpClientUser is the capability this command needs from its runner.
@@ -39,24 +38,24 @@ type httpClientUser interface {
 	UseHTTPClient(*http.Client)
 }
 
-// run configures and runs Fetch while its caller keeps the shared client alive.
-func run(ctx context.Context, client *http.Client, url, token string, out io.Writer) error {
+// Your command can expose new descriptor fields without repeating their names,
+// defaults, or help text here. The supplied client remains owned by this caller.
+func run(ctx context.Context, client *http.Client, args []string, out, diagnostics io.Writer) error {
 	runner, inputs, outputs := catalogue.Fetch.Make()
-	address, _ := inputs.Lookup("url")
-	if err := address.Value.Set(url); err != nil {
+	flags := flag.NewFlagSet(catalogue.Fetch.Name, flag.ContinueOnError)
+	flags.SetOutput(diagnostics)
+	if err := command.Parse(flags, inputs, args); err != nil {
 		return err
 	}
-	credential, _ := inputs.Lookup("token")
-	if err := credential.Value.Set(token); err != nil {
-		return err
+	if flags.NArg() != 0 {
+		return fmt.Errorf("fetch accepts flags only")
 	}
 
-	// The command supplies its client separately from declared configuration.
+	// Supply infrastructure through a capability your command consumes. The
+	// catalogue does not choose your transport or its resource lifetime.
 	runner.(httpClientUser).UseHTTPClient(client)
 	if err := runner.Run(ctx); err != nil {
 		return err
 	}
-	body, _ := outputs.Lookup("body")
-	_, err := io.WriteString(out, body.Value.Get())
-	return err
+	return command.WriteOutputs(out, outputs)
 }

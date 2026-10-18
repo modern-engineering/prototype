@@ -6,6 +6,10 @@ This module shows how an adopting organization can maintain shared functionality
 - `catalogue` exports the `Fetch` job descriptor.
 - `cmd/fetch` binds configuration, supplies its HTTP client, and owns the transport lifetime.
 
+The command derives flags from the descriptor's inputs through `command.Parse`.
+Defaults and help text stay with the catalogue, and `command.WriteOutputs` emits all declared results as a JSON object of strings.
+Your executable remains responsible for resource setup, cancellation, execution, and error reporting.
+
 The module depends on the toolkit through a local `replace` directive so the example runs directly from this checkout.
 An independently distributed module would require a published toolkit version instead.
 
