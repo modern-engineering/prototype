@@ -1,0 +1,23 @@
+
+
+// Artifact identity stays beside its directive.
+sef        0.1  // Shared schema version.
+solution       "example // name"
+revision r3
+
+
+require ( // Module requirements remain authored data.
+    // This module does not need to be installed to parse the file.
+    example.com/catalogue     v1.2.0
+)
+node   backend     example.com/catalogue    Backend
+bind (
+ backend    greeting literal    "" // An empty assignment is still present.
+
+
+ backend database reference  database url
+)
+// The referenced occurrence is declared later.
+node database example.com/catalogue Database
+
+

@@ -1,0 +1,20 @@
+sef "0.1"
+solution "regional-store"
+revision "r3"
+
+require (
+	"example.com/catalogue" "v1.2.0"
+)
+
+node (
+	"storage" "example.com/catalogue" "Database"
+	"backend" "example.com/catalogue" "Backend"
+)
+
+bind (
+	"storage" "region" literal "database"
+	"storage" "previous" reference "storage" "address"
+	"backend" "database" reference "storage" "address"
+	"backend" "database" reference "storage" "address"
+	"backend" "comment" literal ""
+)

@@ -1,0 +1,6 @@
+// Quoted delimiters stay data.
+sef "0.1"
+solution "café"
+node "( // )" "package\tpath" "Name\"Quoted" // Comments follow the complete string.
+bind "( // )" "text" literal "\xff\x00\n"
+bind "( // )" "empty" reference "" ""

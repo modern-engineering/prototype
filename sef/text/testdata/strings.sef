@@ -1,0 +1,9 @@
+// Quoting carries data that would otherwise look like syntax.
+sef "0.1"
+solution "\xff\x00\"\\"
+revision "\n\r\t"
+require "" "version with spaces"
+node "() //" "package path\n" "a\"b"
+bind "() //" "" literal "// not a comment"
+bind "() //" "" literal "\xff\x00\u2028"
+bind "missing target" "input" reference "" ""

@@ -1,0 +1,10 @@
+// Independent errors are recovered at line boundaries.
+sef "future"
+solution "first"
+solution "again"
+node "short" "pkg"
+bind "n" "x" unknown "v"
+revision "unterminated
+mystery value
+require (
+    "example.com/catalogue" "v1.2.0"
