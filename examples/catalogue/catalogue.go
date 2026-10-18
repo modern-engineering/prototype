@@ -1,4 +1,6 @@
-// Package catalogue exports descriptors from the job and application catalogues.
+// Package catalogue supplies the descriptors used by the solution examples.
+// In your organization, a catalogue package can expose supported operations
+// while keeping their dependencies and implementation behind ordinary Go APIs.
 package catalogue
 
 import (
@@ -12,7 +14,8 @@ import (
 	"github.com/modern-engineering/prototype/program"
 )
 
-// Database derives an address in the configured region.
+// Database models a finite setup operation that publishes an address.
+// Replace its Run body with your provisioning code; keep acquisitions out of Make.
 var Database = job.Descriptor{
 	Name: "database",
 	MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
@@ -28,7 +31,8 @@ var Database = job.Descriptor{
 	},
 }
 
-// Backend requires a database address before serving until cancellation.
+// Backend models an application configured by Database's output.
+// Your application's Run method would serve requests until its context ends.
 var Backend = application.Descriptor{
 	Name: "backend",
 	MakeFunc: func() (program.Runner, program.Inputs) {

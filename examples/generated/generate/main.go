@@ -1,4 +1,5 @@
-// Command generate emits the catalogue linkage for the generated example.
+// Command generate emits catalogue imports and registrations for its parent
+// command. Run go generate in examples/generated after changing the solution.
 package main
 
 import (
@@ -14,6 +15,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// go generate runs this command in its package directory. Keep the generated
+	// source beside main.go so ordinary go build includes your catalogue imports.
 	if err := os.WriteFile("definitions_gen.go", source, 0o644); err != nil {
 		log.Fatal(err)
 	}

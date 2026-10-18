@@ -1,3 +1,5 @@
+// Command sef converts a solution artifact between encodings without loading
+// catalogue code. You can use the same codecs with files or network streams.
 package main
 
 import (
@@ -7,9 +9,12 @@ import (
 	"log"
 
 	"github.com/modern-engineering/prototype/sef"
+	"github.com/modern-engineering/prototype/solution"
 )
 
-//go:embed cleanup.json.sef
+// Embed a reviewable artifact so the command and tests need no working directory.
+//
+//go:embed testdata/cleanup.json.sef
 var source []byte
 
 func main() {
@@ -19,6 +24,8 @@ func main() {
 }
 
 func inspect() error {
+	// Decoding gives your tooling structural data. Resolving its descriptor names
+	// and checking program fields remain separate steps.
 	document, err := sef.DecodeJSON(bytes.NewReader(source))
 	if err != nil {
 		return err
@@ -35,10 +42,18 @@ func inspect() error {
 	if err := sef.EncodeJSON(&rewritten, document); err != nil {
 		return err
 	}
+	document, err = sef.DecodeJSON(&rewritten)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("%s at %s (SEF %s)\n", document.ID, document.Revision, document.Version)
 	for _, binding := range document.Definition.Bindings {
-		fmt.Printf("%s.%s = %#v\n", binding.Node, binding.Input, binding.Value)
+		switch value := binding.Value.(type) {
+		case solution.Literal:
+			fmt.Printf("%s.%s = %q\n", binding.Node, binding.Input, value)
+		case solution.Reference:
+			fmt.Printf("%s.%s <- %s.%s\n", binding.Node, binding.Input, value.Node, value.Output)
+		}
 	}
-	fmt.Printf("JSON after gob round trip: %d bytes\n", rewritten.Len())
 	return nil
 }

@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"github.com/modern-engineering/prototype/application"
 	"github.com/modern-engineering/prototype/bind/input"
 	"github.com/modern-engineering/prototype/bind/output"
-	"github.com/modern-engineering/prototype/examples/internal/loader"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
 )
@@ -66,31 +64,19 @@ func main() {
 	}
 }
 
-func run(ctx context.Context) (err error) {
-	l := loader.Loader{}
-	address := l.Make(Address)
-	defer func() { err = errors.Join(err, address.Close()) }()
-	host, err := address.Input("host")
-	if err != nil {
-		return err
-	}
-	if err := host.Set("api.example.test:8443"); err != nil {
+func run(ctx context.Context) error {
+	address, inputs, outputs := Address.Make()
+	host, _ := inputs.Lookup("host")
+	if err := host.Value.Set("api.example.test:8443"); err != nil {
 		return err
 	}
 	if err := address.Run(ctx); err != nil {
 		return err
 	}
-	url, err := address.Output("url")
-	if err != nil {
-		return err
-	}
-	backend := l.Make(Backend)
-	defer func() { err = errors.Join(err, backend.Close()) }()
-	upstream, err := backend.Input("address")
-	if err != nil {
-		return err
-	}
-	if err := upstream.Set(url.Get()); err != nil {
+	url, _ := outputs.Lookup("url")
+	backend, inputs, _ := Backend.Make()
+	upstream, _ := inputs.Lookup("address")
+	if err := upstream.Value.Set(url.Value.Get()); err != nil {
 		return err
 	}
 	return backend.Run(ctx)

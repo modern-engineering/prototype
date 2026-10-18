@@ -3,26 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-
-	"github.com/modern-engineering/prototype/examples/internal/loader"
 )
 
-// A loader configures a finite job and wires its result into an application
-// through the same descriptor contract.
+// A job's output configures an application through the bound handles returned
+// by Make. The unassigned scheme input retains its constructor value.
 func Example() {
-	l := loader.Loader{}
-	address := l.Make(Address)
-	defer func() {
-		if err := address.Close(); err != nil {
-			fmt.Println("close address:", err)
-		}
-	}()
-	host, err := address.Input("host")
-	if err != nil {
-		fmt.Println("host input:", err)
-		return
-	}
-	if err := host.Set("api.example.test:8443"); err != nil {
+	address, inputs, outputs := Address.Make()
+	host, _ := inputs.Lookup("host")
+	if err := host.Value.Set("api.example.test:8443"); err != nil {
 		fmt.Println("configure host:", err)
 		return
 	}
@@ -30,23 +18,10 @@ func Example() {
 		fmt.Println("run address:", err)
 		return
 	}
-	url, err := address.Output("url")
-	if err != nil {
-		fmt.Println("address output:", err)
-		return
-	}
-	backend := l.Make(Backend)
-	defer func() {
-		if err := backend.Close(); err != nil {
-			fmt.Println("close backend:", err)
-		}
-	}()
-	upstream, err := backend.Input("address")
-	if err != nil {
-		fmt.Println("upstream input:", err)
-		return
-	}
-	if err := upstream.Set(url.Get()); err != nil {
+	url, _ := outputs.Lookup("url")
+	backend, inputs, _ := Backend.Make()
+	upstream, _ := inputs.Lookup("address")
+	if err := upstream.Value.Set(url.Value.Get()); err != nil {
 		fmt.Println("configure upstream:", err)
 		return
 	}
