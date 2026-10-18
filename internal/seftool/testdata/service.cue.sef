@@ -1,0 +1,21 @@
+// The catalogue package is shared by both occurrences.
+let catalogue = "github.com/modern-engineering/prototype/examples/catalogue"
+let region = "eu-west"
+
+version: "0.1"
+id: "regional-service"
+revision: "r1"
+definition: {
+    nodes: [
+        {name: "database", definition: {package: catalogue, name: "Database"}},
+        {name: "backend", definition: {package: catalogue, name: "Backend"}},
+    ]
+    bindings: [
+        {node: "database", input: "region", value: {kind: "literal", text: region}},
+        // This names an output; evaluating the source does not read it.
+        {node: "backend", input: "database", value: {
+            kind: "reference"
+            reference: {node: "database", output: "address"}
+        }},
+    ]
+}

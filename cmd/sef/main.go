@@ -2,11 +2,17 @@
 package main
 
 import (
-	"github.com/modern-engineering/prototype/internal/seftool"
+	"context"
 	"os"
+	"os/signal"
+
+	"github.com/modern-engineering/prototype/internal/seftool"
 )
 
 func main() {
-	command := seftool.Command{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}
-	os.Exit(command.Run(os.Args[1:]))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	command := seftool.Command{Context: ctx, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}
+	status := command.Run(os.Args[1:])
+	stop()
+	os.Exit(status)
 }

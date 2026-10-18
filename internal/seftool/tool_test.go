@@ -199,7 +199,7 @@ func TestExitStatus(t *testing.T) {
 		{nil, 2}, {[]string{"unknown"}, 2}, {[]string{"help"}, 0},
 		{[]string{"fmt", "-h"}, 0}, {[]string{"fmt", "-w"}, 2},
 		{[]string{"convert", "-from", "yaml"}, 2},
-		{[]string{"check", "-linked", "testdata/sample.sef"}, 2},
+		{[]string{"check", "-linked", "testdata/sample.sef"}, 1},
 		{[]string{"check"}, 1}, {[]string{"check", "testdata/missing.sef"}, 1},
 	} {
 		var output, diagnostics bytes.Buffer
