@@ -13,7 +13,9 @@
 package solution
 
 // Definition is structural intent. Its slices preserve authored order, not execution
-// order. Node names identify occurrences within the model; two nodes may name
+// order. Retaining bindings does not define assignment cardinality or the
+// effect of assigning an input more than once. Node names identify occurrences
+// within the model; two nodes may name
 // the same exported definition without sharing invocation state.
 //
 // A Definition is ordinary mutable data. Editing it does not update any linked or
