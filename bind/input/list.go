@@ -6,6 +6,7 @@
 // Int, Float, and Complex preserve the chosen numeric type through generics.
 // Var accepts custom handles, including program.SetterFunc. Helpers and Var accept
 // trailing metadata options such as Sensitive; Define accepts explicit metadata.
+// JSON registers a configuration struct using JSON field names via bind.JSONInputs.
 // Registration copies metadata and retains the original handle, including
 // its additional capabilities. It never calls Set, so constructor defaults
 // remain unchanged.

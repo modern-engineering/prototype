@@ -41,25 +41,30 @@ func Example() {
 	// Output: Hello, ADA
 }
 
-// Tags expose selected configuration fields while preserving their initial
-// values. Inputs and outputs can bind different fields of the same value.
-func ExampleList_Struct() {
+// Reuse your configuration's JSON names and keep declaration metadata beside
+// the descriptor. Separate result state gives your outputs their own surface.
+func ExampleList_JSON() {
 	cfg := struct {
-		Name     string `input:"name" help:"recipient"`
-		Token    string `input:"token,sensitive" help:"credential"`
-		Greeting string `output:"greeting" help:"uppercase greeting"`
+		Name  string `json:"name"`
+		Token string `json:"token,omitempty"`
 	}{Name: "world"}
+	result := struct {
+		Greeting string `json:"greeting"`
+	}{}
 	var inputs input.List
 	var outputs output.List
-	inputs.Struct(&cfg)
-	outputs.Struct(&cfg)
+	inputs.JSON(&cfg,
+		program.Field{Name: "name", Help: "recipient"},
+		program.Field{Name: "token", Help: "credential", Sensitive: true},
+	)
+	outputs.JSON(&result, program.Field{Name: "greeting", Help: "uppercase greeting"})
 
 	name, _ := inputs.Lookup("name")
 	if err := name.Value.Set("Ada"); err != nil {
 		fmt.Println(err)
 		return
 	}
-	cfg.Greeting = "Hello, " + strings.ToUpper(cfg.Name)
+	result.Greeting = "Hello, " + strings.ToUpper(cfg.Name)
 	greeting, _ := outputs.Lookup("greeting")
 	fmt.Println(greeting.Value.Get())
 	token, _ := inputs.Lookup("token")

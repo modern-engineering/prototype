@@ -2,6 +2,9 @@
 // Wrapping a variable preserves its current value; subsequent assignments
 // through either the variable or its binding remain visible through both.
 // Bindings provide no synchronization.
+//
+// JSONInputs and JSONOutputs bind configuration structs using JSON field names
+// while keeping the same scalar value representations.
 package bind
 
 import "strconv"

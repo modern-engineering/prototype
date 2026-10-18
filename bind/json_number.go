@@ -1,17 +1,17 @@
-package structbind
+package bind
 
 import (
 	"reflect"
 	"strconv"
 )
 
-// number binds numeric types discovered at runtime, including defined types
-// that cannot be named as compile-time type arguments to bind's generic helpers.
-type number struct {
+// reflectedNumber binds numeric types discovered at runtime, including defined
+// types that cannot be named as type arguments to the generic numeric helpers.
+type reflectedNumber struct {
 	target reflect.Value
 }
 
-func (n number) Get() string {
+func (n reflectedNumber) Get() string {
 	switch n.target.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.FormatInt(n.target.Int(), 10)
@@ -24,7 +24,7 @@ func (n number) Get() string {
 	}
 }
 
-func (n number) Set(text string) error {
+func (n reflectedNumber) Set(text string) error {
 	bits := n.target.Type().Bits()
 	switch n.target.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:

@@ -19,18 +19,29 @@ var Fetch = job.Descriptor{
 	Name:    "fetch",
 	Summary: "Fetch an authenticated HTTP resource",
 	MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
-		worker := &fetch{Endpoint: httpclient.Endpoint{URL: "http://localhost:8080"}}
-		var inputs input.List
-		var outputs output.List
-		worker.BindInputs(&inputs)
-		outputs.Struct(worker)
-		return worker, &inputs, &outputs
+		return job.From(&fetch{Endpoint: httpclient.Endpoint{URL: "http://localhost:8080"}})
 	},
 }
 
 type fetch struct {
 	httpclient.Endpoint
-	Body []byte `output:"body" help:"response body"`
+	// Your result has its own surface so output binding cannot publish client
+	// configuration or credentials alongside the response.
+	result struct {
+		Body []byte `json:"body"`
+	}
+}
+
+func (f *fetch) Inputs() program.Inputs {
+	var inputs input.List
+	f.BindInputs(&inputs)
+	return &inputs
+}
+
+func (f *fetch) Outputs() program.Outputs {
+	var outputs output.List
+	outputs.JSON(&f.result, program.Field{Name: "body", Help: "response body"})
+	return &outputs
 }
 
 func (f *fetch) Run(ctx context.Context) error {
@@ -38,6 +49,6 @@ func (f *fetch) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	f.Body = body
+	f.result.Body = body
 	return nil
 }

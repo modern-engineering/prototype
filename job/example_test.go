@@ -4,44 +4,49 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 
-	"github.com/modern-engineering/prototype/bind"
+	"github.com/modern-engineering/prototype/bind/input"
+	"github.com/modern-engineering/prototype/bind/output"
 	"github.com/modern-engineering/prototype/job"
 	"github.com/modern-engineering/prototype/program"
 	"github.com/modern-engineering/prototype/program/command"
 )
 
-// Your executable can configure a finite job through its declared inputs and
-// read the results after Run succeeds.
-func ExampleDescriptor() {
-	greeting := job.Descriptor{
-		Name:    "greeting",
-		Summary: "Compose a greeting for a named person.",
-		MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
-			var name, message string
-			flags := flag.NewFlagSet("greeting", flag.ContinueOnError)
-			flags.StringVar(&name, "name", "World", "Person to greet.")
-			outputs := program.OutputList{
-				program.Output{
-					Field: program.Field{Name: "message", Help: "Composed greeting."},
-					Value: bind.String(&message),
-				},
-			}
-			return program.RunnerFunc(func(context.Context) error {
-				message = "Hello, " + name + "."
-				return nil
-			}), command.FromFlags(flags), outputs
-		},
+type greeting struct {
+	Name    string
+	Message string
+}
+
+func (g *greeting) Inputs() program.Inputs {
+	var inputs input.List
+	inputs.StringVar(&g.Name, "name", "Person to greet.")
+	return &inputs
+}
+
+func (g *greeting) Outputs() program.Outputs {
+	var outputs output.List
+	outputs.StringVar(&g.Message, "message", "Composed greeting.")
+	return &outputs
+}
+
+func (g *greeting) Run(context.Context) error {
+	g.Message = "Hello, " + g.Name + "."
+	return nil
+}
+
+// Your catalogue can use a type directly when its zero value is ready for input
+// binding. The command still owns parsing, execution, and result formatting.
+func ExampleMake() {
+	descriptor := job.Descriptor{
+		Name:     "greeting",
+		Summary:  "Compose a greeting for a named person.",
+		MakeFunc: job.Make[greeting],
 	}
 
-	var descriptor program.Descriptor = greeting
 	runner, inputs, outputs := descriptor.Make()
-	name, ok := inputs.Lookup("name")
-	if !ok {
-		fmt.Println("missing name input")
-		return
-	}
-	if err := name.Value.Set("Ada"); err != nil {
+	flags := flag.NewFlagSet(descriptor.Name, flag.ContinueOnError)
+	if err := command.Parse(flags, inputs, []string{"-name", "Ada"}); err != nil {
 		fmt.Println("configure:", err)
 		return
 	}
@@ -49,11 +54,29 @@ func ExampleDescriptor() {
 		fmt.Println("run:", err)
 		return
 	}
-	message, ok := outputs.Lookup("message")
-	if !ok {
-		fmt.Println("missing message output")
+	if err := command.WriteOutputs(os.Stdout, outputs); err != nil {
+		fmt.Println("outputs:", err)
+	}
+	// Output: {"message":"Hello, Ada."}
+}
+
+// Keep defaults in your catalogue's constructor. From exposes the same
+// initialized value through its runner and declared fields.
+func ExampleFrom() {
+	descriptor := job.Descriptor{
+		Name: "greeting",
+		MakeFunc: func() (program.Runner, program.Inputs, program.Outputs) {
+			return job.From(&greeting{Name: "World"})
+		},
+	}
+
+	runner, _, outputs := descriptor.Make()
+	if err := runner.Run(context.Background()); err != nil {
+		fmt.Println("run:", err)
 		return
 	}
-	fmt.Println(message.Value.Get())
-	// Output: Hello, Ada.
+	if err := command.WriteOutputs(os.Stdout, outputs); err != nil {
+		fmt.Println("outputs:", err)
+	}
+	// Output: {"message":"Hello, World."}
 }
