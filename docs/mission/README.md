@@ -8,8 +8,8 @@ The `draft` status marks an accepted but incomplete scaffold that is expected to
 If later evidence reopens a completed document, it returns to `draft` until the corpus completes it again.
 
 Completeness and sponsor ratification are independent under [D-06-sponsor-ratification].
-A complete document can be `accepted` with `ratification: pending` while it awaits the sponsor's full read and endorsement.
-Merging alone does not record ratification, and an omitted field means unrecorded.
+A complete document can be `accepted` with `ratified-by` omitted, meaning complete and unratified.
+The optional field names the sponsor who personally ratified the content; merging alone does not supply that endorsement.
 
 | Record | Mission document |
 | --- | --- |

@@ -1,12 +1,11 @@
 ---
 status: accepted
 since: 2026-10-21
-ratification: pending
 refines:
   - D-04-status-lifecycle
 ---
 
-# Record Sponsor Ratification Separately from Completeness
+# Record Sponsor Ratification by Identity
 
 ## Context and Problem Statement
 
@@ -16,81 +15,83 @@ Treating its merge or technical review as sponsor endorsement would record appro
 
 [D-04 on document lifecycle][D-04-status-lifecycle] already separates admission to the mission corpus from completeness.
 It defines `draft` as incomplete and `accepted` as complete for the document's purpose.
-An independent record of sponsor ratification lets publication proceed without conflating those facts with personal endorsement.
+Personal ratification needs its own attribution without requiring every unratified document to declare another state.
 
 ## Decision Drivers
 
 - Preserve the distinction between complete documents and incomplete scaffolds.
-- Make sponsor ratification queryable across document families.
+- Record who personally ratified the current substantive content.
+- Give omission the same useful meaning for existing and future records.
 - Allow useful work to enter the corpus before the sponsor completes a full read.
-- Record endorsement only when it is explicit, including when backfilling existing records.
+- Record endorsement only when it is explicit.
 - Keep meaning-preserving editorial and metadata work from invalidating an existing ratification.
 
 ## Considered Options
 
-- **An independent `ratification` field** alongside the existing lifecycle metadata.
+- **An optional scalar `ratified-by` field** recording the sponsor's identity.
+- **A ratification-state enum** requiring a separate value for unratified records.
 - **Additional lifecycle states** combining completeness and sponsor endorsement.
-- **Pull request approval and merge history alone** as the record of endorsement.
 
 ## Decision Outcome
 
-Chosen option: "an independent `ratification` field."
-The field is available to numbered records in every document family and has two values:
+Chosen option: "an optional scalar `ratified-by` field."
+The field is available to numbered records in every document family.
+Omission is the zero value: the current substantive content is unratified.
+This meaning applies equally to old and new records, without asserting rejection or a scheduled review.
 
-- `pending` — the current substantive content awaits explicit sponsor ratification.
-  The document may already be complete and technically reviewed.
-- `ratified` — the project sponsor has read the substantive content in full and explicitly endorsed it.
-
-An omitted field means ratification is unrecorded.
-It must not be interpreted as either `pending` or `ratified`.
-Existing lifecycle metadata, a merge, or a completed technical review is insufficient evidence for backfilling ratification.
-
-New records carry `ratification: pending` unless the sponsor has explicitly ratified their substantive content.
-Existing records receive the field when their ratification state is explicitly established.
-Backfilling records the confirmed fact without inventing a historical ratification date.
-
-For example, a complete record awaiting sponsor ratification can carry:
+A nonempty value identifies the project sponsor who has read the current substantive content in full and explicitly endorsed it.
+Record that identity as a GitHub login, for example:
 
 ```yaml
-status: accepted
-since: 2026-10-21
-ratification: pending
+ratified-by: danielorbach
 ```
 
-The three facts remain independent:
+There is one sponsor ratification authority, so one scalar identity is sufficient.
+This is person attribution, not a document relationship.
+The named ratifier can differ from the contributor or tool that records the metadata.
+Only the sponsor's explicit ratification authorises that attribution; a merge, technical review or Git author identity does not establish it.
+Ratifying one record does not ratify the records it references or derives.
 
-- Merging a mission document into `main` admits it to the canonical mission corpus.
-- `status` records its lifecycle state, including whether it is complete for its purpose.
-- `ratification` records the sponsor's endorsement of its substantive content.
+### Relationship to lifecycle status
 
-A complete document can therefore be `accepted` while ratification is `pending`.
-The sponsor can also ratify an intentionally incomplete scaffold without making its `draft` status inaccurate.
-Ratification does not establish verification or operational proof; those depend on the relevant evidence.
+Merging a mission document into `main` admits it to the canonical corpus.
+Its lifecycle `status` continues to describe completeness and disposition under [D-04 on document lifecycle][D-04-status-lifecycle].
+Ratification records personal endorsement of the content independently:
+
+| Status     | `ratified-by`  | Meaning                          |
+| ---------- | -------------- | -------------------------------- |
+| `draft`    | omitted        | Incomplete and unratified        |
+| `accepted` | omitted        | Complete and unratified          |
+| `draft`    | `danielorbach` | Personally endorsed scaffold     |
+| `accepted` | `danielorbach` | Complete and personally ratified |
+
+The same separation applies to the preliminary `proposed` state used by decision records.
+For `rejected`, `deprecated` or `superseded` records, attribution remains about the retained content; status still determines its disposition and applicability.
+Ratification cannot adopt a rejected option or restore a superseded decision.
+Technical review, verification and operational proof remain separate matters of evidence.
 
 ### Recording and preserving ratification
 
-The project sponsor holds ratification authority.
-A contributor or automated tool may record `ratified` only on the sponsor's explicit instruction or confirmation that the substantive content has been read and endorsed.
-Permission to publish or merge alone does not provide that confirmation.
-Ratifying one record does not ratify the records it references or derives.
+Record attribution only for explicit sponsor ratification, including when backfilling existing documents.
+Other records remain unratified by omission, without a special migration state.
 
-A change that alters the document's substantive meaning returns `ratification` to `pending` unless the sponsor explicitly ratifies the resulting content.
-Such changes include revised outcomes, assumptions, constraints, responsibilities, boundaries or decisions.
-Meaning-preserving editorial changes, formatting, indexing and relationship or lifecycle metadata changes retain the existing ratification.
-Ratification therefore follows substantive meaning rather than requiring approval of each exact byte sequence.
+On editable records, a change to the endorsed substantive meaning removes `ratified-by` unless the sponsor explicitly ratifies the resulting content.
+Meaning-preserving changes retain the attribution.
+That distinction applies to metadata too: a relationship or scope change can be material, while a lifecycle transition alone need not erase endorsement of the retained content.
+
+This rule does not authorise editing an immutable accepted decision body.
+Under [D-01 on decision records][D-01-use-architectural-decision-records] and [D-04 on document lifecycle][D-04-status-lifecycle], a changed decision needs a refining or superseding record with its own initially absent attribution.
+The original record retains its content and endorsement.
 
 `since` continues to date entry into the current lifecycle `status`, as defined by [D-04 on document lifecycle][D-04-status-lifecycle].
 Changing ratification alone does not change `since`.
-Git records the metadata change and its author; this decision introduces no additional date or reviewer fields.
-Ratification metadata remains mutable under the lifecycle decision's allowance for frontmatter changes, while accepted decision bodies retain their existing immutability rule.
+Git records the metadata change and its recorder; backfilling attribution does not invent a historical ratification date.
 
 ### Consequences
 
-Completeness and sponsor endorsement can be inspected separately without delaying publication solely for a full sponsor read.
-Maintainers must preserve that distinction when changing content and must obtain explicit evidence before marking ratification.
-Legacy records can remain unrecorded until their state is established, avoiding an unsupported bulk inference from historical status or merge activity.
+Unratified documents need no ratification metadata, including complete documents ready for publication.
+An explicit endorsement is both queryable and attributable without a second enum or a review queue.
+The enum was rejected because absence of endorsement already has a useful representation; additional lifecycle states were rejected because they combine independent facts.
 
-Additional lifecycle states were rejected because they would multiply combinations of independent facts.
-Pull request history alone was rejected because permission to merge need not mean the sponsor has read and endorsed the whole document.
-
+[D-01-use-architectural-decision-records]: D-01-use-architectural-decision-records.md
 [D-04-status-lifecycle]: D-04-status-lifecycle.md

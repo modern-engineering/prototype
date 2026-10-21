@@ -9,7 +9,7 @@ Decisions are recorded in MADR 4.0.0 format.
 | [D-03-document-naming-convention] | Name Documents by Family, Number, and Stem |
 | [D-04-status-lifecycle] | Define a Per-Family Status Lifecycle |
 | [D-05-document-relationships] | Record Document Relationships in Frontmatter |
-| [D-06-sponsor-ratification] | Record Sponsor Ratification Separately from Completeness |
+| [D-06-sponsor-ratification] | Record Sponsor Ratification by Identity |
 
 [D-01-use-architectural-decision-records]: D-01-use-architectural-decision-records.md
 [D-02-madr-format-with-frontmatter]: D-02-madr-format-with-frontmatter.md

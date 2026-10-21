@@ -7,8 +7,8 @@ Analyses investigate bounded questions within that frame, while requirements and
 Each family README indexes its current records.
 
 [D-06-sponsor-ratification] records sponsor endorsement separately from completeness.
-The `ratification` field is available across document families: `pending` awaits explicit ratification, `ratified` records it, and omission means unrecorded.
-New records start pending unless the sponsor has explicitly ratified their substantive content.
+The optional scalar `ratified-by` field identifies the sponsor who personally ratified the current substantive content.
+Omission means unratified for both existing and future records.
 
 | Family                 | Description                                                   |
 | ---------------------- | ------------------------------------------------------------- |
