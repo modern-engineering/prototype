@@ -1,6 +1,7 @@
 ---
 status: accepted
 since: 2026-08-25
+ratification: ratified
 derived-from:
   - M-02-concept-of-operations
 ---

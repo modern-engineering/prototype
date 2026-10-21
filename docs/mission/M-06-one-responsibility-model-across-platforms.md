@@ -1,6 +1,7 @@
 ---
 status: draft
 since: 2026-09-12
+ratification: pending
 derived-from:
   - M-02-concept-of-operations
 ---
