@@ -80,7 +80,7 @@ Meaning-preserving changes retain the attribution.
 That distinction applies to metadata too: a relationship or scope change can be material, while a lifecycle transition alone need not erase endorsement of the retained content.
 
 This rule does not authorise editing an immutable accepted decision body.
-Under [D-01 on decision records][D-01-use-architectural-decision-records] and [D-04 on document lifecycle][D-04-status-lifecycle], a changed decision needs a refining or superseding record with its own initially absent attribution.
+Under [D-01 on decision records][D-01-use-architectural-decision-records] and [D-04 on document lifecycle][D-04-status-lifecycle], a changed decision needs a refining or superseding record whose ratification is established independently.
 The original record retains its content and endorsement.
 
 `since` continues to date entry into the current lifecycle `status`, as defined by [D-04 on document lifecycle][D-04-status-lifecycle].
