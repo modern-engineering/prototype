@@ -31,7 +31,9 @@ Chosen option: "Architectural Decision Records in the repository." Keeping ADRs 
 ### Consequences
 
 - Every significant architectural decision gets a dedicated file in `docs/adr/`.
-- ADRs are immutable once accepted; superseding decisions reference the original.
+- Preserve decision history while keeping records useful.
+  Corrections, clearer explanations and better diagrams can be edited in place when they preserve the recorded decision.
+  A material change that warrants its own rationale gets a refining or superseding record linked to the earlier decision.
 
 ## More Information
 

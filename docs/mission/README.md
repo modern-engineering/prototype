@@ -7,6 +7,10 @@ Every mission document merged into `main` is accepted into the canonical corpus.
 The `draft` status marks an accepted but incomplete scaffold that is expected to evolve, while `accepted` marks a document considered complete at its current revision.
 If later evidence reopens a completed document, it returns to `draft` until the corpus completes it again.
 
+Completeness and sponsor ratification are independent under [D-06-sponsor-ratification].
+A complete document can be `accepted` with `ratified-by` omitted, meaning complete and unratified.
+The optional field names the sponsor who personally ratified the content; merging alone does not supply that endorsement.
+
 | Record | Mission document |
 | --- | --- |
 | [M-01-business-mission-analysis] | Business Mission Analysis |
@@ -22,3 +26,4 @@ If later evidence reopens a completed document, it returns to `draft` until the 
 [M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
 [M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
 [M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
+[D-06-sponsor-ratification]: ../adr/D-06-sponsor-ratification.md

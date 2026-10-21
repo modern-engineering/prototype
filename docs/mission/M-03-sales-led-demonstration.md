@@ -1,6 +1,7 @@
 ---
 status: accepted
 since: 2026-08-25
+ratified-by: danielorbach
 derived-from:
   - M-02-concept-of-operations
 ---
