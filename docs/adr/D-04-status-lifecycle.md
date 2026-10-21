@@ -48,8 +48,8 @@ For a mission document, `draft` records that the accepted content remains an inc
 An edit or later evidence returns a complete mission document to `draft` only when it reopens a material boundary, outcome or relationship needed for completeness.
 Refinements that preserve those conclusions, and metadata-only lifecycle or relationship updates, do not mechanically reopen the document.
 
-Recording a transition edits the frontmatter of an accepted record.
-This refines [D-01 decision records][d-01]: its immutability governs the decision body, while lifecycle and relationship metadata stay mutable so the corpus stays navigable.
+Accepted records remain editable while preserving decision history under [D-01 on decision records][d-01].
+Corrections and clarifications can be made in place, and lifecycle and relationship metadata stay current.
 
 The `draft` boolean was rejected: it collapses this shape to two states and cannot express the off-ramp (`rejected`) or the end-of-life states.
 

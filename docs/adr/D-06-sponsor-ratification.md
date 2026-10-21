@@ -50,7 +50,7 @@ There is one sponsor ratification authority, so one scalar identity is sufficien
 This is person attribution, not a document relationship.
 The named ratifier can differ from the contributor or tool that records the metadata.
 Only the sponsor's explicit ratification authorises that attribution; a merge, technical review or Git author identity does not establish it.
-Ratifying one record does not ratify the records it references or derives.
+Each record is ratified independently, including a refining or superseding decision.
 
 ### Relationship to lifecycle status
 
@@ -75,13 +75,9 @@ Technical review, verification and operational proof remain separate matters of 
 Record attribution only for explicit sponsor ratification, including when backfilling existing documents.
 Other records remain unratified by omission, without a special migration state.
 
-On editable records, a change to the endorsed substantive meaning removes `ratified-by` unless the sponsor explicitly ratifies the resulting content.
+A change to the endorsed substantive meaning removes `ratified-by` unless the sponsor explicitly ratifies the resulting content.
 Meaning-preserving changes retain the attribution.
 That distinction applies to metadata too: a relationship or scope change can be material, while a lifecycle transition alone need not erase endorsement of the retained content.
-
-This rule does not authorise editing an immutable accepted decision body.
-Under [D-01 on decision records][D-01-use-architectural-decision-records] and [D-04 on document lifecycle][D-04-status-lifecycle], a changed decision needs a refining or superseding record whose ratification is established independently.
-The original record retains its content and endorsement.
 
 `since` continues to date entry into the current lifecycle `status`, as defined by [D-04 on document lifecycle][D-04-status-lifecycle].
 Changing ratification alone does not change `since`.
@@ -93,5 +89,4 @@ Unratified documents need no ratification metadata, including complete documents
 An explicit endorsement is both queryable and attributable without a second enum or a review queue.
 The enum was rejected because absence of endorsement already has a useful representation; additional lifecycle states were rejected because they combine independent facts.
 
-[D-01-use-architectural-decision-records]: D-01-use-architectural-decision-records.md
 [D-04-status-lifecycle]: D-04-status-lifecycle.md
