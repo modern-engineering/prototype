@@ -4,6 +4,8 @@ since: 2026-05-31
 refines:
   - D-01-use-architectural-decision-records
   - D-02-madr-format-with-frontmatter
+refined-by:
+  - D-06-sponsor-ratification
 ---
 
 # Define a Per-Family Status Lifecycle
