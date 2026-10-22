@@ -13,132 +13,175 @@ derives:
 
 # Concept of Operations
 
-## A corpus about operation
+This document describes the intended use of the toolkit in developing, testing and operating distributed Go backends.
+It follows the work of engineers from an application or system change through investigation, testing and use in production.
+The accompanying stories examine particular operating conditions, including the delivery and sustainment of tailored customer solutions.
 
-This operational concept examines solution delivery as a downstream application of the toolkit.
-[M-01-business-mission-analysis] establishes the core mission of reducing engineering effort and supporting confidence in the production behaviour of distributed Go backends.
-This document provides the common frame for the solution-delivery setting described in [M-01 § Downstream solution management][M-01-solution-management].
-The individual operational stories follow solutions through the work of their adopting organisations, customers and users.
+## Operational setting
 
-The parts are intended to remain read together.
-The business mission is not repeated in every story, and one story is not promoted into the universal operating model.
-Instead, each story places the common concepts in a particular sociotechnical delivery system, makes its authorities and material conditions visible, and shows a logical solution moving through time.
-The contrasting settings reveal shared operational ideas and differences that remain significant to the people doing the work.
+[M-01-business-mission-analysis] establishes the mission: reduce engineering effort and make system testing that informs production decisions convenient to apply.
+The toolkit sits within the adopting organisation's software engineering and operating practices.
+Engineers continue to use their source repositories, Go development tools, build and deployment systems, operational hosts and observability tools.
+The opportunity is to make the application code and the means of assembling and running it usable together through those practices.
 
-This common frame is accepted as part of the mission corpus but remains incomplete.
-It is expected to change as the remaining storylines expose differences in boundaries, authorities and operational consequences.
-It can be considered complete after the planned story portfolio is complete and its shared ideas and material differences have been integrated here.
+The work may concern one application, cooperating programs or a selected part of a larger backend.
+An engineer can begin with the part needed to develop a change or investigate a failure while other services remain in their existing environments.
+Using the toolkit does not depend on creating a catalogue, assigning a logical solution identity or reorganising delivery responsibilities.
 
-## Operational viewpoint
+Applications remain responsible for their specialised work and communicate through the mechanisms chosen by their authors.
+The toolkit gives the surrounding Go code access to their construction, configuration and execution.
+A test harness or operational host can therefore use the application implementations directly while supplying the dependencies and execution policy appropriate to its setting.
+The organisation still has to implement, maintain and verify those integrations.
 
-The toolkit is viewed inside an adopter-owned sociotechnical delivery system, not as that delivery system in miniature.
-People, policies, incumbent or proprietary tools, automation and platforms surround it and may continue to perform most operational work.
-The adopter retains authority for its infrastructure, execution, reconciliation and deployment-acceptance decisions, as established by [M-01 § System boundary and operating model][M-01-boundary].
+## Working on a backend
 
-The identity-bearing subject of every operational story is the logical solution.
-Its durable identity lets the story follow one business and operational subject while its intent, placement and realised contents change.
-The story therefore follows what happens to the solution and who is accountable for each consequential transition, rather than treating files, commands or deployment machinery as the main character.
+### Assemble the system needed for the work
 
-The responsibility domains in [M-01 § Solution delivery responsibilities][M-01-delivery-responsibilities] provide the stable role vocabulary for this setting: solution engineering, software engineering, and platform/service engineering.
-They describe concerns and accountabilities, not staffing or actor types.
-A human, an ordinary automated tool or an AI agent may perform work in one or more domains, but automation does not erase responsibility or confer decision authority.
-Each story makes the performing actors, accountable domain and authorising authority clear where the distinction affects the outcome.
+A feature change, an integration fault or a problem reported from operation gives an engineer a reason to run some part of the backend.
+The engineer identifies the participating applications, the configuration and dependencies they need, and the behaviour to investigate.
+The useful boundary depends on that question: it may include several cooperating programs without including the whole production estate.
 
-## Common operational thread
+Through Go code, the engineer constructs and configures the selected programs and supplies their dependencies to a host or harness.
+The source makes it possible to inspect which construction code runs, where a dependency comes from and how it reaches a program.
+Existing packaging and deployment arrangements can remain in use while this path is introduced.
 
-The common thread follows the life of one logical solution through the activities and return paths defined in [M-01 § The durable handoff and the life of a solution][M-01-life].
-It begins when beneficiary needs inform approved solution intent, crosses adopter-controlled handoffs into provisioning and deployment, and reaches customer use.
-Operational evidence and changed needs may then drive sustainment or renewed design, provisioning or deployment, while retirement ends the operational life without reassigning the solution's identity.
+Some dependencies may run under the harness's control; others may remain external services.
+That distinction affects setup, failure handling, resource ownership and what a test can establish.
+The engineer assembling the system coordinates deliberate sharing, including access to resources that survive an individual run.
+Programs account for resources they acquire, while hosts account for resources they supply, as described in [M-01 § System boundary and operating model][M-01-boundary].
 
-This is a direction of travel, not a mandatory linear workflow.
-An operational story may enter part-way through an existing lifecycle, revisit activities, combine roles or use incumbent work around the toolkit.
-The solution's identity connects the intended changes, the work performed and the evidence returned from operation through those handoffs.
+### Test behaviour through a complete run
 
-## Operational stories
+A system test can use the assembled programs within the ordinary Go test workflow.
+It interacts through the selected system boundary, using the applications' existing requests, messages or other interfaces.
+The test author specifies the expected behaviour; the toolkit need not understand the protocol or the business meaning of an exchange.
+Logs, metrics and traces help the engineer explain an observed result.
 
-The stories enter the solution's life at different points.
-A temporary demonstration begins with a prospect's evaluation need and ends with complete retirement.
-The sustained services already provide useful results when their software, configuration or delivery arrangements change.
-Their beneficiaries continue to depend on those results while the adopting organisation introduces the change.
+The run includes the lifecycle needed to obtain that result and leave the system in its intended condition.
+The harness starts and supervises the selected programs, handles completion or failure according to its policy, requests cancellation when appropriate and observes whether the programs finish.
+The programs must respond and complete their own cleanup.
+Provisioning and deprovisioning procedures participate where the applications depend on them, with their resource effects included in the run's outcome.
 
-A solution revision describes an intended edition without requiring every running part to reach it simultaneously.
-Factory windows, cloud rollouts and recovery from a failed upgrade can leave parts of the same solution running different versions or deliberately stopped.
-Operators relate those observations to the solution's identity and intended revision, decide which differences are expected, and act through their organisation's operating procedures.
-The toolkit supports that understanding while the adopting organisation retains responsibility for reconciliation and recovery.
+A successful request is therefore only part of the evidence.
+The test may also need to establish that background work has stopped, owned resources have been released and deliberately retained resources remain usable.
+Repeating a run in the same process can expose retained state, a listener left bound or work that survives shutdown.
+Running concurrent instances can reveal assumptions about exclusive resource use.
+Such failures give the engineer concrete reasons to correct application lifecycle handling, make dependencies explicit or revise how the composition supplies and shares resources.
 
-The operational contribution varies with the setting.
-The sales engineer gains the ability to carry routine demonstrations through their complete lifecycle, while Siemens engineers use supported software to carry more of the repeatable factory-upgrade work.
-Stripe's engineers and operators can follow a merchant's intended solution through successive changes and recovery.
-The company operating in three clouds applies the same division of software, solution and platform responsibilities in each environment.
-These contrasts preserve each operation's purpose and constraints while showing how the common responsibility model fits different work.
+The useful result is a system whose behaviour and lifecycle can be investigated repeatedly.
+Execution in a shared process is one means of obtaining that feedback.
+It does not determine production placement or reproduce all the conditions of separate processes, networks and operational platforms.
 
-## Promoting commonality
+### Carry the change into its operating environment
 
-An idea belongs in this common frame when it follows directly from the accepted business mission or when materially different operational stories corroborate it.
-Direct derivation keeps the operational concept traceable to [M-01-business-mission-analysis].
-Cross-story corroboration prevents one adopter's local practice from becoming an assumed product rule.
+The engineers responsible for deployment use the application implementations through the intended operational hosts, packaging and delivery path.
+Each host supplies the configuration, dependencies and supervision required in that environment.
+Whether reuse reduces total effort depends on the integration work each host still requires.
 
-Promotion requires the stories to agree on meaning and operational consequence, not on implementation.
-Where stories differ materially, the difference remains visible in the stories and their catalogue rather than being weakened into vague common prose.
-If an apparent commonality conflicts with the accepted business mission, the mission must be reconsidered and accepted on its own terms before this frame can inherit the change.
+Local test results inform the deployment decision, but the actual operating arrangement introduces conditions that need their own verification.
+Process isolation, scheduling, dependency availability, network behaviour and platform shutdown policy can change the outcome.
+The responsible engineers establish whether the programs start, cooperate, fail and stop as required through that arrangement.
 
-## Story portfolio
+An existing service may remain in use during the change.
+Its operators judge the observed behaviour and act through the deployment and recovery procedures available in their setting.
+A local harness does not take over those decisions or establish that an operating change is safe merely because the same application code passed its tests.
 
-The portfolio is not a coverage claim.
-Its value lies in the contrasts represented and the operational consequences each story makes visible.
+### Bring operational evidence back into engineering
+
+A failure, an unexpected result or a changed workload can require further investigation after deployment.
+Engineers use observations from operation to identify the relevant software, configuration, dependencies and conditions.
+They then recreate the part they can investigate through supported construction and execution paths, subject to access to those versions, resources and evidence.
+
+Reusing an implementation helps make that investigation practical; it does not make a local setup equivalent to the observed deployment.
+The engineer distinguishes behaviour reproduced by the setup from conditions known only through operational observations.
+A correction may concern application code, configuration, composition, a host integration or an operating procedure.
+The relevant tests and deployment checks then provide evidence for accepting that correction.
+
+Work can enter this cycle at any of these points.
+A team adopting the toolkit for a support investigation need not first replace its delivery system, and a team improving system tests need not adopt every hosting capability.
+The comparison with existing practice follows both the immediate work and the cost of maintaining the new path.
+[M-01 § Evidence and acceptance][M-01-evidence] defines the evidence needed to judge the engineering benefit and the limits of production-confidence claims.
+
+## Solution delivery as a further application
+
+When an organisation delivers tailored services, the same program integration can support a longer operational thread.
+Beneficiary needs inform a solution design; supported procedures make required backing capabilities usable, and deployment makes the selected applications available for use.
+Use then produces evidence for sustainment or renewed design.
+The logical solution supplies continuity across those changes, including retirement, through the lifecycle meanings in [M-01 § The durable handoff and the life of a solution][M-01-life].
+
+That continuity matters when different people or tools prepare and perform the work, or when a deployment must remain understandable long after the original preparation.
+A solution artefact can carry the identity, intent and supported delivery knowledge across those handoffs.
+A revision records an intended edition without requiring every running part to reach it simultaneously.
+Factory windows, staged rollouts and recovery may leave parts at different versions while they still serve the same logical solution.
+
+Within this setting, solution engineering connects beneficiary needs to the intended design and its usefulness, software engineering maintains reusable capabilities, and platform/service engineering supports their delivery and operation.
+These are the responsibilities described in [M-01 § Solution delivery responsibilities][M-01-delivery-responsibilities], rather than prescribed teams.
+People and automation may perform work across them; authority to approve a change or accept its result follows the operating arrangement.
+
+The existing stories include both vendor-operated services and a customer-controlled plant.
+In the latter, the vendor supports the delivery means while the customer controls local execution, deployment acceptance and the release of evidence.
+The plant's allocation is explicit in its story.
+What remains unresolved is how the common responsibility model covers both vendor-operated and customer-operated settings, where work and authority fall to different organisations.
+The toolkit itself supplies neither infrastructure ownership nor authority to make those decisions.
+
+Solution management adds outcomes beyond easier program integration.
+A delivery path must preserve the beneficiary's intended service and reduce the routine dependence on specialist knowledge, access or intervention.
+Those outcomes require evidence from delivery and use, as set out in [M-01 § Downstream solution management][M-01-solution-management].
+
+## Existing operational stories
+
+The stories describe counterfactual uses in established product settings.
+They make particular engineering and delivery consequences visible without establishing measured benefits or representative coverage.
+Each retains its own technical conditions and allocation of responsibility.
 
 ### [M-03-sales-led-demonstration]
 
-In a counterfactual Elastic, an online retailer uses authorised live production telemetry to investigate payment latency through a temporary vendor-operated demonstration.
-A bounded path lets the sales engineer revise the same demonstration and remove it completely, even though some infrastructure remains shared.
+In a counterfactual Elastic, an online retailer investigates payment latency through a temporary vendor-operated demonstration using authorised production telemetry.
+The sales engineer can revise and retire the demonstration through a supported delivery path while some backing infrastructure remains shared.
+The episode connects resource ownership and deprovisioning to a complete operational life: stopping dedicated applications alone would not remove the demonstration's remaining accounts, routes and data.
 
 ### [M-04-evolving-operational-solution]
 
-In a counterfactual Stripe, a merchant's need for broader payment classifications leads to changes in an existing solution's configuration and capacity.
-A failed upgrade and the later removal of an experimental daemon show how the solution keeps its identity while its intended configuration changes.
+In a counterfactual Stripe, a merchant's need for broader payment classifications leads to changes in an existing service's configuration and capacity.
+A later application upgrade fails, and operators restore the earlier revision while retaining the required configuration and capacity.
+The episode distinguishes intended change from observed operation and shows why application behaviour, workload and recovery have to be judged in the running service.
 
 ### [M-05-distributed-industrial-operation]
 
 In a counterfactual Siemens, one Big Hammer predictive-maintenance service spans cloud software and separately scheduled factories.
-Supported upgrade software carries routine delivery knowledge across those windows while the customer retains its existing maintenance value and the decisions about production and local use.
+Supported upgrade software carries repeatable delivery knowledge across those windows while the service continues to provide maintenance value.
+Different versions and interrupted connectivity are part of the operating conditions, and factory staff retain authority over production windows and local acceptance.
 
 ### [M-06-one-responsibility-model-across-platforms]
 
-In a counterfactual Twilio Segment, one multi-tenant service receives customer events through serverless container environments in AWS, Azure and Google Cloud.
-A routine validation change passes from local application checks through solution selection into three distinct deployment paths using the toolkit's existing division of responsibility.
+In a counterfactual Twilio Segment, a multi-tenant service receives customer events through serverless container environments in AWS, Azure and Google Cloud.
+A validation change passes from local application checks through solution selection into three distinct deployment paths.
+The episode connects reusable application code to several operational hosts while retaining the need to verify each integration and the organisation's chosen configuration.
 
 ### [M-07-controlled-disconnected-delivery]
 
-In a counterfactual Cisco, North Basin Water extends Cyber Vision monitoring at an isolated treatment plant using a handoff prepared in Cisco's connected environment.
-Customer engineers perform the local change, and evidence from a later standby-pump alert returns through the customer to inform a correction to the same solution.
-Portable delivery knowledge reduces the customer-specific expertise needed to bridge the separation while the customer controls its environment and accepts deployment.
+In a counterfactual Cisco, North Basin Water extends Cyber Vision monitoring at an isolated treatment plant using material prepared in Cisco's connected environment.
+Customer engineers perform the local change, and evidence from a later standby-pump alert returns through the customer to inform a correction.
+The support investigation recreates the retained software configuration while relying on customer-supplied evidence for actual plant behaviour.
+The episode connects repeatable execution to support across time and place, with customer control over local operation and evidence.
 
-## Method tailoring
+## Unresolved operational coverage
 
-This frame draws on public NASA and INCOSE systems-engineering material without claiming compliance with either body.
-Its high-level operational viewpoint connects the system, users and operators through time-sequenced scenarios and selected nominal, change and recovery conditions.
-[NASA's Concept of Operations annotated outline][NASA-Appendix-S] is treated as a source of concerns rather than a document template, while the [NASA Systems Engineering Handbook][NASA-SE-Handbook] and [INCOSE requirements-engineering material][INCOSE-RE] reinforce the separation between stakeholder-facing operational understanding and later requirements or implementation choices.
+The existing stories mainly concern delivery and change in established services.
+They provide useful conditions for the broader mission but do not yet give a detailed account of engineers assembling a modest distributed Go backend, repeatedly testing it through its external interfaces and correcting a lifecycle defect found that way.
+The effort required to introduce that practice, the tooling used and its effect on later production decisions remain unexamined in a concrete story.
 
-That tailoring is deliberate.
-A richer solution-delivery operating model requires contrasting adopter stories.
-Detailed physical-environment descriptions, command and data architectures, interface specifications, exhaustive mode and failure catalogues, training or staffing quantities, and implementation plans would add bulk without supporting the present decision.
+Greenfield adoption and discovery of independently supplied reusable programs also remain unexplored.
+The present stories do not establish how much application refactoring is normally needed, how representative their workloads are or whether benefits recur across organisations.
+A portable handoff and an accessible application implementation each help preserve part of the knowledge needed for execution; neither establishes that the available dependencies, data and operating conditions are sufficient for reproduction.
 
-## Deferred detail and known unknowns
-
-This document does not select artefact schemas or carriers, APIs, deployment or provisioning mechanisms, execution topology, command structures, interface protocols or automation products.
-It does not allocate requirements or prescribe how an adopter implements a responsibility domain.
-Those decisions require evidence from operational stories and belong in later analyses, requirements and architecture.
-
-The current portfolio covers established operations, from temporary demonstrations to sustained services on virtual machines, at factories and across clouds.
-The current stories do not yet examine greenfield adoption, controlled disconnected delivery or catalogue discovery.
-The stories also leave open how handoffs are partitioned among artefacts and tools, how provisioning authority is delegated beyond the arrangements shown, and what evidence would establish compatibility between independently supplied participants.
-
-The portfolio does not yet establish which operational threads are representative or how many contrasting settings are sufficient.
-Further operational evidence may expose needs that change the system boundary, role vocabulary or expected outcome.
-The common concept remains incomplete while those material differences and their consequences are unresolved.
+Testing APIs, host policies, artefact schemas, deployment mechanisms and compatibility rules remain open.
+The operational concept requires those choices to support the work and evidence described here, without selecting a common implementation for all settings.
+The document remains incomplete while the core engineering work and its costs lack that concrete operational account.
 
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-01-boundary]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
+[M-01-evidence]: M-01-business-mission-analysis.md#evidence-and-acceptance
 [M-01-solution-management]: M-01-business-mission-analysis.md#downstream-solution-management
 [M-01-delivery-responsibilities]: M-01-business-mission-analysis.md#solution-delivery-responsibilities
 [M-01-life]: M-01-business-mission-analysis.md#the-durable-handoff-and-the-life-of-a-solution
@@ -147,6 +190,3 @@ The common concept remains incomplete while those material differences and their
 [M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
 [M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
 [M-07-controlled-disconnected-delivery]: M-07-controlled-disconnected-delivery.md
-[NASA-Appendix-S]: https://www.nasa.gov/reference/system-engineering-handbook-appendix/#hds-sidebar-nav-112
-[NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
-[INCOSE-RE]: https://www.incose.org/wp-content/uploads/2026/01/requirements_engineering_part_1.pdf

@@ -171,7 +171,7 @@ In this setting, recurring customer delivery can depend on specialist knowledge,
 Reusable application and provisioning code can support a more explicit delivery path, while solution identity and intended design connect that work to the beneficiary's needs.
 Reducing routine dependence on specialists is an additional business objective of this application of the toolkit.
 
-The operational concept in [M-02-concept-of-operations] and its stories examine this delivery setting.
+The solution-delivery stories in [M-02-concept-of-operations] examine this setting within the broader engineering and operating context.
 They retain value for understanding solution change, shared backing services, distributed placement and accountability.
 Their delivery-specific concepts do not constitute prerequisites for using the toolkit to develop, test or operate a backend system.
 Solution-management outcomes require their own evidence beyond the core engineering benefit.
