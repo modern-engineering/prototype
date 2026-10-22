@@ -7,6 +7,9 @@ derives:
 
 # Business Mission Analysis
 
+This document sets out the mission of a Go toolkit for distributed backends and the evidence needed to assess its value.
+Its operating model defines the intended scope and the responsibilities of the toolkit and its users.
+
 ## Executive summary
 
 Distributed backend systems written in Go consist of specialised programs running concurrently and communicating through interfaces chosen by their authors.
@@ -19,7 +22,7 @@ Its working hypothesis is that making construction, configuration and execution 
 
 The intended value is lower engineering effort across development and operation, together with better evidence about system behaviour.
 Running cooperating programs in one process is a useful technique for investigating that hypothesis.
-Solution management is a downstream application of the approach, with its own delivery concerns and acceptance criteria.
+Managing the delivery and ongoing operation of tailored software solutions is a downstream application of the approach, with its own acceptance criteria.
 
 ## Engineering context and problem
 
@@ -50,7 +53,8 @@ It supports investigating a better development and operating model; it does not 
 
 The project seeks to make the work around a distributed backend system more directly reusable with its application code.
 Program construction, configuration declarations and lifecycle control can be available through Go packages to the tools that assemble and run a system.
-Those tools can use the same application implementations in development, tests and operational hosts, while each host supplies the dependencies and execution policy appropriate to its setting.
+Those tools can use the same application implementations in development, tests and operational hosts.
+A host is software that starts and supervises programs, supplying the dependencies and execution policy appropriate to its setting.
 
 The opportunity has two related parts.
 Reusable access to the programs may reduce the effort spent building and maintaining separate ways to run them.
@@ -152,9 +156,6 @@ The engineers responsible for operating the system evaluate the same application
 They establish that configuration, dependencies, supervision and lifecycle handling produce the required behaviour in that environment.
 Acceptance includes relevant observations during startup, ongoing operation, failure and shutdown, and verifies resource release or retention according to the system's intended ownership.
 The adopting organisation's deployment authority decides whether that evidence is sufficient to accept the change into service.
-
-This evidence connects the development and testing benefit to production use without requiring a particular platform or process layout.
-A local demonstration alone supports only the local capabilities and conditions exercised.
 
 ### Reuse and broader value
 
