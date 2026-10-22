@@ -17,9 +17,9 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 - **Adopting organisation** — `settled` — An organisation that incorporates the toolkit into its software engineering and operating practices.
   The solution-delivery stories concern B2B, software-centric organisations that use it in delivering tailored solutions.
   _Adopting organisation_ is the preferred prose term; the one-word form is not recommended.
-- **Application** — `settled` — A reusable, long-lived software capability made available through an application catalogue.
-  A solution design may select the application and its version; once deployed, its instances perform ongoing operational work.
+- **Application** — `settled` — A reusable, long-lived software capability whose instances perform ongoing operational work.
   It differs from a finite procedure or job, which completes after changing operational state.
+  In solution delivery, a catalogue may offer the application and its versions for selection in a solution design.
 - **Authority** — `settled` — The power to make a consequential decision, such as authorising operational change, accepting deployment or accepting evidence; it must not be inferred merely from the actor that performs the work.
 - **Backing capability / backing service** — `term open` — An operational capability prepared for or attached to a solution during **Provision**, whether dedicated to that solution or shared so that the solution receives a usable slice.
   The preferred umbrella term and the boundary between a capability, service and allocated slice remain open.
