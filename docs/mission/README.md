@@ -3,6 +3,9 @@
 Mission documents establish why the project exists, whose needs it serves, and the enduring outcomes and boundaries that frame downstream work.
 They preserve material uncertainty instead of forcing early answers.
 
+[M-01-business-mission-analysis] frames the engineering of distributed Go backends across development, testing and production.
+[M-02-concept-of-operations] and its stories examine solution delivery as a downstream application of that work.
+
 Every mission document merged into `main` is accepted into the canonical corpus.
 The `draft` status marks an accepted but incomplete scaffold that is expected to evolve, while `accepted` marks a document considered complete at its current revision.
 If later evidence reopens a completed document, it returns to `draft` until the corpus completes it again.
