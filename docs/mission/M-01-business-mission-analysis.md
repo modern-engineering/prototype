@@ -82,7 +82,8 @@ The programs remain responsible for responding to those requests and completing 
 
 Engineers assembling a system choose its constituent programs, provide configuration and arrange dependencies.
 Dependencies can be supplied explicitly through ordinary Go code, making the source of a runtime resource and the wiring that supplies it available for inspection.
-Authors expose the configuration needed to use their programs together and remain responsible for coordinating deliberate sharing.
+Application authors expose the configuration needed to use their programs together.
+Engineers assembling a system coordinate deliberate sharing.
 The toolkit does not infer resource identity, exclusivity or safe sharing from parameter names or values alone.
 
 Hosts control how programs are started and supervised in their setting and how completion, failure and cancellation affect the rest of the composition.
