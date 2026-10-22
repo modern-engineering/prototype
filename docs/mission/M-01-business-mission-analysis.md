@@ -1,7 +1,6 @@
 ---
-status: accepted
-since: 2026-08-25
-ratified-by: danielorbach
+status: draft
+since: 2026-10-22
 derives:
   - M-02-concept-of-operations
 ---
@@ -10,287 +9,220 @@ derives:
 
 ## Executive summary
 
-B2B software organisations often begin tailoring software services for individual customers with shared repositories, specialist knowledge and platform-specific automation.
-As the number and variety of solutions in the portfolio grow, that mix becomes a constraint.
-Responsibility blurs across teams, intended software becomes difficult to relate to what is running, and a change for one customer can affect another.
-Routine delivery then depends on development specialists who should be improving reusable capabilities, not bridging the same gaps repeatedly.
+Distributed backend systems written in Go consist of specialised programs running concurrently and communicating through interfaces chosen by their authors.
+The work required to assemble, configure, package and manage those programs extends from development into production.
+When that work depends on separately maintained executable entry points, scripts and deployment configuration, engineers must repeatedly bridge the application code and the means of running it as a system.
 
-This project is building an opinionated, open-source Go toolkit for B2B software organisations that tailor software services for individual customers and need to manage a growing solution portfolio without proportional growth in specialist intervention.
-It is more than a Go library: it establishes a common way for an adopting organisation to express each solution's design and manage the corresponding solution through design and transition into running services while preserving its identity and intent throughout its lifecycle.
-Its Go packages, semantic contract, supported extension mechanisms and reference tools allow incremental adoption alongside local tooling and platforms.
+The mission is to reduce the effort required to develop, test and operate distributed backend systems written in Go, while making system testing practices that build confidence in production behaviour convenient to apply.
+The project is an opinionated, open-source Go toolkit for engineers who write those programs and engineers who assemble, test and operate the systems they form.
+Its working hypothesis is that making construction, configuration and execution accessible through reusable Go packages can reduce surrounding integration work and expose design weaknesses earlier.
 
-The intended change is organisational as much as technical.
-It makes solution design explicit across responsibilities.
-Inspectable and reproducible transition and deployment know-how explains how the adopting organisation puts that solution into operation in a particular setting.
-Keeping the design and that know-how explicit allows different specialists, tools and locations to participate without losing the solution's identity, intent, history or line of accountability.
+The intended value is lower engineering effort across development and operation, together with better evidence about system behaviour.
+Running cooperating programs in one process is a useful technique for investigating that hypothesis.
+Solution management is a downstream application of the approach, with its own delivery concerns and acceptance criteria.
 
-The current prototype is an early increment, not the final scope of the toolkit.
-Its first useful proof is narrow: replace part of an incumbent delivery process and produce an observable running service whose footprint is acceptable against criteria agreed in advance.
-Evidence of broader value requires a complete customer thread, repetition within an adopting organisation, and eventually results across materially different adopting organisations.
+## Engineering context and problem
 
-## Business context
+Backend applications perform specialised work and communicate through networks, message brokers, files and other mechanisms selected for their purpose.
+Their authors already implement those behaviours and interactions in Go.
+To make the applications useful together, engineers also need to select a composition, supply configuration and dependencies, control execution and account for the resources used over its lifetime.
+The same concerns arise when developing a change, testing a system and operating it in production.
 
-The motivating case is a brownfield software business delivering tailored solutions across development, staging, production and laboratory environments.
-Its estate spans cloud and local infrastructure.
-Some backing services belong to one solution.
-Others are shared services from which each solution receives an account, database or other slice.
-Provisioning crosses declarative systems, operational platforms and manual actions.
-Several application versions must coexist because customers do not all move together.
+Much existing packaging and deployment tooling controls software through executable entry points and external configuration.
+The knowledge needed to construct and manage a program is consequently distributed across application code, executable wrappers and surrounding tooling.
+A test harness that works with Go code cannot necessarily reuse the construction and lifecycle control available through those external arrangements.
+Engineers then maintain additional paths for local execution, system testing and production, with changes to an application requiring corresponding changes in several places.
 
-The delivery system grew around those realities without retaining clear boundaries.
-A shared environment repository allowed a change for one solution to affect another and contributed to a cross-solution failure.
-Layers of configuration obscured which applications and versions belonged to each solution, and whether the running service still matched its design.
-Knowledge of how to prepare a platform, obtain a shared-service slice and connect it to an application lived in bespoke tooling and specialists' memories.
+That separation raises the cost of obtaining useful feedback.
+A component can pass its unit tests while the composed system remains expensive to configure, run and investigate.
+Testing may depend on an independently deployed environment whose setup and state are outside the test's control.
+In production, the same fragmentation makes it harder to understand which code supplies a dependency, applies configuration or owns a resource when the system starts, changes or stops.
 
-Recurring customer delivery work therefore required specialists to supply expertise, access or authority personally, or to change reusable application or platform capability.
-The issue was the dependency, not which department performed the work.
-That dependence limited growth and drew specialists away from improving capabilities shared by many solutions.
+Lifecycle defects make this more than a convenience problem.
+A successful startup and request do not show that a program stops its background work, releases the resources it owns or permits a subsequent run to begin cleanly.
+Implicit global state, fixed resource assumptions and incomplete cleanup can remain unnoticed when each run receives a fresh process or environment.
+Repeated tests of a composed system through its external interfaces can expose these defects before they disrupt operation.
 
-GitOps and automation are present in this story, but neither is the root problem.
-Automation can repeat a poorly bounded process, and a repository can version files without making the identity and history of each solution clear.
-The underlying failures are blurred responsibility, weak version and provenance traceability, cross-solution blast radius, tacit transition know-how and routine dependence on specialists to connect the pieces.
-
-This case does not prove that every organisation has the same estate or severity of problem.
-It does expose a broader risk: local practices accumulate faster than the business develops a durable way to say what each customer solution is, how it should be realised and who is accountable for the work.
+The motivating experience is engineering distributed Go backends whose programs are already implemented but remain difficult to assemble and test together repeatedly.
+It supports investigating a better development and operating model; it does not establish the prevalence of the problem or the size of the improvement across other organisations.
 
 ## Mission and opportunity
 
-The mission is to establish a durable identity-and-intent handoff for each logical solution.
-A logical solution is the durable identity-bearing whole intended to satisfy the needs of its business beneficiary.
-It is one living business and operational subject with its own identity, lifecycle, history and accountability, not a disposable template or incidental collection of deployment files.
+The project seeks to make the work around a distributed backend system more directly reusable with its application code.
+Program construction, configuration declarations and lifecycle control can be available through Go packages to the tools that assemble and run a system.
+Those tools can use the same application implementations in development, tests and operational hosts, while each host supplies the dependencies and execution policy appropriate to its setting.
 
-A **solution design** expresses which software is chosen for a logical solution, how it is configured and the relationships among its parts.
-It is semantic content, not an artefact.
-The adopting organisation uses those semantics to make the solution's intent explicit.
-Participants in the durable handoff exchange the solution's identity and a representation of its design together with inspectable and reproducible know-how for transition into operation.
-That know-how covers how backing capabilities are prepared or attached, target-specific forms are derived and intended applications become running services.
-The toolkit's semantic contract standardises the identity and design meanings that participants must preserve across environments, while the adopting organisation's process keeps target-specific procedures explicit in its tooling.
+The opportunity has two related parts.
+Reusable access to the programs may reduce the effort spent building and maintaining separate ways to run them.
+Convenient system testing may also improve the design and evidence on which production decisions depend.
+Both are hypotheses to evaluate against actual engineering work.
+An additional abstraction that merely relocates the same setup and maintenance burden would not achieve the intended improvement.
 
-The business objective is to grow routine tailored delivery without proportional growth in specialist intervention.
-Here, specialist intervention is delivery-specific work that the established delivery path cannot complete without specialist-held expertise, authority or access, or a change to reusable software or platform capability.
-For example, only developers may hold the authority required to create or approve a customer-specific GitOps commit, and only they may hold the relevant CLI credentials used by provisioning commands.
-An agent executing the work does not remove the dependency when the specialist must still supply the knowledge, authority or access.
-Routine tailoring, provisioning and deployment use established capabilities and procedures with appropriately delegated access and authority.
-The nature of the work, not the person's title, determines whether it is specialist intervention.
-Extending a reusable application for one delivery is software development.
-Running an established provisioning procedure through the established delivery path with appropriately delegated access and authority is routine delivery.
-It remains specialist intervention when completion still depends on specialist-held expertise, authority or access.
-Changing the procedure is platform development.
+Running multiple instances or cooperating programs within one process is one technique for exposing hidden coupling and implicit resource ownership.
+The resulting conflicts give engineers concrete reasons to make dependencies explicit, parameterise resource use and complete lifecycle handling.
+The value lies in what this reveals and helps correct in the system's design.
+Production placement remains a decision about the system's operational needs.
 
-The handoff makes the change boundary visible.
-Teams can see which solution a change belongs to and relate the application and version observed in operation to those specified in the solution design.
-It also reveals capability gaps.
-When a delivery needs new reusable software or new platform behaviour, the adopting organisation can plan that improvement explicitly instead of concealing it within customer fulfilment.
+Engineers are the immediate users of the toolkit.
+The organisations developing and operating the software seek shorter feedback cycles, less maintenance of bespoke integration code and fewer avoidable failures during change and operation.
+Users of the resulting services benefit when those improvements preserve dependable service behaviour.
+The magnitude of these benefits remains to be demonstrated.
 
 ## System boundary and operating model
 
-The toolkit is the system of interest within an adopting organisation's wider sociotechnical delivery system.
-In this document, an **adopting organisation** is a B2B, software-centric organisation that incorporates the toolkit into the people, policies, tools and platforms through which it delivers tailored solutions.
-The adopting organisation and its customer are distinct.
-The adopting organisation owns the delivery system.
-The customer receives and uses the operational solution to achieve a business outcome.
+The toolkit is the system of interest within an organisation's wider software engineering and operating practices.
+It supplies Go packages, supported extension mechanisms and reference tooling through which engineers can construct, configure and run programs.
+Distributed Go backends are the primary target; individual applications and selected subsets of a system are also useful units of development and testing.
+Adoption does not depend on a particular company structure, customer-delivery model or deployment platform.
 
-The boundary separates four related things.
-The toolkit supplies a semantic contract, Go packages, supported extension mechanisms and reference tooling.
-The logical solution is the identity-bearing subject.
-The contract preserves the logical solution's identity and design meanings across its lifecycle.
-The platform is an operational capability owned by the adopting organisation on which solutions run.
-The customer outcome arises when the customer uses the operational solution.
-The toolkit can contribute to that outcome, but producing an artefact neither transfers platform ownership nor guarantees business results.
+Application authors retain control of behaviour, communication and resource access.
+The toolkit does not require these to be expressed through toolkit-defined abstractions.
+Its integration boundary concerns construction, configuration and execution, including requesting cancellation and reporting completion or failure.
+The programs remain responsible for responding to those requests and completing the work and cleanup they own.
 
-The operating model divides delivery work into three enduring responsibility domains:
+Engineers assembling a system choose its constituent programs, provide configuration and arrange dependencies.
+Dependencies can be supplied explicitly through ordinary Go code, making the source of a runtime resource and the wiring that supplies it available for inspection.
+Authors expose the configuration needed to use their programs together and remain responsible for coordinating deliberate sharing.
+The toolkit does not infer resource identity, exclusivity or safe sharing from parameter names or values alone.
 
-| Responsibility domain | Primary concern | Enduring accountability |
-| --- | --- | --- |
-| **Solution engineering** | Solution design | Understand beneficiary needs, curate the solution design, and validate that the operational solution fulfils those needs. |
-| **Software engineering** | Reusable application catalogue | Develop and verify the reusable software capabilities from which solutions are composed, including their supported means of configuration and integration. |
-| **Platform/service engineering** | Ready platform estate and backing-service catalogue | Make platforms and backing services ready to receive solution work, and provide the means specific to the adopting organisation to provision, deploy and sustain solutions there. |
+Hosts control how programs are started and supervised in their setting and how completion, failure and cancellation affect the rest of the composition.
+They also account for resources supplied to the programs, while programs account for resources they acquire themselves.
+This division must remain intelligible when programs are run repeatedly, concurrently or in different process arrangements.
+It is a division of responsibilities in the software and its use, not a prescription for separate teams.
 
-These are domains of responsibility, not prescribed teams.
-One person, team or automated actor may wear several hats.
-Full mission fulfilment still requires the accountabilities to remain distinguishable, so that routine delivery is not mistaken for software development and changes to platform automation are not hidden inside ordinary deployment.
+Applications are the principal operational components.
+Provisioning, deprovisioning and other finite procedures enter the scope where the applications depend on them over their operational lives.
+Their construction, configuration, execution and resource effects need the same engineering attention as the applications they support.
+No universal ordering of these procedures or execution policy is established here.
 
-Customer use and organisational sustainment are also distinct.
-The customer uses the operational solution.
-The adopting organisation sustains it through monitoring, support, repair and change, and capacity planning.
-Both may involve all three domains, but neither creates a fourth responsibility domain.
+System tests observe behaviour at the selected system boundary using the applications' existing interfaces and communication mechanisms.
+Test authors determine the interactions and outcomes relevant to that system.
+The toolkit provides access and lifecycle control without needing to interpret the application's protocols or business behaviour.
+Logs, metrics, traces and other observations can help explain a result; the adopting organisation chooses and interprets the evidence needed for its decisions.
 
-A platform is ready when it can accept provision or deploy work.
-It need not be empty or new.
-A brownfield platform may already run solutions and shared services.
-The adopting organisation retains infrastructure ownership and responsibility for authorising and executing operational changes, reconciliation and deployment acceptance, even when it uses toolkit-supplied code.
-
-## The durable handoff and the life of a solution
-
-A logical solution has a durable identity.
-Two solutions remain distinct even when their present contents match, and a solution retains that identity as its contents change.
-The identity carries the solution's lineage, lifecycle, history and accountability through those changes.
-This is the unit of **operational isolation** in the mission: each solution can be changed, placed and retired on its own terms.
-The term does not promise security, compute, network, data, resource or failure isolation.
-
-A **business beneficiary** is a business entity whose needs justify a logical solution and against whose needs that solution is designed and validated.
-A beneficiary may be associated with several logical solutions, and its footprint may be attributed or billed across them.
-A customer, tenant, user or subscriber does not become a beneficiary merely by consuming the operational service.
-A multi-tenant solution may have the adopting organisation as its beneficiary while serving a changing customer population.
-Several customers are beneficiaries only when their collective needs justify the solution; multi-tenancy alone does not establish that relationship.
-The beneficiary relationship does not by itself grant lifecycle or deployment acceptance authority.
-It is a semantic business relationship, not a prescribed artefact field.
-
-A **Location** is an opaque identity defined by the adopting organisation for a place where all or part of a solution may be available.
-It may denote a site, cluster, namespace, machine, region or something else.
-A logical solution may be realised through cooperating parts placed at multiple Locations.
-Partitioning that realisation across Locations does not by itself create additional logical solutions.
-An adopting organisation may constrain each logical solution to one Location, but that is its policy rather than a universal semantic rule.
-A completed relocation is different from continuing concurrent placement: operation ends at the old placement and the same solution identity continues at the new Location.
-Ending the old placement is not retirement.
-How blue/green delivery, warm standby, disaster recovery, overlapping relocation and other concurrent-placement patterns affect design and lifecycle remains unresolved until later operational work supplies better evidence.
-Those patterns do not by themselves determine logical-solution cardinality.
-
-Participants use artefacts at the handoff without equating the solution with a file.
-A **solution artefact** is the identity-bearing umbrella for material exchanged about a solution.
-The Solution Exchange Format, or SEF, is the project's serialised exchange format and one kind of solution artefact.
-The **intermediate representation**, or IR, is a low-level actionable description of the intended deployment footprint, understandable without solution identity.
-IR is not the lifecycle record.
-Artefact schemas, containment, carriers, custody, partitioning and cardinality remain open.
-
-**Semantic portability** applies to meaning, not implementation.
-A solution's identity and design meaning must remain the same after crossing a handoff or moving to a materially different target.
-Local tools may represent and act on that meaning differently.
-The toolkit does not promise byte-for-byte artefacts, a portable record of every transformation or equivalent operational behaviour.
-
-Relevant software provenance is narrower.
-It identifies the reusable application and version specified in the solution design, and the application and version observed in operation.
-Traceability connects those two points; it need not reconstruct every transformation between them.
-
-The solution's activities have a direction: their purpose is to put a solution into customer use and keep it useful:
-
-- **Design** brings the logical solution into being by establishing its identity and creating its initial solution design.
-  Later **Design** work may revise that design without changing the solution's identity.
-- **Provision** renders the required backing capabilities usable by the solution.
-- **Deploy** renders the intended applications operational.
-- **Operate** is the customer's use of the solution to meet its needs.
-  The resulting experience and outcomes reveal whether the solution continues to satisfy those needs.
-- **Sustain** is the adopting organisation's work to keep the operational solution fit for use.
-  It includes routine monitoring and maintenance, operational support and repair, and capacity planning.
-- **Retire** is terminal.
-  It ends the solution's operational life, while its identity and history remain retained and are not reassigned.
-
-```mermaid
-flowchart TD
-    subgraph T["Transition into operation"]
-        D["Design"]
-        P["Provision"]
-        DP["Deploy"]
-        D --> P --> DP
-    end
-
-    subgraph O["Operational life"]
-        direction LR
-        U["Operate"]
-        S["Sustain"]
-        U -- "feedback" --> S -- "support" --> U
-    end
-
-    R["Retire"]
-
-    DP --> U
-    U -. "needs change" .-> D
-    S -..-> P
-    S -..-> DP
-    U --> R
-    S --> R
-```
-
-The dotted return arrows distinguish two reasons to repeat work:
-
-- New or changed beneficiary needs return the solution to **Design**.
-  Evidence during **Operate** that the solution no longer satisfies those needs also returns it to **Design**.
-  The solution design may change, but the solution retains its identity.
-- Operational needs identified during **Sustain** may return the solution to **Provision** to restore, replace or scale backing capabilities, or to **Deploy** to restore the intended applications to operation.
-  This work leaves the solution design unchanged, provided that the design still reflects beneficiary needs.
-
-When an activity's result changes, downstream results must be reassessed; an unaffected result may be reaffirmed without repeating the activity that produced it.
-Detailed triggers, retries, concurrency and recovery belong to the later operational concept and architecture.
+The adopting organisation retains ownership and authority over infrastructure, execution, reconciliation and deployment acceptance.
+Its operational hosts integrate the programs with the environments in which they run.
+Local tests contribute evidence about application and system behaviour, while deployment verification establishes the behaviour and operating conditions of the actual production arrangement.
+Process isolation, scheduling, network conditions and platform behaviour can materially affect that result.
 
 ## Product posture and adoption
 
-The product is an opinionated open-source Go toolkit, not a mandate for one delivery platform.
-It offers a common contract, supported extension points and coherent reference tools.
-Adopting organisations can compose its packages with local code and replace a reference tool where another implementation preserves the required semantics.
-Semantic compatibility at a handoff means that two participants preserve the meaning required there.
-It does not make their tools or artefacts interchangeable.
-Precise compatibility and versioning contracts remain open.
+The product is an open-source Go toolkit intended to support modern engineering practices for distributed backends.
+It combines reusable program integration with tools and practices for working on whole systems.
+Engineers can compose its packages with their own Go code and develop specialised hosts and harnesses for their needs.
+The choice of a testing API, authoring language, deployment mechanism or resource model follows from those needs and the evidence obtained.
 
-Adoption can be cumulative.
-An adopting organisation may begin by passing a solution artefact into an incumbent process, replace one bounded step, and extend use only where evidence shows value.
-Partial adoption is legitimate but demonstrates only the capabilities actually used.
-An adopting organisation that omits lifecycle history or software provenance may still use part of the toolkit, but has not established runtime traceability or the full mission outcome.
+Adoption can begin with a useful subset of an existing system or with newly written applications.
+An organisation can retain its incumbent packaging and deployment arrangements while evaluating how the toolkit changes development, testing or operational work.
+Migration effort, additional maintenance and the work required to make implicit dependencies explicit all count towards the cost of adoption.
+A smaller local setup is valuable to the extent that it reduces total engineering effort or produces evidence that justifies its cost.
 
-The toolkit's boundary ends before target-specific provisioning and execution.
-After the handoff, tools owned by the adopting organisation carry out that work.
-For example, Terraform may provision a cloud database required by a solution, and Kubernetes may run the solution's containerised applications.
-The toolkit carries the solution's identity and a representation of its design into those steps; the adopting organisation configures, authorises and operates both tools to realise the design.
+Using a common program implementation in several hosts provides a basis for reuse.
+It does not by itself establish equivalent behaviour across those hosts or eliminate the need to verify the integrations with each environment.
+Claims about portability, confidence and saved effort are limited to the conditions actually evaluated.
 
-Accordingly, the toolkit is neither infrastructure as code nor a universal deployment engine or reconciler.
-It does not select target mechanisms.
-It provides shared meaning while the adopting organisation retains infrastructure ownership, execution, reconciliation, deployment acceptance and the local mapping of responsibility.
+## Evidence and acceptance
 
-## Evidence and business acceptance
+The first useful proof is a bounded system drawn from real engineering work whose components can be assembled, run and tested repeatedly using the toolkit.
+The evaluating engineers identify the work they currently perform, the behaviours that matter and the conditions under which the result will be used.
+That baseline makes it possible to judge whether the toolkit improves their work instead of merely demonstrating that its interfaces function.
 
-Each step below answers a different question and is accepted by a different authority.
-Technical completion alone does not establish business acceptance, and a result in one adopting organisation does not establish that others need or can reuse the product.
+### Engineering effort
 
-| Evidence level | What must be demonstrated | Accepted by |
-| --- | --- | --- |
-| **Deployment slice** | A bounded part of an incumbent delivery process is replaced using the toolkit contract or a semantically compatible replacement. Using a solution artefact, the replacement process produces an observable running service whose footprint is judged against the baseline, scope and local equivalence criteria agreed before the slice. | The adopting organisation's delivery authority. |
-| **Full customer thread** | A customer need informs a solution design, and the corresponding logical solution is transitioned into operation and validated through customer use, with less routine dependence on specialist intervention. | The function accountable for customer delivery. |
-| **Repeated fulfilment within one adopting organisation** | Repeated solution changes and deliveries across materially heterogeneous environments demonstrate continuity of identity, semantic portability, and traceability from runtime to solution design and relevant software provenance. They also demonstrate inspectable, reproducible transition know-how, distinguishable accountability and delivery growth without proportional specialist intervention. | Leadership of the adopting organisation or its accountable business authority. |
-| **Cross-organisation product hypothesis** | Materially different adopting organisations reuse the same semantic contract and applicable reference tooling while retaining their own execution authority and local realisation. Compatible replacement proves compatibility where exercised, but not reuse of the replaced reference tool. | The project sponsor. |
+The engineers responsible for developing and maintaining the system evaluate the effort required to establish a run and to change its composition or configuration.
+Evidence includes the manual steps, elapsed feedback time and bespoke integration code that must be written and maintained, together with adoption and tooling costs.
+The comparison follows the work through the relevant development and operational paths so that savings in one place do not conceal extra work elsewhere.
+An improvement is accepted when the people doing and maintaining that work can identify a repeatable benefit against the baseline.
 
-The deployment slice is the first milestone because it can test the handoff without replacing a whole delivery system.
-The full customer thread follows because customer use is needed to validate business fulfilment.
-Repetition shows whether the result persists across solution changes and heterogeneous environments.
-Only accumulated evidence across different adopting organisations can support the product hypothesis, and even that does not by itself prove sustainable support economics.
+### Confidence in system behaviour
 
-## Constraints, risks and uncertainty
+The evidence concerns the composed system's externally observable behaviour and lifecycle.
+It includes repeated runs, completion or failure of relevant work, shutdown and the expected disposition of owned and shared resources.
+The responsible engineers establish that tests can expose relevant defects, including known or deliberately introduced lifecycle faults, and distinguish corrected behaviour from a merely successful startup.
+They identify which conditions the tests represent and which remain outside their evidence.
 
-The mission is shaped by a small number of enduring constraints:
+Execution within one process may contribute to this evidence by revealing interference, retained state or incomplete cleanup.
+Passing such tests is useful only for the behaviours and conditions they cover.
+Additional evidence is needed for failures and operating conditions specific to distributed production execution.
 
-- The toolkit is open-source and implemented in Go.
-- When actionable intent crosses work separated by people, tools, time or place, it must be represented in serialised form.
-- Full mission evidence must include materially heterogeneous delivery environments.
-  One execution path specific to an adopting organisation is insufficient.
-- The adopting organisation retains infrastructure, execution, reconciliation and deployment-acceptance authority.
+### Use in production
 
-### Product and mission risks
+The engineers responsible for operating the system evaluate the same application implementations through the intended operational hosts and deployment path.
+They establish that configuration, dependencies, supervision and lifecycle handling produce the required behaviour in that environment.
+Acceptance includes relevant observations during startup, ongoing operation, failure and shutdown, and verifies resource release or retention according to the system's intended ownership.
+The adopting organisation's deployment authority decides whether that evidence is sufficient to accept the change into service.
 
-- The common contract may be too weak to preserve meaning across heterogeneous environments, or too restrictive to fit them without bespoke workarounds.
-  Either outcome would **defeat semantic portability**.
-- The toolkit may introduce new integration and coordination work without reducing specialist intervention.
-  Technical adoption would then fail to achieve the business objective.
-- The contract and reference tooling may prove reusable in only one adopting organisation.
-  The result would be a local solution rather than a **reusable open-source product**.
+This evidence connects the development and testing benefit to production use without requiring a particular platform or process layout.
+A local demonstration alone supports only the local capabilities and conditions exercised.
 
-### Adoption risks
+### Reuse and broader value
 
-- Local extensions may assign different meanings to the same shared concepts.
-  The same solution artefact could then pass validation in two environments but be interpreted differently, breaking semantic portability.
-- Extension points may allow each adopting organisation to build a different, incompatible delivery model.
-  The toolkit would then add another interface without reducing bespoke integration or enabling reuse.
-- Existing authority or incentives may conflict with the responsibility model.
-  Routine delivery could remain dependent on software and platform specialists even after the toolkit is adopted.
-- The toolkit distinguishes logical solutions, but cannot isolate every shared implementation.
-  Shared repositories, platforms, backing services, credentials, or workflows may still allow a change for one solution to disrupt another.
-- If identity, history or provenance are not retained, the adopting organisation cannot reliably relate a running service to its logical solution and solution design.
-  A partial implementation may still look complete, creating false confidence in its traceability and accountability.
+Repeated use across changes and materially different systems tests whether the benefit survives beyond the initial example.
+Results in different organisations can then test whether the toolkit and practices are reusable without reproducing the same integration burden in local extensions.
+The project sponsor judges broader product claims from that accumulated evidence, including the cost of maintaining the toolkit itself.
+Useful numerical thresholds and representative workloads remain to be established for each evaluation.
 
-### Known and unknown uncertainty
+## Downstream solution management
 
-The **known unknowns** include whether materially different adopting organisations will use the same contract and whether the project can sustain maintenance and support.
-Logical-solution identity across concurrent placement is established above, while placement patterns and their operational consequences remain open.
-Workload breadth, useful evidence thresholds, air-gapped operation, semantic compatibility, artefact partitioning and cardinality, and the design of security and execution also remain open.
-These decisions belong to later requirements, the operational concept and architecture.
+An organisation delivering tailored software services can build solution-management capabilities on the same program and composition foundations.
+In this setting, recurring customer delivery can depend on specialist knowledge, shared repositories and platform-specific automation whose effects are difficult to relate to one customer solution.
+Reusable application and provisioning code can support a more explicit delivery path, while solution identity and intended design connect that work to the beneficiary's needs.
+Reducing routine dependence on specialists is an additional business objective of this application of the toolkit.
 
-Deployment slices and customer threads may expose **unknown unknowns**: needs or constraints not anticipated here.
-They may require us to change the system boundary, operating model or expected value.
-The mission's purpose should remain stable, but the analysis must change when its assumptions are wrong.
+The operational concept in [M-02-concept-of-operations] and its stories examine this delivery setting.
+They retain value for understanding solution change, shared backing services, distributed placement and accountability.
+Their delivery-specific concepts do not constitute prerequisites for using the toolkit to develop, test or operate a backend system.
+Solution-management outcomes require their own evidence beyond the core engineering benefit.
+
+### Solution delivery responsibilities
+
+Within that setting, solution engineering understands beneficiary needs, curates the intended solution and validates its usefulness.
+Software engineering maintains the reusable applications, and platform/service engineering maintains the backing capabilities and means of provisioning, deploying and sustaining them.
+These responsibilities may be performed by the same people or tools; the adopting organisation retains the authority for consequential operational decisions.
+
+Specialist intervention occurs when a particular delivery still requires specialist-held expertise, authority or access, or a change to reusable software or platform capability.
+Running a maintained provisioning procedure with appropriately delegated authority can be routine delivery.
+Changing that procedure, extending an application or relying on a specialist to supply otherwise unavailable access remains specialist intervention.
+Acceptance of a solution-management capability therefore requires evidence that routine delivery depends less on those interventions while the beneficiary continues to receive the intended service.
+
+### The durable handoff and the life of a solution
+
+A logical solution is the durable identity-bearing subject intended to satisfy a business beneficiary's needs.
+Its solution design expresses the selected software, configuration and relationships among its parts; revisions distinguish intended editions while the identity continues.
+Two logical solutions remain distinct even when their present contents match.
+A business beneficiary supplies the needs against which that solution is designed and validated, and is distinct from a user who merely consumes the service.
+An adopting organisation may itself be the beneficiary of a service that it offers to many customers.
+
+Design establishes or revises that intent, Provision makes required backing capabilities usable, and Deploy renders the applications operational.
+Operate is the customer's use of the solution, while Sustain keeps it fit for that use.
+Changed needs can lead to renewed Design; operational needs can require further Provision or Deploy work without changing the intended design.
+Retire ends the solution's operational life while retaining its identity and history without reassigning them.
+Changes to one component or placement do not by themselves retire the whole solution.
+
+An adopter-defined Location identifies where all or part of a solution is available.
+Cooperating parts at several Locations can remain one logical solution, and relocation can preserve that identity.
+Solution artefacts carry identity and representations of design across people, tools, time or place.
+The durable handoff preserves those meanings and the know-how needed to realise the design, while the organisation's tools perform and accept the operational work.
+That continuity does not itself supply resource isolation or guarantee equivalent behaviour across environments.
+
+## Risks and uncertainty
+
+The principal product risk is that reusable program integration adds another layer of configuration and lifecycle machinery without reducing total engineering effort.
+Exposing implicit assumptions may require substantial changes to existing applications, and a convenient initial example may conceal the cost of adoption and maintenance.
+The project must evaluate those costs alongside the benefits.
+
+The principal evidence risk is confidence that exceeds what the tests establish.
+Repeated execution can reveal lifecycle defects, but a shared process cannot reproduce every failure or isolation boundary of a distributed deployment.
+External dependencies, shared resources and host-specific behaviour can also make an otherwise repeatable test depend on uncontrolled state.
+Evaluation must keep these conditions visible and relate test outcomes to the production decisions they support.
+
+Resource ownership and cooperative lifecycle handling remain responsibilities that authors and hosts must fulfil.
+Declared configuration cannot make an arbitrary implementation safe to combine, and cancellation cannot ensure that a program releases its resources correctly.
+The toolkit's value depends partly on how effectively its practices help engineers discover and correct such shortcomings.
+
+The workload breadth, useful evidence thresholds, adoption effort and sustainable maintenance cost remain uncertain.
+Detailed system-testing practices, host policies and extensions for particular environments require further operational evidence.
+Solution management adds separate questions about identity, handoff compatibility, authority and delivery economics.
+Those questions can be investigated without making their resolution a condition for evaluating the core mission.
+
+[M-02-concept-of-operations]: M-02-concept-of-operations.md
