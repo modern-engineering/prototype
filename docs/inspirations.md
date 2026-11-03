@@ -42,6 +42,21 @@ Later, when a tool needs to run what the design names, it has to connect each na
 [Docker image layers] suggested a question we are still exploring.
 Could each stage of delivery add its results to what it received while keeping the original design intact?
 
+## Before and after an application goes live
+
+[Kubernetes] can accept a request to run the first application on a cluster.
+[PostgreSQL] can accept the first table in a new database.
+On a smaller scale, Go’s [`strings.Builder`] needs no setup before it can collect its first word.
+All three helped us describe a useful idle state for a platform.
+Even before a customer’s applications are running, someone can ask it to prepare the database they will need.
+
+In [Team Topologies], Matthew Skelton and Manuel Pais give as much attention to how teams work together as to what each team does.
+We borrowed that way of looking at a handoff.
+Writing an application and preparing a place for it to run are distinct responsibilities, even when one person does both.
+
+The [INCOSE Systems Engineering Handbook] helped us look beyond the day an application goes live to the work of maintaining it and eventually retiring it.
+[NASA’s guide to a concept of operations] influenced how we write about that work, by telling stories from the point of view of the people doing it.
+
 [Go’s analysis package]: https://pkg.go.dev/golang.org/x/tools/go/analysis#hdr-Analyzer
 [Go’s flag package]: https://pkg.go.dev/flag
 [`go test`]: https://go.dev/src/cmd/go/internal/load/test.go#L308
@@ -55,3 +70,9 @@ Could each stage of delivery add its results to what it received while keeping t
 [another for checking types]: https://pkg.go.dev/go/types
 [Go’s gob package]: https://pkg.go.dev/encoding/gob#Register
 [Docker image layers]: https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/
+[Kubernetes]: https://kubernetes.io/docs/concepts/overview/components/
+[PostgreSQL]: https://www.postgresql.org/docs/current/tutorial-table.html
+[`strings.Builder`]: https://pkg.go.dev/strings#Builder
+[Team Topologies]: https://teamtopologies.com/key-concepts
+[INCOSE Systems Engineering Handbook]: https://www.incose.org/resources-publications/technical-publications/se-handbook/
+[NASA’s guide to a concept of operations]: https://www.nasa.gov/reference/appendix-s-concept-of-operations-annotated-outline/
