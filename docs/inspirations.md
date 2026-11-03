@@ -34,6 +34,24 @@ An engineer can check out the Go code that sets up the run and supply the settin
 When we tried this with a generated launcher, the same command-line options worked inside the image.
 We liked how simple the step from building to packaging could be.
 
+## Reading a solution before running it
+
+In our [work on tailored delivery], a solution design says which applications are meant to run for a customer, how they are configured and how they fit together.
+[LLVM] gives compilers for different languages a common way to describe a program.
+[GNU’s objdump] can look inside a file in the ELF executable format without starting the program.
+Together these ideas suggested that one tool could write down a design and another could read it before running any of its applications.
+
+[Hugo] uses Go modules to track the website themes a site names in its configuration.
+We tried that idea with Go packages named in a solution design.
+
+Go offers [a package for loading code] and [another for checking types].
+They showed us how to make inspection available to people writing their own tools.
+To run the design, a tool also has to connect each name to the right piece of code.
+[Go’s gob package] gave us an example of that lookup by pairing names with Go types when saving and restoring data.
+
+[Docker image layers] suggested a possibility for delivery.
+Could each stage add its results to what it received while keeping the original design intact?
+
 [Go’s analysis package]: https://pkg.go.dev/golang.org/x/tools/go/analysis#hdr-Analyzer
 [Go’s flag package]: https://pkg.go.dev/flag
 [`go test`]: https://go.dev/src/cmd/go/internal/load/test.go#L308
@@ -41,3 +59,11 @@ We liked how simple the step from building to packaging could be.
 [`go run`]: https://pkg.go.dev/cmd/go#hdr-Compile_and_run_Go_program
 [Go team’s work on reproducible toolchains]: https://go.dev/blog/rebuild#making-a-build-reproducible
 [ko]: https://ko.build/
+[work on tailored delivery]: mission/M-08-solution-management.md
+[LLVM]: https://llvm.org/docs/LangRef.html#introduction
+[GNU’s objdump]: https://sourceware.org/binutils/docs/binutils/objdump.html
+[Hugo]: https://gohugo.io/hugo-modules/use-modules/
+[a package for loading code]: https://pkg.go.dev/golang.org/x/tools/go/packages
+[another for checking types]: https://pkg.go.dev/go/types
+[Go’s gob package]: https://pkg.go.dev/encoding/gob#Register
+[Docker image layers]: https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/
