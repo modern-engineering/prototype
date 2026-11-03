@@ -19,10 +19,18 @@ When that work depends on separately maintained executable entry points, scripts
 The mission is to reduce the effort required to develop, test and operate distributed backend systems written in Go, while making system testing practices that build confidence in production behaviour convenient to apply.
 The project is an opinionated, open-source Go toolkit for engineers who write those programs and engineers who assemble, test and operate the systems they form.
 Its working hypothesis is that making construction, configuration and execution accessible through reusable Go packages can reduce surrounding integration work and expose design weaknesses earlier.
+Running cooperating programs in one process is a useful technique for investigating that hypothesis.
 
 The intended value is lower engineering effort across development and operation, together with better evidence about system behaviour.
-Running cooperating programs in one process is a useful technique for investigating that hypothesis.
+Keeping the code that assembles and runs the system alongside the applications may reduce how much developers and coding agents have to reconstruct before they can contribute.
+This could make an unfamiliar codebase easier to understand and work in.
+
+System-level testing is a critical enabler of greater autonomy for coding agents.
+It lets agents check whether a change has broken critical flows across the system.
+The results help stakeholders judge how much confidence to place in the changes.
+
 Managing the delivery and ongoing operation of tailored software solutions is a downstream application of the approach, with its own acceptance criteria.
+The magnitude of these benefits remains to be demonstrated.
 
 ## Engineering context and problem
 
