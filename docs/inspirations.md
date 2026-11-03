@@ -3,7 +3,16 @@
 Here we credit the people and projects that inspired our Go toolkit for developing, testing and operating backends.
 Some of these ideas also shaped our experiments in delivering software tailored to a customer.
 
-## A field guide to similar birds (fictional example)
+## Describing a program others can run
 
-The imaginary *Pocket Guide to Shorebirds* puts two similar birds on facing pages and points out the easiest way to tell them apart.
-If we borrowed that idea for command help, we might show two easily confused commands side by side and explain when to use each one.
+In [Go’s analysis package], people who write a code check can publish it as a single named value.
+It pairs the function that performs the check with its settings, help and a list of other checks it depends on.
+That inspired the *descriptor* a Go package can publish for an application.
+Another program can use that value to see what inputs the application accepts before starting it.
+
+[Go’s flag package] lets each kind of setting define how it reads text.
+A caller can supply `20s`, and a duration setting interprets it as twenty seconds.
+We borrowed that idea so different tools could supply named application inputs as text.
+
+[Go’s analysis package]: https://pkg.go.dev/golang.org/x/tools/go/analysis#hdr-Analyzer
+[Go’s flag package]: https://pkg.go.dev/flag#Value
