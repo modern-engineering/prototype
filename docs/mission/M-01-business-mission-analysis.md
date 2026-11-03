@@ -46,31 +46,60 @@ A successful startup and request do not show that a program stops its background
 Implicit global state, fixed resource assumptions and incomplete cleanup can remain unnoticed when each run receives a fresh process or environment.
 Repeated tests of a composed system through its external interfaces can expose these defects before they disrupt operation.
 
+AI coding agents encounter the same separation between application code and the means of exercising the system.
+An organisation can give an agent the source code and a description of the change it wants, while the setup needed to try that change remains in a separate deployment repository or workflow.
+The agent has to establish which programs run together, how they are configured and where it can observe their behaviour.
+It may need to follow a build and deployment process before it can try the change, even when the behaviour it needs to check could be exercised with a small part of the system.
+
+For an organisation, more capacity to write code creates a corresponding need to evaluate the changes being proposed.
+The changes still need to be tried as part of the system, their effects measured and their usefulness assessed against the needs that prompted them.
+If this work remains difficult, increasing the number of agents can increase the amount of work still waiting to be tested and assessed.
+The difficulty of exercising the system can therefore limit how far an organisation can scale its use of coding agents.
+
 The motivating experience is engineering distributed Go backends whose programs are already implemented but remain difficult to assemble and test together repeatedly.
 It supports investigating a better development and operating model; it does not establish the prevalence of the problem or the size of the improvement across other organisations.
 
 ## Mission and opportunity
 
-The project seeks to make the work around a distributed backend system more directly reusable with its application code.
-Program construction, configuration declarations and lifecycle control can be available through Go packages to the tools that assemble and run a system.
-Those tools can use the same application implementations in development, tests and operational hosts.
+The opportunity is for software organisations to make more useful changes with less effort spent assembling, running and testing their systems.
+For engineers, this means shorter feedback cycles, less code and tooling to maintain around the applications, and better ways to check the effects of a change.
+
+For organisations using AI coding agents, the further opportunity is to give an agent more of the work of developing and assessing a change.
+The business hypothesis is that agents can carry more of this work through to completion without a proportional increase in the human effort needed to guide and review it.
+This requires giving an agent both the reasons for the change and a practical way to run the system and check the result.
+
+The project pursues these opportunities by making the code that assembles and runs the system part of the system's Go codebase.
+That code selects the programs, supplies their configuration and dependencies, and starts and stops them.
+Developers and agents can read it to see how the programs fit together, adapt it to run a useful subset and reuse it in tests or operational hosts.
 A host is software that starts and supervises programs, supplying the dependencies and execution policy appropriate to its setting.
 
-The opportunity has two related parts.
-Reusable access to the programs may reduce the effort spent building and maintaining separate ways to run them.
-Convenient system testing may also improve the design and evidence on which production decisions depend.
-Both are hypotheses to evaluate against actual engineering work.
-An additional abstraction that merely relocates the same setup and maintenance burden would not achieve the intended improvement.
+The focus on systems whose application programs are written in Go is deliberate.
+A tool intended to support applications written in many languages has to accommodate their different build tools and runtimes.
+Here, the code that runs the programs together can call their Go packages directly and reuse how the applications are constructed and configured.
 
-Running multiple instances or cooperating programs within one process is one technique for exposing hidden coupling and implicit resource ownership.
-The resulting conflicts give engineers concrete reasons to make dependencies explicit, parameterise resource use and complete lifecycle handling.
-The value lies in what this reveals and helps correct in the system's design.
+That code can use the same dependency management, build tools and testing tools as the applications.
+Recorded module versions help reproduce the selection of dependencies, and the Go toolchain supports building for different operating systems.
+Scripts used for the same work may require a particular shell, locally installed commands or container tools before they can run.
+Keeping this work in Go reduces the separate setup needed around the codebase.
+
+With the system's assembly and execution available in code, a developer or agent can try a change without first reconstructing how to run the affected programs.
+They can run those programs together, send requests or messages through their interfaces and measure the resulting behaviour.
+The feature request, requirements and what matters to the customer then give them reasons to choose particular checks and a basis for judging the results.
+They can verify whether the system does what was requested and gather evidence about whether that behaviour meets the customer's needs.
+If a new request calls for a different test, they can change the Go code that sets up the run and retain that test for later work.
+If the results leave questions unanswered, they can decide what else to try or what more they need to learn about customer use.
+
+The toolkit is intended to make modern engineering practices easier to adopt and make it harder to leave basic design problems unresolved.
+Running cooperating programs or several instances within one process can expose assumptions about shared state, resource use and cleanup that a fresh process would hide.
+Making an application work reliably in these tests can take extra effort.
+That effort goes into making dependencies explicit, establishing which program owns each resource and ensuring that a program finishes its work and releases what it owns.
+The tests bring these problems into development, where the resulting corrections can improve the application before it is deployed.
 Production placement remains a decision about the system's operational needs.
 
-Engineers are the immediate users of the toolkit.
-The organisations developing and operating the software seek shorter feedback cycles, less maintenance of bespoke integration code and fewer avoidable failures during change and operation.
+These benefits remain hypotheses to evaluate against actual engineering work.
+Adoption must account for the work required to make existing applications usable in this way, as well as any additional tooling and maintenance.
+An abstraction that merely relocates the same setup and maintenance burden would not achieve the intended improvement.
 Users of the resulting services benefit when those improvements preserve dependable service behaviour.
-The magnitude of these benefits remains to be demonstrated.
 
 ## System boundary and operating model
 
@@ -138,6 +167,11 @@ The engineers responsible for developing and maintaining the system evaluate the
 Evidence includes the manual steps, elapsed feedback time and bespoke integration code that must be written and maintained, together with adoption and tooling costs.
 The comparison follows the work through the relevant development and operational paths so that savings in one place do not conceal extra work elsewhere.
 An improvement is accepted when the people doing and maintaining that work can identify a repeatable benefit against the baseline.
+
+Where coding agents take part in the work, evaluation follows a change beyond producing the implementation.
+It considers whether the agent could exercise the affected system, obtain relevant observations and use them to assess the change against its requirements and purpose.
+Human effort spent preparing the work, deciding what to run, reviewing the result and correcting mistakes is included in the comparison.
+Repeated work on comparable changes can then test whether agents can complete more of this work with less human direction while the resulting changes meet the organisation's needs.
 
 ### Confidence in system behaviour
 
