@@ -52,6 +52,25 @@ To run the design, a tool also has to connect each name to the right piece of co
 [Docker image layers] suggested a possibility for delivery.
 Could each stage add its results to what it received while keeping the original design intact?
 
+## Before and after an application goes live
+
+[Kubernetes] can accept a request to run the first application on a cluster.
+[PostgreSQL] can accept the first table in a new database.
+On a smaller scale, Go’s [`strings.Builder`] needs no setup before it can collect its first word.
+These examples helped us imagine a platform that is useful even before a customer’s applications are running.
+It can already accept a request to prepare a database they will need.
+
+In [Team Topologies], Matthew Skelton and Manuel Pais give as much attention to how teams work together as to what each team does.
+We borrowed that way of looking at a handoff.
+The people writing an application decide what it does and what inputs it needs.
+The people putting applications together supply what each needs for a run.
+One person can do both.
+
+The [INCOSE Systems Engineering Handbook] helped us think beyond the day a service goes live to keeping it useful and eventually retiring it.
+An [INCOSE symposium talk] distinguished how an organisation works from how people use a system it builds.
+We drew on that distinction when describing the maintainers’ work in the [project concept of operations] and how engineers use the toolkit in the [Operational Concept].
+[NASA’s guide to a concept of operations] helped us tell the stories about using the toolkit from the point of view of the people doing the work.
+
 [Go’s analysis package]: https://pkg.go.dev/golang.org/x/tools/go/analysis#hdr-Analyzer
 [Go’s flag package]: https://pkg.go.dev/flag
 [`go test`]: https://go.dev/src/cmd/go/internal/load/test.go#L308
@@ -67,3 +86,12 @@ Could each stage add its results to what it received while keeping the original 
 [another for checking types]: https://pkg.go.dev/go/types
 [Go’s gob package]: https://pkg.go.dev/encoding/gob#Register
 [Docker image layers]: https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/
+[Kubernetes]: https://kubernetes.io/docs/concepts/overview/components/
+[PostgreSQL]: https://www.postgresql.org/docs/current/tutorial-table.html
+[`strings.Builder`]: https://pkg.go.dev/strings#Builder
+[Team Topologies]: https://teamtopologies.com/key-concepts
+[INCOSE Systems Engineering Handbook]: https://www.incose.org/resources-publications/technical-publications/se-handbook/
+[NASA’s guide to a concept of operations]: https://www.nasa.gov/reference/appendix-s-concept-of-operations-annotated-outline/
+[INCOSE symposium talk]: https://www.incose.org/wp-content/uploads/2026/01/11.5.3.pdf#page=8
+[project concept of operations]: mission/M-01-business-mission-analysis.md#project-concept-of-operations
+[Operational Concept]: mission/M-02-operational-concept.md
