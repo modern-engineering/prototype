@@ -26,6 +26,22 @@ Our toolkit does much the same for Go packages named in a solution design.
 [ko] takes an ordinary Go build one step further and packages the result as a container image, ready to distribute.
 That is an experience we would like for the programs the toolkit builds.
 
+## Reading a solution before running it
+
+[LLVM] gives compilers for different languages a common way to describe a program.
+The same description can pass between several tools.
+[GNU’s objdump] can look inside an executable file, such as one in the ELF format, without starting the program.
+We liked both ideas for a solution design.
+One tool can write down which applications belong together, and someone using another tool can see what the design contains before running any of them.
+
+Go offers [a package for loading code] and [another for checking types].
+They showed us how to make the work of inspection available to people writing their own tools.
+Later, when a tool needs to run what the design names, it has to connect each name to the right piece of code.
+[Go’s gob package], which pairs names with Go types when saving and restoring data, gave us an example of how to make that connection.
+
+[Docker image layers] suggested a question we are still exploring.
+Could each stage of delivery add its results to what it received while keeping the original design intact?
+
 [Go’s analysis package]: https://pkg.go.dev/golang.org/x/tools/go/analysis#hdr-Analyzer
 [Go’s flag package]: https://pkg.go.dev/flag
 [`go test`]: https://go.dev/src/cmd/go/internal/load/test.go#L308
@@ -33,3 +49,9 @@ That is an experience we would like for the programs the toolkit builds.
 [`go run`]: https://pkg.go.dev/cmd/go#hdr-Compile_and_run_Go_program
 [Hugo]: https://gohugo.io/hugo-modules/use-modules/
 [ko]: https://ko.build/
+[LLVM]: https://llvm.org/docs/LangRef.html#introduction
+[GNU’s objdump]: https://sourceware.org/binutils/docs/binutils/objdump.html
+[a package for loading code]: https://pkg.go.dev/golang.org/x/tools/go/packages
+[another for checking types]: https://pkg.go.dev/go/types
+[Go’s gob package]: https://pkg.go.dev/encoding/gob#Register
+[Docker image layers]: https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/
