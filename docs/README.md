@@ -3,6 +3,7 @@
 The corpus begins with mission documents, which establish the enduring frame for later work.
 Analyses investigate bounded questions within that frame, while requirements and decisions trace to the records that motivate them.
 [The working vocabulary][working-vocabulary] is a non-normative scratchpad for terms used across those families.
+[Inspirations] credits the work that influenced the toolkit.
 [D-03] defines naming, [D-04] defines status lifecycles, and [D-05] defines document relationships.
 Each family README indexes its current records.
 
@@ -17,3 +18,4 @@ Each family README indexes its current records.
 [D-04]: adr/D-04-status-lifecycle.md
 [D-05]: adr/D-05-document-relationships.md
 [working-vocabulary]: vocabulary.md
+[Inspirations]: inspirations.md
