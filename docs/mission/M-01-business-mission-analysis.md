@@ -181,48 +181,16 @@ Using a common program implementation in several hosts provides a basis for reus
 It does not by itself establish equivalent behaviour across those hosts or eliminate the need to verify the integrations with each environment.
 Claims about portability, confidence and saved effort are limited to the conditions actually evaluated.
 
-## Evidence and acceptance
+## What success looks like
 
-The first useful proof is a bounded system drawn from real engineering work whose components can be assembled, run and tested repeatedly using the toolkit.
-The evaluating engineers identify the work they currently perform, the behaviours that matter and the conditions under which the result will be used.
-That baseline makes it possible to judge whether the toolkit improves their work instead of merely demonstrating that its interfaces function.
+Consider an organisation whose process for delivering a change has grown across several teams.
+Each team checks the part it owns, yet faults in the way those parts work together have reached production.
+Even after the teams fix such a fault, they have struggled to turn it into a regression test.
 
-### Engineering effort
-
-The engineers responsible for developing and maintaining the system evaluate the effort required to establish a run and to change its composition or configuration.
-Evidence includes the manual steps, elapsed feedback time and bespoke integration code that must be written and maintained, together with adoption and tooling costs.
-The comparison follows the work through the relevant development and operational paths so that savings in one place do not conceal extra work elsewhere.
-An improvement is accepted when the people doing and maintaining that work can identify a repeatable benefit against the baseline.
-
-Where coding agents take part in the work, evaluation follows a change beyond producing the implementation.
-It considers whether the agent could exercise the affected system, obtain relevant observations and use them to assess the change against its requirements and purpose.
-Human effort spent preparing the work, deciding what to run, reviewing the result and correcting mistakes is included in the comparison.
-Repeated work on comparable changes can then test whether agents can complete more of this work with less human direction while the resulting changes meet the organisation's needs.
-
-### Confidence in system behaviour
-
-The evidence concerns the composed system's externally observable behaviour and lifecycle.
-It includes repeated runs, completion or failure of relevant work, shutdown and the expected disposition of owned and shared resources.
-The responsible engineers establish that tests can expose relevant defects, including known or deliberately introduced lifecycle faults, and distinguish corrected behaviour from a merely successful startup.
-They identify which conditions the tests represent and which remain outside their evidence.
-
-Execution within one process may contribute to this evidence by revealing interference, retained state or incomplete cleanup.
-Passing such tests is useful only for the behaviours and conditions they cover.
-Additional evidence is needed for failures and operating conditions specific to distributed production execution.
-
-### Use in production
-
-The engineers responsible for operating the system evaluate the same application implementations through the intended operational hosts and deployment path.
-They establish that configuration, dependencies, supervision and lifecycle handling produce the required behaviour in that environment.
-Acceptance includes relevant observations during startup, ongoing operation, failure and shutdown, and verifies resource release or retention according to the system's intended ownership.
-The adopting organisation's deployment authority decides whether that evidence is sufficient to accept the change into service.
-
-### Reuse and broader value
-
-Repeated use across changes and materially different systems tests whether the benefit survives beyond the initial example.
-Results in different organisations can then test whether the toolkit and practices are reusable without reproducing the same integration burden in local extensions.
-The project sponsor judges broader product claims from that accumulated evidence, including the cost of maintaining the toolkit itself.
-Useful numerical thresholds and representative workloads remain to be established for each evaluation.
+An early success would be a coding agent using the incident report and the team's Go code to run the affected programs together and reproduce the failure.
+A reviewer could see the resulting test fail on the faulty revision and pass with the fix.
+The longer-term gain comes when another team changes one of those programs and the test catches the same fault before it reaches users again.
+What the organisation learned from the incident then protects later changes without depending on the engineers who investigated it.
 
 ## Downstream solution management
 
