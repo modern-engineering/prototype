@@ -76,7 +76,7 @@ The opportunity is for software organisations to make more useful changes with l
 For engineers, this means shorter feedback cycles, less code and tooling to maintain around the applications, and better ways to check the effects of a change.
 
 For organisations using AI coding agents, the further opportunity is to give an agent more of the work of developing and assessing a change.
-The business hypothesis is that agents can carry more of this work through to completion without a proportional increase in the human effort needed to guide and review it.
+**The business hypothesis is that agents can carry more of this work through to completion without a proportional increase in the human effort needed to guide and review it.**
 This requires giving an agent both the reasons for the change and a practical way to run the system and check the result.
 
 The project pursues these opportunities by making the code that assembles and runs the system part of the system's Go codebase.
@@ -88,23 +88,31 @@ The focus on systems whose application programs are written in Go is deliberate.
 A tool intended to support applications written in many languages has to accommodate their different build tools and runtimes.
 Here, the code that runs the programs together can call their Go packages directly and reuse how the applications are constructed and configured.
 
-That code can use the same dependency management, build tools and testing tools as the applications.
-Recorded module versions help reproduce the selection of dependencies, and the Go toolchain supports building for different operating systems.
-Scripts used for the same work may require a particular shell, locally installed commands or container tools before they can run.
-Keeping this work in Go reduces the separate setup needed around the codebase.
+Engineers can build and test the packages that assemble the system with the Go tools they already use for the applications.
+Go modules record the dependency versions, and the Go toolchain can build the resulting program for different operating systems.
+If a script starts the applications, each developer may first need to install the shell and commands that the script expects.
+Calling the application packages from Go can spare the team that setup.
 
-With the system's assembly and execution available in code, a developer or agent can try a change without first reconstructing how to run the affected programs.
-They can run those programs together, send requests or messages through their interfaces and measure the resulting behaviour.
-The feature request, requirements and what matters to the customer then give them reasons to choose particular checks and a basis for judging the results.
+A system test written in Go records which programs the developer chose to run together and how they were connected.
+When the test is committed alongside the applications, a colleague investigating an old fault can check out the affected revision and run the same programs together.
+Suppose a test runs a service that accepts jobs together with the worker that processes them, but the fault was reported by someone waiting for a notification.
+The colleague can use the same packages to start the service and worker, bring in the program that sends notifications and follow a job all the way through.
+
+A developer or agent checking out a changed revision can start with one of these setups and send requests or messages through the programs' usual interfaces.
+The reason the customer asked for the change guides which interactions to try and what to look for in the result.
 They can verify whether the system does what was requested and gather evidence about whether that behaviour meets the customer's needs.
 If a new request calls for a different test, they can change the Go code that sets up the run and retain that test for later work.
 If the results leave questions unanswered, they can decide what else to try or what more they need to learn about customer use.
 
-The toolkit is intended to make modern engineering practices easier to adopt and make it harder to leave basic design problems unresolved.
+The toolkit is intended to make modern engineering practices easier to adopt and make it harder to avoid confronting basic design pitfalls.
 Running cooperating programs or several instances within one process can expose assumptions about shared state, resource use and cleanup that a fresh process would hide.
 Making an application work reliably in these tests can take extra effort.
-That effort goes into making dependencies explicit, establishing which program owns each resource and ensuring that a program finishes its work and releases what it owns.
-The tests bring these problems into development, where the resulting corrections can improve the application before it is deployed.
+Engineers have to make some assumptions explicit and configurable.
+They also have to decide what graceful termination means for the work a program has taken on.
+A worker asked to stop halfway through a job may need to finish it or leave it where another worker can pick it up; closing its connection to the queue is only part of stopping safely.
+
+In a local test a developer can request shutdown while the worker holds a job, then repeat the failed run under a debugger to see where the job was lost.
+The same failure is harder to diagnose after deployment, when the worker is running on a remote host and access is usually restricted.
 Production placement remains a decision about the system's operational needs.
 
 These benefits remain hypotheses to evaluate against actual engineering work.
