@@ -130,13 +130,20 @@ Adoption does not depend on a particular company structure, customer-delivery mo
 Application authors retain control of behaviour, communication and resource access.
 The toolkit does not require these to be expressed through toolkit-defined abstractions.
 Its integration boundary concerns construction, configuration and execution, including requesting cancellation and reporting completion or failure.
-The programs remain responsible for responding to those requests and completing the work and cleanup they own.
+The programs remain responsible for honouring those signals and completing the work and cleanup they own.
 
-Engineers assembling a system choose its constituent programs, provide configuration and arrange dependencies.
-Dependencies can be supplied explicitly through ordinary Go code, making the source of a runtime resource and the wiring that supplies it available for inspection.
-Application authors expose the configuration needed to use their programs together.
-Engineers assembling a system coordinate deliberate sharing.
-The toolkit does not infer resource identity, exclusivity or safe sharing from parameter names or values alone.
+An organisation can build its own host around that agreement and require more of the programs it runs there.
+For example, a team operating services on Kubernetes can require every service using its host to signal when it is ready to receive traffic.
+Each service supplies the signal when it can serve requests, and the host handles reporting readiness to Kubernetes for all of them.
+The requirement belongs to that host, so a program running elsewhere can use the toolkit without having to report readiness.
+The toolkit will demonstrate how to make such specializations on both sides: application code must explicitly opt-in; concomitantly hosts should respect applications that opt-out by default.
+
+Application authors decide what their programs need in order to run.
+For example, an author whose program writes files can let the caller supply the directory.
+An engineer who wants a second program to read those files can pass the same directory to both in the Go code that starts them.
+If instead the two programs use files with the same names for their own temporary work, the engineer gives each a separate directory.
+Anyone investigating a file collision can follow those calls back to where the directory was chosen and see which programs received the same path.
+Whether they should share it depends on what each program does with the files.
 
 Hosts control how programs are started and supervised in their setting and how completion, failure and cancellation affect the rest of the composition.
 They also account for resources supplied to the programs, while programs account for resources they acquire themselves.
