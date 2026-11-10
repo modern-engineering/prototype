@@ -163,9 +163,14 @@ In [M-10 on probing Git operations], a long-running application pushes a commit 
 The push succeeds, but a fresh fetch still gets the old commit a minute later.
 The operator gives the Git engineer the branch and the two commit IDs to trace.
 
+## Running the same application in several clouds
+
+[M-06-one-responsibility-model-across-platforms] follows engineers reusing the same Go setup in a local test and three cloud hosts.
+Each deployment still requires checks through its own route and operating controls.
+
 ## Other operating settings
 
-The other stories examine [temporary demonstrations][M-03-sales-led-demonstration], [an evolving merchant service][M-04-evolving-operational-solution], [a service spread across factories][M-05-distributed-industrial-operation], [one service in three clouds][M-06-one-responsibility-model-across-platforms] and [customer-controlled disconnected operation][M-07-controlled-disconnected-delivery].
+The other stories examine [temporary demonstrations][M-03-sales-led-demonstration], [an evolving merchant service][M-04-evolving-operational-solution], [a service spread across factories][M-05-distributed-industrial-operation] and [customer-controlled disconnected operation][M-07-controlled-disconnected-delivery].
 They introduce additional constraints on hosting, change, ownership and access to operational observations.
 The business outcomes and responsibilities specific to tailored delivery are described in [M-01 § Downstream solution management].
 

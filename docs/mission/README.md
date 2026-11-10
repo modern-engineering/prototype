@@ -24,10 +24,10 @@ The optional field names the sponsor who personally ratified the content; mergin
 | [M-08-debugging-the-status-gateway] | ConOps Story: Debugging the Status Gateway |
 | [M-09-testing-a-partial-recovery] | ConOps Story: Testing a Partial Recovery |
 | [M-10-probing-git-operations] | ConOps Story: Probing Git Operations |
+| [M-06-one-responsibility-model-across-platforms] | ConOps Story: Running the Same Application in Three Clouds |
 | [M-03-sales-led-demonstration] | ConOps Story: Sales-Led Demonstration |
 | [M-04-evolving-operational-solution] | ConOps Story: Evolving an Operational Solution |
 | [M-05-distributed-industrial-operation] | ConOps Story: Distributed Industrial Operation |
-| [M-06-one-responsibility-model-across-platforms] | ConOps Story: One Responsibility Model Across Platforms |
 | [M-07-controlled-disconnected-delivery] | ConOps Story: Controlled Disconnected Delivery |
 
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
