@@ -2,7 +2,7 @@
 
 The mission corpus is the canonical source for the language recorded here.
 This non-normative scaffold gives authors and reviewers consistent working language while that corpus evolves.
-The solution-delivery terms describe one downstream application within [M-02-concept-of-operations]; they are not prerequisites for the core engineering work described in [M-01-business-mission-analysis].
+The solution-delivery terms describe the setting in [M-01 § Downstream solution management]; they are not prerequisites for the core engineering work described in [M-01-business-mission-analysis].
 An entry's label records confidence accumulated through use across the corpus, independently of any document's lifecycle metadata.
 Later documents may make a definition more precise without reducing that confidence; a label moves backward only when the corpus exposes a contradiction or reopens the concept's boundary.
 Once every entry is settled, this scaffold will become the project glossary.
@@ -49,8 +49,8 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
   It does not promise security, compute, network, data, resource or failure isolation.
 - **Operational solution** — `settled` — The realised, usable form of a logical solution: its intended applications are running, its required backing capabilities are usable, and it is available to its users.
   It retains the logical solution's identity and is not a second solution.
-- **Operational story** — `provisional` — A bounded, time-sequenced account of engineering or operating work that exposes the people, tools, authorities, interactions, evidence and material conditions that affect the outcome.
-  [M-02-concept-of-operations] places these accounts within the toolkit's intended use, including downstream solution delivery.
+- **Operational story** — `provisional` — A bounded, time-sequenced account of engineering or operating work that exposes the people, tools, authorities, interactions and conditions that affect the outcome.
+  [M-02-concept-of-operations] places these accounts within the toolkit's intended use.
 - **Business beneficiary** — `settled` — A business entity whose needs justify a logical solution and against whose needs that solution is designed and validated.
   Consuming an operational service does not by itself establish this relationship, and the relationship grants no lifecycle or deployment-acceptance authority.
 - **Partial adoption** — `settled` — Legitimate use of a bounded subset of toolkit capabilities that demonstrates only the outcomes exercised and must not be presented as the full mission result.
@@ -104,3 +104,4 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 [M-01-business-mission-analysis]: mission/M-01-business-mission-analysis.md
 [M-01-delivery-responsibilities]: mission/M-01-business-mission-analysis.md#solution-delivery-responsibilities
 [M-02-concept-of-operations]: mission/M-02-concept-of-operations.md
+[M-01 § Downstream solution management]: mission/M-01-business-mission-analysis.md#downstream-solution-management

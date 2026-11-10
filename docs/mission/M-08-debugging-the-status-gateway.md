@@ -9,7 +9,7 @@ derived-from:
 
 This story imagines the team behind [GitHub Status] asking Maya to lift the page's refresh limit for signed-in visitors.
 She wants to try the change in her browser before anyone deploys it.
-She can do that with two programs on her laptop, an example of [M-02 § Assemble the system needed for the work].
+She can do that with two programs on her laptop, as described in [M-02 § Engineering GitHub Status].
 
 ## Setting
 
@@ -53,8 +53,8 @@ To try each edit on staging, the team would have had to build the gateway in CI,
 On the laptop, Maya could see which code had rejected her request and try the correction on her next run.
 A coding agent with the same staging access can use that Go program to start from zero, reproduce a 429, edit the gateway and check both browser cases.
 If the first edit fails, the agent can keep investigating without asking someone which build or settings are running in staging.
-The team can compare the time to a working fix, the help the agent needed and the cost of maintaining the local program, as described in [M-01 § Engineering effort].
+The team can compare the time to a working fix, the help the agent needed and the cost of maintaining the local program, as described in [M-01 § Mission and opportunity].
 
 [GitHub Status]: https://www.githubstatus.com/
-[M-02 § Assemble the system needed for the work]: M-02-concept-of-operations.md#assemble-the-system-needed-for-the-work
-[M-01 § Engineering effort]: M-01-business-mission-analysis.md#engineering-effort
+[M-02 § Engineering GitHub Status]: M-02-concept-of-operations.md#engineering-github-status
+[M-01 § Mission and opportunity]: M-01-business-mission-analysis.md#mission-and-opportunity

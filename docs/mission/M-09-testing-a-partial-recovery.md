@@ -58,7 +58,8 @@ The test passes with the programs the team runs today and goes into CI for futur
 ## How a smaller report hides the Actions warning
 
 The reporter sends the whole list every minute, even when nothing has changed.
-A coding agent changes the reporter's code so it sends each service's status once and sends it again only when that status changes.
+The team asks a coding agent to reduce that repeated traffic while preserving the status information shown to visitors.
+The agent changes the reporter's code so it sends each service's status once and sends it again only when that status changes.
 The reporter's own tests pass.
 When only Git Operations recovers, the new reporter tells the backend that Git Operations is operational and says nothing about Actions.
 
@@ -80,7 +81,7 @@ She can review the failing and passing responses alongside the code, without hav
 
 Those runs give Maya grounds to release the corrected backend first.
 Once the team confirms it is serving the live page, they can deploy the reporter that sends shorter reports.
-The engineers responsible for the release still check what the live gateway serves, as described in [M-01 § Confidence in system behaviour].
+The engineers responsible for the release still check what the live gateway serves, as described in [M-01 § System boundary and operating model].
 
 [M-08 § Setting]: M-08-debugging-the-status-gateway.md#setting
-[M-01 § Confidence in system behaviour]: M-01-business-mission-analysis.md#confidence-in-system-behaviour
+[M-01 § System boundary and operating model]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
