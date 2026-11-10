@@ -247,7 +247,7 @@ External dependencies, shared resources and host-specific behaviour can also mak
 Evaluation must keep these conditions visible and relate test outcomes to the production decisions they support.
 
 Resource ownership and cooperative lifecycle handling remain responsibilities that authors and hosts must fulfil.
-Declared configuration cannot make an arbitrary implementation safe to combine, and cancellation cannot ensure that a program releases its resources correctly.
+Declared configuration cannot make an arbitrary implementation safe to combine, and asking a program to stop cannot ensure that it will terminate gracefully.
 The toolkit's value depends partly on how effectively its practices help engineers discover and correct such shortcomings.
 
 The workload breadth, useful evidence thresholds, adoption effort and sustainable maintenance cost remain uncertain.
