@@ -4,6 +4,9 @@ since: 2026-08-13
 derived-from:
   - M-01-business-mission-analysis
 derives:
+  - M-08-debugging-the-status-gateway
+  - M-09-testing-a-partial-recovery
+  - M-10-probing-git-operations
   - M-03-sales-led-demonstration
   - M-04-evolving-operational-solution
   - M-05-distributed-industrial-operation
@@ -18,16 +21,30 @@ derives:
 This operational concept examines solution delivery as a downstream application of the toolkit.
 [M-01-business-mission-analysis] establishes the core mission of reducing engineering effort and supporting confidence in the production behaviour of distributed Go backends.
 This document provides the common frame for the solution-delivery setting described in [M-01 § Downstream solution management][M-01-solution-management].
-The individual operational stories follow solutions through the work of their adopting organisations, customers and users.
+The delivery stories follow solutions through the work of their adopting organisations, customers and users.
 
 The parts are intended to remain read together.
 The business mission is not repeated in every story, and one story is not promoted into the universal operating model.
-Instead, each story places the common concepts in a particular sociotechnical delivery system, makes its authorities and material conditions visible, and shows a logical solution moving through time.
+Each delivery story places the common concepts in a particular sociotechnical delivery system, makes its authorities and material conditions visible, and shows a logical solution moving through time.
 The contrasting settings reveal shared operational ideas and differences that remain significant to the people doing the work.
 
 This common frame is accepted as part of the mission corpus but remains incomplete.
 It is expected to change as the remaining storylines expose differences in boundaries, authorities and operational consequences.
 It can be considered complete after the planned story portfolio is complete and its shared ideas and material differences have been integrated here.
+
+## Engineering GitHub Status
+
+These stories imagine how the team behind GitHub Status might develop, test and run the Go programs behind the page.
+
+In [M-08 on debugging the status gateway], a signed-in visitor hits the limit meant for guests.
+The developer follows the request in a debugger on her laptop, where she can clear the guest count and try again using status reports from staging.
+
+In [M-09 on testing a partial recovery], a coding agent changes a program to send shorter reports about the services listed on the page.
+A Go test catches the page giving an all-clear when Git pushes work again but Actions workflows are still stuck.
+
+In [M-10 on probing Git operations], a long-running application pushes a commit to a private repository and checks what a client can fetch.
+The push succeeds, but a fresh fetch still gets the old commit a minute later.
+The operator gives the Git engineer the branch and the two commit IDs to trace.
 
 ## Operational viewpoint
 
@@ -35,7 +52,7 @@ The toolkit is viewed inside an adopter-owned sociotechnical delivery system, no
 People, policies, incumbent or proprietary tools, automation and platforms surround it and may continue to perform most operational work.
 The adopter retains authority for its infrastructure, execution, reconciliation and deployment-acceptance decisions, as established by [M-01 § System boundary and operating model][M-01-boundary].
 
-The identity-bearing subject of every operational story is the logical solution.
+The identity-bearing subject of each delivery story is the logical solution.
 Its durable identity lets the story follow one business and operational subject while its intent, placement and realised contents change.
 The story therefore follows what happens to the solution and who is accountable for each consequential transition, rather than treating files, commands or deployment machinery as the main character.
 
@@ -56,7 +73,7 @@ The solution's identity connects the intended changes, the work performed and th
 
 ## Operational stories
 
-The stories enter the solution's life at different points.
+The delivery stories enter the solution's life at different points.
 A temporary demonstration begins with a prospect's evaluation need and ends with complete retirement.
 The sustained services already provide useful results when their software, configuration or delivery arrangements change.
 Their beneficiaries continue to depend on those results while the adopting organisation introduces the change.
@@ -150,3 +167,6 @@ The common concept remains incomplete while those material differences and their
 [NASA-Appendix-S]: https://www.nasa.gov/reference/system-engineering-handbook-appendix/#hds-sidebar-nav-112
 [NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
 [INCOSE-RE]: https://www.incose.org/wp-content/uploads/2026/01/requirements_engineering_part_1.pdf
+[M-08 on debugging the status gateway]: M-08-debugging-the-status-gateway.md
+[M-09 on testing a partial recovery]: M-09-testing-a-partial-recovery.md
+[M-10 on probing Git operations]: M-10-probing-git-operations.md
