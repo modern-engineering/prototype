@@ -40,6 +40,7 @@ Backend applications perform specialised work and communicate through networks, 
 Their authors already implement those behaviours and interactions in Go.
 To make the applications useful together, engineers also need to select a composition, supply configuration and dependencies, control execution and account for the resources used over its lifetime.
 The same concerns arise when developing a change, testing a system and operating it in production.
+For example, a team may deploy each of its microservices independently yet still need several of them running together to check what a user sees after a change to one service.
 
 Much existing packaging and deployment tooling controls software through executable entry points and external configuration.
 The knowledge needed to construct and manage a program is consequently distributed across application code, executable wrappers and surrounding tooling.
