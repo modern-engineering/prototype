@@ -70,6 +70,30 @@ The difficulty of exercising the system can therefore limit how far an organisat
 The motivating experience is engineering distributed Go backends whose programs are already implemented but remain difficult to assemble and test together repeatedly.
 It supports investigating a better development and operating model; it does not establish the prevalence of the problem or the size of the improvement across other organisations.
 
+### Automation and developer control
+
+An organisation can automate the path to trying a system by building container images from a developer's branch, deploying a private environment and returning an address to use.
+This lowers the effort of obtaining an environment whose composition and configuration have already been prepared.
+Trying a different subset of programs or changing how they are connected can still require changes to deployment configuration or the automation that interprets it.
+The developer can submit code and inspect the deployed result, while the choices about assembling the system remain outside the ordinary edit, run and debug cycle.
+
+Running containers locally can leave the same difficulty in place.
+For example, a Docker Compose file can tell Docker which service and worker images to run and how to connect their containers.
+A Go test can use that file to start those containers, but the file supplies no Go functions that the test can call to construct the worker with different inputs or reuse its setup in another test.
+The developer still has to maintain a separate path for constructing the application from Go.
+
+The project's motivating concern is that automation at the wrong layer often removes developers from the work they need to control.
+The opportunity is to let them select the relevant programs, supply their inputs, pause execution and repeat the experiment through their development tools, with that assembly expressed in reusable Go code.
+
+The project adopts the principle behind [the Go team's work on reproducible toolchains][Go-reproducible-toolchains]: The build tools should eliminate unintended dependencies on the build machine and make the source and other necessary inputs explicit.
+Rebuilding from those inputs should produce the same executable without requiring the organisation to preserve a particular build environment.
+
+The toolkit aims to offer a similar experience for assembling and running applications together.
+Engineers should be able to check out a revision, supply its configuration and dependencies, and use the recorded Go composition to construct and run the selected programs again.
+That composition can also be adapted for a different investigation or reused in a test.
+The working hypothesis is that this gives engineers a repeatable way to exercise the system without depending on a previously prepared environment remaining available.
+The external services and data needed for a particular run must still be supplied, and the deployed arrangement still requires thought.
+
 ## Mission and opportunity
 
 The opportunity is for software organisations to make more useful changes with less effort spent assembling, running and testing their systems.
@@ -256,3 +280,4 @@ Solution management adds separate questions about identity, handoff compatibilit
 Those questions can be investigated without making their resolution a condition for evaluating the core mission.
 
 [M-02-concept-of-operations]: M-02-concept-of-operations.md
+[Go-reproducible-toolchains]: https://go.dev/blog/rebuild#making-a-build-reproducible
