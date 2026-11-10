@@ -17,8 +17,10 @@ The work required to assemble, configure, package and manage those programs exte
 When that work depends on separately maintained executable entry points, scripts and deployment configuration, engineers must repeatedly bridge the application code and the means of running it as a system.
 
 The mission is to reduce the effort required to develop, test and operate distributed backend systems written in Go, while making system testing practices that build confidence in production behaviour convenient to apply.
-The project is an opinionated, open-source Go toolkit for engineers who write those programs and engineers who assemble, test and operate the systems they form.
-Its working hypothesis is that making construction, configuration and execution accessible through reusable Go packages can reduce surrounding integration work and expose design weaknesses earlier.
+The project is an open-source toolkit for long-lived backends whose application code is written entirely in Go.
+Engineers writing a program decide what it does and how others interact with it.
+Engineers assembling a system choose which programs run together and supply what each needs.
+The project's working hypothesis is that making construction, configuration and execution accessible through reusable Go packages can reduce surrounding integration work and expose design weaknesses earlier.
 Running cooperating programs in one process is a useful technique for investigating that hypothesis.
 
 The intended value is lower engineering effort across development and operation, together with better evidence about system behaviour.
