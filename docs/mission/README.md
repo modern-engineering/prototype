@@ -5,7 +5,7 @@ They preserve material uncertainty instead of forcing early answers.
 
 [M-01-business-mission-analysis] frames the engineering of distributed Go backends across development, testing and production.
 [M-02-concept-of-operations] describes that work in operation, with stories examining particular engineering and delivery settings.
-The three GitHub Status stories follow engineers debugging a gateway on a laptop, testing what the page reports during an incident and probing the Git service in production.
+The GitHub Status stories begin with the team's adoption of the toolkit, then follow engineers debugging a gateway on a laptop, testing what the page reports during an incident and probing the Git service in production.
 
 Every mission document merged into `main` is accepted into the canonical corpus.
 The `draft` status marks an accepted but incomplete scaffold that is expected to evolve, while `accepted` marks a document considered complete at its current revision.
@@ -19,6 +19,7 @@ The optional field names the sponsor who personally ratified the content; mergin
 | --- | --- |
 | [M-01-business-mission-analysis] | Business Mission Analysis |
 | [M-02-concept-of-operations] | Concept of Operations |
+| [M-11-adopting-the-toolkit] | ConOps Story: Adopting the Toolkit |
 | [M-08-debugging-the-status-gateway] | ConOps Story: Debugging the Status Gateway |
 | [M-09-testing-a-partial-recovery] | ConOps Story: Testing a Partial Recovery |
 | [M-10-probing-git-operations] | ConOps Story: Probing Git Operations |
@@ -30,6 +31,7 @@ The optional field names the sponsor who personally ratified the content; mergin
 
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-02-concept-of-operations]: M-02-concept-of-operations.md
+[M-11-adopting-the-toolkit]: M-11-adopting-the-toolkit.md
 [M-08-debugging-the-status-gateway]: M-08-debugging-the-status-gateway.md
 [M-09-testing-a-partial-recovery]: M-09-testing-a-partial-recovery.md
 [M-10-probing-git-operations]: M-10-probing-git-operations.md

@@ -4,6 +4,7 @@ since: 2026-08-13
 derived-from:
   - M-01-business-mission-analysis
 derives:
+  - M-11-adopting-the-toolkit
   - M-08-debugging-the-status-gateway
   - M-09-testing-a-partial-recovery
   - M-10-probing-git-operations
@@ -35,6 +36,13 @@ It can be considered complete after the planned story portfolio is complete and 
 ## Engineering GitHub Status
 
 These stories imagine how the team behind GitHub Status might develop, test and run the Go programs behind the page.
+
+In [M-11 on adopting the toolkit], the team already has a pipeline that builds container images and supplies private test environments.
+Maya still needs control over the programs and settings used in an investigation, so she brings their construction and composition into reusable Go code.
+The toolkit's supplied host and testing support can then run the selected applications.
+Application inputs become explicit, while the toolkit coordinates cancellation and failures.
+An optional custom host translates the team's existing environment variables into input fields in application descriptors, preserving its deployment configuration.
+The services keep their internal libraries and communication protocols.
 
 In [M-08 on debugging the status gateway], a signed-in visitor hits the limit meant for guests.
 The developer follows the request in a debugger on her laptop, where she can clear the guest count and try again using status reports from staging.
@@ -168,5 +176,6 @@ The common concept remains incomplete while those material differences and their
 [NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
 [INCOSE-RE]: https://www.incose.org/wp-content/uploads/2026/01/requirements_engineering_part_1.pdf
 [M-08 on debugging the status gateway]: M-08-debugging-the-status-gateway.md
+[M-11 on adopting the toolkit]: M-11-adopting-the-toolkit.md
 [M-09 on testing a partial recovery]: M-09-testing-a-partial-recovery.md
 [M-10 on probing Git operations]: M-10-probing-git-operations.md
