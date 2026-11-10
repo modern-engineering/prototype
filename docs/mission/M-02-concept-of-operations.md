@@ -131,7 +131,7 @@ The comparison with existing practice includes the time to investigate and verif
 
 ## Engineering GitHub Status
 
-These stories imagine how the team behind GitHub Status might develop, test and run the Go programs behind the page.
+These stories imagine how the team behind [GitHub Status] might develop, test and run the Go programs behind the page.
 
 In [M-11 on adopting the toolkit], the team already has a pipeline that builds container images and supplies private test environments.
 Ziv still needs control over the programs and settings used in an investigation, so she brings their construction and composition into reusable Go code.
@@ -166,6 +166,7 @@ Starting a new service and adopting reusable programs supplied by other teams al
 The stories do not establish which workloads are representative or what software, data and access must remain available to repeat every investigation.
 Testing APIs, host policies and compatibility rules remain design questions to be informed by this operational work.
 
+[GitHub Status]: https://www.githubstatus.com/
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-01 § System boundary and operating model]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
 [M-01 § Mission and opportunity]: M-01-business-mission-analysis.md#mission-and-opportunity
