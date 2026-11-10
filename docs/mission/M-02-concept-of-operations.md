@@ -134,7 +134,7 @@ The comparison with existing practice includes the time to investigate and verif
 These stories imagine how the team behind GitHub Status might develop, test and run the Go programs behind the page.
 
 In [M-11 on adopting the toolkit], the team already has a pipeline that builds container images and supplies private test environments.
-Maya still needs control over the programs and settings used in an investigation, so she brings their construction and composition into reusable Go code.
+Ziv still needs control over the programs and settings used in an investigation, so she brings their construction and composition into reusable Go code.
 The toolkit's supplied host and testing support can then run the selected applications.
 Application inputs become explicit, while the toolkit coordinates cancellation and failures.
 An optional custom host translates the team's existing environment variables into input fields in application descriptors, preserving its deployment configuration.
