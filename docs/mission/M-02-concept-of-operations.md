@@ -15,9 +15,9 @@ derives:
 
 ## A corpus about operation
 
-This mission corpus describes the same endeavour at progressively more concrete operational viewpoints.
-[M-01-business-mission-analysis] establishes why the toolkit exists, the enduring mission outcome and the boundaries within which an adopter remains accountable.
-This document provides the common frame for seeing that mission in operation.
+This operational concept examines solution delivery as a downstream application of the toolkit.
+[M-01-business-mission-analysis] establishes the core mission of reducing engineering effort and supporting confidence in the production behaviour of distributed Go backends.
+This document provides the common frame for the solution-delivery setting described in [M-01 § Downstream solution management][M-01-solution-management].
 The individual operational stories follow solutions through the work of their adopting organisations, customers and users.
 
 The parts are intended to remain read together.
@@ -39,7 +39,7 @@ The identity-bearing subject of every operational story is the logical solution.
 Its durable identity lets the story follow one business and operational subject while its intent, placement and realised contents change.
 The story therefore follows what happens to the solution and who is accountable for each consequential transition, rather than treating files, commands or deployment machinery as the main character.
 
-The responsibility domains in [M-01 § System boundary and operating model][M-01-boundary] provide the stable role vocabulary: solution engineering, software engineering, and platform/service engineering.
+The responsibility domains in [M-01 § Solution delivery responsibilities][M-01-delivery-responsibilities] provide the stable role vocabulary for this setting: solution engineering, software engineering, and platform/service engineering.
 They describe concerns and accountabilities, not staffing or actor types.
 A human, an ordinary automated tool or an AI agent may perform work in one or more domains, but automation does not erase responsibility or confer decision authority.
 Each story makes the performing actors, accountable domain and authorising authority clear where the distinction affects the outcome.
@@ -120,7 +120,7 @@ Its high-level operational viewpoint connects the system, users and operators th
 [NASA's Concept of Operations annotated outline][NASA-Appendix-S] is treated as a source of concerns rather than a document template, while the [NASA Systems Engineering Handbook][NASA-SE-Handbook] and [INCOSE requirements-engineering material][INCOSE-RE] reinforce the separation between stakeholder-facing operational understanding and later requirements or implementation choices.
 
 That tailoring is deliberate.
-The project needs contrasting adopter stories before it can justify a richer common operating model.
+A richer solution-delivery operating model requires contrasting adopter stories.
 Detailed physical-environment descriptions, command and data architectures, interface specifications, exhaustive mode and failure catalogues, training or staffing quantities, and implementation plans would add bulk without supporting the present decision.
 
 ## Deferred detail and known unknowns
@@ -139,6 +139,8 @@ The common concept remains incomplete while those material differences and their
 
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-01-boundary]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
+[M-01-solution-management]: M-01-business-mission-analysis.md#downstream-solution-management
+[M-01-delivery-responsibilities]: M-01-business-mission-analysis.md#solution-delivery-responsibilities
 [M-01-life]: M-01-business-mission-analysis.md#the-durable-handoff-and-the-life-of-a-solution
 [M-03-sales-led-demonstration]: M-03-sales-led-demonstration.md
 [M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
