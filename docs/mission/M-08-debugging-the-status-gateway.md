@@ -9,7 +9,7 @@ derived-from:
 
 This story imagines the team behind [GitHub Status] asking Maya to lift the page's refresh limit for signed-in visitors.
 She wants to try the change in her browser before anyone deploys it.
-She can do that with two programs on her laptop, as described in [M-02 § Engineering GitHub Status].
+She can do that with two programs on her laptop, an example of [M-02 § Assemble the system needed for the work].
 
 ## Setting
 
@@ -56,5 +56,5 @@ If the first edit fails, the agent can keep investigating without asking someone
 The team can compare the time to a working fix, the help the agent needed and the cost of maintaining the local program, as described in [M-01 § Engineering effort].
 
 [GitHub Status]: https://www.githubstatus.com/
-[M-02 § Engineering GitHub Status]: M-02-concept-of-operations.md#engineering-github-status
+[M-02 § Assemble the system needed for the work]: M-02-concept-of-operations.md#assemble-the-system-needed-for-the-work
 [M-01 § Engineering effort]: M-01-business-mission-analysis.md#engineering-effort
