@@ -5,7 +5,7 @@ They preserve material uncertainty instead of forcing early answers.
 
 [M-01-business-mission-analysis] frames the engineering of distributed Go backends across development, testing and production.
 [M-02-concept-of-operations] describes how developers and coding agents investigate changes, keep system tests and use production observations to guide later work.
-Its stories examine particular engineering and delivery settings.
+[M-12-solution-management] develops the separate business mission and operational concept for tailored delivery, supported by its own stories.
 The GitHub Status stories begin with the team's adoption of the toolkit, then follow engineers debugging a gateway on a laptop, testing what the page reports during an incident and probing the Git service in production.
 
 Every mission document merged into `main` is accepted into the canonical corpus.
@@ -25,6 +25,7 @@ The optional field names the sponsor who personally ratified the content; mergin
 | [M-09-testing-a-partial-recovery] | ConOps Story: Testing a Partial Recovery |
 | [M-10-probing-git-operations] | ConOps Story: Probing Git Operations |
 | [M-06-one-responsibility-model-across-platforms] | ConOps Story: Running the Same Application in Three Clouds |
+| [M-12-solution-management] | Solution Management: Business Mission and Concept of Operations |
 | [M-03-sales-led-demonstration] | ConOps Story: Sales-Led Demonstration |
 | [M-04-evolving-operational-solution] | ConOps Story: Evolving an Operational Solution |
 | [M-05-distributed-industrial-operation] | ConOps Story: Distributed Industrial Operation |
@@ -42,3 +43,4 @@ The optional field names the sponsor who personally ratified the content; mergin
 [M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
 [M-07-controlled-disconnected-delivery]: M-07-controlled-disconnected-delivery.md
 [D-06-sponsor-ratification]: ../adr/D-06-sponsor-ratification.md
+[M-12-solution-management]: M-12-solution-management.md

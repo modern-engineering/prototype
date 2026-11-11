@@ -3,7 +3,7 @@ status: accepted
 since: 2026-09-12
 ratified-by: danielorbach
 derived-from:
-  - M-02-concept-of-operations
+  - M-12-solution-management
 ---
 
 # Evolving an Operational Solution
@@ -14,7 +14,7 @@ They must meet new needs and recover from a failed upgrade while keeping the ser
 The solution runs on Linux VMs under Stripe's control.
 Stripe's [published account of its build infrastructure][Stripe-build-infrastructure] describes Linux virtual machines, not this payment deployment.
 The merchant-specific solution, systemd supervision, toolkit adoption, responsibilities, capabilities and events are invented.
-The lifecycle meanings follow [M-02-concept-of-operations].
+The lifecycle meanings follow [M-12 § Concept of Operations].
 
 ## Growing beyond the classification pilot
 
@@ -32,7 +32,7 @@ The main payment application already offers the required classification capabili
 Meeting the request therefore calls for a change to the merchant's solution, not development of a new application feature.
 
 Stripe adopted the toolkit before this request; its established release, monitoring and on-call practices remain in place.
-The toolkit added a handoff that carries the solution's durable identity and intended design from solution engineering into operation.
+Stripe's solution-management tooling, built on the backend toolkit, added a handoff that carries the solution's durable identity and intended design from solution engineering into operation.
 Each intended edition is a solution revision, which the solution engineer and operators can compare with the applications and versions running on the VMs.
 The current revision includes the experimental daemon and two payment workers.
 Classification remains disabled in the main application.
@@ -108,10 +108,10 @@ The intended revision now calls for the earlier application, but the running wor
 | Recovery is accepted | The same restored revision | Four workers run the earlier version; payment behaviour is back within the usual operating range. |
 
 Stripe's monitoring shows the application version each worker is running.
-The toolkit helps operators relate those observations to the intended revision and solution history.
+The solution-management tooling helps operators relate those observations to the intended revision and solution history.
 Stripe's operating record explains deliberate differences during rollback, such as a failed upgraded worker held stopped while its replacement starts.
 Stripe's operators decide whether a difference is expected or requires action, and remain responsible for any correction.
-The toolkit does not make that judgment for them.
+The tooling does not make that judgment for them.
 
 Platform engineers accept recovery after checking the running versions, process count and service behaviour.
 The merchant's service owner confirms that payment use has returned to normal and the supported classifications remain available.
@@ -132,7 +132,7 @@ The supported classifications continue to reach the merchant without the separat
 ## Boundaries that remain
 
 Revision identification, ordering, branching, storage and exchange remain open.
-So do SEF partitioning, solution-artefact layout and the representation of feature settings and process counts.
+So do solution-artefact layout and the representation of feature settings and process counts.
 The story does not prescribe toolkit commands, interfaces, systemd unit generation, monitoring protocols or automatic reconciliation.
 Those are later design choices; the operators here need only to know the intended solution and what is actually running.
 
@@ -145,5 +145,5 @@ On that evidence, the lead accepts the customer follow-up as complete.
 Stripe now sustains the same logical solution with one fewer daemon, while its history still explains the experiment, expansion and recovery.
 Removing the experiment simplifies its operational life rather than ending it.
 
-[M-02-concept-of-operations]: M-02-concept-of-operations.md
 [Stripe-build-infrastructure]: https://stripe.dev/blog/fast-secure-builds-choose-two
+[M-12 § Concept of Operations]: M-12-solution-management.md#concept-of-operations

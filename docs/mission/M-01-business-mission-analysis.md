@@ -3,6 +3,7 @@ status: draft
 since: 2026-10-22
 derives:
   - M-02-concept-of-operations
+  - M-12-solution-management
 ---
 
 # Business Mission Analysis
@@ -241,46 +242,10 @@ What the organisation learned from the incident then protects later changes with
 
 ## Downstream solution management
 
-An organisation delivering tailored software services can build solution-management capabilities on the same program and composition foundations.
-In this setting, recurring customer delivery can depend on specialist knowledge, shared repositories and platform-specific automation whose effects are difficult to relate to one customer solution.
-Reusable application and provisioning code can support a more explicit delivery path, while solution identity and intended design connect that work to the beneficiary's needs.
-Reducing routine dependence on specialists is an additional business objective of this application of the toolkit.
-
-The solution-delivery stories linked from [M-02-concept-of-operations] examine this setting.
-They retain value for understanding solution change, shared backing services, distributed placement and accountability.
-Their delivery-specific concepts do not constitute prerequisites for using the toolkit to develop, test or operate a backend system.
-Solution-management outcomes require their own evidence beyond the core engineering benefit.
-
-### Solution delivery responsibilities
-
-Within that setting, solution engineering understands beneficiary needs, curates the intended solution and validates its usefulness.
-Software engineering maintains the reusable applications, and platform/service engineering maintains the backing capabilities and means of provisioning, deploying and sustaining them.
-These responsibilities may be performed by the same people or tools; the adopting organisation retains the authority for consequential operational decisions.
-
-Specialist intervention occurs when a particular delivery still requires specialist-held expertise, authority or access, or a change to reusable software or platform capability.
-Running a maintained provisioning procedure with appropriately delegated authority can be routine delivery.
-Changing that procedure, extending an application or relying on a specialist to supply otherwise unavailable access remains specialist intervention.
-Acceptance of a solution-management capability therefore requires evidence that routine delivery depends less on those interventions while the beneficiary continues to receive the intended service.
-
-### The durable handoff and the life of a solution
-
-A logical solution is the durable identity-bearing subject intended to satisfy a business beneficiary's needs.
-Its solution design expresses the selected software, configuration and relationships among its parts; revisions distinguish intended editions while the identity continues.
-Two logical solutions remain distinct even when their present contents match.
-A business beneficiary supplies the needs against which that solution is designed and validated, and is distinct from a user who merely consumes the service.
-An adopting organisation may itself be the beneficiary of a service that it offers to many customers.
-
-Design establishes or revises that intent, Provision makes required backing capabilities usable, and Deploy renders the applications operational.
-Operate is the customer's use of the solution, while Sustain keeps it fit for that use.
-Changed needs can lead to renewed Design; operational needs can require further Provision or Deploy work without changing the intended design.
-Retire ends the solution's operational life while retaining its identity and history without reassigning them.
-Changes to one component or placement do not by themselves retire the whole solution.
-
-An adopter-defined Location identifies where all or part of a solution is available.
-Cooperating parts at several Locations can remain one logical solution, and relocation can preserve that identity.
-Solution artefacts carry identity and representations of design across people, tools, time or place.
-The durable handoff preserves those meanings and the know-how needed to realise the design, while the organisation's tools perform and accept the operational work.
-That continuity does not itself supply resource isolation or guarantee equivalent behaviour across environments.
+Organisations delivering tailored services can build solution management on the same program and composition foundations.
+[M-12-solution-management] develops its business mission and operational concept, including continuity of solution identity, design and history through delivery, use and retirement.
+It adds the business objective of growing routine delivery without proportional dependence on specialist intervention.
+Those outcomes require their own evidence beyond the core engineering benefit.
 
 ## Risks and uncertainty
 
@@ -304,3 +269,5 @@ Those questions can be investigated without making their resolution a condition 
 
 [M-02-concept-of-operations]: M-02-concept-of-operations.md
 [Go-reproducible-toolchains]: https://go.dev/blog/rebuild#making-a-build-reproducible
+
+[M-12-solution-management]: M-12-solution-management.md

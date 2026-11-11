@@ -8,11 +8,7 @@ derives:
   - M-08-debugging-the-status-gateway
   - M-09-testing-a-partial-recovery
   - M-10-probing-git-operations
-  - M-03-sales-led-demonstration
-  - M-04-evolving-operational-solution
-  - M-05-distributed-industrial-operation
   - M-06-one-responsibility-model-across-platforms
-  - M-07-controlled-disconnected-delivery
 ---
 
 # Concept of Operations
@@ -171,9 +167,8 @@ Each deployment still requires checks through its own route and operating contro
 
 ## Other operating settings
 
-The other stories examine [temporary demonstrations][M-03-sales-led-demonstration], [an evolving merchant service][M-04-evolving-operational-solution], [a service spread across factories][M-05-distributed-industrial-operation] and [customer-controlled disconnected operation][M-07-controlled-disconnected-delivery].
-They introduce additional constraints on hosting, change, ownership and access to operational observations.
-The business outcomes and responsibilities specific to tailored delivery are described in [M-01 § Downstream solution management].
+[M-12 § Concept of Operations] follows tailored solutions through delivery, change, customer use and retirement, with stories about demonstrations, a merchant service, factories and a disconnected plant.
+The solution-management mission and its additional business acceptance criteria are developed in that document.
 
 ## Open operational questions
 
@@ -189,13 +184,9 @@ Testing APIs, host policies and compatibility rules remain design questions to b
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-01 § System boundary and operating model]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
 [M-01 § Mission and opportunity]: M-01-business-mission-analysis.md#mission-and-opportunity
-[M-01 § Downstream solution management]: M-01-business-mission-analysis.md#downstream-solution-management
 [M-11 on adopting the toolkit]: M-11-adopting-the-toolkit.md
 [M-08 on debugging the status gateway]: M-08-debugging-the-status-gateway.md
 [M-09 on testing a partial recovery]: M-09-testing-a-partial-recovery.md
 [M-10 on probing Git operations]: M-10-probing-git-operations.md
-[M-03-sales-led-demonstration]: M-03-sales-led-demonstration.md
-[M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
-[M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
 [M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
-[M-07-controlled-disconnected-delivery]: M-07-controlled-disconnected-delivery.md
+[M-12 § Concept of Operations]: M-12-solution-management.md#concept-of-operations

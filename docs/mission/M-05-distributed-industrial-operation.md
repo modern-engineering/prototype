@@ -3,12 +3,12 @@ status: accepted
 since: 2026-08-25
 ratified-by: danielorbach
 derived-from:
-  - M-02-concept-of-operations
+  - M-12-solution-management
 ---
 
 # Distributed Industrial Operation
 
-Within the common frame from [M-02-concept-of-operations], this story follows Siemens carrying one established Big Hammer predictive-maintenance service through a cloud change and separately scheduled changes at several factories.
+Within the common frame from [M-12 § Concept of Operations], this story follows Siemens carrying one established Big Hammer predictive-maintenance service through a cloud change and separately scheduled changes at several factories.
 Big Hammer is the business beneficiary: its need to detect deteriorating equipment early enough to plan maintenance justifies the service and supplies the basis for judging whether its value is preserved as delivery changes.
 
 Siemens data scientists improve the service, and Siemens service engineers prepare and execute its cloud and factory changes.
@@ -46,7 +46,7 @@ flowchart LR
 ```
 
 Big Hammer experiences this arrangement as one service.
-For the toolkit, it is one logical solution whose identity continues as its software changes.
+For solution management, it is one logical solution whose identity continues as its software changes.
 The factories and cloud are cooperating parts of that service, not separate customer solutions.
 
 ## Existing Siemens delivery process
@@ -62,7 +62,7 @@ Every factory adds another playbook and site-specific script to keep current, an
 The focused attention also makes it difficult for one engineer to support routine windows across several factories and Siemens customers at the same time.
 The service works, but its routine growth consumes skilled engineering capacity.
 
-The Siemens group responsible for Big Hammer's service chooses the toolkit as a different delivery foundation.
+The Siemens group responsible for Big Hammer's service chooses solution management built on the backend toolkit as a different delivery foundation.
 It wants supported software to carry more of the repeatable upgrade knowledge while people retain authority, operational judgement and the ability to intervene.
 With that software conducting the nominal steps and signalling when intervention is needed, one Siemens engineer can support several routine factory windows across customer accounts instead of giving each one undivided attention.
 The group is not trying to rescue a failed service or discover predictive maintenance for the first time.
@@ -81,7 +81,9 @@ R2 belongs to the same logical solution as the previously accepted R1 revision.
 It expresses the intended cloud-and-plant arrangement after the change without claiming that every factory already runs it.
 
 Siemens verifies the new software and prepares a supported way to introduce it at the factories.
-The software carries the repeatable upgrade know-how, so the employee executing the change does not have to interpret an arbitrary playbook or reproduce technical knowledge from memory.
+Before releasing the cloud software, Siemens runs it against uploads from both R1 and R2 plant-side software and checks that it continues producing the existing maintenance insight for R1 factories.
+Both plant-side releases remain supported throughout the staggered rollout.
+The upgrade software carries the repeatable upgrade know-how, so the employee executing the change does not have to interpret an arbitrary playbook or reproduce technical knowledge from memory.
 People still authorise and initiate the work, transport approved data where the environment requires it, and judge the result.
 They intervene when the supported path cannot complete.
 
@@ -142,19 +144,18 @@ Once the intended cloud and factory changes have been accepted, the Siemens serv
 
 Big Hammer's reliability teams continue to receive the alerts and maintenance insight on which production already depended.
 That business parity is the required result.
-The predictive-maintenance service has not become valuable because of the toolkit; it has remained valuable while Siemens changed how the service moves through its cloud and factory estate.
+The predictive-maintenance service has not become valuable because of the delivery path; it has remained valuable while Siemens changed how the service moves through its cloud and factory estate.
 
 Siemens can now relate the intended R2 change to the software running in the cloud and at each factory.
 It can connect returning factory data to that revision and application version, and see who authorised and accepted each step.
 The nominal upgrade knowledge is carried by supported software rather than only by current playbooks, augmented scripts and the people who remember how to join them.
 Siemens can therefore accept the new delivery path on its own terms: Big Hammer's existing maintenance value was preserved, and Siemens did not need to reconstruct the rollout from those materials and personal knowledge.
 
-If that path earns enough confidence, Siemens may later let Big Hammer's IT or OT staff perform some routine upgrades with Siemens ready for escalation during the agreed window.
-That is a possible gain, not the test this story needs to pass.
+If that path earns enough confidence, Siemens may later delegate some routine upgrades to Big Hammer's IT or OT staff, with Siemens available for escalation during the agreed window.
 
 The operational change is already concrete: one Siemens team has carried one evolving customer service through different tools, authorities and schedules without losing sight of what Big Hammer was meant to receive or what was actually running.
 
-[M-02-concept-of-operations]: M-02-concept-of-operations.md
+[M-12 § Concept of Operations]: M-12-solution-management.md#concept-of-operations
 [Siemens-Industrial-Edge]: https://www.siemens.com/en-gb/products/industrial-edge/
 [Siemens-Senseye]: https://www.siemens.com/en-us/products/industrial-digitalization-services/senseye-cloud-application/
 [Siemens-machine-data]: https://developer.siemens.com/senseye/machine/index.html
