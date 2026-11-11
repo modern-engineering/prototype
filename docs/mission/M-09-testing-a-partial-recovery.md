@@ -40,10 +40,10 @@ Only then does the first engineer change the Actions file so they can check the 
 
 ## Turning the page check into a Go test
 
-Maya turns the two engineers' check into a Go test called `TestPartialRecovery`.
+Ziv turns the two engineers' check into a Go test called `TestPartialRecovery`.
 She uses the toolkit to start the real reporter, status backend and gateway together in the test process.
 A small HTTP server supplies the two replies that the engineers used to set by hand.
-Maya sets the reporter to check several times a second during the test.
+Ziv sets the reporter to check several times a second during the test.
 The test can keep Actions degraded for as long as it takes to see Git Operations recover.
 
 The test reads through the gateway as a signed-in client, just as the dashboard would.
@@ -75,11 +75,11 @@ Now the list has just one entry, Git Operations, so every service on the list lo
 The backend has lost the Actions warning without ever receiving word that workflows recovered.
 
 The agent changes the backend to keep each service's last known status until a report names that service again.
-Maya runs the recovery test against the corrected backend twice, once with the old reporter and once with the new one.
+Ziv runs the recovery test against the corrected backend twice, once with the old reporter and once with the new one.
 Both times the Actions warning stays up until workflows recover.
 She can review the failing and passing responses alongside the code, without having to match a staging deployment to a build in the team's GitOps repository.
 
-Those runs give Maya grounds to release the corrected backend first.
+Those runs give Ziv grounds to release the corrected backend first.
 Once the team confirms it is serving the live page, they can deploy the reporter that sends shorter reports.
 The engineers responsible for the release still check what the live gateway serves, as described in [M-01 § System boundary and operating model].
 

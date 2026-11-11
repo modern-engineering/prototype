@@ -17,28 +17,124 @@ derives:
 
 # Concept of Operations
 
-## A corpus about operation
+This document describes how developers and coding agents use the toolkit to investigate changes, test cooperating programs and run applications in production.
+It follows the work from a question about system behaviour to a repeatable way of checking it, and from observations in operation back to development.
+[M-01-business-mission-analysis] establishes the mission and the evidence needed to judge its value; the stories here place that intended way of working in particular settings.
 
-This operational concept examines solution delivery as a downstream application of the toolkit.
-[M-01-business-mission-analysis] establishes the core mission of reducing engineering effort and supporting confidence in the production behaviour of distributed Go backends.
-This document provides the common frame for the solution-delivery setting described in [M-01 § Downstream solution management][M-01-solution-management].
-The delivery stories follow solutions through the work of their adopting organisations, customers and users.
+## Operational setting
 
-The parts are intended to remain read together.
-The business mission is not repeated in every story, and one story is not promoted into the universal operating model.
-Each delivery story places the common concepts in a particular sociotechnical delivery system, makes its authorities and material conditions visible, and shows a logical solution moving through time.
-The contrasting settings reveal shared operational ideas and differences that remain significant to the people doing the work.
+A team may deploy its Go services independently and still need several of them running together to investigate a change.
+The developer needs to choose those programs, supply their inputs and inspect what happens as requests or messages pass between them.
+The team already has source repositories, development tools, build pipelines and operating environments.
+The toolkit makes application construction, configuration and execution available through Go packages that the team can use within those practices.
 
-This common frame is accepted as part of the mission corpus but remains incomplete.
-It is expected to change as the remaining storylines expose differences in boundaries, authorities and operational consequences.
-It can be considered complete after the planned story portfolio is complete and its shared ideas and material differences have been integrated here.
+Application authors decide what their programs do and how they communicate.
+The toolkit supplies hosts and testing support that can run the applications, and an organisation can build its own hosts for its operating environments.
+Applications receive their inputs and participate in cancellation and failure handling; their internal libraries and communication protocols remain the authors' choices.
+[M-01 § System boundary and operating model] describes that division of responsibility.
+
+Adoption can begin with one useful investigation or test.
+The team can adapt the programs it needs while retaining its existing packaging and deployment path.
+As [M-11 on adopting the toolkit] illustrates, this can involve separating application setup from an executable entry point, making hidden inputs explicit and preserving the old deployment configuration through an adapter.
+The benefit has to justify that work and the cost of maintaining the resulting Go code.
+
+## Working on a backend
+
+### Choose what to run
+
+A requested feature, a failed test or a problem reported by a user gives the developer a reason to run part of the backend.
+The expected result comes from what the system is meant to do for its users.
+That question guides which programs and versions to select, which inputs to supply and which interactions to try.
+The useful selection may be much smaller than the complete production system.
+
+The developer writes Go code that constructs the selected programs and runs them through a supplied host or the toolkit's testing support.
+Some dependencies can run locally under that code's control; others can remain in staging or another authorised environment.
+The composition shows which addresses, settings and resources each program receives, including where two programs deliberately share a dependency.
+The developer must still obtain the credentials, data and external services needed for the run.
+
+### Investigate and repeat
+
+The developer runs the selected programs from the checkout being changed and follows the interaction through their usual interfaces.
+A debugger, logs, metrics or traces can show how those programs produced the observed result.
+Inputs chosen for the investigation can make the interesting condition quick to reach, such as the small guest quota in [M-08 on debugging the status gateway].
+
+After an edit, the developer can run the composition again and try the same interaction.
+The host coordinates cancellation and waits for the programs to finish; each program completes the work and cleanup it owns.
+The developer arranges fresh state where the experiment needs it and deliberately retains state where the question concerns continuity between runs.
+Resources shared with other users need separate consideration: restarting a local program does not reset a remote service or make its data stable.
+
+Running several programs in one process lets the developer inspect their code together and can expose assumptions about shared state and resource use.
+It is one useful execution arrangement for this work.
+Production placement follows the service's operating needs, and conditions that depend on separate processes or networks still need to be exercised in an appropriate environment.
+
+### Retain a system check
+
+An investigation can reveal a useful check that the team wants to repeat whenever the participating programs change.
+The developer keeps the setup in a Go test alongside the application code.
+The test sends requests or messages through the programs' existing interfaces and checks the result at the boundary relevant to the user-visible behaviour.
+The test author chooses those interactions and expected results; the toolkit runs the programs without interpreting their protocols or business meaning.
+
+The test can control selected dependencies to hold a condition steady or exercise a sequence that would be difficult to arrange in a shared environment.
+For example, the partial-recovery test in [M-09 on testing a partial recovery] lets Git Operations recover while Actions remains impaired, then checks the status response read by the page.
+A program's package tests can pass while this check fails because the cooperating programs produce the wrong result together.
+
+The team retains the test for later changes and runs it through the ordinary Go test workflow, locally and in continuous integration.
+A failure gives the next developer a starting point for investigation.
+A passing run establishes the behaviour exercised with the selected implementations, inputs and dependencies.
+It informs the release decision alongside the checks required in deployment.
+
+### Carry the work between people and coding agents
+
+Keeping the composition and tests with the applications lets a colleague check out a revision and see which programs run together and how they are configured.
+The colleague can repeat the check or reuse the same packages for a different investigation.
+Access to the required external services and data remains necessary, and changes in those dependencies can affect the result.
+The retained Go code makes the setup inspectable without depending on the original developer to reconstruct it.
+
+A coding agent can use the same starting point.
+Given the reason for a change and the behaviour expected by its users, it can run the affected programs, reproduce a failure, edit the code and check the result.
+When an attempt fails, it can inspect the interaction and try again within the same working session.
+A retained system test gives it feedback about consequences across programs that their separate tests may miss.
+
+The reviewer can examine the code together with the failing and passing results and judge whether the change addresses the requested behaviour.
+Questions about customer needs or conditions the setup cannot exercise still need further investigation.
+The organisation decides how much work to delegate and who may approve or deploy the result.
+The business hypothesis is that this runnable context lets agents carry more changes through verification with less human reconstruction and intervention, as described in [M-01 § Mission and opportunity].
+
+### Use the applications in production
+
+Engineers build and deploy the applications through the team's intended packaging and delivery path.
+Each operational host supplies the inputs and supervision needed in its environment, using the same application packages exercised during development.
+The host may also integrate operating controls specific to that environment, such as readiness reporting.
+Those integrations require implementation and verification even when the application code is reused.
+
+The engineers responsible for the release check the actual deployed arrangement.
+Routing, credentials, process isolation, scheduling, network conditions and platform behaviour can affect what users receive.
+A local test can support a decision to release a change without establishing that the intended versions are running or that those operating conditions are correct.
+The organisation retains authority over deployment and recovery.
+
+The toolkit can also host programs that perform ongoing operational work, including probes that exercise a service through its public interfaces.
+In [M-10 on probing Git operations], the deployed prober observes a delayed fetch that the engineer's local run does not reproduce.
+The local result helps narrow the investigation while the deployed prober continues to observe the route where the delay occurred.
+
+### Bring observations back into development
+
+A production problem can start another investigation.
+Engineers use the observed requests, results, software versions and settings to identify the programs and conditions worth examining.
+They reuse or adapt the Go composition to recreate the part they can run, subject to access to the necessary software, dependencies and data.
+If that setup reproduces the fault, a system test can preserve the check for a correction and later changes.
+If it does not, the engineer still has to investigate the conditions that differ in operation.
+
+Work can enter at any point in this account.
+A support investigation need not begin with a new deployment path, and a team improving its tests can retain the production arrangements it already has.
+The comparison with existing practice includes the time to investigate and verify changes, the human help agents need, and the cost of adapting applications and maintaining the compositions.
+[M-01 § Mission and opportunity] describes how the organisation can judge whether that work produces a worthwhile improvement.
 
 ## Engineering GitHub Status
 
-These stories imagine how the team behind GitHub Status might develop, test and run the Go programs behind the page.
+These stories imagine how the team behind [GitHub Status] might develop, test and run the Go programs behind the page.
 
 In [M-11 on adopting the toolkit], the team already has a pipeline that builds container images and supplies private test environments.
-Maya still needs control over the programs and settings used in an investigation, so she brings their construction and composition into reusable Go code.
+Ziv still needs control over the programs and settings used in an investigation, so she brings their construction and composition into reusable Go code.
 The toolkit's supplied host and testing support can then run the selected applications.
 Application inputs become explicit, while the toolkit coordinates cancellation and failures.
 An optional custom host translates the team's existing environment variables into input fields in application descriptors, preserving its deployment configuration.
@@ -54,128 +150,33 @@ In [M-10 on probing Git operations], a long-running application pushes a commit 
 The push succeeds, but a fresh fetch still gets the old commit a minute later.
 The operator gives the Git engineer the branch and the two commit IDs to trace.
 
-## Operational viewpoint
+## Other operating settings
 
-The toolkit is viewed inside an adopter-owned sociotechnical delivery system, not as that delivery system in miniature.
-People, policies, incumbent or proprietary tools, automation and platforms surround it and may continue to perform most operational work.
-The adopter retains authority for its infrastructure, execution, reconciliation and deployment-acceptance decisions, as established by [M-01 § System boundary and operating model][M-01-boundary].
+The other stories examine [temporary demonstrations][M-03-sales-led-demonstration], [an evolving merchant service][M-04-evolving-operational-solution], [a service spread across factories][M-05-distributed-industrial-operation], [one service in three clouds][M-06-one-responsibility-model-across-platforms] and [customer-controlled disconnected operation][M-07-controlled-disconnected-delivery].
+They introduce additional constraints on hosting, change, ownership and access to operational observations.
+The business outcomes and responsibilities specific to tailored delivery are described in [M-01 § Downstream solution management].
 
-The identity-bearing subject of each delivery story is the logical solution.
-Its durable identity lets the story follow one business and operational subject while its intent, placement and realised contents change.
-The story therefore follows what happens to the solution and who is accountable for each consequential transition, rather than treating files, commands or deployment machinery as the main character.
+## Open operational questions
 
-The responsibility domains in [M-01 § Solution delivery responsibilities][M-01-delivery-responsibilities] provide the stable role vocabulary for this setting: solution engineering, software engineering, and platform/service engineering.
-They describe concerns and accountabilities, not staffing or actor types.
-A human, an ordinary automated tool or an AI agent may perform work in one or more domains, but automation does not erase responsibility or confer decision authority.
-Each story makes the performing actors, accountable domain and authorising authority clear where the distinction affects the outcome.
+The GitHub Status stories illustrate one team's incremental migration and the work it can then perform.
+They do not establish the effort required across different codebases, the ongoing cost of maintaining compositions or how often coding agents can complete changes with less human help.
+Those questions require experience from actual use.
 
-## Common operational thread
+Starting a new service and adopting reusable programs supplied by other teams also need further examination.
+The stories do not establish which workloads are representative or what software, data and access must remain available to repeat every investigation.
+Testing APIs, host policies and compatibility rules remain design questions to be informed by this operational work.
 
-The common thread follows the life of one logical solution through the activities and return paths defined in [M-01 § The durable handoff and the life of a solution][M-01-life].
-It begins when beneficiary needs inform approved solution intent, crosses adopter-controlled handoffs into provisioning and deployment, and reaches customer use.
-Operational evidence and changed needs may then drive sustainment or renewed design, provisioning or deployment, while retirement ends the operational life without reassigning the solution's identity.
-
-This is a direction of travel, not a mandatory linear workflow.
-An operational story may enter part-way through an existing lifecycle, revisit activities, combine roles or use incumbent work around the toolkit.
-The solution's identity connects the intended changes, the work performed and the evidence returned from operation through those handoffs.
-
-## Operational stories
-
-The delivery stories enter the solution's life at different points.
-A temporary demonstration begins with a prospect's evaluation need and ends with complete retirement.
-The sustained services already provide useful results when their software, configuration or delivery arrangements change.
-Their beneficiaries continue to depend on those results while the adopting organisation introduces the change.
-
-A solution revision describes an intended edition without requiring every running part to reach it simultaneously.
-Factory windows, cloud rollouts and recovery from a failed upgrade can leave parts of the same solution running different versions or deliberately stopped.
-Operators relate those observations to the solution's identity and intended revision, decide which differences are expected, and act through their organisation's operating procedures.
-The toolkit supports that understanding while the adopting organisation retains responsibility for reconciliation and recovery.
-
-The operational contribution varies with the setting.
-The sales engineer gains the ability to carry routine demonstrations through their complete lifecycle, while Siemens engineers use supported software to carry more of the repeatable factory-upgrade work.
-Stripe's engineers and operators can follow a merchant's intended solution through successive changes and recovery.
-The company operating in three clouds applies the same division of software, solution and platform responsibilities in each environment.
-These contrasts preserve each operation's purpose and constraints while showing how the common responsibility model fits different work.
-
-## Promoting commonality
-
-An idea belongs in this common frame when it follows directly from the accepted business mission or when materially different operational stories corroborate it.
-Direct derivation keeps the operational concept traceable to [M-01-business-mission-analysis].
-Cross-story corroboration prevents one adopter's local practice from becoming an assumed product rule.
-
-Promotion requires the stories to agree on meaning and operational consequence, not on implementation.
-Where stories differ materially, the difference remains visible in the stories and their catalogue rather than being weakened into vague common prose.
-If an apparent commonality conflicts with the accepted business mission, the mission must be reconsidered and accepted on its own terms before this frame can inherit the change.
-
-## Story portfolio
-
-The portfolio is not a coverage claim.
-Its value lies in the contrasts represented and the operational consequences each story makes visible.
-
-### [M-03-sales-led-demonstration]
-
-In a counterfactual Elastic, an online retailer uses authorised live production telemetry to investigate payment latency through a temporary vendor-operated demonstration.
-A bounded path lets the sales engineer revise the same demonstration and remove it completely, even though some infrastructure remains shared.
-
-### [M-04-evolving-operational-solution]
-
-In a counterfactual Stripe, a merchant's need for broader payment classifications leads to changes in an existing solution's configuration and capacity.
-A failed upgrade and the later removal of an experimental daemon show how the solution keeps its identity while its intended configuration changes.
-
-### [M-05-distributed-industrial-operation]
-
-In a counterfactual Siemens, one Big Hammer predictive-maintenance service spans cloud software and separately scheduled factories.
-Supported upgrade software carries routine delivery knowledge across those windows while the customer retains its existing maintenance value and the decisions about production and local use.
-
-### [M-06-one-responsibility-model-across-platforms]
-
-In a counterfactual Twilio Segment, one multi-tenant service receives customer events through serverless container environments in AWS, Azure and Google Cloud.
-A routine validation change passes from local application checks through solution selection into three distinct deployment paths using the toolkit's existing division of responsibility.
-
-### [M-07-controlled-disconnected-delivery]
-
-In a counterfactual Cisco, North Basin Water extends Cyber Vision monitoring at an isolated treatment plant using a handoff prepared in Cisco's connected environment.
-Customer engineers perform the local change, and evidence from a later standby-pump alert returns through the customer to inform a correction to the same solution.
-Portable delivery knowledge reduces the customer-specific expertise needed to bridge the separation while the customer controls its environment and accepts deployment.
-
-## Method tailoring
-
-This frame draws on public NASA and INCOSE systems-engineering material without claiming compliance with either body.
-Its high-level operational viewpoint connects the system, users and operators through time-sequenced scenarios and selected nominal, change and recovery conditions.
-[NASA's Concept of Operations annotated outline][NASA-Appendix-S] is treated as a source of concerns rather than a document template, while the [NASA Systems Engineering Handbook][NASA-SE-Handbook] and [INCOSE requirements-engineering material][INCOSE-RE] reinforce the separation between stakeholder-facing operational understanding and later requirements or implementation choices.
-
-That tailoring is deliberate.
-A richer solution-delivery operating model requires contrasting adopter stories.
-Detailed physical-environment descriptions, command and data architectures, interface specifications, exhaustive mode and failure catalogues, training or staffing quantities, and implementation plans would add bulk without supporting the present decision.
-
-## Deferred detail and known unknowns
-
-This document does not select artefact schemas or carriers, APIs, deployment or provisioning mechanisms, execution topology, command structures, interface protocols or automation products.
-It does not allocate requirements or prescribe how an adopter implements a responsibility domain.
-Those decisions require evidence from operational stories and belong in later analyses, requirements and architecture.
-
-The current portfolio covers established operations, from temporary demonstrations to sustained services on virtual machines, at factories and across clouds.
-The current stories do not yet examine greenfield adoption, controlled disconnected delivery or catalogue discovery.
-The stories also leave open how handoffs are partitioned among artefacts and tools, how provisioning authority is delegated beyond the arrangements shown, and what evidence would establish compatibility between independently supplied participants.
-
-The portfolio does not yet establish which operational threads are representative or how many contrasting settings are sufficient.
-Further operational evidence may expose needs that change the system boundary, role vocabulary or expected outcome.
-The common concept remains incomplete while those material differences and their consequences are unresolved.
-
+[GitHub Status]: https://www.githubstatus.com/
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
-[M-01-boundary]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
-[M-01-solution-management]: M-01-business-mission-analysis.md#downstream-solution-management
-[M-01-delivery-responsibilities]: M-01-business-mission-analysis.md#solution-delivery-responsibilities
-[M-01-life]: M-01-business-mission-analysis.md#the-durable-handoff-and-the-life-of-a-solution
+[M-01 § System boundary and operating model]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
+[M-01 § Mission and opportunity]: M-01-business-mission-analysis.md#mission-and-opportunity
+[M-01 § Downstream solution management]: M-01-business-mission-analysis.md#downstream-solution-management
+[M-11 on adopting the toolkit]: M-11-adopting-the-toolkit.md
+[M-08 on debugging the status gateway]: M-08-debugging-the-status-gateway.md
+[M-09 on testing a partial recovery]: M-09-testing-a-partial-recovery.md
+[M-10 on probing Git operations]: M-10-probing-git-operations.md
 [M-03-sales-led-demonstration]: M-03-sales-led-demonstration.md
 [M-04-evolving-operational-solution]: M-04-evolving-operational-solution.md
 [M-05-distributed-industrial-operation]: M-05-distributed-industrial-operation.md
 [M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
 [M-07-controlled-disconnected-delivery]: M-07-controlled-disconnected-delivery.md
-[NASA-Appendix-S]: https://www.nasa.gov/reference/system-engineering-handbook-appendix/#hds-sidebar-nav-112
-[NASA-SE-Handbook]: https://explorers.larc.nasa.gov/HPSMEX22/pdf_files/04_NASA_SystemsEngineeringHandbookRev2.pdf
-[INCOSE-RE]: https://www.incose.org/wp-content/uploads/2026/01/requirements_engineering_part_1.pdf
-[M-08 on debugging the status gateway]: M-08-debugging-the-status-gateway.md
-[M-11 on adopting the toolkit]: M-11-adopting-the-toolkit.md
-[M-09 on testing a partial recovery]: M-09-testing-a-partial-recovery.md
-[M-10 on probing Git operations]: M-10-probing-git-operations.md

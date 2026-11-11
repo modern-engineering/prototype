@@ -4,7 +4,8 @@ Mission documents establish why the project exists, whose needs it serves, and t
 They preserve material uncertainty instead of forcing early answers.
 
 [M-01-business-mission-analysis] frames the engineering of distributed Go backends across development, testing and production.
-[M-02-concept-of-operations] describes that work in operation, with stories examining particular engineering and delivery settings.
+[M-02-concept-of-operations] describes how developers and coding agents investigate changes, keep system tests and use production observations to guide later work.
+Its stories examine particular engineering and delivery settings.
 The GitHub Status stories begin with the team's adoption of the toolkit, then follow engineers debugging a gateway on a laptop, testing what the page reports during an incident and probing the Git service in production.
 
 Every mission document merged into `main` is accepted into the canonical corpus.
