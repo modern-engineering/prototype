@@ -21,6 +21,7 @@ The project is an open-source toolkit for long-lived backends whose application 
 Engineers writing a program decide what it does and how others interact with it.
 Engineers assembling a system choose which programs run together and supply what each needs.
 The project's working hypothesis is that making construction, configuration and execution accessible through reusable Go packages can reduce surrounding integration work and expose design weaknesses earlier.
+The toolkit codifies established engineering practices and supplies maintained hosts, testing support and packages that make those practices useful across applications and teams.
 Running cooperating programs in one process is a useful technique for investigating that hypothesis.
 
 The intended value is lower engineering effort across development and operation, together with better evidence about system behaviour.
@@ -56,6 +57,11 @@ Lifecycle defects make this more than a convenience problem.
 A successful startup and request do not show that a program stops its background work, releases the resources it owns or permits a subsequent run to begin cleanly.
 Implicit global state, fixed resource assumptions and incomplete cleanup can remain unnoticed when each run receives a fresh process or environment.
 Repeated tests of a composed system through its external interfaces can expose these defects before they disrupt operation.
+
+These concerns recur across an organisation as different people develop and maintain its applications over time.
+Teams can agree to make configuration explicit and handle shutdown carefully, yet their implementations can drift as deadlines, maintainers and dependencies change.
+Each team may also build its own local runner, test harness and process-signal handling around those implementations.
+The opportunity is to give those teams a common agreement backed by maintained tools, so adopting the practices also gives them useful capabilities without rebuilding that support for each application.
 
 AI coding agents encounter the same separation between application code and the means of exercising the system.
 An organisation can give an agent the source code and a description of the change it wants, while the setup needed to try that change remains in a separate deployment repository or workflow.
@@ -108,6 +114,17 @@ That code selects the programs, supplies their configuration and dependencies, a
 Developers and agents can read it to see how the programs fit together, adapt it to run a useful subset and reuse it in tests or operational hosts.
 A host is software that starts and supervises programs, supplying the dependencies and execution policy appropriate to its setting.
 
+The toolkit brings together established practices for explicit configuration, cancellation, resource ownership and optional capabilities.
+Application authors follow a common agreement about inputs, execution and completion, and implement how their programs do their work and stop safely.
+Once applications follow that agreement, engineers can select them and supply their inputs to the toolkit's supplied host to run them together locally.
+They can use the toolkit's testing support to run the same applications in Go tests.
+Engineers building a custom host can reuse the packages behind the supplied host for execution coordination while implementing their environment's configuration and operating controls.
+
+The toolkit's maintainers sustain those shared packages and tools as the practices evolve.
+An adopting organisation still maintains its applications, compositions and environment integrations.
+The intended gain is less repeated work implementing and maintaining runners and lifecycle coordination across teams, with more ways to exercise applications that already follow the agreement.
+For a coding agent, documented application inputs, supplied execution support and retained tests provide a starting point for trying a change without a person first reconstructing each application's setup.
+
 The focus on systems whose application programs are written in Go is deliberate.
 A tool intended to support applications written in many languages has to accommodate their different build tools and runtimes.
 Here, the code that runs the programs together can call their Go packages directly and reuse how the applications are constructed and configured.
@@ -156,11 +173,12 @@ The toolkit does not require these to be expressed through toolkit-defined abstr
 Its integration boundary concerns construction, configuration and execution, including requesting cancellation and reporting completion or failure.
 The programs remain responsible for honouring those signals and completing the work and cleanup they own.
 
-An organisation can build its own host around that agreement and require more of the programs it runs there.
-For example, a team operating services on Kubernetes can require every service using its host to signal when it is ready to receive traffic.
-Each service supplies the signal when it can serve requests, and the host handles reporting readiness to Kubernetes for all of them.
-The requirement belongs to that host, so a program running elsewhere can use the toolkit without having to report readiness.
-The toolkit will demonstrate how to make such specializations on both sides: application code must explicitly opt-in; concomitantly hosts should respect applications that opt-out by default.
+A program opts into an additional capability by implementing a Go interface for it.
+For example, a service can implement an interface that signals when it is ready to receive traffic, and a Kubernetes host can report that signal to the platform.
+When the interface is absent, the host follows documented default behaviour that respects the program's choice not to support that capability.
+The basic agreement about inputs, execution and completion still applies.
+A specialised host can require readiness reporting from the programs it runs, but that requirement must be explicit.
+A program running in another host can use the toolkit without having to implement readiness reporting.
 
 Application authors decide what their programs need in order to run.
 For example, an author whose program writes files can let the caller supply the directory.

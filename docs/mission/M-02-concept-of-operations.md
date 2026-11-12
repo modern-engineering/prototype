@@ -27,10 +27,12 @@ A team may deploy its Go services independently and still need several of them r
 The developer needs to choose those programs, supply their inputs and inspect what happens as requests or messages pass between them.
 The team already has source repositories, development tools, build pipelines and operating environments.
 The toolkit makes application construction, configuration and execution available through Go packages that the team can use within those practices.
+Across teams and successive maintainers, it provides a common agreement about application inputs, execution and completion, with maintained tools that use that agreement.
 
 Application authors decide what their programs do and how they communicate.
 The toolkit supplies hosts and testing support that can run the applications, and an organisation can build its own hosts for its operating environments.
 Applications receive their inputs and participate in cancellation and failure handling; their internal libraries and communication protocols remain the authors' choices.
+Following those practices makes an application usable by the supplied tools and by other hosts built around the same agreement.
 [M-01 § System boundary and operating model] describes that division of responsibility.
 
 Adoption can begin with one useful investigation or test.
@@ -47,7 +49,8 @@ The expected result comes from what the system is meant to do for its users.
 That question guides which programs and versions to select, which inputs to supply and which interactions to try.
 The useful selection may be much smaller than the complete production system.
 
-The developer writes Go code that constructs the selected programs and runs them through a supplied host or the toolkit's testing support.
+The developer writes a Go composition that selects the programs, supplies their inputs and invokes the toolkit's supplied host or testing support.
+The supplied tools construct and run the applications, coordinate cancellation and wait for completion.
 Some dependencies can run locally under that code's control; others can remain in staging or another authorised environment.
 The composition shows which addresses, settings and resources each program receives, including where two programs deliberately share a dependency.
 The developer must still obtain the credentials, data and external services needed for the run.
@@ -71,6 +74,7 @@ Production placement follows the service's operating needs, and conditions that 
 
 An investigation can reveal a useful check that the team wants to repeat whenever the participating programs change.
 The developer keeps the setup in a Go test alongside the application code.
+The toolkit's testing support starts the applications, requests cancellation when the run ends and waits for completion.
 The test sends requests or messages through the programs' existing interfaces and checks the result at the boundary relevant to the user-visible behaviour.
 The test author chooses those interactions and expected results; the toolkit runs the programs without interpreting their protocols or business meaning.
 
@@ -91,6 +95,7 @@ Access to the required external services and data remains necessary, and changes
 The retained Go code makes the setup inspectable without depending on the original developer to reconstruct it.
 
 A coding agent can use the same starting point.
+The application inputs and retained composition show what to supply, while the supplied tools provide a way to run the applications without building another harness.
 Given the reason for a change and the behaviour expected by its users, it can run the affected programs, reproduce a failure, edit the code and check the result.
 When an attempt fails, it can inspect the interaction and try again within the same working session.
 A retained system test gives it feedback about consequences across programs that their separate tests may miss.
@@ -105,6 +110,9 @@ The business hypothesis is that this runnable context lets agents carry more cha
 Engineers build and deploy the applications through the team's intended packaging and delivery path.
 Each operational host supplies the inputs and supervision needed in its environment, using the same application packages exercised during development.
 The host may also integrate operating controls specific to that environment, such as readiness reporting.
+Engineers building it can reuse the execution packages behind the supplied host, keeping the environment's input handling and operating controls in their own code.
+The application implements any additional capabilities it supports through opt-in interfaces; the host uses those capabilities when present and follows documented defaults when absent.
+Any capability required by a specialised host is an explicit condition of using that host.
 Those integrations require implementation and verification even when the application code is reused.
 
 The engineers responsible for the release check the actual deployed arrangement.
@@ -137,7 +145,7 @@ In [M-11 on adopting the toolkit], the team already has a pipeline that builds c
 Ziv still needs control over the programs and settings used in an investigation, so she brings their construction and composition into reusable Go code.
 The toolkit's supplied host and testing support can then run the selected applications.
 Application inputs become explicit, while the toolkit coordinates cancellation and failures.
-An optional custom host translates the team's existing environment variables into input fields in application descriptors, preserving its deployment configuration.
+An optional custom host translates the team's existing environment variables into documented application inputs, preserving its deployment configuration.
 The services keep their internal libraries and communication protocols.
 
 In [M-08 on debugging the status gateway], a signed-in visitor hits the limit meant for guests.
