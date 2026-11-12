@@ -49,7 +49,8 @@ The expected result comes from what the system is meant to do for its users.
 That question guides which programs and versions to select, which inputs to supply and which interactions to try.
 The useful selection may be much smaller than the complete production system.
 
-The developer writes a Go composition that selects the programs, supplies their inputs and invokes the toolkit's supplied host or testing support.
+The developer writes or changes application code in Go packages.
+The developer also writes or adapts a Go composition that selects the programs, supplies their inputs and invokes the toolkit's supplied host or testing support.
 The supplied tools construct and run the applications, coordinate cancellation and wait for completion.
 Some dependencies can run locally under that code's control; others can remain in staging or another authorised environment.
 The composition shows which addresses, settings and resources each program receives, including where two programs deliberately share a dependency.

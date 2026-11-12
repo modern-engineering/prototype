@@ -59,8 +59,8 @@ Implicit global state, fixed resource assumptions and incomplete cleanup can rem
 Repeated tests of a composed system through its external interfaces can expose these defects before they disrupt operation.
 
 These concerns recur across an organisation as different people develop and maintain its applications over time.
-Teams can agree to make configuration explicit and handle shutdown carefully, yet their implementations can drift as deadlines, maintainers and dependencies change.
-Each team may also build its own local runner, test harness and process-signal handling around those implementations.
+Agreeing to make configuration explicit and handle shutdown carefully still leaves each contributor to work out how those practices apply to the code they maintain.
+Teams may develop separate conventions and supporting tools for the same recurring engineering concerns.
 The opportunity is to give those teams a common agreement backed by maintained tools, so adopting the practices also gives them useful capabilities without rebuilding that support for each application.
 
 AI coding agents encounter the same separation between application code and the means of exercising the system.
@@ -114,11 +114,12 @@ That code selects the programs, supplies their configuration and dependencies, a
 Developers and agents can read it to see how the programs fit together, adapt it to run a useful subset and reuse it in tests or operational hosts.
 A host is software that starts and supervises programs, supplying the dependencies and execution policy appropriate to its setting.
 
-The toolkit brings together established practices for explicit configuration, cancellation, resource ownership and optional capabilities.
+The toolkit brings together established engineering practices, such as explicit configuration, cooperative cancellation and optional capabilities.
 Application authors follow a common agreement about inputs, execution and completion, and implement how their programs do their work and stop safely.
 Once applications follow that agreement, engineers can select them and supply their inputs to the toolkit's supplied host to run them together locally.
 They can use the toolkit's testing support to run the same applications in Go tests.
-Engineers building a custom host can reuse the packages behind the supplied host for execution coordination while implementing their environment's configuration and operating controls.
+For example, a platform team can build a custom host using the packages behind the supplied host for execution coordination.
+The team supplies the configuration handling and operating controls needed in its environment.
 
 The toolkit's maintainers sustain those shared packages and tools as the practices evolve.
 An adopting organisation still maintains its applications, compositions and environment integrations.
@@ -172,6 +173,9 @@ Application authors retain control of behaviour, communication and resource acce
 The toolkit does not require these to be expressed through toolkit-defined abstractions.
 Its integration boundary concerns construction, configuration and execution, including requesting cancellation and reporting completion or failure.
 The programs remain responsible for honouring those signals and completing the work and cleanup they own.
+
+The following example uses Go interfaces to illustrate optional capabilities and host requirements.
+Choosing the extension mechanism is outside this document's scope.
 
 A program opts into an additional capability by implementing a Go interface for it.
 For example, a service can implement an interface that signals when it is ready to receive traffic, and a Kubernetes host can report that signal to the platform.
