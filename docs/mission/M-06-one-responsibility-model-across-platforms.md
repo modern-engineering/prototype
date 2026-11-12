@@ -5,141 +5,126 @@ derived-from:
   - M-02-concept-of-operations
 ---
 
-# One Responsibility Model Across Platforms
+# ConOps Story: Running the Same Application in Three Clouds
 
-Within the common frame from [M-02-concept-of-operations], this story shows how the toolkit's responsibility model applies to an established service running in serverless environments across three clouds.
-The story follows a routine application change from development through solution design, deployment and operation.
-The adopting company is the business beneficiary because its product depends on receiving customer events consistently.
+An engineer wants a coding agent to help change the rules for accepting customer events in a Go service that runs in AWS, Azure and Google Cloud.
+She needs a way for both of them to run the service and check the change before it reaches the company's three deployment paths.
+This story follows their use of the toolkit's supplied host and testing support, then the release through custom cloud hosts, as described in [M-02 § Use the applications in production].
 
-The setting is explicitly counterfactual Twilio Segment.
-Public descriptions of Segment's [Track specification] and [HTTP Tracking API] establish receiving customer events as a recognisable product concern, but not the operating model below.
-The adopting organisation, toolkit adoption, internal practices, multi-cloud arrangement, responsibilities and every event in the story are invented.
+The setting is counterfactual Twilio Segment.
+Segment's [Track specification] and [HTTP Tracking API] establish receiving customer events as a recognisable product concern.
+The Go implementation, internal practices, multi-cloud arrangement and events below are imagined.
 
-## An established three-provider service
+## The same setup in four places
 
-A developer-focused B2B software company operates a multi-tenant service for receiving customer events through serverless container environments in AWS, Azure and Google Cloud.
-Customer commitments and the need to receive data near customers' chosen environments make all three providers an accepted part of the business.
+The company receives customer events through a multi-tenant HTTP service running in serverless containers in all three clouds.
+Customer commitments and the need to receive data near customers' chosen environments make those deployments part of its established operation.
+The team already knows how to package, release and monitor the service in each environment.
 
-The service is already useful and professionally sustained.
-Each provider edge passes inbound requests to the application, while an established provider-specific path supplies configuration, starts and monitors the application, and releases new versions.
-Those paths follow different packaging rules, commands and rollout controls because the platforms are different.
-The company already knows how to operate them.
+The application accepts events such as `checkout.completed` and passes accepted events to the next part of the backend.
+A customer uses those events to update order records and needs every checkout event to identify its order.
+The proposed validation option requires an order reference on `checkout.completed` events when enabled.
+Otherwise valid events with an order reference should be accepted and forwarded, and events missing it should be rejected, whichever cloud receives them.
+When the option is disabled, otherwise valid events without an order reference must still be accepted and forwarded.
 
-The company brings this service under the toolkit's responsibility model.
-Software engineering defines and verifies how the application handles events, what its configuration means, and how it starts and responds to a request to stop.
-Solution engineering chooses the application version and configuration that express the intended service.
-Platform engineering maintains the code and tools that package, configure and run the application in each cloud.
-These are responsibilities people take on, and the same person may perform work in more than one of them.
+The application code is shared, but its setup has accumulated in several places.
+Each cloud entry point creates the application, supplies its dependencies and settings, and starts its HTTP server.
+A local test program repeats part of that setup.
+Different maintainers have also kept their own code for handling process signals and waiting for shutdown.
+When an application setting changes, an engineer has to work through those paths to find which setup code also needs changing.
+A check of the event-handling function alone does not show whether a running server received the setting.
 
-The significance of that allocation becomes visible during a routine change.
+## Use the supplied host locally
 
-## One application change
+The engineer separates application construction and execution from the cloud entry points.
+She exposes the listen address, backend address and credentials as application inputs, with their meanings and defaults documented in the Go package.
+The application reports failures and completion through the toolkit and responds to its cancellation request.
+It keeps its existing HTTP handler and client libraries.
 
-A software engineer adds a supported validation option for `checkout.completed` events.
-When the option is selected, the application requires an order reference before accepting the event.
-This is one application decision: valid events should be accepted and malformed events rejected according to the same rule whichever provider receives them.
+Making that change includes deciding how shutdown reaches the HTTP server and its client connections.
+The application stops accepting new requests, gives admitted requests time to finish and releases the resources it owns before reporting completion.
+The engineer implements that behaviour using the libraries' shutdown and cleanup operations.
 
-The engineer implements the option in the reusable application and exercises it through a common local harness.
-The engineer uses the same local harness to start and configure the application and check its event handling, without running AWS, Azure or Google Cloud development tools.
-One event includes the required order reference and is accepted; another omits it and is rejected.
+The service can now run in the toolkit's supplied host.
+The engineer writes a small Go program selecting the event service and a test receiver that also follows the toolkit's requirements for application inputs and execution.
+The receiver records forwarded events and returns controlled replies in place of the production backend.
+She supplies local addresses and test credentials, then invokes the supplied host to run both applications together on her laptop.
+The host constructs them, coordinates failures and cancellation, and waits for them to finish.
+She has no separate local host or process-signal loop to write.
 
-Software engineering can therefore verify the application rule independently of the code and configuration that platform engineering maintains to run the service in each cloud.
-Both the local harness and the cloud integrations use the application's supported ways of starting, receiving configuration and receiving a cancellation signal.
-Platform engineering adapts each cloud's mechanisms to those application expectations.
-The local checks establish how the application behaves; deployment checks will establish whether it behaves that way when running in each cloud.
+Before changing the acceptance rule, she sends the existing accepted and rejected requests through the service's HTTP interface and checks the responses and recorded events.
+She can pause the application code in her debugger and follow a request into the receiver.
+When she interrupts the run, the supplied host requests cancellation and waits while both applications finish their work and cleanup.
+She starts them again on the same addresses to check that the previous run released its listeners.
 
-## One decision, three realisations
+The engineer keeps this local program and uses the toolkit's testing support to run the same applications in Go tests.
+The testing support coordinates cancellation and waits for completion at the end of each run.
+The tests choose the requests and expected results.
+This setup checks event acceptance and forwarding at the service's backend boundary using local test data.
 
-After software review, the person doing the solution engineering selects the new application version with the validation option enabled.
-The resulting solution revision describes one intended logical solution rather than three provider-specific variants.
-During release review, the people responsible for the release examine the selected version and configuration together and sign off on rejecting events without an order reference as the intended service modification.
+## Give the agent a runnable starting point
 
-For this operation, the company identifies where the solution belongs by a compliance region with established data-handling rules.
-That region is one `Location` in its solution description, and the region's existing deployments span AWS, Azure and Google Cloud.
-The person choosing the version and settings names that Location without having to specify the clouds underneath it.
-This uses the [corpus meaning of Location][Location definition]: the adopting organisation defines the place where the solution is available.
-Platform engineering maintains the mapping from that region to the cloud deployments, and the company remains responsible for operating them according to the region's rules.
+The engineer gives the coding agent the customer's reason for the change and the expected behaviour with the option enabled and disabled.
+The repository contains the application inputs, local program, existing tests and instructions for running them with the Go tools.
+The agent runs the existing checks before editing the service.
+For this setup, it needs neither cloud credentials nor a deployed environment.
 
-The company's engineers who maintain the running service in each cloud then deploy the reviewed revision through their established AWS, Azure and Google Cloud delivery paths.
-Each path may use a different artefact, configuration mechanism, command, health check and rollout strategy.
-Those engineers decide when to proceed, stop or roll back a rollout in each environment and check the deployment before accepting it into service.
-The paths may also finish at different times, leaving an observable period in which parts of the same logical solution realise different revisions.
+The agent exposes the validation option as an application input and extends the HTTP tests.
+With the option enabled, an otherwise valid event with an order reference must reach the receiver, and one without it must be rejected without being forwarded.
+With the option disabled, those same events must both be accepted and forwarded.
 
-The same solution choice reaches all three clouds through the company's delivery paths:
+The first implementation passes the handler's unit checks, but the HTTP test still accepts an event missing its order reference when validation is enabled.
+The agent follows the setting from the application input into the handler and finds that the construction code still supplies the previous default.
+It corrects that wiring and repeats the checks until the enabled and disabled cases pass.
+Those checks exercise the construction and configuration code that the cloud hosts will use.
 
-```mermaid
-flowchart TB
-    S["Software engineering<br/>event handling, configuration<br/>and start/stop behaviour"]
-    D["Solution engineering<br/>selects version, configuration<br/>and compliance-region Location"]
-    P["Platform engineering<br/>packages and runs the application<br/>across that Location's three clouds"]
-    A["AWS"]
-    Z["Azure"]
-    G["Google Cloud"]
-    O["One operating logical solution"]
+The engineer reviews the implementation and tests, including the failing result before the wiring correction and the passing result afterwards.
+She can repeat the checks from the same checkout and use the local program to investigate anything the results leave unclear.
+The agent has carried the change through implementation and local verification using the retained setup and supplied tooling.
+The engineer did not have to reconstruct a cloud environment for each attempt.
 
-    S --> D --> P
-    P --> A --> O
-    P --> Z --> O
-    P --> G --> O
-```
+## Reuse the execution support in three cloud hosts
 
-The arrows follow the work from application development to solution selection and deployment.
-They do not prescribe teams, executables or file formats.
+The team adapts its existing cloud entry points to supply inputs to the same application package.
+Each custom host obtains the listening address, credentials and backend connection settings in the way its environment requires.
+It uses the execution packages behind the toolkit's supplied host to coordinate cancellation, failure and completion.
+The cloud integration connects the platform's stop request to that support, while the application performs its shutdown and cleanup.
+The team maintains the cloud-specific input handling and operating controls and reuses the toolkit's execution support across them.
 
-## The revision reaches operation
+After reviewing the change and the integrations, the engineers prepare the release builds for the three hosts with the same reviewed application package.
+They enable the validation option in each deployment's configuration.
+The cloud-specific work still includes packaging, supplying settings and dependencies, and choosing how to replace the running containers.
+Each deployment follows the team's established release procedure.
 
-Once the new version receives traffic, the engineers maintaining the service check which version handled the events and whether the selected validation option is enabled.
-They compare the event responses in each cloud with the cases checked locally: an otherwise valid event with an order reference is accepted, and one without it is rejected.
-That comparison tells them whether the application version and configuration selected during solution engineering produce the expected event responses after deployment.
+The engineers check the running version and the supplied setting in each environment.
+Through each cloud's public route, they repeat the accepted and rejected event requests used locally.
+Those requests now pass through the cloud's routing and reach its running application.
+The engineers also check the backend's records for those test events to confirm which were forwarded.
+The engineers compare the responses with the local results before accepting that deployment.
+If one environment does not pass, its release can be held or rolled back while the team finds out why.
+The three rollouts can finish at different times.
 
-During a rollout, the cloud platform stops old containers as it replaces them.
-The integration code passes the platform's stop request to the application as a cancellation signal.
-If the application supports graceful shutdown and has opted into that behaviour, it can use the time available to finish or stop work before exiting.
-Platform engineering handles how the stop request reaches the application; software engineering handles how the application responds.
-The cloud platform determines how much time it allows before forcing the container to stop.
+Replacement also exercises shutdown.
+The application uses the shutdown code exercised locally, with the time allowed for admitted requests set for that environment.
+The platform sets the outer limit on how long the old container can remain alive.
+The engineers check the old container's exit and watch for failed requests during replacement before continuing the rollout.
+Those observations matter because the time allowed and the way traffic reaches a retiring container depend on the deployed arrangement.
 
-As each rollout completes, the engineers responsible for that environment check the running application version, its event responses and the deployment health before accepting the deployment into service.
-The person doing the solution engineering uses those results to confirm that the selected validation option is enabled throughout the compliance region.
-Acting for the company, that person accepts the result when the running service meets the intended change across the region.
+## What the team keeps for the next change
 
-## Appendix: Running the application as a serverless function
+The validation rule is now enabled in the three deployments.
+The engineer and agent used the supplied host and testing support to check the change locally, and each release supplied its own evidence about the running service.
+The application package contains the rule, its configuration and the code for constructing, running and stopping the application.
+The local tests and cloud hosts reuse that package, and the custom hosts reuse the toolkit's execution support.
 
-In the story above, the application runs as a server that handles incoming requests until it is stopped.
-A serverless function receives work differently: the provider invokes function code with an event and expects a result from that invocation.
-Putting the code in a container image does not remove this difference.
-For example, a container used by AWS Lambda must include code that communicates with Lambda through its Runtime API; AWS supplies runtime interface clients for this purpose, as described in [AWS Lambda container-image requirements].
+The next developer or coding agent can start with the retained local program, documented inputs and HTTP checks.
+Because both applications expose their inputs and participate in cancellation and completion, the supplied host and testing support can run them.
+The team continues to maintain the service, its shutdown behaviour, local program, test receiver and cloud integrations.
 
-Running the toolkit application this way would need extra integration code.
-That code would take the event supplied by the provider, pass it to the application and return the application's result or error in the form the provider expects.
-It would also need to account for the invocation's time limit, pass cancellation to the application when needed, and handle any shutdown behaviour the application has chosen to support.
-These are changes to how work reaches and leaves the application, so changing its packaging alone would not be enough.
+The initial adaptation also took engineering work.
+Whether that work pays off depends on the setup and maintenance it saves over later changes, the faults the retained checks reveal and the human help agents need to complete their work, as assessed in [M-01 § Mission and opportunity].
 
-How to write and package that integration code remains open, including whether any of it could be shared across the three providers.
-Engineers should still be able to exercise the application locally without cloud development tools.
-They would check the integration code separately to establish that it passes events, results, errors and cancellation correctly between the provider and the application.
-
-## Preserved boundaries
-
-The example leaves these concerns outside its scope:
-
-- What happens after the application accepts an event, including identity resolution, analytics and routing data to other services.
-- The final Go interfaces, command-line design, and arrangement of packages and executables, including whether integration code is written by hand, generated or packaged separately.
-- How solution artefacts are divided among files, how many there are, and the structure of the Solution Exchange Format (SEF).
-- The deployment configuration, traffic-routing policy and final arrangement of the toolkit's components.
-- Matching infrastructure, latency, scaling, availability or failure behaviour across clouds; the comparison here concerns whether the application accepts and rejects the same inputs.
-
-## The same responsibilities on different platforms
-
-The selected validation option is now enabled throughout the compliance region.
-The application engineer developed and checked the change through one local harness, solution engineering enabled the option for the region, and the engineers maintaining the deployments put it into service in all three clouds.
-Each cloud required different packaging and operating work, which fitted within platform engineering's existing responsibility.
-
-That division also allowed the solution description to use the company's business language: the person designing the solution could name the compliance region while platform engineering handled its deployments.
-The toolkit's responsibility model accommodated the whole release, from the application decision to the different ways of running it.
-The company carried the change through its established operation without needing a separate responsibility model for each cloud.
-
-[AWS Lambda container-image requirements]: https://docs.aws.amazon.com/lambda/latest/dg/images-create.html
 [HTTP Tracking API]: https://www.twilio.com/docs/segment/connections/sources/catalog/libraries/server/http-api
-[Location definition]: ../vocabulary.md
-[M-02-concept-of-operations]: M-02-concept-of-operations.md
+[M-01 § Mission and opportunity]: M-01-business-mission-analysis.md#mission-and-opportunity
+[M-02 § Use the applications in production]: M-02-concept-of-operations.md#use-the-applications-in-production
 [Track specification]: https://www.twilio.com/docs/segment/connections/spec/track
