@@ -3,12 +3,12 @@ status: accepted
 since: 2026-08-25
 ratified-by: danielorbach
 derived-from:
-  - M-12-solution-management
+  - M-08-solution-management
 ---
 
 # Sales-Led Demonstration
 
-Within the common frame from [M-12 § Concept of Operations], this story follows a sales engineer carrying one temporary logical solution from a prospect's need through transition, revision and retirement.
+Within the common frame from [M-08 § Concept of Operations], this story follows a sales engineer carrying one temporary logical solution from a prospect's need through transition, revision and retirement.
 The prospect, an online retailer, is the business beneficiary and evaluates whether the demonstration helps investigate its problem; the solution's durable identity connects that need, the sales engineer's delivery work and the resulting evidence through time.
 
 Software engineering maintains the reusable applications, platform engineering maintains the reusable provisioning capabilities, and the qualified sales engineer combines them for each prospect-specific solution.
@@ -272,7 +272,7 @@ That acceptance does not depend on whether the prospect buys the product.
 Live telemetry makes the demonstration meaningful, the extension preserves its identity as intent changes, and retirement leaves no cleanup for specialists.
 Together, they establish dependable lifecycle agency for the sales team.
 
-[M-12 § Concept of Operations]: M-12-solution-management.md#concept-of-operations
+[M-08 § Concept of Operations]: M-08-solution-management.md#concept-of-operations
 [EDOT Collector]: https://www.elastic.co/docs/reference/edot-collector/
 [EDOT modes]: https://www.elastic.co/docs/reference/edot-collector/modes
 [role management]: https://www.elastic.co/docs/deploy-manage/users-roles/cluster-or-deployment-auth/kibana-role-management

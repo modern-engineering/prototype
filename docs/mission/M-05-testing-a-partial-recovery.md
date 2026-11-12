@@ -9,7 +9,7 @@ derived-from:
 
 Suppose Git pushes are failing and Actions workflows are stuck in the queue.
 Pushes start working again while workflows are still stuck.
-Anyone checking the [GitHub Status page from M-08][M-08 § Setting] before rerunning a workflow still needs to see the Actions warning.
+Anyone checking the [GitHub Status page from M-04][M-04 § Setting] before rerunning a workflow still needs to see the Actions warning.
 
 ## Setting
 
@@ -83,5 +83,5 @@ Those runs give Ziv grounds to release the corrected backend first.
 Once the team confirms it is serving the live page, they can deploy the reporter that sends shorter reports.
 The engineers responsible for the release still check what the live gateway serves, as described in [M-01 § System boundary and operating model].
 
-[M-08 § Setting]: M-08-debugging-the-status-gateway.md#setting
+[M-04 § Setting]: M-04-debugging-the-status-gateway.md#setting
 [M-01 § System boundary and operating model]: M-01-business-mission-analysis.md#system-boundary-and-operating-model

@@ -2,7 +2,7 @@
 status: accepted
 since: 2026-10-21
 derived-from:
-  - M-12-solution-management
+  - M-08-solution-management
 ---
 
 # ConOps Story: Controlled Disconnected Delivery
@@ -234,6 +234,6 @@ The solution artefact lets people act on approved delivery knowledge when its au
 Tracking the customer's confirmed deployment identifies the older software and settings to reconstruct for support.
 Supported procedures and access to those versions make that reconstruction possible, while customer-released evidence from plant use informs the same solution's history and subsequent design.
 
-[solution delivery responsibilities]: M-12-solution-management.md#mission-and-boundary
+[solution delivery responsibilities]: M-08-solution-management.md#mission-and-boundary
 [Cisco Cyber Vision data sheet]: https://www.cisco.com/c/en/us/products/collateral/security/cyber-vision/cyber-vision-ds.html
 [Cisco-monitoring-guide]: https://www.cisco.com/c/en/us/td/docs/security/cyber_vision/Release-5-2-0/b-cisco-cyber-vision-administration-guide-release-5-2-0/m-maintain-and-monitor-cisco-cyber-vision.html

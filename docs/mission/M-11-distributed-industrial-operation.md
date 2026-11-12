@@ -3,12 +3,12 @@ status: accepted
 since: 2026-08-25
 ratified-by: danielorbach
 derived-from:
-  - M-12-solution-management
+  - M-08-solution-management
 ---
 
 # Distributed Industrial Operation
 
-Within the common frame from [M-12 § Concept of Operations], this story follows Siemens carrying one established Big Hammer predictive-maintenance service through a cloud change and separately scheduled changes at several factories.
+Within the common frame from [M-08 § Concept of Operations], this story follows Siemens carrying one established Big Hammer predictive-maintenance service through a cloud change and separately scheduled changes at several factories.
 Big Hammer is the business beneficiary: its need to detect deteriorating equipment early enough to plan maintenance justifies the service and supplies the basis for judging whether its value is preserved as delivery changes.
 
 Siemens data scientists improve the service, and Siemens service engineers prepare and execute its cloud and factory changes.
@@ -155,7 +155,7 @@ If that path earns enough confidence, Siemens may later delegate some routine up
 
 The operational change is already concrete: one Siemens team has carried one evolving customer service through different tools, authorities and schedules without losing sight of what Big Hammer was meant to receive or what was actually running.
 
-[M-12 § Concept of Operations]: M-12-solution-management.md#concept-of-operations
+[M-08 § Concept of Operations]: M-08-solution-management.md#concept-of-operations
 [Siemens-Industrial-Edge]: https://www.siemens.com/en-gb/products/industrial-edge/
 [Siemens-Senseye]: https://www.siemens.com/en-us/products/industrial-digitalization-services/senseye-cloud-application/
 [Siemens-machine-data]: https://developer.siemens.com/senseye/machine/index.html

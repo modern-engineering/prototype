@@ -3,7 +3,7 @@ status: draft
 since: 2026-10-22
 derives:
   - M-02-concept-of-operations
-  - M-12-solution-management
+  - M-08-solution-management
 ---
 
 # Business Mission Analysis
@@ -243,7 +243,7 @@ What the organisation learned from the incident then protects later changes with
 ## Downstream solution management
 
 Organisations delivering tailored services can build solution management on the same program and composition foundations.
-[M-12-solution-management] develops its business mission and operational concept, including continuity of solution identity, design and history through delivery, use and retirement.
+[M-08-solution-management] develops its business mission and operational concept, including continuity of solution identity, design and history through delivery, use and retirement.
 It adds the business objective of growing routine delivery without proportional dependence on specialist intervention.
 Those outcomes require their own evidence beyond the core engineering benefit.
 
@@ -270,4 +270,4 @@ Those questions can be investigated without making their resolution a condition 
 [M-02-concept-of-operations]: M-02-concept-of-operations.md
 [Go-reproducible-toolchains]: https://go.dev/blog/rebuild#making-a-build-reproducible
 
-[M-12-solution-management]: M-12-solution-management.md
+[M-08-solution-management]: M-08-solution-management.md

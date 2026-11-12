@@ -4,10 +4,10 @@ since: 2026-11-11
 derived-from:
   - M-01-business-mission-analysis
 derives:
-  - M-03-sales-led-demonstration
-  - M-04-evolving-operational-solution
-  - M-05-distributed-industrial-operation
-  - M-07-controlled-disconnected-delivery
+  - M-09-sales-led-demonstration
+  - M-10-evolving-operational-solution
+  - M-11-distributed-industrial-operation
+  - M-12-controlled-disconnected-delivery
 ---
 
 # Solution Management
@@ -71,7 +71,7 @@ The solution engineer selects supported applications, versions, settings and rel
 The delivery arrangement establishes who can authorise the change, who will perform it and what technical and business results they will accept.
 A request that existing capabilities cannot meet returns to the engineers responsible for extending them.
 
-In [M-03 on a sales-led demonstration], the applications already support the prospect's evaluation need.
+In [M-09 on a sales-led demonstration], the applications already support the prospect's evaluation need.
 A bounded design surface and delegated access let the sales engineer deliver routine changes without editing shared production definitions or waiting for specialists.
 
 ### Carry the design into operation
@@ -81,7 +81,7 @@ It records which allocations belong to this solution and which shared services m
 Deployment makes the selected applications operational using those dependencies and configuration.
 
 When preparation and execution are separated, the handoff carries the solution's identity, intended revision and the supported knowledge needed to realise it.
-In [M-07 on controlled disconnected delivery], Cisco prepares the material and customer engineers later perform the change at an isolated plant.
+In [M-12 on controlled disconnected delivery], Cisco prepares the material and customer engineers later perform the change at an isolated plant.
 They need the applicable procedures, executables and dependencies locally available.
 The same identity and design must retain their meaning across those tools and environments, even when their representations differ.
 
@@ -93,7 +93,7 @@ Customer use supplies evidence for that separate judgment.
 
 A failed change may leave allocations, stopped processes or mixed application versions.
 Authorised operators decide whether to pause, repair or restore a supported arrangement and record what remains for the next action.
-In [M-04 on an evolving operational solution], operators recover from a failed application upgrade while preserving the configuration and capacity the merchant still needs.
+In [M-10 on an evolving operational solution], operators recover from a failed application upgrade while preserving the configuration and capacity the merchant still needs.
 The same solution's history connects the expansion, failure and recovery.
 
 ### Sustain and change the service
@@ -102,7 +102,7 @@ Customer use and observations guide support, repair and capacity planning.
 Changed needs or an unsuitable design return to solution engineering; restoring the existing intent may require provision or deployment work without another design revision.
 Support staff use retained versions, settings and customer-released evidence to reconstruct what they can investigate; other conditions still require operational evidence.
 
-In [M-05 on distributed industrial operation], cloud and factory changes follow separate windows, with older and newer software intentionally present together.
+In [M-11 on distributed industrial operation], cloud and factory changes follow separate windows, with older and newer software intentionally present together.
 Supported compatibility preserves the service during that overlap.
 Operators retain intent and observations for each placement, distinguish deferred changes from failures and agree when to try again.
 Delayed evidence remains evidence of the installation observed at that time; it does not confirm a later change.
@@ -143,7 +143,7 @@ They do not establish sufficient coverage of adoption, catalogue discovery, relo
 Those questions need further operational evidence and later design work, alongside evidence of sustainable maintenance and support costs.
 
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
-[M-03 on a sales-led demonstration]: M-03-sales-led-demonstration.md
-[M-04 on an evolving operational solution]: M-04-evolving-operational-solution.md
-[M-05 on distributed industrial operation]: M-05-distributed-industrial-operation.md
-[M-07 on controlled disconnected delivery]: M-07-controlled-disconnected-delivery.md
+[M-09 on a sales-led demonstration]: M-09-sales-led-demonstration.md
+[M-10 on an evolving operational solution]: M-10-evolving-operational-solution.md
+[M-11 on distributed industrial operation]: M-11-distributed-industrial-operation.md
+[M-12 on controlled disconnected delivery]: M-12-controlled-disconnected-delivery.md

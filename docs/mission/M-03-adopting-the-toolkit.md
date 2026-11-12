@@ -7,7 +7,7 @@ derived-from:
 
 # ConOps Story: Adopting the Toolkit
 
-Before Ziv can debug the [GitHub Status gateway on her laptop][M-08-debugging-the-status-gateway], the team has to make its existing programs usable there.
+Before Ziv can debug the [GitHub Status gateway on her laptop][M-04-debugging-the-status-gateway], the team has to make its existing programs usable there.
 This story imagines that earlier work, starting with one service and extending the migration as the team finds uses for it.
 
 ## A test environment on every push
@@ -114,7 +114,7 @@ The applications themselves receive those values explicitly; they do not consult
 
 The team applies the same separation to the status backend.
 The Go test uses the toolkit's testing support to start the reporter, backend and gateway together, give the reporter controlled service replies and read the result through the gateway.
-This is the setup later used for [the partial-recovery test][M-09-testing-a-partial-recovery].
+This is the setup later used for [the partial-recovery test][M-05-testing-a-partial-recovery].
 The dashboard remains useful in Ziv's local browser setup but is unnecessary for a test that reads the gateway directly.
 
 For each migrated service, CI still builds the resulting executable into its own Docker container image.
@@ -134,6 +134,6 @@ Those costs count when the team evaluates whether the shorter feedback path is w
 For the next gateway change, Ziv can begin with the retained local program, choose the programs and settings the question needs, and investigate them under her debugger.
 The pipeline remains available when she needs to check the deployed arrangement.
 
-[M-08-debugging-the-status-gateway]: M-08-debugging-the-status-gateway.md
-[M-09-testing-a-partial-recovery]: M-09-testing-a-partial-recovery.md
+[M-04-debugging-the-status-gateway]: M-04-debugging-the-status-gateway.md
+[M-05-testing-a-partial-recovery]: M-05-testing-a-partial-recovery.md
 [M-01 § Product posture and adoption]: M-01-business-mission-analysis.md#product-posture-and-adoption

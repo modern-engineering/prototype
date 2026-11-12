@@ -2,7 +2,7 @@
 
 The mission corpus is the canonical source for the language recorded here.
 This non-normative scaffold gives authors and reviewers consistent working language while that corpus evolves.
-The solution-delivery terms describe the capability in [M-12-solution-management]; they are not prerequisites for the core engineering work described in [M-01-business-mission-analysis].
+The solution-delivery terms describe the capability in [M-08-solution-management]; they are not prerequisites for the core engineering work described in [M-01-business-mission-analysis].
 An entry's label records confidence accumulated through use across the corpus, independently of any document's lifecycle metadata.
 Later documents may make a definition more precise without reducing that confidence; a label moves backward only when the corpus exposes a contradiction or reopens the concept's boundary.
 Once every entry is settled, this scaffold will become the project glossary.
@@ -50,7 +50,7 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 - **Operational solution** — `settled` — The realised, usable form of a logical solution: its intended applications are running, its required backing capabilities are usable, and it is available to its users.
   It retains the logical solution's identity and is not a second solution.
 - **Operational story** — `provisional` — A bounded, time-sequenced account of engineering or operating work that exposes the people, tools, authorities, interactions and conditions that affect the outcome.
-  [M-02-concept-of-operations] frames the backend engineering stories; [M-12-solution-management] frames the solution-delivery stories.
+  [M-02-concept-of-operations] frames the backend engineering stories; [M-08-solution-management] frames the solution-delivery stories.
 - **Business beneficiary** — `settled` — A business entity whose needs justify a logical solution and against whose needs that solution is designed and validated.
   Consuming an operational service does not by itself establish this relationship, and the relationship grants no lifecycle or deployment-acceptance authority.
 - **Partial adoption** — `settled` — Legitimate use of a bounded subset of capabilities that demonstrates only the outcomes exercised and must not be presented as the full mission result.
@@ -94,7 +94,7 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
   Revision identifiers, ordering, branching, rollback mechanisms, representation and containment remain open.
 - **Specialist intervention** — `settled` — A particular delivery depends on specialist intervention when the established delivery path cannot complete it without specialist-held expertise, authority or access, or without changing reusable software or platform capability.
   Classification follows the dependency, not the title or identity of the executor.
-  [M-12 § Mission and boundary][M-12-boundary] explains the boundary with operational examples.
+  [M-08 § Mission and boundary][M-08-boundary] explains the boundary with operational examples.
 - **Sustain** — `settled` — The work of the organisations responsible under the delivery arrangement to keep an operational solution fit for customer use through monitoring, maintenance, support, repair, change and capacity planning.
 - **System of interest** — `settled` — The toolkit when analysed within the next-larger context of the adopting organisation's software engineering and operating practices.
 - **Toolkit** — `settled` — The opinionated, open-source Go packages, supported extension mechanisms and reference tooling supplied by this project for constructing, configuring and running programs.
@@ -103,6 +103,6 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 
 [D-05-document-relationships]: adr/D-05-document-relationships.md
 [M-01-business-mission-analysis]: mission/M-01-business-mission-analysis.md
-[M-12-boundary]: mission/M-12-solution-management.md#mission-and-boundary
+[M-08-boundary]: mission/M-08-solution-management.md#mission-and-boundary
 [M-02-concept-of-operations]: mission/M-02-concept-of-operations.md
-[M-12-solution-management]: mission/M-12-solution-management.md
+[M-08-solution-management]: mission/M-08-solution-management.md

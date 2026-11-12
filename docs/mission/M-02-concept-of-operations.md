@@ -4,11 +4,11 @@ since: 2026-08-13
 derived-from:
   - M-01-business-mission-analysis
 derives:
-  - M-11-adopting-the-toolkit
-  - M-08-debugging-the-status-gateway
-  - M-09-testing-a-partial-recovery
-  - M-10-probing-git-operations
-  - M-06-one-responsibility-model-across-platforms
+  - M-03-adopting-the-toolkit
+  - M-04-debugging-the-status-gateway
+  - M-05-testing-a-partial-recovery
+  - M-06-probing-git-operations
+  - M-07-one-responsibility-model-across-platforms
 ---
 
 # Concept of Operations
@@ -33,7 +33,7 @@ Following those practices makes an application usable by the supplied tools and 
 
 Adoption can begin with one useful investigation or test.
 The team can adapt the programs it needs while retaining its existing packaging and deployment path.
-As [M-11 on adopting the toolkit] illustrates, this can involve separating application setup from an executable entry point, making hidden inputs explicit and preserving the old deployment configuration through an adapter.
+As [M-03 on adopting the toolkit] illustrates, this can involve separating application setup from an executable entry point, making hidden inputs explicit and preserving the old deployment configuration through an adapter.
 The benefit has to justify that work and the cost of maintaining the resulting Go code.
 
 ## Working on a backend
@@ -59,7 +59,7 @@ The developer must still obtain the credentials, data and external services need
 
 The developer runs the selected programs from the checkout being changed and follows the interaction through their usual interfaces.
 A debugger, logs, metrics or traces can show how those programs produced the observed result.
-Inputs chosen for the investigation can make the interesting condition quick to reach, such as the small guest quota in [M-08 on debugging the status gateway].
+Inputs chosen for the investigation can make the interesting condition quick to reach, such as the small guest quota in [M-04 on debugging the status gateway].
 
 After an edit, the developer can run the composition again and try the same interaction.
 The host coordinates cancellation and waits for the programs to finish; each program completes the work and cleanup it owns.
@@ -79,7 +79,7 @@ The test sends requests or messages through the programs' existing interfaces an
 The test author chooses those interactions and expected results; the toolkit runs the programs without interpreting their protocols or business meaning.
 
 The test can control selected dependencies to hold a condition steady or exercise a sequence that would be difficult to arrange in a shared environment.
-For example, the partial-recovery test in [M-09 on testing a partial recovery] lets Git Operations recover while Actions remains impaired, then checks the status response read by the page.
+For example, the partial-recovery test in [M-05 on testing a partial recovery] lets Git Operations recover while Actions remains impaired, then checks the status response read by the page.
 A program's package tests can pass while this check fails because the cooperating programs produce the wrong result together.
 
 The team retains the test for later changes and runs it through the ordinary Go test workflow, locally and in continuous integration.
@@ -122,7 +122,7 @@ A local test can support a decision to release a change without establishing tha
 The organisation retains authority over deployment and recovery.
 
 The toolkit can also host programs that perform ongoing operational work, including probes that exercise a service through its public interfaces.
-In [M-10 on probing Git operations], the deployed prober observes a delayed fetch that the engineer's local run does not reproduce.
+In [M-06 on probing Git operations], the deployed prober observes a delayed fetch that the engineer's local run does not reproduce.
 The local result helps narrow the investigation while the deployed prober continues to observe the route where the delay occurred.
 
 ### Bring observations back into development
@@ -142,32 +142,32 @@ The comparison with existing practice includes the time to investigate and verif
 
 These stories imagine how the team behind [GitHub Status] might develop, test and run the Go programs behind the page.
 
-In [M-11 on adopting the toolkit], the team already has a pipeline that builds container images and supplies private test environments.
+In [M-03 on adopting the toolkit], the team already has a pipeline that builds container images and supplies private test environments.
 Ziv still needs control over the programs and settings used in an investigation, so she brings their construction and composition into reusable Go code.
 The toolkit's supplied host and testing support can then run the selected applications.
 Application inputs become explicit, while the toolkit coordinates cancellation and failures.
 An optional custom host translates the team's existing environment variables into documented application inputs, preserving its deployment configuration.
 The services keep their internal libraries and communication protocols.
 
-In [M-08 on debugging the status gateway], a signed-in visitor hits the limit meant for guests.
+In [M-04 on debugging the status gateway], a signed-in visitor hits the limit meant for guests.
 The developer follows the request in a debugger on her laptop, where she can clear the guest count and try again using status reports from staging.
 
-In [M-09 on testing a partial recovery], a coding agent changes a program to send shorter reports about the services listed on the page.
+In [M-05 on testing a partial recovery], a coding agent changes a program to send shorter reports about the services listed on the page.
 A Go test catches the page giving an all-clear when Git pushes work again but Actions workflows are still stuck.
 
-In [M-10 on probing Git operations], a long-running application pushes a commit to a private repository and checks what a client can fetch.
+In [M-06 on probing Git operations], a long-running application pushes a commit to a private repository and checks what a client can fetch.
 The push succeeds, but a fresh fetch still gets the old commit a minute later.
 The operator gives the Git engineer the branch and the two commit IDs to trace.
 
 ## Running the same application in several clouds
 
-[M-06-one-responsibility-model-across-platforms] follows an engineer using the supplied host and testing support to prepare an event service for local checks, then a coding agent using those checks to develop a validation change.
+[M-07-one-responsibility-model-across-platforms] follows an engineer using the supplied host and testing support to prepare an event service for local checks, then a coding agent using those checks to develop a validation change.
 The cloud integrations reuse the application package and the toolkit's execution support.
 Each deployment still requires checks through its own route and operating controls.
 
 ## Other operating settings
 
-[M-12 § Concept of Operations] follows tailored solutions through delivery, change, customer use and retirement, with stories about demonstrations, a merchant service, factories and a disconnected plant.
+[M-08 § Concept of Operations] follows tailored solutions through delivery, change, customer use and retirement, with stories about demonstrations, a merchant service, factories and a disconnected plant.
 The solution-management mission and its additional business acceptance criteria are developed in that document.
 
 ## Open operational questions
@@ -184,9 +184,9 @@ Testing APIs, host policies and compatibility rules remain design questions to b
 [M-01-business-mission-analysis]: M-01-business-mission-analysis.md
 [M-01 § System boundary and operating model]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
 [M-01 § Mission and opportunity]: M-01-business-mission-analysis.md#mission-and-opportunity
-[M-11 on adopting the toolkit]: M-11-adopting-the-toolkit.md
-[M-08 on debugging the status gateway]: M-08-debugging-the-status-gateway.md
-[M-09 on testing a partial recovery]: M-09-testing-a-partial-recovery.md
-[M-10 on probing Git operations]: M-10-probing-git-operations.md
-[M-06-one-responsibility-model-across-platforms]: M-06-one-responsibility-model-across-platforms.md
-[M-12 § Concept of Operations]: M-12-solution-management.md#concept-of-operations
+[M-03 on adopting the toolkit]: M-03-adopting-the-toolkit.md
+[M-04 on debugging the status gateway]: M-04-debugging-the-status-gateway.md
+[M-05 on testing a partial recovery]: M-05-testing-a-partial-recovery.md
+[M-06 on probing Git operations]: M-06-probing-git-operations.md
+[M-07-one-responsibility-model-across-platforms]: M-07-one-responsibility-model-across-platforms.md
+[M-08 § Concept of Operations]: M-08-solution-management.md#concept-of-operations
