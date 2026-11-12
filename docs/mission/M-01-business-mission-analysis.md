@@ -21,7 +21,7 @@ The project is an open-source toolkit for long-lived backends whose application 
 Engineers writing a program decide what it does and how others interact with it.
 Engineers assembling a system choose which programs run together and supply what each needs.
 The project's working hypothesis is that making construction, configuration and execution accessible through reusable Go packages can reduce surrounding integration work and expose design weaknesses earlier.
-The toolkit codifies established engineering practices and supplies maintained hosts, testing support and packages that make those practices useful across applications and teams.
+The toolkit codifies established engineering practices and supplies maintained Go packages and executable tools that make those practices useful across applications and teams.
 Running cooperating programs in one process is a useful technique for investigating that hypothesis.
 
 The intended value is lower engineering effort across development and operation, together with better evidence about system behaviour.
@@ -116,6 +116,7 @@ A host is software that starts and supervises programs, supplying the dependenci
 
 The toolkit brings together established engineering practices, such as explicit configuration, cooperative cancellation and optional capabilities.
 Application authors follow a common agreement about inputs, execution and completion, and implement how their programs do their work and stop safely.
+The executable tools let developers and coding agents inspect the available applications and their documented inputs before choosing what to run.
 Once applications follow that agreement, engineers can select them and supply their inputs to the toolkit's supplied host to run them together locally.
 They can use the toolkit's testing support to run the same applications in Go tests.
 For example, a platform team can build a custom host using the packages behind the supplied host for execution coordination.
@@ -165,7 +166,7 @@ Users of the resulting services benefit when those improvements preserve dependa
 ## System boundary and operating model
 
 The toolkit is the system of interest within an organisation's wider software engineering and operating practices.
-It supplies Go packages, supported extension mechanisms and reference tooling through which engineers can construct, configure and run programs.
+It supplies Go packages, supported extension mechanisms and executable tools through which engineers can inspect, construct, configure and run programs.
 Distributed Go backends are the primary target; individual applications and selected subsets of a system are also useful units of development and testing.
 Adoption does not depend on a particular company structure, customer-delivery model or deployment platform.
 

@@ -49,6 +49,9 @@ The expected result comes from what the system is meant to do for its users.
 That question guides which programs and versions to select, which inputs to supply and which interactions to try.
 The useful selection may be much smaller than the complete production system.
 
+The developer uses the toolkit's executable tools to find applications and inspect their documented inputs.
+For a server, the developer can see which inputs set its listening address and the backend it connects to.
+
 The developer writes or changes application code in Go packages.
 The developer also writes or adapts a Go composition that selects the programs, supplies their inputs and invokes the toolkit's supplied host or testing support.
 The supplied tools construct and run the applications, coordinate cancellation and wait for completion.
@@ -112,7 +115,8 @@ Engineers build and deploy the applications through the team's intended packagin
 Each operational host supplies the inputs and supervision needed in its environment, using the same application packages exercised during development.
 The host may also integrate operating controls specific to that environment, such as readiness reporting.
 Engineers building it can reuse the execution packages behind the supplied host, keeping the environment's input handling and operating controls in their own code.
-The application implements any additional capabilities it supports through opt-in interfaces; the host uses those capabilities when present and follows documented defaults when absent.
+Applications explicitly opt into additional capabilities they support.
+A host uses the capabilities it supports and follows documented defaults when an application does not provide them.
 Any capability required by a specialised host is an explicit condition of using that host.
 Those integrations require implementation and verification even when the application code is reused.
 
