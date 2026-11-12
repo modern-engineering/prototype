@@ -165,7 +165,8 @@ The operator gives the Git engineer the branch and the two commit IDs to trace.
 
 ## Running the same application in several clouds
 
-[M-06-one-responsibility-model-across-platforms] follows engineers reusing the same Go setup in a local test and three cloud hosts.
+[M-06-one-responsibility-model-across-platforms] follows an engineer using the supplied host and testing support to prepare an event service for local checks, then a coding agent using those checks to develop a validation change.
+The cloud integrations reuse the application package and the toolkit's execution support.
 Each deployment still requires checks through its own route and operating controls.
 
 ## Other operating settings
