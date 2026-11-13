@@ -2,7 +2,7 @@
 status: accepted
 since: 2026-10-21
 derived-from:
-  - M-02-concept-of-operations
+  - M-08-solution-management
 ---
 
 # ConOps Story: Controlled Disconnected Delivery
@@ -97,16 +97,16 @@ Cisco needs staff familiar with each customer's arrangements, and both organisat
 Without a reliable record of the retained versions and settings, engineers can struggle even to establish what they would need to reproduce.
 Repeating that coordination across customers with different retained deployments increases the demand for customer-specific expertise even when the monitoring change uses existing software capabilities.
 
-Cisco adopts the toolkit at the handoff between connected preparation and local execution.
-Its delivery tooling uses the toolkit's shared semantics and supported capabilities to produce a portable solution artefact that can stand alone when the preparation session and its live systems are unavailable.
+Cisco adopts solution management built on the backend toolkit at the handoff between connected preparation and local execution.
+Its delivery tooling uses the solution-management contract and supported delivery capabilities to produce a portable solution artefact that can stand alone when the preparation session and its live systems are unavailable.
 The artefact preserves the solution's durable identity, approved revision and intended software, configuration and relationships, together with versioned instructions for putting that revision into operation.
 Local tooling can inspect the meaning of the handoff and check whether the required software and procedure versions are at hand.
-Alongside the handoff, Cisco uses the project's tracking tools to retain each prepared design revision and associate customer-returned installation evidence with it.
+Alongside the handoff, Cisco's toolkit-based delivery tooling retains each prepared design revision and associates customer-released installation evidence with it.
 
-Cisco implements the reusable delivery procedures in Go and supplies supported precompiled executables for this episode.
+Cisco implements the reusable delivery procedures in Go and supplies supported precompiled executables.
 The customer engineer can run them without compiling Go or adapting delivery scripts at the plant.
 The portable handoff brings the instructions and version expectations together with the means needed to act on them locally; its physical packaging is left open.
-The toolkit supplies common meaning and supported building blocks, while Cisco supplies and supports the local delivery tooling and North Basin Water decides when to use it.
+The solution-management contract supplies common meaning and the backend toolkit supplies reusable Go building blocks, while Cisco supplies and supports the local delivery tooling and North Basin Water decides when to use it.
 
 ## Cisco prepares the pump-extension revision
 
@@ -125,7 +125,8 @@ The customer engineers still have to establish whether the actual plant meets th
 
 The approved handoff names the treatment-plant solution and the pump-extension revision.
 It carries the approved design, its applicability to the existing installation and the checks and procedures needed at the plant.
-The customer arranges its transfer along with the software needed for local execution.
+Cisco's delivery tooling prepares the selected application releases, supported procedure executables and required dependencies for offline use.
+The customer arranges transfer of the handoff and the prepared software to the plant.
 Neither organisation assumes that the later maintenance session can consult Cisco's build service, retrieve missing dependencies or ask the original specialist for immediate help.
 
 ## A missing procedure is found before the change
@@ -153,8 +154,9 @@ The local tool retains the monitoring settings and commissioning baseline alongs
 The operations lead accepts the deployed change on that evidence.
 The record describes the scope actually exercised; the standby pump has not yet run through its normal night-shift changeover.
 
+North Basin Water owns and retains the local installation and commissioning records and decides which parts to release to Cisco.
 The customer returns the accepted revision, observed application versions and commissioning scope to Cisco.
-Cisco's tracking tools associate that received record with the treatment-plant solution.
+Cisco's delivery tooling associates that received record with the treatment-plant solution.
 A newer prepared revision can await local acceptance while this remains the last installation confirmed by the customer.
 Cisco's knowledge of the plant remains bounded by those customer-approved observations.
 
@@ -183,7 +185,6 @@ With that setup running, the engineer can inspect which operating baseline is ac
 The intended coverage includes the new pump controllers, but the active baseline represents only duty-pump operation.
 The reproduction covers the monitoring software and settings; actual controller traffic and pump operation are evidenced by the customer-supplied records.
 Cyber Vision already supports baselines for known operating states and alerts on deviations, as explained in [Cisco's monitoring guide][Cisco-monitoring-guide].
-The project's tracking and repeatable-deployment capabilities make the retained software setup available for investigation through Cisco's supported tooling.
 Cisco's engineer performs the analysis, and the customer judges which plant behaviour is normal.
 
 Cisco recommends a correction that includes reviewed standby operation while retaining alerts for unexpected communications.
@@ -202,9 +203,9 @@ Cisco remains accountable for the supported software, delivery procedures, solut
 North Basin Water retains the local knowledge needed to interpret plant operation, controls its infrastructure, authorises and performs local changes, accepts deployment and decides what evidence leaves the plant.
 The portable handoff makes their work easier to connect across time and place without giving either party the other's decisions.
 
-This allocation differs from the adopter-owned platform and deployment-acceptance model in [M-01 § System boundary and operating model][M-01-boundary].
-Here, platform/service engineering work crosses the organisational boundary: Cisco supports the means of delivery, and the customer prepares and controls the target environment.
-The common allocation of these responsibilities across vendor-operated and customer-operated settings remains unresolved.
+The [solution delivery responsibilities] are divided across the two organisations here.
+Cisco supports the means of delivery, and North Basin Water prepares and controls the target environment.
+Cisco's adoption gives it no authority to authorise plant changes or accept them on the customer's behalf.
 
 The episode assumes an existing Cyber Vision installation and supported means of making the required software and executables locally usable.
 Reproduction depends on access to the selected software versions and enough customer-released configuration to reconstruct the part under investigation.
@@ -227,12 +228,12 @@ The initial acceptance also shows the limit of a technically complete handoff: p
 The intended organisational gain is a lower level of customer-specific expertise and coordination needed to achieve the same delivery and support outcome.
 Assessing that gain would require observing how often routine deliveries complete through the supported path and why specialists are still needed.
 Support evidence would also show whether retained customer deployments can be identified and reproduced through supported tooling, and how much manual reconstruction remains.
-One invented episode supplies no measured reduction or portfolio-wide proof.
 
 The operational significance is the continuity of one customer solution through connected preparation, delayed local execution and customer-mediated support.
 The solution artefact lets people act on approved delivery knowledge when its authors and live systems are absent.
-Tracking the customer's confirmed deployment makes an older software configuration reproducible for support while evidence from plant use informs the same solution's history and subsequent design.
+Tracking the customer's confirmed deployment identifies the older software and settings to reconstruct for support.
+Supported procedures and access to those versions make that reconstruction possible, while customer-released evidence from plant use informs the same solution's history and subsequent design.
 
-[M-01-boundary]: M-01-business-mission-analysis.md#system-boundary-and-operating-model
+[solution delivery responsibilities]: M-08-solution-management.md#mission-and-boundary
 [Cisco Cyber Vision data sheet]: https://www.cisco.com/c/en/us/products/collateral/security/cyber-vision/cyber-vision-ds.html
 [Cisco-monitoring-guide]: https://www.cisco.com/c/en/us/td/docs/security/cyber_vision/Release-5-2-0/b-cisco-cyber-vision-administration-guide-release-5-2-0/m-maintain-and-monitor-cisco-cyber-vision.html

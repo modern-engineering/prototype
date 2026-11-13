@@ -3,6 +3,7 @@ status: draft
 since: 2026-10-22
 derives:
   - M-02-concept-of-operations
+  - M-08-solution-management
 ---
 
 # Business Mission Analysis
@@ -179,11 +180,12 @@ The following example uses Go interfaces to illustrate optional capabilities and
 Choosing the extension mechanism is outside this document's scope.
 
 A program opts into an additional capability by implementing a Go interface for it.
-For example, a service can implement an interface that signals when it is ready to receive traffic, and a Kubernetes host can report that signal to the platform.
-When the interface is absent, the host follows documented default behaviour that respects the program's choice not to support that capability.
+For example, the toolkit supplies a shared readiness convention through which cooperating applications can signal when they are ready.
+Custom hosts can reuse that convention for Kubernetes readiness reporting or internal bookkeeping.
+The toolkit's supplied hosts treat an application that does not implement the readiness capability as ready when it starts running.
+The adopting organisation sets the policy for its custom hosts, which may use fallback behaviour or reject applications lacking a capability.
+Those host-specific requirements are explicit; readiness reporting remains optional in the toolkit.
 The basic agreement about inputs, execution and completion still applies.
-A specialised host can require readiness reporting from the programs it runs, but that requirement must be explicit.
-A program running in another host can use the toolkit without having to implement readiness reporting.
 
 Application authors decide what their programs need in order to run.
 For example, an author whose program writes files can let the caller supply the directory.
@@ -207,8 +209,8 @@ Test authors determine the interactions and outcomes relevant to that system.
 The toolkit provides access and lifecycle control without needing to interpret the application's protocols or business behaviour.
 Logs, metrics, traces and other observations can help explain a result; the adopting organisation chooses and interprets the evidence needed for its decisions.
 
-The adopting organisation retains ownership and authority over infrastructure, execution, reconciliation and deployment acceptance.
-Its operational hosts integrate the programs with the environments in which they run.
+Infrastructure ownership and authority over execution, reconciliation and deployment acceptance remain with the organisations responsible under the operating arrangement.
+Their operational hosts integrate the programs with the environments in which they run.
 Local tests contribute evidence about application and system behaviour, while deployment verification establishes the behaviour and operating conditions of the actual production arrangement.
 Process isolation, scheduling, network conditions and platform behaviour can materially affect that result.
 
@@ -241,46 +243,10 @@ What the organisation learned from the incident then protects later changes with
 
 ## Downstream solution management
 
-An organisation delivering tailored software services can build solution-management capabilities on the same program and composition foundations.
-In this setting, recurring customer delivery can depend on specialist knowledge, shared repositories and platform-specific automation whose effects are difficult to relate to one customer solution.
-Reusable application and provisioning code can support a more explicit delivery path, while solution identity and intended design connect that work to the beneficiary's needs.
-Reducing routine dependence on specialists is an additional business objective of this application of the toolkit.
-
-The solution-delivery stories linked from [M-02-concept-of-operations] examine this setting.
-They retain value for understanding solution change, shared backing services, distributed placement and accountability.
-Their delivery-specific concepts do not constitute prerequisites for using the toolkit to develop, test or operate a backend system.
-Solution-management outcomes require their own evidence beyond the core engineering benefit.
-
-### Solution delivery responsibilities
-
-Within that setting, solution engineering understands beneficiary needs, curates the intended solution and validates its usefulness.
-Software engineering maintains the reusable applications, and platform/service engineering maintains the backing capabilities and means of provisioning, deploying and sustaining them.
-These responsibilities may be performed by the same people or tools; the adopting organisation retains the authority for consequential operational decisions.
-
-Specialist intervention occurs when a particular delivery still requires specialist-held expertise, authority or access, or a change to reusable software or platform capability.
-Running a maintained provisioning procedure with appropriately delegated authority can be routine delivery.
-Changing that procedure, extending an application or relying on a specialist to supply otherwise unavailable access remains specialist intervention.
-Acceptance of a solution-management capability therefore requires evidence that routine delivery depends less on those interventions while the beneficiary continues to receive the intended service.
-
-### The durable handoff and the life of a solution
-
-A logical solution is the durable identity-bearing subject intended to satisfy a business beneficiary's needs.
-Its solution design expresses the selected software, configuration and relationships among its parts; revisions distinguish intended editions while the identity continues.
-Two logical solutions remain distinct even when their present contents match.
-A business beneficiary supplies the needs against which that solution is designed and validated, and is distinct from a user who merely consumes the service.
-An adopting organisation may itself be the beneficiary of a service that it offers to many customers.
-
-Design establishes or revises that intent, Provision makes required backing capabilities usable, and Deploy renders the applications operational.
-Operate is the customer's use of the solution, while Sustain keeps it fit for that use.
-Changed needs can lead to renewed Design; operational needs can require further Provision or Deploy work without changing the intended design.
-Retire ends the solution's operational life while retaining its identity and history without reassigning them.
-Changes to one component or placement do not by themselves retire the whole solution.
-
-An adopter-defined Location identifies where all or part of a solution is available.
-Cooperating parts at several Locations can remain one logical solution, and relocation can preserve that identity.
-Solution artefacts carry identity and representations of design across people, tools, time or place.
-The durable handoff preserves those meanings and the know-how needed to realise the design, while the organisation's tools perform and accept the operational work.
-That continuity does not itself supply resource isolation or guarantee equivalent behaviour across environments.
+Organisations delivering tailored services can build solution management on the same program and composition foundations.
+[M-08-solution-management] develops its business mission and operational concept, including continuity of solution identity, design and history through delivery, use and retirement.
+It adds the business objective of growing routine delivery without proportional dependence on specialist intervention.
+Those outcomes require their own evidence beyond the core engineering benefit.
 
 ## Risks and uncertainty
 
@@ -304,3 +270,5 @@ Those questions can be investigated without making their resolution a condition 
 
 [M-02-concept-of-operations]: M-02-concept-of-operations.md
 [Go-reproducible-toolchains]: https://go.dev/blog/rebuild#making-a-build-reproducible
+
+[M-08-solution-management]: M-08-solution-management.md
