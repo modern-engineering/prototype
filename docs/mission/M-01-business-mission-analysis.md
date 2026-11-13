@@ -180,11 +180,12 @@ The following example uses Go interfaces to illustrate optional capabilities and
 Choosing the extension mechanism is outside this document's scope.
 
 A program opts into an additional capability by implementing a Go interface for it.
-For example, a service can implement an interface that signals when it is ready to receive traffic, and a Kubernetes host can report that signal to the platform.
-When the interface is absent, the host follows documented default behaviour that respects the program's choice not to support that capability.
+For example, the toolkit supplies a shared readiness convention through which cooperating applications can signal when they are ready.
+Custom hosts can reuse that convention for Kubernetes readiness reporting or internal bookkeeping.
+The toolkit's supplied hosts treat an application that does not implement the readiness capability as ready when it starts running.
+The adopting organisation sets the policy for its custom hosts, which may use fallback behaviour or reject applications lacking a capability.
+Those host-specific requirements are explicit; readiness reporting remains optional in the toolkit.
 The basic agreement about inputs, execution and completion still applies.
-A specialised host can require readiness reporting from the programs it runs, but that requirement must be explicit.
-A program running in another host can use the toolkit without having to implement readiness reporting.
 
 Application authors decide what their programs need in order to run.
 For example, an author whose program writes files can let the caller supply the directory.
@@ -208,8 +209,8 @@ Test authors determine the interactions and outcomes relevant to that system.
 The toolkit provides access and lifecycle control without needing to interpret the application's protocols or business behaviour.
 Logs, metrics, traces and other observations can help explain a result; the adopting organisation chooses and interprets the evidence needed for its decisions.
 
-The adopting organisation retains ownership and authority over infrastructure, execution, reconciliation and deployment acceptance.
-Its operational hosts integrate the programs with the environments in which they run.
+Infrastructure ownership and authority over execution, reconciliation and deployment acceptance remain with the organisations responsible under the operating arrangement.
+Their operational hosts integrate the programs with the environments in which they run.
 Local tests contribute evidence about application and system behaviour, while deployment verification establishes the behaviour and operating conditions of the actual production arrangement.
 Process isolation, scheduling, network conditions and platform behaviour can materially affect that result.
 

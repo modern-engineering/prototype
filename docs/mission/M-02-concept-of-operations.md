@@ -112,8 +112,8 @@ Each operational host supplies the inputs and supervision needed in its environm
 The host may also integrate operating controls specific to that environment, such as readiness reporting.
 Engineers building it can reuse the execution packages behind the supplied host, keeping the environment's input handling and operating controls in their own code.
 Applications explicitly opt into additional capabilities they support.
-A host uses the capabilities it supports and follows documented defaults when an application does not provide them.
-Any capability required by a specialised host is an explicit condition of using that host.
+The adopting organisation decides whether a custom host uses fallback behaviour or rejects an application that lacks a capability.
+Any capability required by a host is an explicit condition of using that host.
 Those integrations require implementation and verification even when the application code is reused.
 
 The engineers responsible for the release check the actual deployed arrangement.

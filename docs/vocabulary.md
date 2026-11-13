@@ -97,7 +97,7 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
   [M-08 § Mission and boundary][M-08-boundary] explains the boundary with operational examples.
 - **Sustain** — `settled` — The work of the organisations responsible under the delivery arrangement to keep an operational solution fit for customer use through monitoring, maintenance, support, repair, change and capacity planning.
 - **System of interest** — `settled` — The toolkit when analysed within the next-larger context of the adopting organisation's software engineering and operating practices.
-- **Toolkit** — `settled` — The opinionated, open-source Go packages, supported extension mechanisms and reference tooling supplied by this project for constructing, configuring and running programs.
+- **Toolkit** — `settled` — The opinionated, open-source Go packages, supported extension mechanisms and executable tools supplied by this project for inspecting, constructing, configuring and running programs.
   It does not own the adopting organisation's infrastructure or replace its execution, reconciliation or deployment-acceptance authority.
 - **Transition into operation** — `settled` — The direction of work from **Design** through **Provision** and **Deploy** that makes a logical solution available for customer use, without prescribing a mandatory linear workflow.
 
