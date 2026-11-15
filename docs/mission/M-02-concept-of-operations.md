@@ -1,6 +1,7 @@
 ---
 status: draft
 since: 2026-08-13
+ratified-by: danielorbach
 derived-from:
   - M-01-business-mission-analysis
 derives:
