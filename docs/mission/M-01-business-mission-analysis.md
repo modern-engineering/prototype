@@ -1,6 +1,7 @@
 ---
 status: draft
 since: 2026-10-22
+ratified-by: danielorbach
 derives:
   - M-02-concept-of-operations
   - M-08-solution-management
