@@ -3,12 +3,12 @@ status: accepted
 since: 2026-08-25
 ratified-by: danielorbach
 derived-from:
-  - M-02-concept-of-operations
+  - M-08-solution-management
 ---
 
 # Sales-Led Demonstration
 
-Within the common frame from [M-02-concept-of-operations], this story follows a sales engineer carrying one temporary logical solution from a prospect's need through transition, revision and retirement.
+Within the common frame from [M-08 § Concept of Operations], this story follows a sales engineer carrying one temporary logical solution from a prospect's need through transition, revision and retirement.
 The prospect, an online retailer, is the business beneficiary and evaluates whether the demonstration helps investigate its problem; the solution's durable identity connects that need, the sales engineer's delivery work and the resulting evidence through time.
 
 Software engineering maintains the reusable applications, platform engineering maintains the reusable provisioning capabilities, and the qualified sales engineer combines them for each prospect-specific solution.
@@ -81,7 +81,8 @@ The adopting organisation establishes a distinct demonstration delivery path tha
 Routine sales changes pass through a mediated solution-design surface where the sales engineer can change solution definitions but not arbitrary repository content.
 The path compiles that intent into the GitOps-compatible files expected by the existing pipeline, rather than asking sales to edit inherited values, the application template or raw manifests that also shape customer production.
 Solution intent and generated resource effects can then be reviewed separately.
-Physical infrastructure and shared services may remain shared, but each effect now belongs to one logical solution with a durable identity and deadline.
+Physical infrastructure and shared services may remain shared.
+For each dedicated process, allocation and access change it creates for the demonstration, the delivery path records the solution's durable identity and retirement deadline.
 
 For this adopting organisation, the finite provisioning processes move from scattered tools into the catalogue as versioned Go code authored by the adopting organisation alongside the interfaces and applications they serve.
 Changes enter the established path through ordinary engineering review and release, so the sales engineer invokes maintained procedures rather than relying on acquaintance with their last author.
@@ -113,7 +114,8 @@ That distinction will later determine what retirement stops and what it releases
 Once the demonstration is operational, the retailer sends its authorised telemetry subset to the dedicated gateway and opens the dashboard through the shared dashboard access gateway to investigate the payment-latency behaviour in Kibana, while the vendor keeps the demonstration available until its deadline.
 The first session reveals that a payment-service signal already present in the authorised telemetry is not yet processed or presented by the demonstration, so the prospect asks for a follow-up.
 
-The sales engineer revises the design, sends updated artefacts through the same path and extends the deadline.
+The gateway can process that signal through its existing settings, and an existing Kibana dashboard definition can display it.
+The sales engineer selects those settings and the dashboard view in the design, sends updated artefacts through the same path and extends the deadline.
 Because the revised deadline remains within the sales engineer's delegated authority, it adds no managerial approval step.
 Only the Provision or Deploy work made necessary by the revision repeats; the applications may continue running.
 The logical solution keeps its identity, so attribution and history remain continuous while its intent and deadline change.
@@ -127,7 +129,8 @@ The demonstration retires on its own terms, and any production service for the r
 
 ## The solution in one glance
 
-This illustrative semantic sketch is not proposed syntax or field allocation; it simply gathers the solution's defining intent in one view.
+This illustrative semantic sketch shows the initial revision, before the follow-up extends its deadline.
+It is not proposed syntax or field allocation; it gathers the solution's defining intent in one view.
 
 ```text
 logical solution "retailer-payment-latency-demo" {
@@ -269,7 +272,7 @@ That acceptance does not depend on whether the prospect buys the product.
 Live telemetry makes the demonstration meaningful, the extension preserves its identity as intent changes, and retirement leaves no cleanup for specialists.
 Together, they establish dependable lifecycle agency for the sales team.
 
-[M-02-concept-of-operations]: M-02-concept-of-operations.md
+[M-08 § Concept of Operations]: M-08-solution-management.md#concept-of-operations
 [EDOT Collector]: https://www.elastic.co/docs/reference/edot-collector/
 [EDOT modes]: https://www.elastic.co/docs/reference/edot-collector/modes
 [role management]: https://www.elastic.co/docs/deploy-manage/users-roles/cluster-or-deployment-auth/kibana-role-management

@@ -13,7 +13,7 @@ When they report the problem, the operator on duty checks whether it is happenin
 
 ## Setting
 
-The [GitHub Status page in this story][M-08 § Setting] shows [the last reported condition of each service][M-09 § Setting].
+The [GitHub Status page in this story][M-04 § Setting] shows [the last reported condition of each service][M-05 § Setting].
 To help decide whether to warn other developers about delayed fetches, the operators run a Go program called a prober.
 It pushes and fetches on its own private repository even between incidents.
 The operators deploy and supervise it alongside their other services.
@@ -55,5 +55,5 @@ The engineer can repeat those pushes and reads locally as the fetch code changes
 So far only the fetches through the production route have shown the delay.
 The deployed prober keeps checking that route.
 
-[M-08 § Setting]: M-08-debugging-the-status-gateway.md#setting
-[M-09 § Setting]: M-09-testing-a-partial-recovery.md#setting
+[M-04 § Setting]: M-04-debugging-the-status-gateway.md#setting
+[M-05 § Setting]: M-05-testing-a-partial-recovery.md#setting
