@@ -1,7 +1,6 @@
 ---
 status: draft
 since: 2026-10-22
-ratified-by: danielorbach
 derives:
   - M-02-operational-concept
   - M-08-solution-management
@@ -230,6 +229,17 @@ A smaller local setup is valuable to the extent that it reduces total engineerin
 Using a common program implementation in several hosts provides a basis for reuse.
 It does not by itself establish equivalent behaviour across those hosts or eliminate the need to verify the integrations with each environment.
 Claims about portability, confidence and saved effort are limited to the conditions actually evaluated.
+
+## Project concept of operations
+
+The project uses this open-source repository to explore how a toolkit could improve the engineering work described in [M-02-operational-concept].
+Maintainers use those scenarios to choose experiments, compare the effort and results with existing practice, and decide which parts of the approach to pursue.
+
+The code is intended for evaluation, and its interfaces may change as the project learns.
+The project defers formal arrangements for outside contributions, releases and production support during this phase.
+
+The project will consider moving beyond prototyping when results from representative work show benefits that justify the costs of adoption and maintenance.
+If it proceeds, the project will decide how to accept contributions and publish releases, and which versions it can maintain and support.
 
 ## What success looks like
 
