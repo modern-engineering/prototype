@@ -5,7 +5,7 @@ derived-from:
   - M-08-solution-management
 ---
 
-# ConOps Story: Controlled Disconnected Delivery
+# OpsCon Story: Controlled Disconnected Delivery
 
 ## New pumps at an isolated treatment plant
 

@@ -3,7 +3,7 @@ status: draft
 since: 2026-10-22
 ratified-by: danielorbach
 derives:
-  - M-02-concept-of-operations
+  - M-02-operational-concept
   - M-08-solution-management
 ---
 
@@ -269,7 +269,7 @@ Detailed system-testing practices, host policies and extensions for particular e
 Solution management adds separate questions about identity, handoff compatibility, authority and delivery economics.
 Those questions can be investigated without making their resolution a condition for evaluating the core mission.
 
-[M-02-concept-of-operations]: M-02-concept-of-operations.md
+[M-02-operational-concept]: M-02-operational-concept.md
 [Go-reproducible-toolchains]: https://go.dev/blog/rebuild#making-a-build-reproducible
 
 [M-08-solution-management]: M-08-solution-management.md
