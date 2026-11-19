@@ -3,10 +3,10 @@ status: draft
 since: 2026-11-03
 ratified-by: danielorbach
 derived-from:
-  - M-02-concept-of-operations
+  - M-02-operational-concept
 ---
 
-# ConOps Story: Testing a Partial Recovery
+# OpsCon Story: Testing a Partial Recovery
 
 Suppose Git pushes are failing and Actions workflows are stuck in the queue.
 Pushes start working again while workflows are still stuck.

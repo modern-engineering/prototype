@@ -3,10 +3,10 @@ status: draft
 since: 2026-11-10
 ratified-by: danielorbach
 derived-from:
-  - M-02-concept-of-operations
+  - M-02-operational-concept
 ---
 
-# ConOps Story: Adopting the Toolkit
+# OpsCon Story: Adopting the Toolkit
 
 Before Ziv can debug the [GitHub Status gateway on her laptop][M-04-debugging-the-status-gateway], the team has to make its existing programs usable there.
 This story imagines that earlier work, starting with one service and extending the migration as the team finds uses for it.

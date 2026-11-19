@@ -3,7 +3,7 @@ status: draft
 since: 2026-10-22
 ratified-by: danielorbach
 derives:
-  - M-02-concept-of-operations
+  - M-02-operational-concept
   - M-08-solution-management
 ---
 
@@ -231,6 +231,19 @@ Using a common program implementation in several hosts provides a basis for reus
 It does not by itself establish equivalent behaviour across those hosts or eliminate the need to verify the integrations with each environment.
 Claims about portability, confidence and saved effort are limited to the conditions actually evaluated.
 
+## Project concept of operations
+
+The maintainers use this open-source repository to build prototypes of the toolkit.
+They try the prototypes on the kinds of engineering work described in [M-02-operational-concept].
+They look at what work the toolkit saves or adds and whether it helps engineers check system behaviour.
+Those observations guide which ideas they develop further.
+
+The code is intended for evaluation, and its interfaces may change as the project learns.
+The project defers formal arrangements for outside contributions, releases and production support during this phase.
+
+The project will consider moving beyond prototyping when results from representative work show benefits that justify the costs of adoption and maintenance.
+If it proceeds, the project will decide how to accept contributions and publish releases, and which versions it can maintain and support.
+
 ## What success looks like
 
 Consider an organisation whose process for delivering a change has grown across several teams.
@@ -269,7 +282,7 @@ Detailed system-testing practices, host policies and extensions for particular e
 Solution management adds separate questions about identity, handoff compatibility, authority and delivery economics.
 Those questions can be investigated without making their resolution a condition for evaluating the core mission.
 
-[M-02-concept-of-operations]: M-02-concept-of-operations.md
+[M-02-operational-concept]: M-02-operational-concept.md
 [Go-reproducible-toolchains]: https://go.dev/blog/rebuild#making-a-build-reproducible
 
 [M-08-solution-management]: M-08-solution-management.md

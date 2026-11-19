@@ -12,7 +12,7 @@ derives:
   - M-07-one-responsibility-model-across-platforms
 ---
 
-# Concept of Operations
+# Operational Concept
 
 This document describes how developers and coding agents use the toolkit to investigate changes, test cooperating programs and run applications in production.
 It follows the work from a question about system behaviour to a repeatable way of checking it, and from observations in operation back to development.
@@ -168,7 +168,7 @@ Each deployment still requires checks through its own route and operating contro
 
 ## Other operating settings
 
-[M-08 § Concept of Operations] follows tailored solutions through delivery, change, customer use and retirement, with stories about demonstrations, a merchant service, factories and a disconnected plant.
+[M-08 § Operational Concept] follows tailored solutions through delivery, change, customer use and retirement, with stories about demonstrations, a merchant service, factories and a disconnected plant.
 The solution-management mission and its additional business acceptance criteria are developed in that document.
 
 ## Open operational questions
@@ -190,4 +190,4 @@ Testing APIs, host policies and compatibility rules remain design questions to b
 [M-05 on testing a partial recovery]: M-05-testing-a-partial-recovery.md
 [M-06 on probing Git operations]: M-06-probing-git-operations.md
 [M-07-one-responsibility-model-across-platforms]: M-07-one-responsibility-model-across-platforms.md
-[M-08 § Concept of Operations]: M-08-solution-management.md#concept-of-operations
+[M-08 § Operational Concept]: M-08-solution-management.md#operational-concept

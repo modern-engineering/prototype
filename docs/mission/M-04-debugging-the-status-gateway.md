@@ -3,10 +3,10 @@ status: draft
 since: 2026-11-03
 ratified-by: danielorbach
 derived-from:
-  - M-02-concept-of-operations
+  - M-02-operational-concept
 ---
 
-# ConOps Story: Debugging the Status Gateway
+# OpsCon Story: Debugging the Status Gateway
 
 This story imagines the team behind [GitHub Status] asking Ziv to lift the page's refresh limit for signed-in visitors.
 She wants to try the change in her browser before anyone deploys it.
@@ -57,5 +57,5 @@ If the first edit fails, the agent can keep investigating without asking someone
 The team can compare the time to a working fix, the help the agent needed and the cost of maintaining the local program, as described in [M-01 § Mission and opportunity].
 
 [GitHub Status]: https://www.githubstatus.com/
-[M-02 § Engineering GitHub Status]: M-02-concept-of-operations.md#engineering-github-status
+[M-02 § Engineering GitHub Status]: M-02-operational-concept.md#engineering-github-status
 [M-01 § Mission and opportunity]: M-01-business-mission-analysis.md#mission-and-opportunity

@@ -50,7 +50,7 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 - **Operational solution** — `settled` — The realised, usable form of a logical solution: its intended applications are running, its required backing capabilities are usable, and it is available to its users.
   It retains the logical solution's identity and is not a second solution.
 - **Operational story** — `provisional` — A bounded, time-sequenced account of engineering or operating work that exposes the people, tools, authorities, interactions and conditions that affect the outcome.
-  [M-02-concept-of-operations] frames the backend engineering stories; [M-08-solution-management] frames the solution-delivery stories.
+  [M-02-operational-concept] frames the backend engineering stories; [M-08-solution-management] frames the solution-delivery stories.
 - **Business beneficiary** — `settled` — A business entity whose needs justify a logical solution and against whose needs that solution is designed and validated.
   Consuming an operational service does not by itself establish this relationship, and the relationship grants no lifecycle or deployment-acceptance authority.
 - **Partial adoption** — `settled` — Legitimate use of a bounded subset of capabilities that demonstrates only the outcomes exercised and must not be presented as the full mission result.
@@ -104,5 +104,5 @@ The labels below describe confidence in a vocabulary entry, not a document lifec
 [D-05-document-relationships]: adr/D-05-document-relationships.md
 [M-01-business-mission-analysis]: mission/M-01-business-mission-analysis.md
 [M-08-boundary]: mission/M-08-solution-management.md#mission-and-boundary
-[M-02-concept-of-operations]: mission/M-02-concept-of-operations.md
+[M-02-operational-concept]: mission/M-02-operational-concept.md
 [M-08-solution-management]: mission/M-08-solution-management.md

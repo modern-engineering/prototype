@@ -3,10 +3,10 @@ status: draft
 since: 2026-11-03
 ratified-by: danielorbach
 derived-from:
-  - M-02-concept-of-operations
+  - M-02-operational-concept
 ---
 
-# ConOps Story: Probing Git Operations
+# OpsCon Story: Probing Git Operations
 
 A developer pushes a fix and Git says the push succeeded.
 A colleague fetches the same branch and gets the commit from before the fix.

@@ -62,7 +62,7 @@ A vendor may operate the service itself, or support software and procedures that
 The customer then controls local changes, acceptance and the release of evidence.
 Exchanging an artefact transfers none of those decisions.
 
-## Concept of Operations
+## Operational Concept
 
 ### Establish the intended service
 

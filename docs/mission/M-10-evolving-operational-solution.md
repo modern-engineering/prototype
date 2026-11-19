@@ -14,7 +14,7 @@ They must meet new needs and recover from a failed upgrade while keeping the ser
 The solution runs on Linux VMs under Stripe's control.
 Stripe's [published account of its build infrastructure][Stripe-build-infrastructure] describes Linux virtual machines, not this payment deployment.
 The merchant-specific solution, systemd supervision, toolkit adoption, responsibilities, capabilities and events are invented.
-The lifecycle meanings follow [M-08 § Concept of Operations].
+The lifecycle meanings follow [M-08 § Operational Concept].
 
 ## Growing beyond the classification pilot
 
@@ -146,4 +146,4 @@ Stripe now sustains the same logical solution with one fewer daemon, while its h
 Removing the experiment simplifies its operational life rather than ending it.
 
 [Stripe-build-infrastructure]: https://stripe.dev/blog/fast-secure-builds-choose-two
-[M-08 § Concept of Operations]: M-08-solution-management.md#concept-of-operations
+[M-08 § Operational Concept]: M-08-solution-management.md#operational-concept

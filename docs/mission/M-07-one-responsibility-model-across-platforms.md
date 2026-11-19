@@ -2,10 +2,10 @@
 status: draft
 since: 2026-09-12
 derived-from:
-  - M-02-concept-of-operations
+  - M-02-operational-concept
 ---
 
-# ConOps Story: Running the Same Application in Three Clouds
+# OpsCon Story: Running the Same Application in Three Clouds
 
 An engineer wants a coding agent to help change the rules for accepting customer events in a Go service that runs in AWS, Azure and Google Cloud.
 She needs a way for both of them to run the service and check the change before it reaches the company's three deployment paths.
@@ -126,5 +126,5 @@ Whether that work pays off depends on the setup and maintenance it saves over la
 
 [HTTP Tracking API]: https://www.twilio.com/docs/segment/connections/sources/catalog/libraries/server/http-api
 [M-01 § Mission and opportunity]: M-01-business-mission-analysis.md#mission-and-opportunity
-[M-02 § Use the applications in production]: M-02-concept-of-operations.md#use-the-applications-in-production
+[M-02 § Use the applications in production]: M-02-operational-concept.md#use-the-applications-in-production
 [Track specification]: https://www.twilio.com/docs/segment/connections/spec/track
