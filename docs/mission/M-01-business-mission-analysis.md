@@ -233,7 +233,8 @@ Claims about portability, confidence and saved effort are limited to the conditi
 ## Project concept of operations
 
 The project uses this open-source repository to explore how a toolkit could improve the engineering work described in [M-02-operational-concept].
-Maintainers use those scenarios to choose experiments, compare the effort and results with existing practice, and decide which parts of the approach to pursue.
+For example, the maintainers can take a bug that involves several services and try to reproduce it in a Go test.
+They can compare the setup required with and without the toolkit and check that the test exposes the same failure.
 
 The code is intended for evaluation, and its interfaces may change as the project learns.
 The project defers formal arrangements for outside contributions, releases and production support during this phase.
